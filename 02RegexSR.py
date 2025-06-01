@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """
-create code that will use regex to repace all occurences of 'dog' with 'cat' in the string 'dog cat dog cat dog'. Save the result in a variable called 'NewString'.                       
-echo "dog cat dog cat dog">> sample.txt
-
-
+Create code that will use regex to replace all occurrences of 'dog' with 'cat' 
+in the string 'dog cat dog cat dog'. Save the result in a variable called 'NewString'.
 """
 import re
 import os
 
+# First, create the sample.txt file with the content
+original_string = "dog cat dog cat dog"
+with open('sample.txt', 'w') as file:
+    file.write(original_string)
+
+# Read the file
 with open('sample.txt', 'r') as file:
-    original_string = file.read()
+    file_content = file.read()
 
 # Replace all occurrences of 'dog' with 'cat' in the string
+NewString = re.sub(r'dog', 'cat', file_content)
 
-NewString = re.sub(r'cat', 'dog', original_string)
+print(f"Original: {file_content}")
+print(f"Modified: {NewString}")
 
 # save the NewString back to the file
 with open('sample.txt', 'w') as file:
