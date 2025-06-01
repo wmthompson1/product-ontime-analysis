@@ -5,36 +5,7 @@ channel = "stable-24_05"
 packages = ["nano", "vim"]
 
 [workflows]
-runButton = "Run my03regex"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Python Hello World"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "python_hello_world"
-
-[[workflows.workflow]]
-name = "Python Hello World"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 helloWorld.py"
-
-[[workflows.workflow]]
-name = "python_hello_world"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 helloWorld.py"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Run my03regex"
@@ -45,5 +16,27 @@ mode = "sequential"
 task = "shell.exec"
 args = "python3 02palette.py"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Flask App"
+
+[[workflows.workflow]]
+name = "Flask App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python main.py"
+waitForPort = 5000
+
 [deployment]
 run = ["sh", "-c", "python3 helloWorld.py"]
+
+[[ports]]
+localPort = 5000
+externalPort = 80
