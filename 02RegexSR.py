@@ -6,6 +6,7 @@ echo "dog cat dog cat dog">> sample.txt
 
 """
 import re
+import os
 
 with open('sample.txt', 'r') as file:
     original_string = file.read()
@@ -17,8 +18,6 @@ NewString = re.sub(r'cat', 'dog', original_string)
 # save the NewString back to the file
 with open('sample.txt', 'w') as file:
     file.write(NewString)
-
-import os
 
 # Rename files with filename containing 'sample' by replacing the string 'sample' with 'new'
 for filename in os.listdir('.'):  
