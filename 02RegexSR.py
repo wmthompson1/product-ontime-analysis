@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
 """
-I would like to revise the 02RegexSR script to replace '555' with '800' in the test strings.
+create code that will use regex to repace all occurences of 'dog' with 'cat' in the string 'dog cat dog cat dog'. Save the result in a variable called 'NewString'.                       
+echo "dog cat dog cat dog">> sample.txt
 
 
 """
 import re
 
-# Define a regex pattern for a phone number
-pattern = re.compile(r'\b\d{3}-\d{3}-\d{4}\b')
+with open('sample.txt', 'r') as file:
+    original_string = file.read()
 
-# Define test strings
-test_strings = ['800-1212', 'ILL', '800-800-1212', '123-123-1234']
+# Replace all occurrences of 'dog' with 'cat' in the string
 
-# Check if the test strings match the pattern
-for test_string in test_strings:
-    if pattern.match(test_string):
-        print(f"{test_string} matches the phone number pattern.")
-    else:
-        print(f"{test_string} does not match the phone number pattern.")
+NewString = re.sub(r'cat', 'dog', original_string)
+
+# save the NewString back to the file
+with open('sample.txt', 'w') as file:
+    file.write(NewString)
+
+import os
+
+# Rename files with filename containing 'sample' by replacing the string 'sample' with 'new'
+for filename in os.listdir('.'):  
+    if 'sample' in filename:
+        new_filename = filename.replace('sample', 'new')
+        os.rename(filename, new_filename)
+
+

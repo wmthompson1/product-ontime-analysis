@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["nano", "vim"]
 
 [workflows]
-runButton = "Project"
+runButton = "python_hello_world"
 
 [[workflows.workflow]]
 name = "Project"
