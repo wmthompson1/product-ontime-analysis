@@ -5,4 +5,8 @@ This script prints "Hello World" to the console when executed.
 """
 
 # Print the classic "Hello World" message
-print("Hello World")
+print("Hello World 2")
+
+def greeting(name):
+  
+
