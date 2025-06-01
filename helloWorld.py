@@ -14,5 +14,7 @@ def greeting(name):
 # Example usage of the greeting function
 if __name__ == "__main__":
     # You can uncomment the line below to test the greeting function
-    # print(greeting("Python"))
+    # print(greeting("William"))
     pass
+
+
