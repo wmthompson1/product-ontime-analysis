@@ -1,35 +1,25 @@
-#!/usr/bin/env python3
-"""
-Create code that will use regex to replace all occurrences of 'dog' with 'cat' 
-in the string 'dog cat dog cat dog'. Save the result in a variable called 'NewString'.
-"""
-import re
 import os
 
-# First, create the sample.txt file with the content
-original_string = "dog cat dog cat dog"
-with open('sample.txt', 'w') as file:
-    file.write(original_string)
+folder_name = "/home/runner/workspace/"
+full_path = os.path.join(folder_name,"romeo.txt")
+print (full_path)
 
-# Read the file
-with open('sample.txt', 'r') as file:
-    file_content = file.read()
+with open(full_path, "r") as file:
+    contents = file.read()
+    print(contents)
 
-# Replace all occurrences of 'dog' with 'cat' in the string
-NewString = re.sub(r'dog', 'cat', file_content)
+num_list = [92, 11, 33, 59, 12, 65, 9, 43, 55, 1]
 
-print(f"Original: {file_content}")
-print(f"Modified: {NewString}")
+search_term = input("Enter a number to divide by:")
 
-# save the NewString back to the file
-with open('sample.txt', 'w') as file:
-    file.write(NewString)
+print("Starting loop")
 
-# Rename files with filename containing 'sample' by replacing the string 'sample' with 'new'
+for num in num_list:
+    try:
+        num = num // int(search_term)
+        print(num)
+    except:
+        print("Incompatible divisor entered.")
+        break
 
-for filename in os.listdir('.'):  
-    if 'sample' in filename:
-        new_filename = filename.replace('sample', 'new')
-        os.rename(filename, new_filename)
-
-
+print("Loop ended")
