@@ -212,4 +212,19 @@ def demo_page():
     return html
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import socket
+    
+    # Find an available port starting from 5000
+    def find_free_port(start_port=5000):
+        for port in range(start_port, start_port + 100):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('0.0.0.0', port))
+                    return port
+            except OSError:
+                continue
+        return 5000  # fallback
+    
+    port = find_free_port()
+    print(f"Starting Flask app on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=True)
