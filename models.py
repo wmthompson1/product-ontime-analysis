@@ -1,9 +1,15 @@
-from main import db
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+# Import db from main will be done after app context is created
+db = None
 
-class User(db.Model):
+def init_models(database):
+    """Initialize models with the database instance"""
+    global db
+    db = database
+
+class User(db.Model if db else object):
     """Example User model for the database."""
     __tablename__ = 'users'
     
