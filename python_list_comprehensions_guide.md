@@ -177,7 +177,7 @@ primes = [x for x in range(2, 50) if is_prime(x)]
 ```python
 sentences = ['Hello world', 'Python is great', 'List comprehensions rock']
 long_sentences = [s.upper() for s in sentences if len(s.split()) >= 3]
-# Result: ['LIST COMPREHENSIONS ROCK']
+# Result: ['PYTHON IS GREAT', 'LIST COMPREHENSIONS ROCK']
 
 # Extract words containing specific letters
 text = "The quick brown fox jumps over the lazy dog"
