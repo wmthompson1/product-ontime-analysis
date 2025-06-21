@@ -1,3 +1,2 @@
-# Color palette generator
-print("Color palette placeholder")
-
+# Color palette generator - placeholder file
+print("Color palette functionality")
