@@ -1,16 +1,4 @@
-# curl http://localhost:5000/api/users
+# python unicode_grid_solver.py "https://docs.google.com/document/d/e/2PACX-1vTER-wL5E8YC9pxDx43gk8eIds59GtUUk4nJo_ZWagbnrH0NFvMXIw6VWFLpf5tWTZIT9P9oLIoFJ6A/pub"
+# https://docs.google.com/document/d/e/2PACX-1vTER-wL5E8YC9pxDx43gk8eIds59GtUUk4nJo_ZWagbnrH0NFvMXIw6VWFLpf5tWTZIT9P9oLIoFJ6A/pub
 
-# curl http://localhost:5000/api/demo
-
-# https://9885a95f-5ab2-441a-b79a-7fe6a57d2320-00-133f632yjz64j.riker.replit.dev/demo
-
-# I stand corrected - I should have briefed through instructions on using the replit web browser's preview panel to view the demo page.
-
-'''
-You visited the demo page (GET /demo HTTP/1.1 200)
-Tested the health check endpoint (GET /api/health HTTP/1.1 200)
-Retrieved users (GET /api/users HTTP/1.1 200)
-Created a new user (POST /api/users HTTP/1.1 201)
-Retrieved users again to see the new data (GET /api/users HTTP/1.1 200)
-
-'''
+python unicode_grid_solver.py "https://docs.google.com/document/d/e/2PACX-1vTER-wL5E8YC9pxDx43gk8eIds59GtUUk4nJo_ZWagbnrH0NFvMXIw6VWFLpf5tWTZIT9P9oLIoFJ6A/pub"
