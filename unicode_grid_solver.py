@@ -146,21 +146,28 @@ def parse_unicode_data(text):
     return entries
 
 def parse_condensed_format(line):
-    """Parse condensed format like '0█00█10█21▀11▀22▀12▀23▀2'"""
+    """Parse condensed format like '27█052█217█644░364█546█12░121█345█185█552█047░152█567█079░115█32░434█318░062░682█016░387░283█377█184█343█142█558█630█566░37█00█423█185█143█215█277█254█013█653█464█652█34'"""
     entries = []
     
-    # Look for the actual data part (after "coordinate")
-    if 'coordinate' in line:
-        # Find the data after the last occurrence of "coordinate"
-        data_start = line.rfind('coordinate') + len('coordinate')
+    # Look for the actual data part (after "y-coordinate")
+    if 'y-coordinate' in line:
+        data_start = line.find('y-coordinate') + len('y-coordinate')
+        data_part = line[data_start:]
+    elif 'coordinate' in line:
+        data_start = line.rfind('coordinate') + len('coordinate') 
+        # Skip "Character" if present
+        if data_part.startswith('Character'):
+            data_start += len('Character')
         data_part = line[data_start:]
     else:
         data_part = line
     
-    # Parse pattern: digit(s) + unicode_char + digit(s)
+    # This format appears to be: x_coord + unicode_char + y_coord + x_coord + unicode_char + y_coord...
+    # We need to parse carefully to distinguish coordinates from each other
+    
     i = 0
     while i < len(data_part):
-        # Skip non-digit characters until we find digits
+        # Skip any non-digit characters
         while i < len(data_part) and not data_part[i].isdigit():
             i += 1
         
@@ -176,9 +183,20 @@ def parse_condensed_format(line):
         if i >= len(data_part) or not x_str:
             break
         
-        # Next character should be the Unicode character
-        char = data_part[i]
-        i += 1
+        # Next should be the Unicode character
+        if i < len(data_part) and not data_part[i].isdigit():
+            char = data_part[i]
+            i += 1
+        else:
+            # If next char is digit, we might have missed something
+            continue
+        
+        if i >= len(data_part):
+            break
+        
+        # Skip any non-digit characters before y-coordinate
+        while i < len(data_part) and not data_part[i].isdigit():
+            i += 1
         
         if i >= len(data_part):
             break
