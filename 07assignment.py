@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 f = open('SP500.txt','r')
 max_x = 0
