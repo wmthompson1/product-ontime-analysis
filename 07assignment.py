@@ -18,7 +18,7 @@ for lines in f:
 
    date1 = datetime.strptime(date0, '%m/%d/%Y')
    #print(date1)
-   if start_date >= date1 <= end_date:
+   if start_date <= date1 <= end_date:
       x = float(fields[1])
       print(x)
       if x > max_x:
