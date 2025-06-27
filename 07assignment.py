@@ -2,9 +2,12 @@ from datetime import datetime
 
 f = open('SP500.txt', 'r')
 max_x = 0.0
+count = 0
+accum = 0.0
 
-start_date = datetime(2016, 1, 1)
-end_date = datetime(2017, 12, 31)
+start_date = datetime(2016, 6, 1)
+end_date = datetime(2017, 5, 31)
+max_date = start_date
 
 for lines in f:
    fields = lines.split(',')
@@ -19,9 +22,15 @@ for lines in f:
    date1 = datetime.strptime(date0, '%m/%d/%Y')
    #print(date1)
    if start_date <= date1 <= end_date:
-      x = float(fields[1])
-      print(x)
+      count += 1
+      accum = accum + float(fields[1])
+
+      x = float(fields[5])
+      # print(x)
       if x > max_x:
          max_x = x
          max_date = date1
-         print(max_x, max_date)
+mean_SP = accum / count
+max_interest = max_x
+print(max_interest)
+print(round(mean_SP, 4))
