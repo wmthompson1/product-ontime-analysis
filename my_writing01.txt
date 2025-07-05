@@ -1,0 +1,9 @@
+AI is used for Analytics, currently handled by other technologies and database structures. One problem solved by AI is simplifying the querying of data to natural language.  
+
+An example of a problem NOT solved is non-standard sales data that may be difficult to extract by name (data from one source may be referenced differently than another). A typical data analyst may not be aware of the types or amount of work needed to prep the data for AI.
+
+One way AI might create value is that users don't have to code a query or know how to do so to get data for measures and KPIs. If data is needed for a specific period, the user can request it, for example, 'amount sold last month'.
+
+Initially, there will be bottlenecks, slowing down the process of training data. A typical data analyst may not be prepared for these slowdowns. Leading up to successful implementation, data analysts may become more confident that the data is descriptive enough to enable at least a starting point.
+
+
