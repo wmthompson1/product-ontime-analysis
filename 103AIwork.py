@@ -1,33 +1,9 @@
-import requests
-import json
+from openai import OpenAI
+client = OpenAI()
 
-import os
+response = client.responses.create(
+    model="gpt-4.1",
+    input="Write a one-sentence bedtime story about a unicorn."
+)
 
-# OpenAI API configuration
-url = "https://api.openai.com/v1/chat/completions"
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
-}
-
-data = {
-    "model": "gpt-4o-mini",
-    "store": True,
-    "messages": [{
-        "role": "user",
-        "content": "write a haiku about ai"
-    }]
-}
-
-try:
-  response = requests.post(url, headers=headers, json=data)
-
-  if response.status_code == 200:
-    result = response.json()
-    print(json.dumps(result, indent=2))
-  else:
-    print(f"Error: {response.status_code}")
-    print(response.text)
-
-except Exception as e:
-  print(f"An error occurred: {e}")
+print(response.output_text)
