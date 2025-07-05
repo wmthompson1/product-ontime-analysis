@@ -1,11 +1,13 @@
 import requests
 import json
 
+import os
+
 # OpenAI API configuration
 url = "https://api.openai.com/v1/chat/completions"
 headers = {
     "Content-Type": "application/json",
-    "Authorization": "Bearer "  # Replace with your actual API key
+    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
 }
 
 data = {
