@@ -1,3 +1,8 @@
+"""
+open my postgres database and run a query to first create extension then create table and then insert data into the table
+
+"""
+
 from sentence_transformers import SentenceTransformer, util
 import psycopg2from sentence_transformers import SentenceTransformer, util
 
@@ -19,15 +24,8 @@ conn = psycopg2.connect(os.getenv('DATABASE_URL'))
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Fetch descriptions
-cur.execute("SELECT id, description FROM products")
-rows = cur.fetchall()
+from db import cursor
 
-# Compute embeddings
-descriptions = [r[1] for r in rows]
-embeddings = model.encode(descriptions, convert_to_tensor=True)
-
-# Find matches (e.g., via cosine similarity)
-similarities = util.pytorch_cos_sim(embeddings, embeddings)
-
-# Post-process to cluster or associate products with inferred SKU group
-🔧
+cursor.execute(
+CREATE EXTENSION IF NOT EXISTS vector;
+)
