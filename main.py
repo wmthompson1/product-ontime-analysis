@@ -3,8 +3,10 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 
+
 class Base(DeclarativeBase):
     pass
+
 
 # Create Flask app and database
 app = Flask(__name__)
@@ -20,15 +22,18 @@ db.init_app(app)
 
 # Import and initialize models
 from models import create_user_model
+
 User = create_user_model(db)
 
 # Create tables
 with app.app_context():
     db.create_all()
 
+
 @app.route('/')
 def hello():
     return "Hello World! Database is connected."
+
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
@@ -40,52 +45,48 @@ def get_users():
         'email': user.email
     } for user in users])
 
+
 @app.route('/api/users', methods=['POST'])
 def create_user():
     """Create a new user"""
     data = request.get_json()
-    
+
     if not data or 'name' not in data or 'email' not in data:
         return jsonify({'error': 'Name and email are required'}), 400
-    
+
     user = User(name=data['name'], email=data['email'])
     db.session.add(user)
     db.session.commit()
-    
+
     return jsonify({
         'id': user.id,
         'name': user.name,
         'email': user.email
     }), 201
 
+
 @app.route('/api/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     """Get a specific user"""
     user = User.query.get_or_404(user_id)
-    return jsonify({
-        'id': user.id,
-        'name': user.name,
-        'email': user.email
-    })
+    return jsonify({'id': user.id, 'name': user.name, 'email': user.email})
+
 
 @app.route('/api/users/<int:user_id>', methods=['PUT'])
 def update_user(user_id):
     """Update a user"""
     user = User.query.get_or_404(user_id)
     data = request.get_json()
-    
+
     if 'name' in data:
         user.name = data['name']
     if 'email' in data:
         user.email = data['email']
-    
+
     db.session.commit()
-    
-    return jsonify({
-        'id': user.id,
-        'name': user.name,
-        'email': user.email
-    })
+
+    return jsonify({'id': user.id, 'name': user.name, 'email': user.email})
+
 
 @app.route('/api/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
@@ -93,17 +94,22 @@ def delete_user(user_id):
     user = User.query.get_or_404(user_id)
     db.session.delete(user)
     db.session.commit()
-    
+
     return jsonify({'message': 'User deleted successfully'}), 200
+
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return jsonify({
-        'status': 'healthy',
-        'database': 'connected',
-        'timestamp': db.session.execute(db.text('SELECT NOW()')).scalar()
+        'status':
+        'healthy',
+        'database':
+        'connected',
+        'timestamp':
+        db.session.execute(db.text('SELECT NOW()')).scalar()
     })
+
 
 @app.route('/demo', methods=['GET'])
 def demo_page():
@@ -203,6 +209,7 @@ def demo_page():
     </html>
     """
     return html
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
