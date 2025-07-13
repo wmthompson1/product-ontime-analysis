@@ -39,9 +39,9 @@ query_text = "bluetooth headphones"
 query_embedding = model.encode(query_text).tolist()
 
 cursor.execute("""
-SELECT id, description, 1 - (embedding <=> %s) as similarity
+SELECT id, description, 1 - (embedding <=> %s::vector) as similarity
 FROM products 
-ORDER BY embedding <=> %s 
+ORDER BY embedding <=> %s::vector 
 LIMIT 5;
 """, (query_embedding, query_embedding))
 
