@@ -18,16 +18,9 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
-# Define User model directly here
-class User(db.Model):
-    __tablename__ = 'users'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    
-    def __repr__(self):
-        return f'<User {self.name}>'
+# Import and initialize models
+from models import create_user_model
+User = create_user_model(db)
 
 # Create tables
 with app.app_context():
