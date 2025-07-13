@@ -14,7 +14,7 @@ query = "Canon digital camera"
 query_vec = model.encode(query).tolist()
 
 cursor.execute("""
-    SELECT id, description, embedding <#> %s AS distance
+    SELECT id, description, embedding <#> %s::vector AS distance
     FROM products
     ORDER BY distance ASC
     LIMIT 5
