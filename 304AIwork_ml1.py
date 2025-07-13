@@ -14,15 +14,16 @@ query_vec = model.encode(query).tolist()
 
 cursor.execute(
     """
-    SELECT id, description, embedding <#> %s::vector AS distance
+    SELECT id, description, 1 - (embedding <=> %s::vector) AS similarity
     FROM products
-    ORDER BY distance ASC
+    ORDER BY embedding <=> %s::vector
     LIMIT 5
-""", (query_vec, ))
+""", (query_vec, query_vec))
 matches = cursor.fetchall()
 # need to render the matches
 for match in matches:
-    print(match)
-    # print(match[1])
-    # print(match[2])
+    id_val, description, distance = match
+    # Ensure distance is non-negative (handle floating-point precision issues)
+    distance = max(0.0, distance)
+    print(f"ID: {id_val}, Description: {description}, Distance: {distance:.6f}")
     print("")
