@@ -1,9 +1,25 @@
+# 301AIwork_ml1.py
+"""
+https://chatgpt.com/c/68730826-eefc-800b-9688-560f8e93931c    
+"""
 from sentence_transformers import SentenceTransformer, util
 import psycopg2
 import os
 
-# Connect using connection string
-conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Connect using db url
+# conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+
+# Connect using paraeters
+conn = psycopg2.connect(host=os.getenv("PGHOST"),
+                        port=os.getenv("PGPORT"),
+                        dbname=os.getenv("PGDATABASE"),
+                        user=os.getenv("PGUSER"),
+                        password=os.getenv("PGPASSWORD"))
+
 cursor = conn.cursor()
 
 cursor.execute("""
@@ -49,4 +65,4 @@ LIMIT 5;
 
 results = cursor.fetchall()
 for row in results:
-  print(f"ID: {row[0]}, Description: {row[1]}, Similarity: {row[2]:.4f}")
+    print(f"ID: {row[0]}, Description: {row[1]}, Similarity: {row[2]:.4f}")
