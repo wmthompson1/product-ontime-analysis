@@ -81,7 +81,22 @@ This is a Flask web application that provides RESTful API endpoints for user man
 
 ## Changelog
 - June 24, 2025. Initial setup
+- July 15, 2025. Comprehensive semantic layer for RAG-assisted SQL implementation with LangChain integration, safety guardrails, and production-ready architecture
+
+## Recent Major Changes
+
+### RAG-Assisted SQL Semantic Layer (July 15, 2025)
+- **Architecture**: Built comprehensive semantic layer with schema introspection, safety validation, and query generation
+- **Components**: 
+  - `app/semantic_layer.py`: LangChain-based NL to SQL conversion with complexity classification
+  - `app/schema_context.py`: Dynamic database schema inspection and context generation
+  - `app/database_executor.py`: Safe query execution with timeout and monitoring
+  - `app/main.py`: FastAPI REST API endpoints for semantic layer services
+- **Safety Features**: SQL injection prevention, operation whitelisting, parameter binding enforcement
+- **Monitoring**: Query statistics, execution timing, conversation memory, cost tracking
+- **Production Ready**: Comprehensive error handling, logging, rate limiting capabilities
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Technical preferences: LangChain for semantic layer, comprehensive safety guardrails for SQL execution, production-ready architecture with monitoring.
