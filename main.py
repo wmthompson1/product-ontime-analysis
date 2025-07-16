@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 
@@ -32,7 +32,8 @@ with app.app_context():
 
 @app.route('/')
 def hello():
-    return "Hello World! Database is connected."
+    from datetime import datetime
+    return render_template('index.html', current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 @app.route('/api/users', methods=['GET'])
