@@ -99,11 +99,37 @@ def delete_user(user_id):
     return jsonify({'message': 'User deleted successfully'}), 200
 
 
-@app.route('/my_model/<filename>')
+@app.route('/my_model/<filename>', methods=['GET', 'OPTIONS'])
 def serve_model_files(filename):
     """Serve Teachable Machine model files"""
+    if request.method == 'OPTIONS':
+        # Handle CORS preflight
+        response = app.make_default_options_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+    
     try:
-        return send_from_directory('my_model', filename)
+        from flask import Response
+        import mimetypes
+        
+        # Set proper content type based on file extension
+        if filename.endswith('.json'):
+            mimetype = 'application/json'
+        elif filename.endswith('.bin'):
+            mimetype = 'application/octet-stream'
+        else:
+            mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+        
+        response = send_from_directory('my_model', filename, mimetype=mimetype)
+        
+        # Add CORS headers to allow cross-origin requests
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        
+        return response
     except FileNotFoundError:
         return jsonify({'error': 'Model file not found'}), 404
 
@@ -219,8 +245,25 @@ def audio_classifier():
 
             async function createModel() {
                 try {
+                    console.log("Starting model creation...");
                     const checkpointURL = URL + "model.json";
                     const metadataURL = URL + "metadata.json";
+                    
+                    console.log("Model URLs:", { checkpointURL, metadataURL });
+                    
+                    // Test if files are accessible
+                    const modelResponse = await fetch(checkpointURL);
+                    const metadataResponse = await fetch(metadataURL);
+                    
+                    console.log("Model fetch status:", modelResponse.status);
+                    console.log("Metadata fetch status:", metadataResponse.status);
+                    
+                    if (!modelResponse.ok) {
+                        throw new Error(`Failed to fetch model.json: ${modelResponse.status}`);
+                    }
+                    if (!metadataResponse.ok) {
+                        throw new Error(`Failed to fetch metadata.json: ${metadataResponse.status}`);
+                    }
 
                     recognizer = speechCommands.create(
                         "BROWSER_FFT",
@@ -229,13 +272,15 @@ def audio_classifier():
                         metadataURL
                     );
 
+                    console.log("Created recognizer, loading model...");
                     await recognizer.ensureModelLoaded();
                     console.log("Model loaded successfully");
                     return recognizer;
                 } catch (error) {
-                    console.error("Error loading model:", error);
+                    console.error("Detailed error loading model:", error);
+                    console.error("Error stack:", error.stack);
                     document.getElementById('status').innerHTML = 
-                        '<span style="color: red;">Error: Could not load model. Check console for details.</span>';
+                        `<span style="color: red;">Error: ${error.message}</span>`;
                     return null;
                 }
             }
@@ -370,6 +415,33 @@ def audio_classifier():
     </html>
     """
     return html
+
+
+@app.route('/api/model-debug', methods=['GET'])
+def debug_model_files():
+    """Debug endpoint to check model files"""
+    import os
+    model_dir = 'my_model'
+    
+    try:
+        files = os.listdir(model_dir)
+        file_info = {}
+        
+        for file in files:
+            file_path = os.path.join(model_dir, file)
+            file_info[file] = {
+                'exists': os.path.exists(file_path),
+                'size': os.path.getsize(file_path) if os.path.exists(file_path) else 0,
+                'url': f'/my_model/{file}'
+            }
+        
+        return jsonify({
+            'model_directory': model_dir,
+            'files': file_info,
+            'expected_files': ['model.json', 'metadata.json', 'weights.bin']
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/audio-prediction', methods=['POST'])
