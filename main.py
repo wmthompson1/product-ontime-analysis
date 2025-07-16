@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 
@@ -98,6 +98,15 @@ def delete_user(user_id):
     return jsonify({'message': 'User deleted successfully'}), 200
 
 
+@app.route('/my_model/<filename>')
+def serve_model_files(filename):
+    """Serve Teachable Machine model files"""
+    try:
+        return send_from_directory('my_model', filename)
+    except FileNotFoundError:
+        return jsonify({'error': 'Model file not found'}), 404
+
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -109,6 +118,287 @@ def health_check():
         'timestamp':
         db.session.execute(db.text('SELECT NOW()')).scalar()
     })
+
+
+@app.route('/audio-classifier', methods=['GET'])
+def audio_classifier():
+    """Audio classification page using Teachable Machine model"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Audio Classification Demo</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                margin: 40px; 
+                background-color: #f5f5f5; 
+            }
+            .container { 
+                max-width: 800px; 
+                margin: 0 auto; 
+                background: white; 
+                padding: 30px; 
+                border-radius: 10px; 
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            }
+            button { 
+                padding: 15px 30px; 
+                margin: 10px; 
+                background: #007bff; 
+                color: white; 
+                border: none; 
+                cursor: pointer; 
+                border-radius: 5px; 
+                font-size: 16px; 
+            }
+            button:hover { background: #0056b3; }
+            button:disabled { background: #cccccc; cursor: not-allowed; }
+            .status { 
+                padding: 10px; 
+                margin: 10px 0; 
+                border-radius: 5px; 
+                font-weight: bold; 
+            }
+            .listening { background-color: #d4edda; color: #155724; }
+            .stopped { background-color: #f8d7da; color: #721c24; }
+            .prediction { 
+                margin: 10px 0; 
+                padding: 15px; 
+                background: #f8f9fa; 
+                border-left: 4px solid #007bff; 
+                border-radius: 4px; 
+            }
+            .prediction-item { 
+                margin: 5px 0; 
+                padding: 8px; 
+                background: white; 
+                border-radius: 4px; 
+                border: 1px solid #e9ecef; 
+            }
+            .high-confidence { background-color: #d1ecf1; }
+            .prediction-log { 
+                max-height: 300px; 
+                overflow-y: auto; 
+                border: 1px solid #ddd; 
+                padding: 10px; 
+                margin-top: 20px; 
+                background: #f8f9fa; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🎤 Audio Classification Demo</h1>
+            <p>Click "Start Listening" to begin audio classification using your trained Teachable Machine model.</p>
+            
+            <div id="status" class="status stopped">Status: Not listening</div>
+            
+            <button id="startBtn" onclick="startListening()">Start Listening</button>
+            <button id="stopBtn" onclick="stopListening()" disabled>Stop Listening</button>
+            
+            <div id="predictions" class="prediction">
+                <h3>Current Predictions:</h3>
+                <div id="label-container">Click "Start Listening" to see predictions...</div>
+            </div>
+            
+            <div class="prediction-log">
+                <h3>Prediction Log:</h3>
+                <div id="log-container"></div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
+
+        <script type="text/javascript">
+            const URL = "./my_model/";
+            let recognizer = null;
+            let isListening = false;
+
+            async function createModel() {
+                try {
+                    const checkpointURL = URL + "model.json";
+                    const metadataURL = URL + "metadata.json";
+
+                    recognizer = speechCommands.create(
+                        "BROWSER_FFT",
+                        undefined,
+                        checkpointURL,
+                        metadataURL
+                    );
+
+                    await recognizer.ensureModelLoaded();
+                    console.log("Model loaded successfully");
+                    return recognizer;
+                } catch (error) {
+                    console.error("Error loading model:", error);
+                    document.getElementById('status').innerHTML = 
+                        '<span style="color: red;">Error: Could not load model. Check console for details.</span>';
+                    return null;
+                }
+            }
+
+            async function startListening() {
+                if (!recognizer) {
+                    document.getElementById('status').textContent = "Loading model...";
+                    recognizer = await createModel();
+                    if (!recognizer) return;
+                }
+
+                const classLabels = recognizer.wordLabels();
+                const labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = '';
+                
+                for (let i = 0; i < classLabels.length; i++) {
+                    const div = document.createElement("div");
+                    div.className = "prediction-item";
+                    div.id = `prediction-${i}`;
+                    labelContainer.appendChild(div);
+                }
+
+                recognizer.listen(result => {
+                    const scores = result.scores;
+                    const timestamp = new Date().toLocaleTimeString();
+                    let maxScore = 0;
+                    let maxIndex = 0;
+                    
+                    // Update current predictions
+                    for (let i = 0; i < classLabels.length; i++) {
+                        const confidence = (scores[i] * 100).toFixed(1);
+                        const predictionDiv = document.getElementById(`prediction-${i}`);
+                        predictionDiv.innerHTML = `${classLabels[i]}: ${confidence}%`;
+                        
+                        // Highlight high confidence predictions
+                        if (scores[i] > 0.7) {
+                            predictionDiv.classList.add('high-confidence');
+                        } else {
+                            predictionDiv.classList.remove('high-confidence');
+                        }
+                        
+                        if (scores[i] > maxScore) {
+                            maxScore = scores[i];
+                            maxIndex = i;
+                        }
+                    }
+                    
+                    // Log prediction if confidence is high
+                    if (maxScore > 0.75) {
+                        logPrediction(classLabels[maxIndex], maxScore, timestamp);
+                        
+                        // Send to Flask API
+                        sendPredictionToAPI({
+                            label: classLabels[maxIndex],
+                            confidence: maxScore,
+                            timestamp: timestamp,
+                            all_scores: scores.map((score, idx) => ({
+                                label: classLabels[idx],
+                                confidence: score
+                            }))
+                        });
+                    }
+                }, {
+                    includeSpectrogram: true,
+                    probabilityThreshold: 0.75,
+                    invokeCallbackOnNoiseAndUnknown: true,
+                    overlapFactor: 0.50
+                });
+
+                isListening = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('status').className = 'status listening';
+                document.getElementById('status').textContent = 'Status: Listening for audio...';
+            }
+
+            function stopListening() {
+                if (recognizer && isListening) {
+                    recognizer.stopListening();
+                    isListening = false;
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('status').className = 'status stopped';
+                    document.getElementById('status').textContent = 'Status: Stopped listening';
+                }
+            }
+
+            function logPrediction(label, confidence, timestamp) {
+                const logContainer = document.getElementById('log-container');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `
+                    <strong>${timestamp}</strong>: Detected "${label}" 
+                    (${(confidence * 100).toFixed(1)}% confidence)
+                `;
+                logEntry.style.margin = '5px 0';
+                logEntry.style.padding = '5px';
+                logEntry.style.backgroundColor = 'white';
+                logEntry.style.borderRadius = '3px';
+                
+                logContainer.insertBefore(logEntry, logContainer.firstChild);
+                
+                // Keep only last 20 entries
+                while (logContainer.children.length > 20) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
+            }
+
+            async function sendPredictionToAPI(prediction) {
+                try {
+                    const response = await fetch('/api/audio-prediction', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(prediction)
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn('Failed to log prediction to API');
+                    }
+                } catch (error) {
+                    console.warn('Error sending prediction to API:', error);
+                }
+            }
+
+            // Initialize on page load
+            window.addEventListener('load', () => {
+                console.log('Audio classification page loaded');
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return html
+
+
+@app.route('/api/audio-prediction', methods=['POST'])
+def log_audio_prediction():
+    """API endpoint to log audio predictions"""
+    try:
+        data = request.get_json()
+        
+        # Log prediction (you could save to database here)
+        print(f"Audio Prediction: {data['label']} ({data['confidence']:.3f}) at {data['timestamp']}")
+        
+        # You could store this in your database like:
+        # prediction = AudioPrediction(
+        #     label=data['label'],
+        #     confidence=data['confidence'],
+        #     timestamp=data['timestamp']
+        # )
+        # db.session.add(prediction)
+        # db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Prediction logged successfully'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 
 @app.route('/demo', methods=['GET'])
@@ -132,6 +422,12 @@ def demo_page():
     </head>
     <body>
         <h1>Flask API Demo</h1>
+        
+        <div style="margin: 20px 0; padding: 15px; background: #e9ecef; border-radius: 5px;">
+            <h3>🎤 Audio Classification</h3>
+            <p>Try our Teachable Machine audio classifier:</p>
+            <a href="/audio-classifier" style="display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px;">Open Audio Classifier</a>
+        </div>
         
         <div class="endpoint">
             <h3>Create User (POST /api/users)</h3>
