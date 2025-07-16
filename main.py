@@ -239,7 +239,9 @@ def audio_classifier():
         <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
 
         <script type="text/javascript">
-            const URL = "/my_model/";
+            // Construct absolute URLs for the model files
+            const baseURL = window.location.origin;
+            const URL = baseURL + "/my_model/";
             let recognizer = null;
             let isListening = false;
 
