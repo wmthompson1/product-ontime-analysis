@@ -192,17 +192,17 @@ def audio_classifier():
         <div class="container">
             <h1>🎤 Audio Classification Demo</h1>
             <p>Click "Start Listening" to begin audio classification using your trained Teachable Machine model.</p>
-            
+
             <div id="status" class="status stopped">Status: Not listening</div>
-            
+
             <button id="startBtn" onclick="startListening()">Start Listening</button>
             <button id="stopBtn" onclick="stopListening()" disabled>Stop Listening</button>
-            
+
             <div id="predictions" class="prediction">
                 <h3>Current Predictions:</h3>
                 <div id="label-container">Click "Start Listening" to see predictions...</div>
             </div>
-            
+
             <div class="prediction-log">
                 <h3>Prediction Log:</h3>
                 <div id="log-container"></div>
@@ -213,7 +213,7 @@ def audio_classifier():
         <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
 
         <script type="text/javascript">
-            const URL = "./my_model/";
+            const URL = "/my_model/";
             let recognizer = null;
             let isListening = false;
 
@@ -250,7 +250,7 @@ def audio_classifier():
                 const classLabels = recognizer.wordLabels();
                 const labelContainer = document.getElementById("label-container");
                 labelContainer.innerHTML = '';
-                
+
                 for (let i = 0; i < classLabels.length; i++) {
                     const div = document.createElement("div");
                     div.className = "prediction-item";
@@ -263,30 +263,30 @@ def audio_classifier():
                     const timestamp = new Date().toLocaleTimeString();
                     let maxScore = 0;
                     let maxIndex = 0;
-                    
+
                     // Update current predictions
                     for (let i = 0; i < classLabels.length; i++) {
                         const confidence = (scores[i] * 100).toFixed(1);
                         const predictionDiv = document.getElementById(`prediction-${i}`);
                         predictionDiv.innerHTML = `${classLabels[i]}: ${confidence}%`;
-                        
+
                         // Highlight high confidence predictions
                         if (scores[i] > 0.7) {
                             predictionDiv.classList.add('high-confidence');
                         } else {
                             predictionDiv.classList.remove('high-confidence');
                         }
-                        
+
                         if (scores[i] > maxScore) {
                             maxScore = scores[i];
                             maxIndex = i;
                         }
                     }
-                    
+
                     // Log prediction if confidence is high
                     if (maxScore > 0.75) {
                         logPrediction(classLabels[maxIndex], maxScore, timestamp);
-                        
+
                         // Send to Flask API
                         sendPredictionToAPI({
                             label: classLabels[maxIndex],
@@ -334,9 +334,9 @@ def audio_classifier():
                 logEntry.style.padding = '5px';
                 logEntry.style.backgroundColor = 'white';
                 logEntry.style.borderRadius = '3px';
-                
+
                 logContainer.insertBefore(logEntry, logContainer.firstChild);
-                
+
                 // Keep only last 20 entries
                 while (logContainer.children.length > 20) {
                     logContainer.removeChild(logContainer.lastChild);
@@ -352,7 +352,7 @@ def audio_classifier():
                         },
                         body: JSON.stringify(prediction)
                     });
-                    
+
                     if (!response.ok) {
                         console.warn('Failed to log prediction to API');
                     }
@@ -377,10 +377,10 @@ def log_audio_prediction():
     """API endpoint to log audio predictions"""
     try:
         data = request.get_json()
-        
+
         # Log prediction (you could save to database here)
         print(f"Audio Prediction: {data['label']} ({data['confidence']:.3f}) at {data['timestamp']}")
-        
+
         # You could store this in your database like:
         # prediction = AudioPrediction(
         #     label=data['label'],
@@ -389,12 +389,12 @@ def log_audio_prediction():
         # )
         # db.session.add(prediction)
         # db.session.commit()
-        
+
         return jsonify({
             'status': 'success',
             'message': 'Prediction logged successfully'
         }), 200
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -423,55 +423,55 @@ def demo_page():
     </head>
     <body>
         <h1>Flask API Demo</h1>
-        
+
         <div style="margin: 20px 0; padding: 15px; background: #e9ecef; border-radius: 5px;">
             <h3>🎤 Audio Classification</h3>
             <p>Try our Teachable Machine audio classifier:</p>
             <a href="/audio-classifier" style="display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 5px;">Open Audio Classifier</a>
         </div>
-        
+
         <div class="endpoint">
             <h3>Create User (POST /api/users)</h3>
             <input type="text" id="name" placeholder="Name">
             <input type="email" id="email" placeholder="Email">
             <button onclick="createUser()">Create User</button>
         </div>
-        
+
         <div class="endpoint">
             <h3>Get All Users (GET /api/users)</h3>
             <button onclick="getUsers()">Get Users</button>
         </div>
-        
+
         <div class="endpoint">
             <h3>Health Check (GET /api/health)</h3>
             <button onclick="healthCheck()">Check Health</button>
         </div>
-        
+
         <div id="result">
             <h3>Response:</h3>
             <pre id="response">Click a button to test the API...</pre>
         </div>
-        
+
         <script>
         async function createUser() {
             const name = document.getElementById('name').value;
             const email = document.getElementById('email').value;
-            
+
             if (!name || !email) {
                 document.getElementById('response').textContent = 'Please enter both name and email';
                 return;
             }
-            
+
             try {
                 const response = await fetch('/api/users', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({name, email})
                 });
-                
+
                 const data = await response.json();
                 document.getElementById('response').textContent = JSON.stringify(data, null, 2);
-                
+
                 // Clear inputs on success
                 if (response.ok) {
                     document.getElementById('name').value = '';
@@ -481,7 +481,7 @@ def demo_page():
                 document.getElementById('response').textContent = 'Error: ' + error.message;
             }
         }
-        
+
         async function getUsers() {
             try {
                 const response = await fetch('/api/users');
@@ -491,7 +491,7 @@ def demo_page():
                 document.getElementById('response').textContent = 'Error: ' + error.message;
             }
         }
-        
+
         async function healthCheck() {
             try {
                 const response = await fetch('/api/health');
