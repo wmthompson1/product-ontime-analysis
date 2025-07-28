@@ -45,7 +45,7 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd astro-sample && npm run dev"
-waitForPort = 3000
+waitForPort = 4321
 
 [[workflows.workflow]]
 name = "New Astro Server"
@@ -71,6 +71,10 @@ run = ["sh", "-c", "python3 helloWorld.py"]
 [[ports]]
 localPort = 3000
 externalPort = 3000
+
+[[ports]]
+localPort = 4321
+externalPort = 3001
 
 [[ports]]
 localPort = 5000

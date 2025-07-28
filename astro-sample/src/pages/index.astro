@@ -1,0 +1,72 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Astro Framework Demo">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="text-center">
+      <h1 class="text-4xl font-bold text-gray-900 mb-6">
+        Welcome to Astro Framework Demo
+      </h1>
+      <p class="text-xl text-gray-600 mb-8">
+        A modern web framework for building fast, content-focused websites
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8 mt-12">
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-blue-600">🚀 Island Architecture</h2>
+        <p class="text-gray-600 mb-4">
+          Astro uses "islands" of interactivity in an otherwise static page. This means faster loading and better performance.
+        </p>
+        <div class="bg-gray-100 p-4 rounded font-mono text-sm">
+          &lt;Component client:load /&gt;<br/>
+          &lt;StaticContent /&gt;<br/>
+          &lt;InteractiveWidget client:visible /&gt;
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-green-600">⚡ Zero JS by Default</h2>
+        <p class="text-gray-600 mb-4">
+          Ship zero JavaScript by default. Add interactivity only where needed with your favorite framework.
+        </p>
+        <div class="bg-gray-100 p-4 rounded font-mono text-sm">
+          // Only loads when needed<br/>
+          import React from 'react';<br/>
+          export default function Button() {}<br/>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-purple-600">🎯 Framework Agnostic</h2>
+        <p class="text-gray-600 mb-4">
+          Use React, Vue, Svelte, or any framework you prefer. Astro supports them all in the same project.
+        </p>
+        <div class="bg-gray-100 p-4 rounded font-mono text-sm">
+          import ReactComponent from './React.jsx';<br/>
+          import VueComponent from './Vue.vue';<br/>
+          import SvelteComponent from './Svelte.svelte';
+        </div>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-red-600">📝 Content Collections</h2>
+        <p class="text-gray-600 mb-4">
+          Built-in support for Markdown, MDX, and structured content with type safety and validation.
+        </p>
+        <div class="bg-gray-100 p-4 rounded font-mono text-sm">
+          const posts = await getCollection('blog');<br/>
+          const &#123; Content &#125; = await post.render();<br/>
+          &lt;Content /&gt;
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-12">
+      <a href="/teachable-machine" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+        Try Interactive Demo →
+      </a>
+    </div>
+  </div>
+</Layout>
