@@ -39,11 +39,118 @@ with app.app_context():
     db.create_all()
 
 
-@app.route('/')
-def hello():
-    from datetime import datetime
-    return render_template('index.html', current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+def get_astro_url():
+    # Check if we're in development (Replit) or production
+    if 'REPL_ID' in os.environ:
+        # In Replit, construct the URL using the current Repl's URL structure
+        repl_id = os.environ.get('REPL_ID', '')
+        repl_slug = os.environ.get('REPL_SLUG', 'hello-astro')
+        user = os.environ.get('REPL_OWNER', 'user')
+        return f"https://{repl_id}-{repl_slug}-{user}.replit.app:3000"
+    else:
+        # For local development
+        return "http://localhost:3000"
 
+@app.route('/')
+def home():
+    astro_url = get_astro_url()
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Flask + JavaScript Framework Integration</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+                background: #f5f5f5;
+            }}
+            .header {{
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+            }}
+            .nav-menu {{
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                margin-bottom: 20px;
+            }}
+            .nav-menu a {{
+                display: inline-block;
+                padding: 10px 15px;
+                margin-right: 10px;
+                background: #007bff;
+                color: white;
+                text-decoration: none;
+                border-radius: 5px;
+                transition: background-color 0.3s;
+            }}
+            .nav-menu a:hover {{
+                background: #0056b3;
+            }}
+            .connection-status {{
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                padding: 15px;
+                border-radius: 5px;
+                margin-bottom: 20px;
+            }}
+            .info {{
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .iframe-container {{
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                overflow: hidden;
+                height: 600px;
+                position: relative;
+            }}
+            iframe {{
+                width: 100%;
+                height: 100%;
+                border: none;
+            }}
+            .loading {{
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                color: #666;
+            }}
+            ul {{
+                margin: 10px 0;
+                padding-left: 20px;
+            }}
+            h1, h2 {{
+                color: #333;
+                margin: 0 0 15px 0;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🚀 Flask + JavaScript Framework Demo</h1>
+            <p><strong>Your Flask API is running!</strong> This page demonstrates how modern JavaScript frameworks can work alongside your Flask backend.</p>
+        </div>
+
+        <div class="nav-menu">
+            <a href="/">Flask Home</a>
+            <a href="/framework-demo">Framework Demo</a>
+            <a href="{astro_url}" target="_blank">Hello Astro App</a>
+        </div>
+"""
 
 @app.route('/health')
 @app.route('/api/health')
@@ -596,14 +703,14 @@ def demo_page():
 def framework_demo():
     """Embedded framework demo page"""
     import os
-    
+
     # Use Replit's external URL with proper port forwarding for iframe access
     from flask import request
-    
+
     # Construct Astro URL for Replit
     # Get current request URL info
     import re
-    
+
     # For Replit, construct the proper external URL
     request_url = str(request.url)
     if 'replit.dev' in request_url:
@@ -619,7 +726,7 @@ def framework_demo():
     else:
         # For local development
         astro_url = "http://172.31.125.66:3000"
-    
+
     return f"""
     <!DOCTYPE html>
     <html>
@@ -691,3 +798,4 @@ def framework_demo():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+```
