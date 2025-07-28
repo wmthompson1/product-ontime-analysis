@@ -16,9 +16,9 @@ export default function FlaskConnector() {
     // Try multiple endpoints to find the working Flask server
     const endpoints = [
       '/api/test',
-      'http://localhost:5000/',
-      'http://127.0.0.1:5000/',
-      `${window.location.protocol}//${window.location.hostname}:5000/`
+      'http://localhost:5000/api/test',
+      'http://127.0.0.1:5000/api/test',
+      `${window.location.protocol}//${window.location.hostname}:5000/api/test`
     ];
     
     for (const endpoint of endpoints) {
