@@ -13,19 +13,39 @@ export default function FlaskConnector() {
     setConnectionStatus('testing');
     setError(null);
     
-    try {
-      const response = await fetch('http://localhost:5000/');
-      if (response.ok) {
-        const data = await response.text();
-        setFlaskData(data);
-        setConnectionStatus('connected');
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Try multiple endpoints to find the working Flask server
+    const endpoints = [
+      '/api/test',
+      'http://localhost:5000/',
+      'http://127.0.0.1:5000/',
+      `${window.location.protocol}//${window.location.hostname}:5000/`
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': 'text/html,application/json,*/*'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.text();
+          setFlaskData(data);
+          setConnectionStatus('connected');
+          return;
+        }
+      } catch (err) {
+        // Continue to next endpoint
+        continue;
       }
-    } catch (err) {
-      setError(err.message);
-      setConnectionStatus('failed');
     }
+    
+    // If all endpoints failed
+    setError('Cannot connect to Flask server. Make sure it\'s running on port 5000.');
+    setConnectionStatus('failed');
   };
 
   const getStatusColor = () => {
