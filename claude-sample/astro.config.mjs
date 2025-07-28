@@ -1,6 +1,15 @@
-// astro.config.mjs
+
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
-  // Basic configuration
+  server: {
+    port: 3000,
+    host: '0.0.0.0'
+  },
+  vite: {
+    server: {
+      host: '0.0.0.0',
+      port: 3000
+    }
+  }
 });
