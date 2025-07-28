@@ -597,9 +597,10 @@ def framework_demo():
     """Embedded framework demo page"""
     import os
     
-    # Use the direct internal network address where Astro is running
-    # This matches what we see in the workflow console output
-    astro_url = "http://172.31.125.66:3000"
+    # Get the current request host and construct the Astro URL
+    from flask import request
+    current_host = request.host.split(':')[0]  # Remove port if present
+    astro_url = f"https://{current_host}:3000"
     
     return f"""
     <!DOCTYPE html>
