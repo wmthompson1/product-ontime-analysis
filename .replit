@@ -53,10 +53,6 @@ author = 43354225
 mode = "sequential"
 
 [[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "New Astro Server"
-
-[[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd hello-astro && npm run dev"
 
