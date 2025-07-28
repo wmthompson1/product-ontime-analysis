@@ -1,0 +1,12 @@
+{
+  "name": "astro-teachable-machine-demo",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "python -m http.server 3000",
+    "start": "python -m http.server 3000",
+    "build": "echo 'Build complete'",
+    "preview": "python -m http.server 3000"
+  },
+  "description": "Simple HTML/CSS/JS demo showing JavaScript framework concepts"
+}
