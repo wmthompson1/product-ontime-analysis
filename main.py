@@ -1,3 +1,4 @@
+# Adding a new route to integrate Claude sample via iframe.
 import os
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_sqlalchemy import SQLAlchemy
@@ -129,11 +130,11 @@ def serve_model_files(filename):
         response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
         return response
-    
+
     try:
         from flask import Response
         import mimetypes
-        
+
         # Set proper content type based on file extension
         if filename.endswith('.json'):
             mimetype = 'application/json'
@@ -141,14 +142,14 @@ def serve_model_files(filename):
             mimetype = 'application/octet-stream'
         else:
             mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-        
+
         response = send_from_directory('my_model', filename, mimetype=mimetype)
-        
+
         # Add CORS headers to allow cross-origin requests
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-        
+
         return response
     except FileNotFoundError:
         return jsonify({'error': 'Model file not found'}), 404
@@ -260,16 +261,16 @@ def audio_classifier():
                     console.log("Starting model creation...");
                     const checkpointURL = URL + "model.json";
                     const metadataURL = URL + "metadata.json";
-                    
+
                     console.log("Model URLs:", { checkpointURL, metadataURL });
-                    
+
                     // Test if files are accessible
                     const modelResponse = await fetch(checkpointURL);
                     const metadataResponse = await fetch(metadataURL);
-                    
+
                     console.log("Model fetch status:", modelResponse.status);
                     console.log("Metadata fetch status:", metadataResponse.status);
-                    
+
                     if (!modelResponse.ok) {
                         throw new Error(`Failed to fetch model.json: ${modelResponse.status}`);
                     }
@@ -434,11 +435,11 @@ def debug_model_files():
     """Debug endpoint to check model files"""
     import os
     model_dir = 'my_model'
-    
+
     try:
         files = os.listdir(model_dir)
         file_info = {}
-        
+
         for file in files:
             file_path = os.path.join(model_dir, file)
             file_info[file] = {
@@ -446,7 +447,7 @@ def debug_model_files():
                 'size': os.path.getsize(file_path) if os.path.exists(file_path) else 0,
                 'url': f'/my_model/{file}'
             }
-        
+
         return jsonify({
             'model_directory': model_dir,
             'files': file_info,
@@ -591,6 +592,45 @@ def demo_page():
     """
     return html
 
+@app.route('/framework-demo')
+def framework_demo():
+    """Embedded framework demo page"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>JavaScript Framework Demo</title>
+        <style>
+            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+            .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+            .iframe-container { width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+            iframe { width: 100%; height: 100%; border: none; }
+            .info { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>JavaScript Framework Integration Demo</h1>
+            <p>This demonstrates how your Teachable Machine concepts can be extended with modern JavaScript frameworks.</p>
+            <a href="/" style="color: #007bff; text-decoration: none;">← Back to Main App</a>
+        </div>
+
+        <div class="info">
+            <strong>Integration Notes:</strong>
+            <ul>
+                <li>The demo below shows how frameworks simplify complex interactions</li>
+                <li>Your Flask app provides the API backend</li>
+                <li>The framework handles the interactive frontend</li>
+                <li>Both can work together seamlessly</li>
+            </ul>
+        </div>
+
+        <div class="iframe-container">
+            <iframe src="http://localhost:3000" title="JavaScript Framework Demo"></iframe>
+        </div>
+    </body>
+    </html>
+    """
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
