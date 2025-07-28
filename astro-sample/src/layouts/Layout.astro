@@ -1,0 +1,50 @@
+---
+export interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Understanding JavaScript Frameworks through Teachable Machine" } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title}</title>
+  </head>
+  <body class="bg-gray-50 text-gray-900">
+    <nav class="bg-white shadow-sm border-b">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex items-center">
+            <a href="/" class="text-xl font-bold text-blue-600">
+              JS Framework Demo
+            </a>
+          </div>
+          <div class="flex items-center space-x-8">
+            <a href="/" class="text-gray-700 hover:text-blue-600">Home</a>
+            <a href="/teachable-machine" class="text-gray-700 hover:text-blue-600">Teachable Machine</a>
+            <a href="/flask-integration" class="text-gray-700 hover:text-blue-600">Flask Integration</a>
+            <a href="/api-demo" class="text-gray-700 hover:text-blue-600">API Demo</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+    
+    <main>
+      <slot />
+    </main>
+    
+    <footer class="bg-gray-800 text-white mt-16">
+      <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+          <p>&copy; 2025 Astro + Flask Demo. Built with Astro and connected to Flask backend.</p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

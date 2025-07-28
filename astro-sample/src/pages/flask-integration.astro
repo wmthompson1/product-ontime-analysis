@@ -1,0 +1,298 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FlaskConnector from '../components/FlaskConnector.jsx';
+---
+
+<Layout title="Flask Integration - Astro + Flask Demo">
+  <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+    
+    <!-- Header -->
+    <div class="text-center mb-12">
+      <h1 class="text-4xl font-bold text-gray-900 mb-4">
+        Connecting Astro Frontend to Flask Backend
+      </h1>
+      <p class="text-xl text-gray-600 max-w-4xl mx-auto">
+        Discover how modern JavaScript frameworks like Astro can seamlessly integrate with your existing Flask API, 
+        creating a powerful full-stack application architecture.
+      </p>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="bg-white rounded-xl shadow-lg p-8 mb-16">
+      <h2 class="text-2xl font-bold text-center mb-8">Application Architecture</h2>
+      
+      <div class="flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-8">
+        
+        <!-- Frontend -->
+        <div class="text-center">
+          <div class="w-32 h-32 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <span class="text-4xl">🚀</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Astro Frontend</h3>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>• Static-first rendering</li>
+            <li>• Interactive islands</li>
+            <li>• Fast page loads</li>
+            <li>• SEO optimized</li>
+          </ul>
+          <div class="mt-4 text-sm text-purple-600 font-mono">
+            Port 3000
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="text-4xl text-gray-400">
+          ↔️
+        </div>
+
+        <!-- Backend -->
+        <div class="text-center">
+          <div class="w-32 h-32 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <span class="text-4xl">🐍</span>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Flask Backend</h3>
+          <ul class="text-sm text-gray-600 space-y-1">
+            <li>• RESTful API</li>
+            <li>• Database operations</li>
+            <li>• Business logic</li>
+            <li>• Authentication</li>
+          </ul>
+          <div class="mt-4 text-sm text-green-600 font-mono">
+            Port 5000
+          </div>
+        </div>
+
+      </div>
+
+      <div class="mt-8 text-center">
+        <p class="text-gray-600">
+          <strong>Communication:</strong> HTTP requests (GET, POST, PUT, DELETE) with JSON data
+        </p>
+      </div>
+    </div>
+
+    <!-- Live Integration Demo -->
+    <div class="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-8 mb-16">
+      <h2 class="text-3xl font-bold text-center mb-8">Live Flask Integration Demo</h2>
+      <p class="text-center text-gray-600 mb-8">
+        This React component makes real API calls to your Flask backend, demonstrating 
+        how Astro's island architecture enables interactive features with minimal JavaScript.
+      </p>
+      
+      <div class="max-w-4xl mx-auto">
+        <FlaskConnector client:load />
+      </div>
+    </div>
+
+    <!-- Code Examples -->
+    <div class="grid lg:grid-cols-2 gap-8 mb-16">
+      
+      <!-- Flask API Code -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h3 class="text-xl font-semibold mb-4 text-green-600">Flask API Endpoint</h3>
+        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm"><code># main.py - Your existing Flask app
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """Get all users from database"""
+    users = User.query.all()
+    return jsonify([{
+        'id': user.id,
+        'name': user.name,
+        'email': user.email
+    } for user in users])
+
+@app.route('/api/users', methods=['POST'])
+def create_user():
+    """Create a new user"""
+    data = request.get_json()
+    
+    user = User(
+        name=data['name'],
+        email=data['email']
+    )
+    
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({
+        'id': user.id,
+        'name': user.name,
+        'email': user.email
+    }), 201</code></pre>
+      </div>
+
+      <!-- Astro Component Code -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h3 class="text-xl font-semibold mb-4 text-purple-600">Astro Component</h3>
+        <pre class="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm"><code>// FlaskConnector.jsx - React component
+import { useState, useEffect } from 'react';
+
+const FlaskConnector = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        'http://localhost:5000/api/users'
+      );
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+    setLoading(false);
+  };
+
+  const createUser = async (userData) => {
+    const response = await fetch(
+      'http://localhost:5000/api/users', 
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      }
+    );
+    return response.json();
+  };
+
+  return (
+    &lt;div&gt;
+      {/* Component JSX */}
+    &lt;/div&gt;
+  );
+};</code></pre>
+      </div>
+
+    </div>
+
+    <!-- Benefits of This Architecture -->
+    <div class="bg-white rounded-xl shadow-lg p-8 mb-16">
+      <h2 class="text-2xl font-bold text-center mb-8">Benefits of Astro + Flask Architecture</h2>
+      
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        <div class="text-center">
+          <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">⚡</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-3">Exceptional Performance</h3>
+          <p class="text-gray-600 text-sm">
+            Astro's static-first approach delivers lightning-fast page loads, 
+            while Flask handles complex backend operations efficiently.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🔧</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-3">Keep Existing Backend</h3>
+          <p class="text-gray-600 text-sm">
+            No need to rewrite your Flask API. Your semantic layer, 
+            database models, and business logic remain unchanged.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🎯</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-3">Best of Both Worlds</h3>
+          <p class="text-gray-600 text-sm">
+            Python's power for data processing and AI, 
+            JavaScript's excellence for user interfaces and interactivity.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🔄</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-3">Independent Deployment</h3>
+          <p class="text-gray-600 text-sm">
+            Deploy frontend and backend separately. 
+            Scale each tier based on specific needs and traffic patterns.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">🛡️</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-3">Enhanced Security</h3>
+          <p class="text-gray-600 text-sm">
+            API-first architecture provides clear security boundaries. 
+            Sensitive operations stay on the backend server.
+          </p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span class="text-2xl">📱</span>
+          </div>
+          <h3 class="text-lg font-semibold mb-3">Multi-Platform Ready</h3>
+          <p class="text-gray-600 text-sm">
+            Same Flask API can serve web, mobile apps, 
+            and other clients. Build once, use everywhere.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Migration Strategy -->
+    <div class="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-8">
+      <h2 class="text-2xl font-bold text-center mb-8">Migration Strategy</h2>
+      
+      <div class="max-w-4xl mx-auto">
+        <div class="space-y-6">
+          
+          <div class="flex items-start">
+            <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+              1
+            </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-semibold">Start with Static Pages</h3>
+              <p class="text-gray-600">
+                Convert your Flask templates to Astro pages. Keep your existing Flask routes 
+                for API endpoints only. This gives you immediate performance benefits.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start">
+            <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+              2
+            </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-semibold">Add Interactive Islands</h3>
+              <p class="text-gray-600">
+                Identify pages that need interactivity (forms, dynamic content). 
+                Create React/Vue islands that call your Flask API endpoints.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start">
+            <div class="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+              3
+            </div>
+            <div class="ml-4">
+              <h3 class="text-lg font-semibold">Optimize and Scale</h3>
+              <p class="text-gray-600">
+                Fine-tune performance, add caching, implement real-time features. 
+                Your Flask backend continues to handle all the heavy lifting.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</Layout>

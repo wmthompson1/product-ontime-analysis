@@ -100,3 +100,4 @@ This is a Flask web application that provides RESTful API endpoints for user man
 
 Preferred communication style: Simple, everyday language.
 Technical preferences: LangChain for semantic layer, comprehensive safety guardrails for SQL execution, production-ready architecture with monitoring.
+JavaScript framework interest: Exploring Astro as modern frontend framework to complement Flask backend, interested in Teachable Machine analogy for understanding framework concepts.
