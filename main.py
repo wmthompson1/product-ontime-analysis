@@ -45,6 +45,7 @@ def hello():
 
 
 @app.route('/health')
+@app.route('/api/health')
 def health_check():
     """Health check endpoint for API testing"""
     return jsonify({
