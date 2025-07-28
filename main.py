@@ -595,17 +595,28 @@ def demo_page():
 @app.route('/framework-demo')
 def framework_demo():
     """Embedded framework demo page"""
-    return """
+    import os
+    
+    # Try to determine the correct Astro server URL
+    repl_slug = os.environ.get('REPL_SLUG', 'unknown')
+    repl_owner = os.environ.get('REPL_OWNER', 'unknown')
+    
+    # Construct the likely Astro URL
+    astro_url = f"https://{repl_slug}.{repl_owner}.repl.co:3000"
+    
+    return f"""
     <!DOCTYPE html>
     <html>
     <head>
         <title>JavaScript Framework Demo</title>
         <style>
-            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-            .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-            .iframe-container { width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
-            iframe { width: 100%; height: 100%; border: none; }
-            .info { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            body {{ margin: 0; padding: 20px; font-family: Arial, sans-serif; }}
+            .header {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }}
+            .iframe-container {{ width: 100%; height: 80vh; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; position: relative; }}
+            iframe {{ width: 100%; height: 100%; border: none; }}
+            .info {{ background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+            .connection-status {{ background: #fff3cd; padding: 10px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107; }}
+            .loading {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }}
         </style>
     </head>
     <body>
@@ -613,6 +624,11 @@ def framework_demo():
             <h1>JavaScript Framework Integration Demo</h1>
             <p>This demonstrates how your Teachable Machine concepts can be extended with modern JavaScript frameworks.</p>
             <a href="/" style="color: #007bff; text-decoration: none;">← Back to Main App</a>
+        </div>
+
+        <div class="connection-status">
+            <strong>Connection Status:</strong> 
+            <span id="status">Testing connection to Astro server...</span>
         </div>
 
         <div class="info">
@@ -626,8 +642,33 @@ def framework_demo():
         </div>
 
         <div class="iframe-container">
-            <iframe src="http://localhost:3000" title="JavaScript Framework Demo"></iframe>
+            <div class="loading" id="loading">
+                <p>🔄 Loading Astro Framework Demo...</p>
+                <p><small>If this takes too long, the Astro server might not be running.</small></p>
+            </div>
+            <iframe src="{astro_url}" title="JavaScript Framework Demo" onload="document.getElementById('loading').style.display='none'; document.getElementById('status').textContent='Connected to Astro server';" onerror="document.getElementById('status').textContent='Failed to connect to Astro server';"></iframe>
         </div>
+
+        <script>
+            // Test connection and update status
+            setTimeout(() => {{
+                fetch('{astro_url}')
+                    .then(response => {{
+                        if (response.ok) {{
+                            document.getElementById('status').textContent = 'Connected to Astro server ✅';
+                            document.querySelector('.connection-status').style.background = '#d4edda';
+                            document.querySelector('.connection-status').style.borderColor = '#28a745';
+                        }} else {{
+                            throw new Error('Server responded with error');
+                        }}
+                    }})
+                    .catch(error => {{
+                        document.getElementById('status').textContent = 'Cannot connect to Astro server ❌ - Make sure both servers are running';
+                        document.querySelector('.connection-status').style.background = '#f8d7da';
+                        document.querySelector('.connection-status').style.borderColor = '#dc3545';
+                    }});
+            }}, 2000);
+        </script>
     </body>
     </html>
     """
