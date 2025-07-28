@@ -13,17 +13,35 @@ export default function FlaskConnector() {
     setConnectionStatus('Testing...');
 
     try {
-      const response = await fetch('http://localhost:5000/health');
+      // Try multiple Flask endpoints for better compatibility
+      const flaskUrls = [
+        'http://172.31.110.66:5000/health',
+        '/api/health',
+        'http://localhost:5000/health'
+      ];
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Success
-        setConnectionStatus('Connected');
-        setFlaskResult(JSON.stringify(data, null, 2));
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      let response;
+      let lastError;
+      
+      for (const url of flaskUrls) {
+        try {
+          response = await fetch(url);
+          if (response.ok) break;
+        } catch (err) {
+          lastError = err;
+          continue;
+        }
       }
+      
+      if (!response || !response.ok) {
+        throw lastError || new Error('All Flask endpoints failed');
+      }
+      
+      const data = await response.json();
+      
+      // Success
+      setConnectionStatus('Connected');
+      setFlaskResult(JSON.stringify(data, null, 2));
     } catch (error) {
       // Error
       setConnectionStatus('Error');
