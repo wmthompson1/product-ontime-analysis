@@ -600,31 +600,24 @@ def framework_demo():
     # Use Replit's external URL with proper port forwarding for iframe access
     from flask import request
     
-    # Get the current host from the request (this will be the external Replit URL)
-    current_host = request.host
+    # Construct Astro URL for Replit
+    # Get current request URL info
+    import re
     
-    # Simplified approach - use the current request URL to construct Astro URL
-    if 'replit.dev' in current_host:
-        # Replace the port number in the current host
-        # Current format: something-5000.username.replit.dev
-        # Target format: something-3000.username.replit.dev
-        astro_url = f"https://{current_host.replace('-5000', '-3000').replace(':5000', '-3000')}/"
-        
-        # If no port was found to replace, add port 3000
-        if '-3000' not in astro_url:
-            # Parse and reconstruct
-            parts = current_host.split('.')
-            if len(parts) >= 2:
-                base_part = parts[0]
-                if '-' in base_part and base_part.split('-')[-1].isdigit():
-                    # Remove existing port and add 3000
-                    base_without_port = '-'.join(base_part.split('-')[:-1])
-                    astro_url = f"https://{base_without_port}-3000.{'.'.join(parts[1:])}/"
-                else:
-                    # Add port 3000
-                    astro_url = f"https://{base_part}-3000.{'.'.join(parts[1:])}/"
+    # For Replit, construct the proper external URL
+    request_url = str(request.url)
+    if 'replit.dev' in request_url:
+        # Extract workspace and username from current URL
+        # Pattern: https://workspace-5000.username.replit.dev/...
+        match = re.match(r'https?://([^-]+)-\d+\.([^.]+)\.replit\.dev', request_url)
+        if match:
+            workspace, username = match.groups()
+            astro_url = f"https://{workspace}-3000.{username}.replit.dev/"
+        else:
+            # Fallback - try simple replacement
+            astro_url = request_url.replace('-5000', '-3000').replace(':5000', '-3000').split('/')[0] + '/'
     else:
-        # For local development, use the working internal address
+        # For local development
         astro_url = "http://172.31.125.66:3000"
     
     return f"""
