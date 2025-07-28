@@ -47,9 +47,9 @@
             }
         }, {
             includeSpectrogram: true, // in case listen should return result.spectrogram
-            probabilityThreshold: 0.75,
+            probabilityThreshold: 0.90,
             invokeCallbackOnNoiseAndUnknown: true,
-            overlapFactor: 0.50 // probably want between 0.5 and 0.75. More info in README
+            overlapFactor: 0.75 // probably want between 0.5 and 0.75. More info in README
         });
 
         // Stop the recognition in 5 seconds.
