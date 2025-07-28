@@ -44,6 +44,19 @@ def hello():
     from datetime import datetime
     return render_template('index.html', current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
+@app.route('/api/test')
+def api_test():
+    """
+    Simple API test endpoint for connectivity testing.
+    """
+    from datetime import datetime
+    return jsonify({
+        'status': 'connected',
+        'message': 'Flask backend is running successfully',
+        'timestamp': datetime.now().isoformat(),
+        'server': 'Flask/Python'
+    })
+
 
 @app.route('/health')
 @app.route('/api/health')

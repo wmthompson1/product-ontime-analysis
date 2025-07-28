@@ -6,6 +6,9 @@ export default defineConfig({
   integrations: [react(), tailwind()],
   server: {
     host: '0.0.0.0',
-    port: 4321
+    port: 4321,
+    proxy: {
+      '/api': 'http://localhost:5000'
+    }
   }
 });
