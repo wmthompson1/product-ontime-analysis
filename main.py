@@ -597,12 +597,16 @@ def framework_demo():
     """Embedded framework demo page"""
     import os
     
-    # Try to determine the correct Astro server URL
-    repl_slug = os.environ.get('REPL_SLUG', 'unknown')
-    repl_owner = os.environ.get('REPL_OWNER', 'unknown')
+    # Get the correct Astro server URL for Replit
+    repl_id = os.environ.get('REPL_ID', '')
+    repl_owner = os.environ.get('REPL_OWNER', '')
     
-    # Construct the likely Astro URL
-    astro_url = f"https://{repl_slug}.{repl_owner}.repl.co:3000"
+    # Construct the correct Replit URL format
+    if repl_id and repl_owner:
+        astro_url = f"https://{repl_id}-00-3000.{repl_owner}.replit.dev"
+    else:
+        # Fallback to localhost for development
+        astro_url = "http://localhost:3000"
     
     return f"""
     <!DOCTYPE html>
