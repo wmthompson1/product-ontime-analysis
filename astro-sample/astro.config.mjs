@@ -6,10 +6,7 @@ export default defineConfig({
   integrations: [react(), tailwind()],
   server: {
     host: '0.0.0.0',
-    port: 4321,
-    proxy: {
-      '/api': 'http://localhost:5000'
-    }
+    port: 4321
   },
   vite: {
     server: {
@@ -22,7 +19,14 @@ export default defineConfig({
         '.riker.replit.dev',
         '9885a95f-5ab2-441a-b79a-7fe6a57d2320-00-133f632yjz64j.riker.replit.dev'
       ],
-      cors: true
+      cors: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          secure: false
+        }
+      }
     }
   }
 });
