@@ -597,16 +597,9 @@ def framework_demo():
     """Embedded framework demo page"""
     import os
     
-    # Get the correct Astro server URL for Replit
-    repl_id = os.environ.get('REPL_ID', '')
-    repl_owner = os.environ.get('REPL_OWNER', '')
-    
-    # Construct the correct Replit URL format
-    if repl_id and repl_owner:
-        astro_url = f"https://{repl_id}-00-3000.{repl_owner}.replit.dev"
-    else:
-        # Fallback to localhost for development
-        astro_url = "http://localhost:3000"
+    # Use the direct internal network address where Astro is running
+    # This matches what we see in the workflow console output
+    astro_url = "http://172.31.125.66:3000"
     
     return f"""
     <!DOCTYPE html>
