@@ -603,14 +603,21 @@ def framework_demo():
     # Get the current host from the request (this will be the external Replit URL)
     current_host = request.host
     
-    # Replace the port to use 3000 for Astro server
-    if ':' in current_host:
-        base_host = current_host.split(':')[0]
-        # Use the same base domain but with port 3000
-        astro_url = f"https://{base_host}-3000.replit.dev/"
+    # Extract the repl name from the current host
+    if 'replit.dev' in current_host:
+        # Current format: replname-port.username.replit.dev
+        base_parts = current_host.split('.')
+        if len(base_parts) >= 3:
+            # Get the base repl identifier and construct port 3000 URL
+            repl_base = base_parts[0].split('-')[0]  # Get repl name without port
+            username = base_parts[1]
+            astro_url = f"https://{repl_base}-3000.{username}.replit.dev/"
+        else:
+            # Fallback to internal network if parsing fails
+            astro_url = "http://172.31.125.66:3000"
     else:
-        # Fallback if no port in host
-        astro_url = f"https://{current_host}-3000.replit.dev/"
+        # Fallback for local development or other environments
+        astro_url = "http://172.31.125.66:3000"
     
     return f"""
     <!DOCTYPE html>
