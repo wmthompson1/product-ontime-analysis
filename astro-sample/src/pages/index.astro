@@ -2,194 +2,87 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="JavaScript Frameworks Explained - Astro Demo">
-  <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-    
-    <!-- Hero Section -->
-    <div class="text-center mb-16">
-      <h1 class="text-4xl font-bold text-gray-900 mb-6">
-        Understanding JavaScript Frameworks
-      </h1>
-      <p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-        Just like Google's Teachable Machine lets you train AI models without complex coding, 
-        modern JavaScript frameworks let you build powerful web applications with elegant simplicity.
-      </p>
-      <div class="flex justify-center space-x-4">
-        <a href="/teachable-machine" 
-           class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-          Explore Teachable Machine Concept
-        </a>
-        <a href="/flask-integration" 
-           class="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors">
-          See Flask Integration
-        </a>
-      </div>
-    </div>
+<Layout title="JavaScript Frameworks Explained - Teachable Machine Analogy">
+	<section class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+		<div class="text-center mb-16">
+			<h1 class="text-4xl font-bold text-gray-900 mb-6">
+				Understanding JavaScript Frameworks
+			</h1>
+			<p class="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+				Just like Google's Teachable Machine lets you train AI models without complex coding, 
+				modern JavaScript frameworks let you build powerful web applications with elegant simplicity.
+			</p>
+		</div>
 
-    <!-- Framework Comparison Grid -->
-    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-      
-      <!-- Astro Card -->
-      <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-        <div class="flex items-center mb-4">
-          <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-            <span class="text-2xl">🚀</span>
-          </div>
-          <h3 class="ml-3 text-xl font-semibold">Astro</h3>
-        </div>
-        <p class="text-gray-600 mb-4">
-          Like Teachable Machine's "no-code" approach, Astro ships zero JavaScript by default. 
-          Add interactivity only where needed.
-        </p>
-        <ul class="text-sm text-gray-500 space-y-1">
-          <li>• Static-first with islands architecture</li>
-          <li>• Multi-framework support</li>
-          <li>• Exceptional performance</li>
-          <li>• Content-focused websites</li>
-        </ul>
-      </div>
+		<div class="grid md:grid-cols-3 gap-8 mb-16">
+			<div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+				<div class="flex items-center mb-4">
+					<div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+						<span class="text-2xl">🚀</span>
+					</div>
+					<h3 class="ml-3 text-xl font-semibold">Astro</h3>
+				</div>
+				<p class="text-gray-600 mb-4">
+					Like Teachable Machine's no-code approach, Astro ships zero JavaScript by default. 
+					Add interactivity only where needed.
+				</p>
+				<ul class="text-sm text-gray-500 space-y-1">
+					<li>• Static-first with islands architecture</li>
+					<li>• Multi-framework support</li>
+					<li>• Exceptional performance</li>
+					<li>• Content-focused websites</li>
+				</ul>
+			</div>
 
-      <!-- React/Next.js Card -->
-      <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-        <div class="flex items-center mb-4">
-          <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-            <span class="text-2xl">⚛️</span>
-          </div>
-          <h3 class="ml-3 text-xl font-semibold">React/Next.js</h3>
-        </div>
-        <p class="text-gray-600 mb-4">
-          Like Teachable Machine's advanced features, React provides powerful tools 
-          for complex, interactive applications.
-        </p>
-        <ul class="text-sm text-gray-500 space-y-1">
-          <li>• Component-based architecture</li>
-          <li>• Large ecosystem</li>
-          <li>• Full-stack capabilities</li>
-          <li>• Complex web applications</li>
-        </ul>
-      </div>
+			<div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+				<div class="flex items-center mb-4">
+					<div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+						<span class="text-2xl">⚛️</span>
+					</div>
+					<h3 class="ml-3 text-xl font-semibold">React</h3>
+				</div>
+				<p class="text-gray-600 mb-4">
+					Like Teachable Machine's advanced features, React provides powerful tools 
+					for complex, interactive applications.
+				</p>
+				<ul class="text-sm text-gray-500 space-y-1">
+					<li>• Component-based architecture</li>
+					<li>• Large ecosystem</li>
+					<li>• Declarative programming</li>
+					<li>• Complex web applications</li>
+				</ul>
+			</div>
 
-      <!-- Flask Card -->
-      <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-        <div class="flex items-center mb-4">
-          <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-            <span class="text-2xl">🐍</span>
-          </div>
-          <h3 class="ml-3 text-xl font-semibold">Flask (Backend)</h3>
-        </div>
-        <p class="text-gray-600 mb-4">
-          Your current Flask setup provides the API foundation, just like how 
-          Teachable Machine provides the ML foundation for your models.
-        </p>
-        <ul class="text-sm text-gray-500 space-y-1">
-          <li>• RESTful API endpoints</li>
-          <li>• Database integration</li>
-          <li>• Authentication & security</li>
-          <li>• Business logic processing</li>
-        </ul>
-      </div>
+			<div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+				<div class="flex items-center mb-4">
+					<div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+						<span class="text-2xl">🐍</span>
+					</div>
+					<h3 class="ml-3 text-xl font-semibold">Flask (Backend)</h3>
+				</div>
+				<p class="text-gray-600 mb-4">
+					Your current Flask setup provides the API foundation, just like how 
+					Teachable Machine provides the ML foundation.
+				</p>
+				<ul class="text-sm text-gray-500 space-y-1">
+					<li>• RESTful API endpoints</li>
+					<li>• Database integration</li>
+					<li>• Authentication & security</li>
+					<li>• Business logic processing</li>
+				</ul>
+			</div>
+		</div>
 
-    </div>
-
-    <!-- Teachable Machine Analogy -->
-    <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 mb-16">
-      <h2 class="text-3xl font-bold text-center mb-6">The Teachable Machine Analogy</h2>
-      
-      <div class="grid md:grid-cols-2 gap-8">
-        <div>
-          <h3 class="text-xl font-semibold mb-4 text-blue-600">Teachable Machine Approach</h3>
-          <div class="space-y-4">
-            <div class="flex items-start">
-              <span class="text-2xl mr-3">📊</span>
-              <div>
-                <h4 class="font-medium">Data Input</h4>
-                <p class="text-gray-600 text-sm">Upload images, sounds, or poses</p>
-              </div>
-            </div>
-            <div class="flex items-start">
-              <span class="text-2xl mr-3">🧠</span>
-              <div>
-                <h4 class="font-medium">Training</h4>
-                <p class="text-gray-600 text-sm">Let the system learn patterns</p>
-              </div>
-            </div>
-            <div class="flex items-start">
-              <span class="text-2xl mr-3">🎯</span>
-              <div>
-                <h4 class="font-medium">Prediction</h4>
-                <p class="text-gray-600 text-sm">Get results without complex coding</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h3 class="text-xl font-semibold mb-4 text-purple-600">JavaScript Framework Approach</h3>
-          <div class="space-y-4">
-            <div class="flex items-start">
-              <span class="text-2xl mr-3">📝</span>
-              <div>
-                <h4 class="font-medium">Component Definition</h4>
-                <p class="text-gray-600 text-sm">Define reusable UI components</p>
-              </div>
-            </div>
-            <div class="flex items-start">
-              <span class="text-2xl mr-3">🔧</span>
-              <div>
-                <h4 class="font-medium">Framework Processing</h4>
-                <p class="text-gray-600 text-sm">Let the framework handle complexity</p>
-              </div>
-            </div>
-            <div class="flex items-start">
-              <span class="text-2xl mr-3">🌐</span>
-              <div>
-                <h4 class="font-medium">Web Application</h4>
-                <p class="text-gray-600 text-sm">Get fast, interactive results</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Live Demo Section -->
-    <div class="text-center">
-      <h2 class="text-3xl font-bold mb-6">See It In Action</h2>
-      <p class="text-gray-600 mb-8 max-w-2xl mx-auto">
-        This very page is built with Astro, demonstrating how JavaScript frameworks make 
-        complex web development as accessible as training a model with Teachable Machine.
-      </p>
-      
-      <div class="grid md:grid-cols-3 gap-6">
-        <a href="/teachable-machine" 
-           class="block p-6 bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
-          <span class="text-3xl block mb-2">🎓</span>
-          <h3 class="font-semibold mb-2">Interactive Demo</h3>
-          <p class="text-gray-600 text-sm">Experience the Teachable Machine concept</p>
-        </a>
-        
-        <a href="/flask-integration" 
-           class="block p-6 bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
-          <span class="text-3xl block mb-2">🔗</span>
-          <h3 class="font-semibold mb-2">Flask Connection</h3>
-          <p class="text-gray-600 text-sm">See how Astro connects to your Flask API</p>
-        </a>
-        
-        <a href="/api-demo" 
-           class="block p-6 bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
-          <span class="text-3xl block mb-2">⚡</span>
-          <h3 class="font-semibold mb-2">Live API Demo</h3>
-          <p class="text-gray-600 text-sm">Real-time data from your Flask backend</p>
-        </a>
-      </div>
-    </div>
-
-  </div>
+		<div class="text-center">
+			<h2 class="text-3xl font-bold mb-6">Ready to Explore?</h2>
+			<div class="flex justify-center space-x-4">
+				<a href="/teachable-machine" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+					Try Interactive Demo
+				</a>
+				<a href="/flask-integration" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+					Test Flask Connection
+				</a>
+			</div>
+		</div>
+	</section>
 </Layout>
-
-<style>
-  /* Custom styles for this page */
-  .hero-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-</style>

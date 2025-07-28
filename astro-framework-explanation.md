@@ -1,16 +1,22 @@
-# Astro Sample Project: JavaScript Frameworks Explained Through Teachable Machine
+# Full Astro Application: JavaScript Frameworks Education Platform
 
 ## Project Overview
 
-I've created a comprehensive demonstration that uses the Teachable Machine concept to explain JavaScript frameworks. The project shows why frameworks like Astro are perfect for Flask developers.
+I've expanded the initial HTML demo into a complete Astro application that uses the Teachable Machine concept to explain JavaScript frameworks. This full-featured application demonstrates modern web development practices while maintaining educational clarity for Flask developers.
 
 ## Key Components Built
 
-### 1. Interactive HTML Demo (`astro-sample/index.html`)
-- **Teachable Machine Analogy**: Three-step process (Gather Data → Train Model → Test & Use)
-- **Framework Comparison**: Side-by-side comparison of traditional JavaScript vs framework approach
-- **Live Flask Integration**: Real connection testing to your Flask backend
-- **Responsive Design**: Built with Tailwind CSS for modern UI
+### 1. Complete Astro Application Structure
+- **File-based Routing**: Clean URL structure with dedicated pages for each concept
+- **Component Architecture**: Reusable React components within Astro's islands architecture
+- **Shared Layout**: Consistent navigation and styling across all pages
+- **Development Workflow**: Full hot-reload development environment
+
+### 2. Educational Page Structure
+- **Homepage** (`/`): Framework overview and comparison with code examples
+- **Interactive Demo** (`/teachable-machine`): Step-by-step Teachable Machine simulation
+- **Flask Integration** (`/flask-integration`): Live API connection testing
+- **API Examples** (`/api-demo`): Real integration patterns and migration guide
 
 ### 2. Core Concepts Demonstrated
 

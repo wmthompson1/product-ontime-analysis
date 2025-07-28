@@ -1,8 +1,8 @@
-# Flask Application with PostgreSQL Database
+# Python Educational Script with Flask Application
 
 ## Overview
 
-This is a Flask web application that provides RESTful API endpoints for user management. The application uses SQLAlchemy as the ORM and is configured to work with PostgreSQL database. The project includes various Python learning exercises and utility scripts alongside the main Flask application.
+This project features an interactive Python educational script designed to help beginners learn basic programming concepts through engaging examples and hands-on exercises. The project also includes a Flask web application with PostgreSQL database for API endpoints, and an Astro demonstration for JavaScript framework concepts.
 
 ## System Architecture
 
@@ -82,8 +82,23 @@ This is a Flask web application that provides RESTful API endpoints for user man
 ## Changelog
 - June 24, 2025. Initial setup
 - July 15, 2025. Comprehensive semantic layer for RAG-assisted SQL implementation with LangChain integration, safety guardrails, and production-ready architecture
+- July 28, 2025. Full Astro application development with Teachable Machine framework explanation concept
 
 ## Recent Major Changes
+
+### Full Astro Application with Framework Education (July 28, 2025)
+- **Architecture**: Complete Astro application with file-based routing, component architecture, and React integration
+- **Core Components**:
+  - `astro-sample/src/layouts/Layout.astro`: Shared layout with navigation and footer
+  - `astro-sample/src/pages/index.astro`: Homepage with framework comparison and code examples
+  - `astro-sample/src/pages/teachable-machine.astro`: Interactive demo page
+  - `astro-sample/src/pages/flask-integration.astro`: Flask connection testing
+  - `astro-sample/src/pages/api-demo.astro`: API integration examples and migration guide
+- **Interactive Features**: 
+  - `astro-sample/src/components/TeachableMachineDemo.jsx`: React component simulating 3-step ML workflow
+  - `astro-sample/src/components/FlaskConnector.jsx`: Live Flask API connection testing
+- **Educational Value**: Demonstrates framework concepts through familiar Teachable Machine analogy
+- **Production Ready**: Proper Astro configuration, component structure, and development workflow
 
 ### RAG-Assisted SQL Semantic Layer (July 15, 2025)
 - **Architecture**: Built comprehensive semantic layer with schema introspection, safety validation, and query generation
