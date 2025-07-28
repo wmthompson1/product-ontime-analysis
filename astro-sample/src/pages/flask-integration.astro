@@ -1,0 +1,41 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FlaskConnector from '../components/FlaskConnector.jsx';
+---
+
+<Layout title="Flask Integration - Astro Framework">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="text-center mb-12">
+      <h1 class="text-4xl font-bold text-gray-900 mb-6">
+        Flask API Integration
+      </h1>
+      <p class="text-xl text-gray-600">
+        Testing connection between Astro frontend and Flask backend
+      </p>
+    </div>
+
+    <FlaskConnector client:load />
+    
+    <div class="mt-12 grid md:grid-cols-2 gap-8">
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-blue-600">Frontend (Astro + React)</h2>
+        <ul class="space-y-2 text-gray-700">
+          <li>✅ Astro for static generation</li>
+          <li>✅ React components for interactivity</li>
+          <li>✅ Tailwind CSS for styling</li>
+          <li>✅ Client-side API calls</li>
+        </ul>
+      </div>
+      
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-2xl font-bold mb-4 text-green-600">Backend (Flask + Python)</h2>
+        <ul class="space-y-2 text-gray-700">
+          <li>✅ Flask web framework</li>
+          <li>✅ PostgreSQL database</li>
+          <li>✅ SQLAlchemy ORM</li>
+          <li>✅ RESTful API endpoints</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</Layout>
