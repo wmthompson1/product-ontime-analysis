@@ -47,6 +47,15 @@ task = "shell.exec"
 args = "cd astro-sample && npm run dev"
 waitForPort = 3000
 
+[[workflows.workflow]]
+name = "New Astro Server"
+author = 43354225
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd hello-astro && npm run dev"
+
 [deployment]
 run = ["sh", "-c", "python3 helloWorld.py"]
 
