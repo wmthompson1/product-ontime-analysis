@@ -3,60 +3,60 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="API Integration Examples">
-        <section class="py-16">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <h2 class="text-3xl font-bold text-center mb-8">Real API Integration Examples</h2>
-                        <p class="text-center text-gray-600 mb-12">
-                                See how Astro seamlessly integrates with your existing Flask backend through real API calls.
-                        </p>
+	<section class="py-16">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<h2 class="text-3xl font-bold text-center mb-8">Real API Integration Examples</h2>
+			<p class="text-center text-gray-600 mb-12">
+				See how Astro seamlessly integrates with your existing Flask backend through real API calls.
+			</p>
 
-                        <div class="grid lg:grid-cols-2 gap-8">
-                                
-                                <!-- Server-Side API Call -->
-                                <div class="bg-white rounded-lg shadow-lg p-6">
-                                        <h3 class="text-xl font-semibold mb-4 text-blue-600">Server-Side Integration</h3>
-                                        <p class="text-gray-600 mb-4">Astro can fetch data from your Flask API during build time or server rendering.</p>
-                                        
-                                        <div class="bg-gray-800 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                                                <pre><code>---
+			<div class="grid lg:grid-cols-2 gap-8">
+				
+				<!-- Server-Side API Call -->
+				<div class="bg-white rounded-lg shadow-lg p-6">
+					<h3 class="text-xl font-semibold mb-4 text-blue-600">Server-Side Integration</h3>
+					<p class="text-gray-600 mb-4">Astro can fetch data from your Flask API during build time or server rendering.</p>
+					
+					<div class="bg-gray-800 text-green-400 p-4 rounded text-sm overflow-x-auto">
+						<pre><code>---
 // In your .astro file
 const response = await fetch('http://localhost:5000/api/users');
 const users = await response.json();
 ---
 
-<div>
-  {users.map(user => (
-    <div key={user.id}>
-      <h3>{user.name}</h3>
-      <p>{user.email}</p>
-    </div>
+&lt;div&gt;
+  {users.map(user =&gt; (
+    &lt;div key={user.id}&gt;
+      &lt;h3&gt;{user.name}&lt;/h3&gt;
+      &lt;p&gt;{user.email}&lt;/p&gt;
+    &lt;/div&gt;
   ))}
-</div></code></pre>
-                                        </div>
-                                        
-                                        <div class="mt-4 p-3 bg-blue-50 rounded">
-                                                <h4 class="font-semibold text-blue-800">Benefits:</h4>
-                                                <ul class="text-sm text-blue-700 mt-1 space-y-1">
-                                                        <li>• Data fetched at build time</li>
-                                                        <li>• No client-side JavaScript needed</li>
-                                                        <li>• Excellent SEO and performance</li>
-                                                        <li>• Works with static hosting</li>
-                                                </ul>
-                                        </div>
-                                </div>
+&lt;/div&gt;</code></pre>
+					</div>
+					
+					<div class="mt-4 p-3 bg-blue-50 rounded">
+						<h4 class="font-semibold text-blue-800">Benefits:</h4>
+						<ul class="text-sm text-blue-700 mt-1 space-y-1">
+							<li>• Data fetched at build time</li>
+							<li>• No client-side JavaScript needed</li>
+							<li>• Excellent SEO and performance</li>
+							<li>• Works with static hosting</li>
+						</ul>
+					</div>
+				</div>
 
-                                <!-- Client-Side API Call -->
-                                <div class="bg-white rounded-lg shadow-lg p-6">
-                                        <h3 class="text-xl font-semibold mb-4 text-purple-600">Client-Side Integration</h3>
-                                        <p class="text-gray-600 mb-4">For dynamic interactions, use React components with your Flask API.</p>
-                                        
-                                        <div class="bg-gray-800 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                                                <pre><code>// React component for dynamic data
+				<!-- Client-Side API Call -->
+				<div class="bg-white rounded-lg shadow-lg p-6">
+					<h3 class="text-xl font-semibold mb-4 text-purple-600">Client-Side Integration</h3>
+					<p class="text-gray-600 mb-4">For dynamic interactions, use React components with your Flask API.</p>
+					
+					<div class="bg-gray-800 text-green-400 p-4 rounded text-sm overflow-x-auto">
+						<pre><code>// React component for dynamic data
 function UserList() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  const fetchUsers = async () => {
+  const fetchUsers = async () =&gt; {
     setLoading(true);
     const response = await fetch('/api/users');
     const data = await response.json();
@@ -65,136 +65,85 @@ function UserList() {
   };
   
   return (
-    <div>
-      <button onClick={fetchUsers}>
+    &lt;div&gt;
+      &lt;button onClick={fetchUsers}&gt;
         {loading ? 'Loading...' : 'Load Users'}
-      </button>
-      {users.map(user => (
-        <UserCard key={user.id} user={user} />
+      &lt;/button&gt;
+      {users.map(user =&gt; (
+        &lt;UserCard key={user.id} user={user} /&gt;
       ))}
-    </div>
+    &lt;/div&gt;
   );
 }</code></pre>
-                                        </div>
-                                        
-                                        <div class="mt-4 p-3 bg-purple-50 rounded">
-                                                <h4 class="font-semibold text-purple-800">Benefits:</h4>
-                                                <ul class="text-sm text-purple-700 mt-1 space-y-1">
-                                                        <li>• Real-time user interactions</li>
-                                                        <li>• Progressive enhancement</li>
-                                                        <li>• Handles loading and error states</li>
-                                                        <li>• Works with authentication</li>
-                                                </ul>
-                                        </div>
-                                </div>
+					</div>
+					
+					<div class="mt-4 p-3 bg-purple-50 rounded">
+						<h4 class="font-semibold text-purple-800">Benefits:</h4>
+						<ul class="text-sm text-purple-700 mt-1 space-y-1">
+							<li>• Real-time user interactions</li>
+							<li>• Progressive enhancement</li>
+							<li>• Handles loading and error states</li>
+							<li>• Works with complex UI patterns</li>
+						</ul>
+					</div>
+				</div>
+			</div>
 
-                        </div>
-
-                        <!-- Integration Patterns -->
-                        <div class="mt-12 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-8">
-                                <h3 class="text-2xl font-bold text-center mb-8">Common Integration Patterns</h3>
-                                
-                                <div class="grid md:grid-cols-3 gap-6">
-                                        
-                                        <!-- Pattern 1 -->
-                                        <div class="bg-white rounded-lg p-4 shadow">
-                                                <h4 class="font-semibold text-green-600 mb-2">🏗️ Static + Dynamic</h4>
-                                                <p class="text-sm text-gray-600 mb-3">
-                                                        Load initial data server-side, add interactivity with islands.
-                                                </p>
-                                                <div class="text-xs text-gray-500">
-                                                        <strong>Best for:</strong> Blogs, documentation, marketing sites with some dynamic features
-                                                </div>
-                                        </div>
-
-                                        <!-- Pattern 2 -->
-                                        <div class="bg-white rounded-lg p-4 shadow">
-                                                <h4 class="font-semibold text-blue-600 mb-2">⚡ Full SPA Mode</h4>
-                                                <p class="text-sm text-gray-600 mb-3">
-                                                        Use Astro's SPA mode for app-like experiences with Flask API.
-                                                </p>
-                                                <div class="text-xs text-gray-500">
-                                                        <strong>Best for:</strong> Dashboards, admin panels, complex web applications
-                                                </div>
-                                        </div>
-
-                                        <!-- Pattern 3 -->
-                                        <div class="bg-white rounded-lg p-4 shadow">
-                                                <h4 class="font-semibold text-purple-600 mb-2">🔄 Hybrid Approach</h4>
-                                                <p class="text-sm text-gray-600 mb-3">
-                                                        Mix static pages with dynamic components as needed.
-                                                </p>
-                                                <div class="text-xs text-gray-500">
-                                                        <strong>Best for:</strong> E-commerce, user portals, content management systems
-                                                </div>
-                                        </div>
-
-                                </div>
-                        </div>
-
-                        <!-- Migration Guide -->
-                        <div class="mt-12 bg-white rounded-lg shadow-lg p-8">
-                                <h3 class="text-2xl font-bold mb-6">Migration from Flask Templates</h3>
-                                
-                                <div class="grid md:grid-cols-2 gap-8">
-                                        <!-- Before -->
-                                        <div>
-                                                <h4 class="text-lg font-semibold mb-4 text-red-600">Before: Flask Templates</h4>
-                                                <div class="bg-gray-800 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                                                        <pre><code># Flask route
-@app.route('/users')
+			<!-- Migration Guide -->
+			<div class="mt-16 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-8">
+				<h3 class="text-2xl font-bold mb-6 text-center">Migration from Flask Templates</h3>
+				
+				<div class="grid md:grid-cols-2 gap-8">
+					<div>
+						<h4 class="text-lg font-semibold mb-4 text-green-700">Before (Flask Only)</h4>
+						<div class="bg-gray-800 text-green-400 p-4 rounded text-sm">
+							<pre><code>@app.route('/users')
 def users():
     users = User.query.all()
     return render_template('users.html', users=users)
 
 &lt;!-- users.html --&gt;
 {% for user in users %}
-  <div class="user-card">
-    <h3>{{ user.name }}</h3>
-    <p>{{ user.email }}</p>
-  </div>
+  &lt;div class="user-card"&gt;
+    &lt;h3&gt;{{ user.name }}&lt;/h3&gt;
+    &lt;p&gt;{{ user.email }}&lt;/p&gt;
+  &lt;/div&gt;
 {% endfor %}</code></pre>
-                                                </div>
-                                        </div>
-
-                                        <!-- After -->
-                                        <div>
-                                                <h4 class="text-lg font-semibold mb-4 text-green-600">After: Astro + Flask API</h4>
-                                                <div class="bg-gray-800 text-green-400 p-4 rounded text-sm overflow-x-auto">
-                                                        <pre><code># Flask API endpoint
+						</div>
+					</div>
+					
+					<div>
+						<h4 class="text-lg font-semibold mb-4 text-blue-700">After (Flask + Astro)</h4>
+						<div class="bg-gray-800 text-green-400 p-4 rounded text-sm">
+							<pre><code>// Flask API endpoint
 @app.route('/api/users')
 def api_users():
     users = User.query.all()
-    return jsonify([u.to_dict() for u in users])
+    return jsonify([user.to_dict() for user in users])
 
+// Astro component
 ---
-// users.astro
 const response = await fetch('http://localhost:5000/api/users');
 const users = await response.json();
 ---
 
-{users.map(user => (
-  <div class="user-card">
-    <h3>{user.name}</h3>
-    <p>{user.email}</p>
-  </div>
+{users.map(user =&gt; (
+  &lt;div class="user-card"&gt;
+    &lt;h3&gt;{user.name}&lt;/h3&gt;
+    &lt;p&gt;{user.email}&lt;/p&gt;
+  &lt;/div&gt;
 ))}</code></pre>
-                                                </div>
-                                        </div>
-                                </div>
-
-                                <div class="mt-6 p-4 bg-blue-50 rounded-lg">
-                                        <h4 class="font-semibold text-blue-800 mb-2">Migration Benefits:</h4>
-                                        <ul class="text-sm text-blue-700 space-y-1">
-                                                <li>✅ Keep all your Flask business logic and database models</li>
-                                                <li>✅ Add modern frontend features (hot reload, component-based UI)</li>
-                                                <li>✅ Deploy frontend and backend independently</li>
-                                                <li>✅ Better performance with static-first rendering</li>
-                                                <li>✅ Use any UI framework (React, Vue, Svelte) within the same project</li>
-                                        </ul>
-                                </div>
-                        </div>
-
-                </div>
-        </section>
+						</div>
+					</div>
+				</div>
+				
+				<div class="mt-6 text-center">
+					<p class="text-gray-600">
+						Keep your Flask backend for business logic and data processing, 
+						while Astro handles the modern frontend experience.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
 </Layout>
