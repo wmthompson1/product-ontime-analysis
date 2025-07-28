@@ -15,7 +15,15 @@ export default defineConfig({
         '127.0.0.1',
         '0.0.0.0',
         '.replit.dev'
-      ]
+      ],
+      fs: {
+        allow: [
+          // Allow serving files from the workspace root
+          '/home/runner/workspace',
+          // Allow serving Astro runtime files
+          '/home/runner/workspace/node_modules'
+        ]
+      }
     }
   }
 });
