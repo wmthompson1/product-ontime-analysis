@@ -597,19 +597,9 @@ def framework_demo():
     """Embedded framework demo page"""
     import os
     
-    # Use the correct Replit URL format for port 3000
-    # Replit forwards ports using a specific format
-    from flask import request
-    current_host = request.host
-    
-    # For Replit, we need to use the webview URL with port forwarding
-    if 'replit' in current_host or 'repl.co' in current_host:
-        # Extract the base URL and modify for port 3000
-        base_url = current_host.replace(':5000', '').replace(':80', '').replace(':443', '')
-        astro_url = f"https://{base_url}:3000"
-    else:
-        # Fallback for local development
-        astro_url = "http://localhost:3000"
+    # Use the working internal network address from the console output
+    # Both servers are running on the same internal network
+    astro_url = "http://172.31.125.66:3000"
     
     return f"""
     <!DOCTYPE html>
