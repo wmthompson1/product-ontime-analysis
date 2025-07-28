@@ -597,9 +597,20 @@ def framework_demo():
     """Embedded framework demo page"""
     import os
     
-    # Use the internal network address that's confirmed working in console logs
-    # Both Flask (172.31.125.66:5000) and Astro (172.31.125.66:3000) are on same network
-    astro_url = "http://172.31.125.66:3000"
+    # Use Replit's external URL with proper port forwarding for iframe access
+    from flask import request
+    
+    # Get the current host from the request (this will be the external Replit URL)
+    current_host = request.host
+    
+    # Replace the port to use 3000 for Astro server
+    if ':' in current_host:
+        base_host = current_host.split(':')[0]
+        # Use the same base domain but with port 3000
+        astro_url = f"https://{base_host}-3000.replit.dev/"
+    else:
+        # Fallback if no port in host
+        astro_url = f"https://{current_host}-3000.replit.dev/"
     
     return f"""
     <!DOCTYPE html>
