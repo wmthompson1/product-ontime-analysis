@@ -13,29 +13,8 @@ export default function FlaskConnector() {
     setConnectionStatus('Testing...');
 
     try {
-      // Try multiple Flask endpoints for better compatibility
-      const flaskUrls = [
-        'http://172.31.110.66:5000/health',
-        '/api/health',
-        'http://localhost:5000/health'
-      ];
-      
-      let response;
-      let lastError;
-      
-      for (const url of flaskUrls) {
-        try {
-          response = await fetch(url);
-          if (response.ok) break;
-        } catch (err) {
-          lastError = err;
-          continue;
-        }
-      }
-      
-      if (!response || !response.ok) {
-        throw lastError || new Error('All Flask endpoints failed');
-      }
+      // Use the Astro API route that proxies to Flask
+      const response = await fetch('/api/health');
       
       const data = await response.json();
       
