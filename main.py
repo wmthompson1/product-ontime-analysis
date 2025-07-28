@@ -605,18 +605,30 @@ def framework_demo():
     
     # Extract the repl name from the current host
     if 'replit.dev' in current_host:
-        # Current format: replname-port.username.replit.dev
-        base_parts = current_host.split('.')
-        if len(base_parts) >= 3:
-            # Get the base repl identifier and construct port 3000 URL
-            repl_base = base_parts[0].split('-')[0]  # Get repl name without port
-            username = base_parts[1]
-            astro_url = f"https://{repl_base}-3000.{username}.replit.dev/"
+        # Parse Replit URL format: workspace-id-port.username.replit.dev
+        # Extract the workspace ID (before the first dash with port)
+        host_parts = current_host.split('.')
+        if len(host_parts) >= 3:
+            workspace_part = host_parts[0]
+            username = host_parts[1]
+            
+            # Remove the port from workspace part to get base workspace ID
+            if '-' in workspace_part:
+                # Find the last dash that's followed by digits (the port)
+                parts = workspace_part.split('-')
+                if parts[-1].isdigit():
+                    workspace_id = '-'.join(parts[:-1])
+                else:
+                    workspace_id = workspace_part
+            else:
+                workspace_id = workspace_part
+            
+            astro_url = f"https://{workspace_id}-3000.{username}.replit.dev/"
         else:
-            # Fallback to internal network if parsing fails
-            astro_url = "http://172.31.125.66:3000"
+            # Fallback - try a simpler approach
+            astro_url = current_host.replace(':5000', '-3000.replit.dev/').replace('http://', 'https://')
     else:
-        # Fallback for local development or other environments
+        # For local development, use the working internal address
         astro_url = "http://172.31.125.66:3000"
     
     return f"""
