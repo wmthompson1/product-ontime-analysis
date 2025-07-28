@@ -603,30 +603,26 @@ def framework_demo():
     # Get the current host from the request (this will be the external Replit URL)
     current_host = request.host
     
-    # Extract the repl name from the current host
+    # Simplified approach - use the current request URL to construct Astro URL
     if 'replit.dev' in current_host:
-        # Parse Replit URL format: workspace-id-port.username.replit.dev
-        # Extract the workspace ID (before the first dash with port)
-        host_parts = current_host.split('.')
-        if len(host_parts) >= 3:
-            workspace_part = host_parts[0]
-            username = host_parts[1]
-            
-            # Remove the port from workspace part to get base workspace ID
-            if '-' in workspace_part:
-                # Find the last dash that's followed by digits (the port)
-                parts = workspace_part.split('-')
-                if parts[-1].isdigit():
-                    workspace_id = '-'.join(parts[:-1])
+        # Replace the port number in the current host
+        # Current format: something-5000.username.replit.dev
+        # Target format: something-3000.username.replit.dev
+        astro_url = f"https://{current_host.replace('-5000', '-3000').replace(':5000', '-3000')}/"
+        
+        # If no port was found to replace, add port 3000
+        if '-3000' not in astro_url:
+            # Parse and reconstruct
+            parts = current_host.split('.')
+            if len(parts) >= 2:
+                base_part = parts[0]
+                if '-' in base_part and base_part.split('-')[-1].isdigit():
+                    # Remove existing port and add 3000
+                    base_without_port = '-'.join(base_part.split('-')[:-1])
+                    astro_url = f"https://{base_without_port}-3000.{'.'.join(parts[1:])}/"
                 else:
-                    workspace_id = workspace_part
-            else:
-                workspace_id = workspace_part
-            
-            astro_url = f"https://{workspace_id}-3000.{username}.replit.dev/"
-        else:
-            # Fallback - try a simpler approach
-            astro_url = current_host.replace(':5000', '-3000.replit.dev/').replace('http://', 'https://')
+                    # Add port 3000
+                    astro_url = f"https://{base_part}-3000.{'.'.join(parts[1:])}/"
     else:
         # For local development, use the working internal address
         astro_url = "http://172.31.125.66:3000"
