@@ -597,18 +597,9 @@ def framework_demo():
     """Embedded framework demo page"""
     import os
     
-    # Use Replit's port forwarding - get the current host and use port 3000
-    from flask import request
-    current_host = request.host
-    
-    # Extract the base domain (remove port if present)
-    if ':' in current_host:
-        base_domain = current_host.split(':')[0]
-    else:
-        base_domain = current_host
-    
-    # Construct the Astro URL using Replit's port forwarding
-    astro_url = f"https://{base_domain}:3000"
+    # Use the internal network address that's confirmed working in console logs
+    # Both Flask (172.31.125.66:5000) and Astro (172.31.125.66:3000) are on same network
+    astro_url = "http://172.31.125.66:3000"
     
     return f"""
     <!DOCTYPE html>
