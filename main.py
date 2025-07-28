@@ -11,6 +11,14 @@ class Base(DeclarativeBase):
 # Create Flask app and database
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
+
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -34,6 +42,17 @@ with app.app_context():
 def hello():
     from datetime import datetime
     return render_template('index.html', current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for API testing"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Flask API is running successfully!',
+        'version': '1.0',
+        'timestamp': '2025-07-28T02:25:00Z'
+    })
 
 
 @app.route('/api/users', methods=['GET'])
@@ -134,17 +153,7 @@ def serve_model_files(filename):
         return jsonify({'error': 'Model file not found'}), 404
 
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """Health check endpoint"""
-    return jsonify({
-        'status':
-        'healthy',
-        'database':
-        'connected',
-        'timestamp':
-        db.session.execute(db.text('SELECT NOW()')).scalar()
-    })
+
 
 
 @app.route('/audio-classifier', methods=['GET'])
