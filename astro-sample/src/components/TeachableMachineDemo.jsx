@@ -1,34 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-const TeachableMachineDemo = () => {
-  const [step, setStep] = useState(1);
+export default function TeachableMachineDemo() {
   const [trainingData, setTrainingData] = useState([]);
-  const [isTraining, setIsTraining] = useState(false);
   const [model, setModel] = useState(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isTraining, setIsTraining] = useState(false);
   const [prediction, setPrediction] = useState(null);
 
-  // Simulate the Teachable Machine workflow
-  const steps = [
-    { id: 1, title: "Gather Data", description: "Upload examples (like images, sounds, poses)" },
-    { id: 2, title: "Train Model", description: "Let the machine learn patterns" },
-    { id: 3, title: "Test & Use", description: "Get predictions on new data" }
-  ];
-
-  const frameworkComparison = {
-    1: {
-      teachable: "Upload training images by dragging and dropping",
-      framework: "Define components with simple JSX syntax"
-    },
-    2: {
-      teachable: "Click 'Train Model' and wait for automatic processing",
-      framework: "Framework automatically handles DOM updates and state"
-    },
-    3: {
-      teachable: "Test with new images to get instant predictions",
-      framework: "User interactions trigger automatic UI updates"
-    }
-  };
-
+  // Add training data
   const addTrainingData = (category) => {
     const newData = {
       id: Date.now(),
@@ -38,55 +17,72 @@ const TeachableMachineDemo = () => {
     setTrainingData([...trainingData, newData]);
   };
 
+  // Train model
   const trainModel = async () => {
+    if (trainingData.length === 0) {
+      alert('Add some training data first!');
+      return;
+    }
+
     setIsTraining(true);
+    
     // Simulate training time
     await new Promise(resolve => setTimeout(resolve, 2000));
-    setModel({
+    
+    // Create model
+    const categories = [...new Set(trainingData.map(d => d.category))];
+    const newModel = {
       trained: true,
       accuracy: Math.random() * 20 + 80, // 80-100%
-      categories: [...new Set(trainingData.map(d => d.category))]
-    });
+      categories: categories
+    };
+    
+    setModel(newModel);
     setIsTraining(false);
   };
 
+  // Make prediction
   const makePrediction = () => {
-    if (model && model.categories.length > 0) {
-      const randomCategory = model.categories[Math.floor(Math.random() * model.categories.length)];
-      const confidence = Math.random() * 30 + 70; // 70-100%
-      setPrediction({
-        category: randomCategory,
-        confidence: confidence.toFixed(1)
-      });
+    if (!model) {
+      alert('Train a model first!');
+      return;
     }
+    
+    const randomCategory = model.categories[Math.floor(Math.random() * model.categories.length)];
+    const confidence = Math.random() * 30 + 70; // 70-100%
+    
+    setPrediction({
+      category: randomCategory,
+      confidence: confidence.toFixed(1)
+    });
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <h3 className="text-2xl font-bold mb-6 text-center">Interactive Framework Demo</h3>
-      
+    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
       {/* Step Navigation */}
       <div className="flex justify-center mb-8">
-        {steps.map((s) => (
+        {[1, 2, 3].map(step => (
           <button
-            key={s.id}
-            onClick={() => setStep(s.id)}
-            className={`mx-2 px-4 py-2 rounded-lg transition-colors ${
-              step === s.id 
+            key={step}
+            onClick={() => setCurrentStep(step)}
+            className={`mx-2 px-4 py-2 rounded-lg ${
+              currentStep === step 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            {s.id}. {s.title}
+            {step === 1 && '1. Gather Data'}
+            {step === 2 && '2. Train Model'}
+            {step === 3 && '3. Test & Use'}
           </button>
         ))}
       </div>
 
-      {/* Current Step Content */}
+      {/* Step Content */}
       <div className="min-h-96 border rounded-lg p-6 bg-gray-50">
         
-        {/* Step 1: Gather Data */}
-        {step === 1 && (
+        {/* Step 1 Content */}
+        {currentStep === 1 && (
           <div>
             <h4 className="text-xl font-semibold mb-4">Step 1: Gather Training Data</h4>
             
@@ -94,34 +90,25 @@ const TeachableMachineDemo = () => {
               {/* Teachable Machine Side */}
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h5 className="font-semibold text-blue-800 mb-3">Teachable Machine</h5>
-                <p className="text-sm text-gray-600 mb-4">{frameworkComparison[1].teachable}</p>
+                <p className="text-sm text-gray-600 mb-4">Upload training images by dragging and dropping</p>
                 
                 <div className="space-y-2">
-                  <button 
-                    onClick={() => addTrainingData('Cat')}
-                    className="block w-full p-2 bg-blue-100 hover:bg-blue-200 rounded text-sm transition-colors"
-                  >
-                    + Add Cat Images
-                  </button>
-                  <button 
-                    onClick={() => addTrainingData('Dog')}
-                    className="block w-full p-2 bg-blue-100 hover:bg-blue-200 rounded text-sm transition-colors"
-                  >
-                    + Add Dog Images
-                  </button>
-                  <button 
-                    onClick={() => addTrainingData('Bird')}
-                    className="block w-full p-2 bg-blue-100 hover:bg-blue-200 rounded text-sm transition-colors"
-                  >
-                    + Add Bird Images
-                  </button>
+                  {['Cat', 'Dog', 'Bird'].map(category => (
+                    <button
+                      key={category}
+                      onClick={() => addTrainingData(category)}
+                      className="block w-full p-2 bg-blue-100 hover:bg-blue-200 rounded text-sm transition-colors"
+                    >
+                      + Add {category} Images
+                    </button>
+                  ))}
                 </div>
               </div>
 
               {/* Framework Side */}
               <div className="bg-purple-50 p-4 rounded-lg">
                 <h5 className="font-semibold text-purple-800 mb-3">JavaScript Framework</h5>
-                <p className="text-sm text-gray-600 mb-4">{frameworkComparison[1].framework}</p>
+                <p className="text-sm text-gray-600 mb-4">Define components with simple syntax</p>
                 
                 <pre className="text-xs bg-gray-800 text-green-400 p-3 rounded overflow-x-auto">
 {`function DataUpload() {
@@ -148,24 +135,21 @@ const TeachableMachineDemo = () => {
               <div className="mt-6 p-4 bg-white rounded-lg border">
                 <h5 className="font-semibold mb-3">Training Data Collected:</h5>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {trainingData.map((data) => (
+                  {trainingData.map(data => (
                     <div key={data.id} className="p-2 bg-gray-100 rounded text-sm text-center">
-                      {data.category}
-                      <br />
+                      {data.category}<br />
                       <span className="text-xs text-gray-500">{data.timestamp}</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  Total examples: {trainingData.length}
-                </p>
+                <p className="text-sm text-gray-600 mt-2">Total examples: {trainingData.length}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Step 2: Train Model */}
-        {step === 2 && (
+        {/* Step 2 Content */}
+        {currentStep === 2 && (
           <div>
             <h4 className="text-xl font-semibold mb-4">Step 2: Train the Model</h4>
             
@@ -173,20 +157,18 @@ const TeachableMachineDemo = () => {
               {/* Teachable Machine Side */}
               <div className="bg-green-50 p-4 rounded-lg">
                 <h5 className="font-semibold text-green-800 mb-3">Teachable Machine</h5>
-                <p className="text-sm text-gray-600 mb-4">{frameworkComparison[2].teachable}</p>
+                <p className="text-sm text-gray-600 mb-4">Click 'Train Model' and wait for automatic processing</p>
                 
-                <button 
+                <button
                   onClick={trainModel}
-                  disabled={isTraining || trainingData.length === 0}
+                  disabled={isTraining}
                   className={`w-full p-3 rounded font-semibold transition-colors ${
                     isTraining 
                       ? 'bg-yellow-200 text-yellow-800' 
-                      : trainingData.length === 0
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
                 >
-                  {isTraining ? 'Training Model...' : 'Train Model'}
+                  {isTraining ? 'Training...' : model ? 'Retrain Model' : 'Train Model'}
                 </button>
                 
                 {isTraining && (
@@ -202,8 +184,7 @@ const TeachableMachineDemo = () => {
                   <div className="mt-4 p-3 bg-green-100 rounded">
                     <h6 className="font-semibold text-green-800">Model Trained!</h6>
                     <p className="text-sm text-green-700">
-                      Accuracy: {model.accuracy.toFixed(1)}%
-                      <br />
+                      Accuracy: {model.accuracy.toFixed(1)}%<br />
                       Categories: {model.categories.join(', ')}
                     </p>
                   </div>
@@ -213,7 +194,7 @@ const TeachableMachineDemo = () => {
               {/* Framework Side */}
               <div className="bg-purple-50 p-4 rounded-lg">
                 <h5 className="font-semibold text-purple-800 mb-3">JavaScript Framework</h5>
-                <p className="text-sm text-gray-600 mb-4">{frameworkComparison[2].framework}</p>
+                <p className="text-sm text-gray-600 mb-4">Framework automatically handles DOM updates and state</p>
                 
                 <pre className="text-xs bg-gray-800 text-green-400 p-3 rounded overflow-x-auto">
 {`function ModelTrainer() {
@@ -240,8 +221,8 @@ const TeachableMachineDemo = () => {
           </div>
         )}
 
-        {/* Step 3: Test & Use */}
-        {step === 3 && (
+        {/* Step 3 Content */}
+        {currentStep === 3 && (
           <div>
             <h4 className="text-xl font-semibold mb-4">Step 3: Test & Use Your Model</h4>
             
@@ -249,15 +230,15 @@ const TeachableMachineDemo = () => {
               {/* Teachable Machine Side */}
               <div className="bg-indigo-50 p-4 rounded-lg">
                 <h5 className="font-semibold text-indigo-800 mb-3">Teachable Machine</h5>
-                <p className="text-sm text-gray-600 mb-4">{frameworkComparison[3].teachable}</p>
+                <p className="text-sm text-gray-600 mb-4">Test with new images to get instant predictions</p>
                 
-                <button 
+                <button
                   onClick={makePrediction}
                   disabled={!model}
                   className={`w-full p-3 rounded font-semibold transition-colors ${
-                    !model 
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    model 
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                   }`}
                 >
                   Test with New Image
@@ -267,8 +248,7 @@ const TeachableMachineDemo = () => {
                   <div className="mt-4 p-3 bg-indigo-100 rounded">
                     <h6 className="font-semibold text-indigo-800">Prediction Result:</h6>
                     <p className="text-sm text-indigo-700">
-                      Category: <strong>{prediction.category}</strong>
-                      <br />
+                      Category: <strong>{prediction.category}</strong><br />
                       Confidence: <strong>{prediction.confidence}%</strong>
                     </p>
                   </div>
@@ -284,7 +264,7 @@ const TeachableMachineDemo = () => {
               {/* Framework Side */}
               <div className="bg-purple-50 p-4 rounded-lg">
                 <h5 className="font-semibold text-purple-800 mb-3">JavaScript Framework</h5>
-                <p className="text-sm text-gray-600 mb-4">{frameworkComparison[3].framework}</p>
+                <p className="text-sm text-gray-600 mb-4">User interactions trigger automatic UI updates</p>
                 
                 <pre className="text-xs bg-gray-800 text-green-400 p-3 rounded overflow-x-auto">
 {`function PredictionInterface() {
@@ -326,6 +306,4 @@ const TeachableMachineDemo = () => {
       </div>
     </div>
   );
-};
-
-export default TeachableMachineDemo;
+}

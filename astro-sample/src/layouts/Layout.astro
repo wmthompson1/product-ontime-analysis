@@ -1,50 +1,68 @@
 ---
 export interface Props {
-  title: string;
-  description?: string;
+        title: string;
 }
 
-const { title, description = "Understanding JavaScript Frameworks through Teachable Machine" } = Astro.props;
+const { title } = Astro.props;
 ---
 
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="description" content={description} />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{title}</title>
-  </head>
-  <body class="bg-gray-50 text-gray-900">
-    <nav class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-          <div class="flex items-center">
-            <a href="/" class="text-xl font-bold text-blue-600">
-              JS Framework Demo
-            </a>
-          </div>
-          <div class="flex items-center space-x-8">
-            <a href="/" class="text-gray-700 hover:text-blue-600">Home</a>
-            <a href="/teachable-machine" class="text-gray-700 hover:text-blue-600">Teachable Machine</a>
-            <a href="/flask-integration" class="text-gray-700 hover:text-blue-600">Flask Integration</a>
-            <a href="/api-demo" class="text-gray-700 hover:text-blue-600">API Demo</a>
-          </div>
-        </div>
-      </div>
-    </nav>
-    
-    <main>
-      <slot />
-    </main>
-    
-    <footer class="bg-gray-800 text-white mt-16">
-      <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div class="text-center">
-          <p>&copy; 2025 Astro + Flask Demo. Built with Astro and connected to Flask backend.</p>
-        </div>
-      </div>
-    </footer>
-  </body>
+        <head>
+                <meta charset="UTF-8" />
+                <meta name="description" content="JavaScript Frameworks explained through Teachable Machine concepts" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+                <title>{title}</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+        </head>
+        <body class="bg-gray-50 text-gray-900">
+                <!-- Navigation -->
+                <nav class="bg-white shadow-sm border-b">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                                <div class="flex justify-between h-16">
+                                        <div class="flex items-center">
+                                                <a href="/" class="text-xl font-bold text-blue-600">JS Framework Demo</a>
+                                        </div>
+                                        <div class="flex items-center space-x-8">
+                                                <a href="/" class="text-gray-700 hover:text-blue-600">Overview</a>
+                                                <a href="/teachable-machine" class="text-gray-700 hover:text-blue-600">Interactive Demo</a>
+                                                <a href="/flask-integration" class="text-gray-700 hover:text-blue-600">Flask Integration</a>
+                                                <a href="/api-demo" class="text-gray-700 hover:text-blue-600">API Demo</a>
+                                        </div>
+                                </div>
+                        </div>
+                </nav>
+
+                <main>
+                        <slot />
+                </main>
+
+                <!-- Footer -->
+                <footer class="bg-gray-800 text-white py-8 mt-16">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                                <p>&copy; 2025 JavaScript Framework Demo. Built with Astro - showing the power of modern web frameworks!</p>
+                        </div>
+                </footer>
+        </body>
 </html>
+
+<style is:global>
+        .fade-in { 
+                animation: fadeIn 0.5s ease-in; 
+        }
+        
+        @keyframes fadeIn { 
+                from { opacity: 0; transform: translateY(20px); } 
+                to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .loading { 
+                animation: spin 1s linear infinite; 
+        }
+        
+        @keyframes spin { 
+                from { transform: rotate(0deg); } 
+                to { transform: rotate(360deg); } 
+        }
+</style>
