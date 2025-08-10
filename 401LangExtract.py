@@ -1,5 +1,10 @@
 import textwrap
 import langextract as lx
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # 1. Define a concise prompt
 prompt = textwrap.dedent("""\
@@ -46,8 +51,7 @@ input_text = (
 # Used to securely store your API key
 ##from google.colab import userdata
 
-GOOGLE_API_KEY = userdata.get('GOOGLE_API_KEY')
-
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 result = lx.extract(
     text_or_documents=input_text,
     prompt_description=prompt,
@@ -73,7 +77,11 @@ for file_path in file_paths_to_check:
         print("Content of html_content_obj object:")
         print(html_content_obj) # Print the object itself
         # Get the HTML string representation using _repr_html_()
-        html_string = html_content_obj._repr_html_()
+        # Check if it's an object with _repr_html_ method or already a string
+        if hasattr(html_content_obj, '_repr_html_'):
+            html_string = html_content_obj._repr_html_()
+        else:
+            html_string = str(html_content_obj)
         print("HTML string obtained via _repr_html_():")
         print(html_string) # Print the obtained HTML string
 
