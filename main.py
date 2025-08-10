@@ -607,5 +607,39 @@ def demo_page():
 
 
 
+@app.route('/visualization.html')
+def langextract_demo():
+    """Serve the LangExtract visualization demo"""
+    import os
+    try:
+        # Check if visualization.html exists
+        if os.path.exists('visualization.html'):
+            with open('visualization.html', 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            return html_content
+        else:
+            return """
+            <html>
+            <head><title>LangExtract Demo</title></head>
+            <body style="font-family: Arial, sans-serif; margin: 40px;">
+                <h1>LangExtract Demo</h1>
+                <p>The visualization file hasn't been generated yet.</p>
+                <p>Run the 401LangExtract.py script first to generate the visualization.</p>
+                <p><a href="/">← Back to Main App</a></p>
+            </body>
+            </html>
+            """
+    except Exception as e:
+        return f"""
+        <html>
+        <head><title>Error - LangExtract Demo</title></head>
+        <body style="font-family: Arial, sans-serif; margin: 40px;">
+            <h1>Error Loading LangExtract Demo</h1>
+            <p>An error occurred: {str(e)}</p>
+            <p><a href="/">← Back to Main App</a></p>
+        </body>
+        </html>
+        """
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
