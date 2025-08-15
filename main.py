@@ -899,5 +899,249 @@ analyzer.generate_report()
     except Exception as e:
         return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
+@app.route('/ontime-analysis')
+def ontime_analysis():
+    """On Time Delivery Rate Statistical Analysis Tool"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>On Time Delivery Rate Statistical Analysis</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+            .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .section { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+            .button { background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 10px 10px 0; }
+            .button:hover { background: #0056b3; }
+            .upload-section { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; }
+            pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+            .formula { background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 15px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Daily Product On Time Delivery Rate Statistical Analysis</h1>
+            <p>Determine if your daily on-time delivery rate is statistically significant within a 5% margin of error.</p>
+            
+            <div class="section">
+                <h2>Statistical Methods Used</h2>
+                <div class="formula">
+                    <strong>Confidence Interval for Proportion:</strong><br>
+                    CI = p ± z × √(p(1-p)/n)<br>
+                    <small>Where p = on-time rate, n = sample size, z = 1.96 for 95% confidence</small>
+                </div>
+                <ul>
+                    <li><strong>Z-test for proportions</strong> - Tests if daily rate differs significantly from expected</li>
+                    <li><strong>Control charts</strong> - Identifies process variation and out-of-control points</li>
+                    <li><strong>Trend analysis</strong> - Mann-Kendall and linear regression tests</li>
+                    <li><strong>Margin of error analysis</strong> - Ensures precision within 5% requirement</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h2>Sample Analysis</h2>
+                <p>Run analysis on sample on-time delivery data to see how the tool works:</p>
+                <a href="/api/run-ontime-analysis" class="button">Run Sample Analysis</a>
+                <a href="/sample-ontime-data" class="button">Download Sample Data</a>
+            </div>
+            
+            <div class="section">
+                <h2>Use Your Own Data</h2>
+                
+                <div class="upload-section">
+                    <h3>Upload Your Data</h3>
+                    <p>Prepare a CSV file with columns: date, total_received, received_late</p>
+                    <form action="/api/upload-ontime-data" method="post" enctype="multipart/form-data" style="display: inline-block;" onsubmit="handleUpload(event)">
+                        <input type="file" name="file" accept=".csv" required style="margin: 10px;">
+                        <button type="submit" class="button">Upload & Analyze</button>
+                    </form>
+                    <div id="upload-result" style="margin-top: 15px; padding: 10px; display: none; border-radius: 5px;"></div>
+                    
+                    <script>
+                    async function handleUpload(event) {
+                        event.preventDefault();
+                        const form = event.target;
+                        const formData = new FormData(form);
+                        const resultDiv = document.getElementById('upload-result');
+                        
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = '<p>🔄 Analyzing your data...</p>';
+                        resultDiv.style.background = '#fff3cd';
+                        
+                        try {
+                            const response = await fetch('/api/upload-ontime-data', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.status === 'success') {
+                                resultDiv.innerHTML = '<h4>✅ Analysis Complete</h4><pre>' + result.output + '</pre>';
+                                resultDiv.style.background = '#d4edda';
+                            } else {
+                                resultDiv.innerHTML = '<h4>❌ Analysis Failed</h4><p>' + result.message + '</p>';
+                                if (result.error) {
+                                    resultDiv.innerHTML += '<pre>' + result.error + '</pre>';
+                                }
+                                resultDiv.style.background = '#f8d7da';
+                            }
+                        } catch (error) {
+                            resultDiv.innerHTML = '<h4>❌ Error</h4><p>' + error.message + '</p>';
+                            resultDiv.style.background = '#f8d7da';
+                        }
+                    }
+                    </script>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>CSV Format Requirements</h3>
+                    <ul>
+                        <li><strong>date</strong> - Date in YYYY-MM-DD format</li>
+                        <li><strong>total_received</strong> - Total number of deliveries received that day</li>
+                        <li><strong>received_late</strong> - Number of deliveries that arrived late</li>
+                    </ul>
+                    <p><strong>Example:</strong></p>
+                    <pre>date,total_received,received_late
+2025-08-01,1023,52
+2025-08-02,1187,71
+2025-08-03,892,36</pre>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Interpretation Guide</h2>
+                <ul>
+                    <li><strong>Significant Days</strong> - Days where delivery rate differs significantly from baseline</li>
+                    <li><strong>Margin of Error</strong> - Should be ≤5% for reliable analysis</li>
+                    <li><strong>Process Control</strong> - ≥95% of days should be within expected range</li>
+                    <li><strong>Confidence Interval</strong> - 95% confidence range for true delivery rate</li>
+                </ul>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route('/api/run-ontime-analysis')
+def run_ontime_analysis():
+    """Run sample on-time delivery analysis"""
+    try:
+        import subprocess
+        result = subprocess.run(['python', 'ontime_delivery_analyzer.py'], 
+                              capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            return {
+                "status": "success",
+                "output": result.stdout,
+                "message": "Sample on-time delivery analysis completed successfully"
+            }
+        else:
+            return {
+                "status": "error", 
+                "message": "Analysis failed",
+                "error": result.stderr
+            }
+    except Exception as e:
+        return {"status": "error", "message": f"Error running analysis: {str(e)}"}
+
+@app.route('/sample-ontime-data')
+def download_sample_ontime_data():
+    """Serve sample on-time delivery data CSV"""
+    try:
+        with open('sample_ontime_data.csv', 'r') as f:
+            content = f.read()
+        
+        response = app.response_class(
+            content,
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=sample_ontime_data.csv'}
+        )
+        return response
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@app.route('/api/upload-ontime-data', methods=['POST'])
+def upload_ontime_data():
+    """Handle CSV file upload and run on-time delivery analysis"""
+    from flask import request
+    import os
+    import csv
+    
+    if 'file' not in request.files:
+        return {"status": "error", "message": "No file uploaded"}
+    
+    file = request.files['file']
+    if file.filename == '':
+        return {"status": "error", "message": "No file selected"}
+    
+    if not file.filename.endswith('.csv'):
+        return {"status": "error", "message": "Please upload a CSV file"}
+    
+    try:
+        # Save uploaded file
+        filename = 'uploaded_ontime_data.csv'
+        file.save(filename)
+        
+        # Create custom analyzer script for uploaded data
+        analyzer_script = f'''
+import csv
+from ontime_delivery_analyzer import OnTimeDeliveryAnalyzer
+
+analyzer = OnTimeDeliveryAnalyzer()
+
+# Load uploaded data
+data = []
+with open('{filename}', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        total_received = int(row['total_received'])
+        received_late = int(row['received_late'])
+        received_ontime = total_received - received_late
+        ontime_rate = received_ontime / total_received
+        data.append({{
+            'date': row['date'],
+            'total_received': total_received,
+            'received_late': received_late,
+            'received_ontime': received_ontime,
+            'ontime_rate': ontime_rate
+        }})
+
+analyzer.data = data
+analyzer.generate_report()
+'''
+        
+        # Write and run custom analysis
+        with open('custom_ontime_analysis.py', 'w') as f:
+            f.write(analyzer_script)
+        
+        import subprocess
+        result = subprocess.run(['python', 'custom_ontime_analysis.py'], 
+                              capture_output=True, text=True, timeout=60)
+        
+        # Clean up files
+        if os.path.exists(filename):
+            os.remove(filename)
+        if os.path.exists('custom_ontime_analysis.py'):
+            os.remove('custom_ontime_analysis.py')
+        
+        if result.returncode == 0:
+            return {
+                "status": "success",
+                "message": "Analysis completed successfully",
+                "output": result.stdout
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Analysis failed",
+                "error": result.stderr
+            }
+            
+    except Exception as e:
+        return {"status": "error", "message": f"Error processing file: {str(e)}"}
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
