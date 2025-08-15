@@ -55,9 +55,22 @@ class SimpleDefectAnalyzer:
         # Z-score for 95% confidence interval
         z_score = 1.96  # For 95% confidence
         
-        # Standard error for proportion
-        se = math.sqrt((defect_rate * (1 - defect_rate)) / sample_size)
+        # Handle edge cases where defect_rate is 0 or 1
+        if defect_rate <= 0:
+            # Use Wilson score interval for zero defects
+            margin_of_error = z_score * math.sqrt(1 / (4 * sample_size))
+            return 0, margin_of_error, margin_of_error
+        elif defect_rate >= 1:
+            # All units defective - rare case
+            margin_of_error = z_score * math.sqrt(1 / (4 * sample_size))
+            return 1 - margin_of_error, 1, margin_of_error
         
+        # Normal case - standard error for proportion
+        variance = (defect_rate * (1 - defect_rate)) / sample_size
+        if variance < 0:
+            variance = 0
+        
+        se = math.sqrt(variance)
         margin_of_error = z_score * se
         
         lower_bound = max(0, defect_rate - margin_of_error)
@@ -67,11 +80,15 @@ class SimpleDefectAnalyzer:
     
     def z_test_proportion(self, observed_rate, expected_rate, sample_size):
         """Perform z-test for single proportion"""
-        if expected_rate == 0 or expected_rate == 1:
-            return 0, 1  # Can't perform test
+        if expected_rate <= 0 or expected_rate >= 1:
+            return 0, 1  # Can't perform test with extreme rates
         
         # Standard error under null hypothesis
-        se = math.sqrt((expected_rate * (1 - expected_rate)) / sample_size)
+        variance = (expected_rate * (1 - expected_rate)) / sample_size
+        if variance <= 0:
+            return 0, 1
+        
+        se = math.sqrt(variance)
         
         if se == 0:
             return 0, 1
