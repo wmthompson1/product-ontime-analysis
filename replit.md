@@ -87,6 +87,26 @@ This project features an interactive Python educational script designed to help 
 
 ## Recent Major Changes
 
+### Dual Statistical Analysis Tools for Manufacturing Quality Control (August 15, 2025)
+- **Architecture**: Two comprehensive statistical analysis tools for manufacturing quality metrics
+- **Core Components**:
+  - `simple_defect_analyzer.py`: Daily defect rate analysis with Z-tests and confidence intervals
+  - `ontime_delivery_analyzer.py`: Daily on-time delivery rate analysis with identical statistical methods
+  - `sample_defect_data.csv` and `sample_ontime_data.csv`: Realistic sample datasets for testing
+  - Web interfaces at `/defect-analysis` and `/ontime-analysis` with CSV upload functionality
+- **Statistical Features**:
+  - Z-test for proportions testing daily rates against baseline
+  - 95% confidence intervals with margin of error validation (≤5% requirement)
+  - Process control analysis identifying significant variations
+  - Wilson score intervals for edge cases (zero defects/perfect delivery)
+  - Professional reporting suitable for management review
+- **Business Integration**: 
+  - CSV upload with real-time analysis processing
+  - Sample data generation and downloadable analysis tools
+  - Navigation menu integration for easy access from main page
+  - Error handling for edge cases and robust statistical calculations
+- **Status**: Both tools fully functional with successful testing on sample data
+
 ### Full Astro Application with Framework Education (July 28, 2025)
 - **Architecture**: Complete Astro application with file-based routing, component architecture, and React integration
 - **Core Components**:
