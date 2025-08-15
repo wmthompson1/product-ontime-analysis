@@ -39,14 +39,12 @@ examples = [
 
 # 3. Run the extraction on your input text
 input_text = (
-    "Lady Juliet gazed longingly at the stars, her heart aching for Romeo. "
-    "Her eyes, pools of sorrow, reflected the distant, indifferent pinpricks of light. "
-    "Meanwhile, in the bustling town square, Mercutio laughed loudly with Benvolio, "
-    "unaware of the anguish consuming his friend's beloved. Their easy camaraderie "
-    "was a stark contrast to the secret, desperate love shared between Romeo and Juliet. "
-    "A messenger, weary and dust-covered, arrived with a letter for Friar Laurence, "
-    "a man known for his wisdom and willingness to help the young lovers. "
-    "Hope, a fragile butterfly, fluttered in Juliet's chest as she thought of the Friar."
+    "Molly is my wife. I love her dearly, and I smile when I think of her. "
+    "She has a heart full of love, and she is the sun that warms my life. "
+    "She makes me happy, and she is very funny so she makes me laugh. "
+    "I rub her back and she always reacts, she is reacting to life at the same time. " 
+    "She is a very good wife and she is the best wife in the world. "
+
 )
 # Used to securely store your API key
 ##from google.colab import userdata
@@ -59,7 +57,7 @@ result = lx.extract(
     model_id="gemini-2.5-pro",
     api_key=GOOGLE_API_KEY,
 )
-import os
+#import os
 
 # Save the results to a JSONL file
 output_filename = "extraction_results.jsonl"

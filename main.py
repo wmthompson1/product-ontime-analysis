@@ -607,6 +607,87 @@ def demo_page():
 
 
 
+@app.route('/defect-analysis')
+def defect_analysis():
+    """Defect Rate Statistical Analysis Tool"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Defect Rate Statistical Analysis</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+            .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .section { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; }
+            .button { background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 10px 10px 0; }
+            .button:hover { background: #0056b3; }
+            .upload-section { border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 20px 0; }
+            pre { background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+            .formula { background: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 15px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Daily Product Defect Rate Statistical Analysis</h1>
+            <p>Determine if your daily product defect rate is statistically significant within a 5% margin of error.</p>
+            
+            <div class="section">
+                <h2>Statistical Methods Used</h2>
+                <div class="formula">
+                    <strong>Confidence Interval for Proportion:</strong><br>
+                    CI = p ± z × √(p(1-p)/n)<br>
+                    <small>Where p = defect rate, n = sample size, z = 1.96 for 95% confidence</small>
+                </div>
+                <ul>
+                    <li><strong>Z-test for proportions</strong> - Tests if daily rate differs significantly from expected</li>
+                    <li><strong>Control charts</strong> - Identifies process variation and out-of-control points</li>
+                    <li><strong>Trend analysis</strong> - Mann-Kendall and linear regression tests</li>
+                    <li><strong>Margin of error analysis</strong> - Ensures precision within 5% requirement</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h2>Run Analysis</h2>
+                <a href="/api/run-defect-analysis" class="button">Run Sample Analysis</a>
+                <a href="/defect-rate-analyzer" class="button">Download Analysis Tool</a>
+                
+                <div class="upload-section">
+                    <h3>Upload Your Data</h3>
+                    <p>Prepare a CSV file with columns: date, total_produced, defective_units</p>
+                    <form action="/api/upload-defect-data" method="post" enctype="multipart/form-data" style="display: inline-block;">
+                        <input type="file" name="file" accept=".csv" required style="margin: 10px;">
+                        <button type="submit" class="button">Upload & Analyze</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Sample Data Format</h2>
+                <pre>date,total_produced,defective_units
+2025-08-01,1050,23
+2025-08-02,980,19
+2025-08-03,1120,28</pre>
+                <p><a href="/sample-defect-data" class="button">Download Sample Data</a></p>
+            </div>
+            
+            <div class="section">
+                <h2>Analysis Results Include</h2>
+                <ul>
+                    <li>Overall defect rate with 95% confidence interval</li>
+                    <li>Daily significance testing (p-values < 0.05)</li>
+                    <li>Margin of error validation (≤ 5% requirement)</li>
+                    <li>Process control charts with control limits</li>
+                    <li>Trend analysis (increasing/decreasing patterns)</li>
+                    <li>Statistical visualizations and control charts</li>
+                </ul>
+            </div>
+            
+            <p><a href="/">← Back to Main App</a></p>
+        </div>
+    </body>
+    </html>
+    """
+
 @app.route('/visualization.html')
 def langextract_demo():
     """Serve the LangExtract visualization demo"""
@@ -640,6 +721,70 @@ def langextract_demo():
         </body>
         </html>
         """
+
+@app.route('/api/run-defect-analysis')
+def run_defect_analysis():
+    """Run the defect rate analysis and return results"""
+    import subprocess
+    import os
+    
+    try:
+        # Run the analysis script
+        result = subprocess.run(['python', 'simple_defect_analyzer.py'], 
+                              capture_output=True, text=True, timeout=60)
+        
+        if result.returncode == 0:
+            # Check if visualization was created
+            visualization_exists = os.path.exists('defect_rate_analysis.png')
+            
+            return {
+                "status": "success",
+                "message": "Analysis completed successfully",
+                "output": result.stdout,
+                "visualization_created": visualization_exists
+            }
+        else:
+            return {
+                "status": "error", 
+                "message": "Analysis failed",
+                "error": result.stderr
+            }
+    except subprocess.TimeoutExpired:
+        return {"status": "error", "message": "Analysis timed out"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.route('/defect-rate-analyzer')
+def download_analyzer():
+    """Serve the defect rate analyzer Python script"""
+    try:
+        with open('defect_rate_analyzer.py', 'r') as f:
+            content = f.read()
+        
+        response = app.response_class(
+            content,
+            mimetype='text/plain',
+            headers={'Content-Disposition': 'attachment; filename=defect_rate_analyzer.py'}
+        )
+        return response
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+@app.route('/sample-defect-data')
+def download_sample_data():
+    """Serve sample defect data CSV"""
+    try:
+        with open('sample_defect_data.csv', 'r') as f:
+            content = f.read()
+        
+        response = app.response_class(
+            content,
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=sample_defect_data.csv'}
+        )
+        return response
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
