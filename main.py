@@ -654,10 +654,47 @@ def defect_analysis():
                 <div class="upload-section">
                     <h3>Upload Your Data</h3>
                     <p>Prepare a CSV file with columns: date, total_produced, defective_units</p>
-                    <form action="/api/upload-defect-data" method="post" enctype="multipart/form-data" style="display: inline-block;">
+                    <form action="/api/upload-defect-data" method="post" enctype="multipart/form-data" style="display: inline-block;" onsubmit="handleUpload(event)">
                         <input type="file" name="file" accept=".csv" required style="margin: 10px;">
                         <button type="submit" class="button">Upload & Analyze</button>
                     </form>
+                    <div id="upload-result" style="margin-top: 15px; padding: 10px; display: none; border-radius: 5px;"></div>
+                    
+                    <script>
+                    async function handleUpload(event) {
+                        event.preventDefault();
+                        const form = event.target;
+                        const formData = new FormData(form);
+                        const resultDiv = document.getElementById('upload-result');
+                        
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = '<p>🔄 Analyzing your data...</p>';
+                        resultDiv.style.background = '#fff3cd';
+                        
+                        try {
+                            const response = await fetch('/api/upload-defect-data', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (result.status === 'success') {
+                                resultDiv.innerHTML = '<h4>✅ Analysis Complete</h4><pre>' + result.output + '</pre>';
+                                resultDiv.style.background = '#d4edda';
+                            } else {
+                                resultDiv.innerHTML = '<h4>❌ Analysis Failed</h4><p>' + result.message + '</p>';
+                                if (result.error) {
+                                    resultDiv.innerHTML += '<pre>' + result.error + '</pre>';
+                                }
+                                resultDiv.style.background = '#f8d7da';
+                            }
+                        } catch (error) {
+                            resultDiv.innerHTML = '<h4>❌ Error</h4><p>' + error.message + '</p>';
+                            resultDiv.style.background = '#f8d7da';
+                        }
+                    }
+                    </script>
                 </div>
             </div>
             
@@ -785,6 +822,82 @@ def download_sample_data():
         return response
     except Exception as e:
         return f"Error: {str(e)}"
+
+@app.route('/api/upload-defect-data', methods=['POST'])
+def upload_defect_data():
+    """Handle CSV file upload and run analysis"""
+    from flask import request
+    import os
+    import csv
+    
+    if 'file' not in request.files:
+        return {"status": "error", "message": "No file uploaded"}
+    
+    file = request.files['file']
+    if file.filename == '':
+        return {"status": "error", "message": "No file selected"}
+    
+    if not file.filename.endswith('.csv'):
+        return {"status": "error", "message": "Please upload a CSV file"}
+    
+    try:
+        # Save uploaded file
+        filename = 'uploaded_defect_data.csv'
+        file.save(filename)
+        
+        # Create custom analyzer script for uploaded data
+        analyzer_script = f'''
+import csv
+from simple_defect_analyzer import SimpleDefectAnalyzer
+
+analyzer = SimpleDefectAnalyzer()
+
+# Load uploaded data
+data = []
+with open('{filename}', 'r') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        defect_rate = int(row['defective_units']) / int(row['total_produced'])
+        data.append({{
+            'date': row['date'],
+            'total_produced': int(row['total_produced']),
+            'defective_units': int(row['defective_units']),
+            'defect_rate': defect_rate
+        }})
+
+analyzer.data = data
+analyzer.generate_report()
+'''
+        
+        # Write and run custom analysis
+        with open('custom_analysis.py', 'w') as f:
+            f.write(analyzer_script)
+        
+        import subprocess
+        result = subprocess.run(['python', 'custom_analysis.py'], 
+                              capture_output=True, text=True, timeout=60)
+        
+        # Clean up files
+        if os.path.exists(filename):
+            os.remove(filename)
+        if os.path.exists('custom_analysis.py'):
+            os.remove('custom_analysis.py')
+        
+        if result.returncode == 0:
+            return {
+                "status": "success",
+                "message": "Analysis completed successfully",
+                "output": result.stdout
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Analysis failed",
+                "error": result.stderr
+            }
+            
+    except Exception as e:
+        return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
