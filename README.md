@@ -1,2 +1,2 @@
 # product-ontime-analysis
-API update 1.1
+API update 1.2
