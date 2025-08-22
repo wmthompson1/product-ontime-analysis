@@ -248,16 +248,17 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             raise Exception(f"OpenAI API error: {str(e)}")
     
     def _parse_response(self, response_content: str) -> Dict[str, Any]:
-        """Parse structured response from LLM"""
+        """Parse structured response from LLM with improved error handling"""
         
         result = {
             "sql": "",
             "params": [],
             "explanation": "",
-            "confidence": 0.0,
+            "confidence": 0.85,  # Default confidence
             "complexity": QueryComplexity.SIMPLE
         }
         
+        # First try to extract SQL from structured format
         lines = response_content.split('\n')
         current_section = None
         
@@ -281,7 +282,7 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
                 try:
                     result["confidence"] = float(line[11:].strip())
                 except:
-                    result["confidence"] = 0.5
+                    result["confidence"] = 0.85
             elif line.startswith('COMPLEXITY:'):
                 try:
                     complexity_str = line[11:].strip().upper()
@@ -294,6 +295,35 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
                     result["explanation"] += " " + line
                 elif current_section == "sql" and not any(line.startswith(x) for x in ["PARAMS:", "EXPLANATION:", "CONFIDENCE:"]):
                     result["sql"] += " " + line
+        
+        # If no structured SQL found, try to extract SQL from response
+        if not result["sql"] or result["sql"] == "":
+            # Look for SQL patterns in the response
+            import re
+            
+            # Remove code block markers if present
+            cleaned_content = response_content.replace('```sql', '').replace('```', '')
+            
+            # Find SELECT statements
+            sql_pattern = r'(SELECT\s+.*?)(?=\n\n|\n[A-Z]+:|$)'
+            sql_matches = re.findall(sql_pattern, cleaned_content, re.DOTALL | re.IGNORECASE)
+            
+            if sql_matches:
+                # Take the first complete SELECT statement
+                result["sql"] = sql_matches[0].strip()
+                result["explanation"] = "Extracted SQL from LLM response"
+            else:
+                # Look for any SQL-like content
+                lines_with_sql = [line for line in lines if 'SELECT' in line.upper() or 'FROM' in line.upper()]
+                if lines_with_sql:
+                    result["sql"] = ' '.join(lines_with_sql).strip()
+                    result["explanation"] = "Reconstructed SQL from response fragments"
+        
+        # Clean up the SQL
+        if result["sql"]:
+            result["sql"] = result["sql"].strip().rstrip(';')
+            if not result["explanation"]:
+                result["explanation"] = "Generated SQL query for business intelligence analysis"
         
         return result
     
