@@ -11,7 +11,7 @@ import json
 
 # Database schema description for prompting
 SQL_SCHEMA_DESCRIPTION = """
-Database Schema:
+Manufacturing Intelligence Database Schema:
 
 USERS table:
 - id (INTEGER, Primary Key): Unique user identifier
@@ -19,20 +19,82 @@ USERS table:
 - email (VARCHAR(120), UNIQUE, NOT NULL): User's email address
 - created_at (TIMESTAMP): Account creation date
 
-PRODUCTS table (from vector extension):
-- id (SERIAL, Primary Key): Product identifier  
-- description (TEXT, NOT NULL): Product description
-- embedding (VECTOR(384)): Sentence embedding for similarity search
+SUPPLIERS table:
+- supplier_id (INTEGER, Primary Key): Unique supplier identifier
+- supplier_name (VARCHAR(200), NOT NULL): Supplier company name
+- contract_value (DECIMAL(12,2)): Annual contract value
+- status (VARCHAR(50)): Active, Inactive, Under Review
+- country (VARCHAR(100)): Supplier location
 
-Available functions:
-- Vector similarity search using <=> operator
-- Full-text search capabilities
-- Standard SQL aggregations (COUNT, SUM, AVG, etc.)
+DAILY_DELIVERIES table:
+- delivery_id (INTEGER, Primary Key): Unique delivery record
+- supplier_id (INTEGER, Foreign Key → suppliers.supplier_id)
+- date (DATE, NOT NULL): Delivery date
+- ontime_rate (DECIMAL(5,4)): On-time delivery rate (0.0-1.0)
+- total_shipments (INTEGER): Total shipments for the day
+- ontime_shipments (INTEGER): On-time shipments count
+
+PRODUCT_DEFECTS table:
+- defect_id (INTEGER, Primary Key): Unique defect record
+- product_line (VARCHAR(100), NOT NULL): Product line name
+- production_date (DATE, NOT NULL): Production date
+- defect_rate (DECIMAL(6,5)): Defect rate (0.0-1.0)
+- total_produced (INTEGER): Total units produced
+- defect_count (INTEGER): Number of defective units
+- defect_type (VARCHAR(100)): Type of defect (NCM, Rework, Scrap)
+
+PRODUCTION_LINES table:
+- line_id (INTEGER, Primary Key): Production line identifier
+- line_name (VARCHAR(100), NOT NULL): Line name
+- theoretical_capacity (INTEGER): Max units per hour
+- equipment_type (VARCHAR(50)): Critical, Standard, Support
+
+PRODUCTION_METRICS table:
+- metric_id (INTEGER, Primary Key): Unique metric record
+- line_id (INTEGER, Foreign Key → production_lines.line_id)
+- measurement_date (DATE, NOT NULL): Measurement date
+- availability_rate (DECIMAL(5,4)): Equipment availability (0.0-1.0)
+- performance_rate (DECIMAL(5,4)): Performance efficiency (0.0-1.0)
+- quality_rate (DECIMAL(5,4)): Quality rate (0.0-1.0)
+- oee_score (DECIMAL(5,4)): Overall Equipment Effectiveness
+
+EQUIPMENT_METRICS table:
+- equipment_id (INTEGER, Primary Key): Equipment identifier
+- line_id (INTEGER, Foreign Key → production_lines.line_id)
+- date (DATE, NOT NULL): Measurement date
+- availability (DECIMAL(5,4)): Availability factor
+- performance (DECIMAL(5,4)): Performance factor  
+- quality (DECIMAL(5,4)): Quality factor
+- equipment_type (VARCHAR(50)): Critical, Standard
+
+NON_CONFORMANT_MATERIALS table:
+- ncm_id (INTEGER, Primary Key): NCM incident identifier
+- product_line (VARCHAR(100), NOT NULL): Affected product line
+- incident_date (DATE, NOT NULL): Incident occurrence date
+- failure_mode (VARCHAR(200)): Description of failure
+- root_cause (VARCHAR(500)): Root cause analysis
+- cost_impact (DECIMAL(10,2)): Financial impact
+- status (VARCHAR(50)): Open, Under Investigation, Closed
+
+CORRECTIVE_ACTIONS table:
+- capa_id (INTEGER, Primary Key): CAPA identifier
+- ncm_id (INTEGER, Foreign Key → non_conformant_materials.ncm_id)
+- action_description (TEXT): Corrective action description
+- target_date (DATE): Target completion date
+- actual_date (DATE): Actual completion date
+- effectiveness_score (DECIMAL(3,2)): Effectiveness rating (1-5)
+- status (VARCHAR(50)): Planning, In Progress, Completed
+
+Manufacturing KPIs:
+- OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
+- NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
+- OEE = availability_rate * performance_rate * quality_rate
+- DPMO = (defect_count / total_produced) * 1,000,000
+- Industry Standards: OTD ≥95%, NCM ≤2.5%, OEE ≥85% (World Class)
 
 Security constraints:
 - Only SELECT operations allowed
-- No table drops or modifications
-- Parameter binding required for user inputs
+- Use parameter binding (%s) for user inputs
 - No access to system tables
 """
 
