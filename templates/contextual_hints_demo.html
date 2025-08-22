@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contextual Hints Demo - Manufacturing Intelligence</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            line-height: 1.6;
+        }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            margin-bottom: 30px; 
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1em; }
+        
+        .demo-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08); 
+            margin-bottom: 30px;
+        }
+        
+        .query-input { 
+            width: 100%; 
+            padding: 20px; 
+            font-size: 18px; 
+            border: 2px solid #e9ecef; 
+            border-radius: 12px; 
+            margin-bottom: 30px; 
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        .query-input:focus { 
+            outline: none; 
+            border-color: #667eea; 
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        
+        .hints-container { margin-top: 30px; }
+        .hint { 
+            background: #f8f9fa; 
+            border-left: 5px solid #667eea; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 0 12px 12px 0; 
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .hint:hover { 
+            transform: translateX(5px); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .hint-type { 
+            font-weight: 600; 
+            color: #667eea; 
+            text-transform: uppercase; 
+            font-size: 11px; 
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .hint-confidence { 
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: 600;
+            color: white;
+        }
+        
+        .hint-text { 
+            font-weight: 600; 
+            margin: 8px 0; 
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        .hint-explanation { 
+            color: #6c757d; 
+            font-size: 14px; 
+            margin: 8px 0;
+        }
+        .hint-fields { 
+            margin-top: 12px; 
+            font-size: 12px; 
+            color: #667eea; 
+            background: #e8f0fe;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+        }
+        .hint-example { 
+            margin-top: 12px; 
+            font-size: 13px; 
+            color: #28a745; 
+            font-style: italic;
+            background: #f0f9f4;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+        
+        .example-queries { 
+            margin-top: 40px; 
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+        }
+        .example-queries h3 { 
+            margin-top: 0; 
+            color: #2c3e50; 
+            font-size: 1.3em;
+        }
+        .example-query { 
+            background: linear-gradient(45deg, #e3f2fd, #f3e5f5); 
+            padding: 15px 20px; 
+            margin: 8px 0; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        .example-query:hover { 
+            background: linear-gradient(45deg, #bbdefb, #e1bee7); 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .loading { 
+            color: #667eea; 
+            font-style: italic; 
+            text-align: center;
+            padding: 30px;
+            font-size: 16px;
+        }
+        
+        .acronym-showcase {
+            background: linear-gradient(45deg, #fff3e0, #f3e5f5);
+            padding: 25px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+        .acronym-showcase h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .acronym-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .acronym-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .acronym-term {
+            font-weight: bold;
+            color: #ff9800;
+            font-size: 16px;
+        }
+        .acronym-definition {
+            font-size: 13px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 Contextual Hints Demo</h1>
+        <p>Manufacturing Intelligence with Domain-Specific AI Assistance</p>
+    </div>
+    
+    <div class="demo-container">
+        <h2>Try Manufacturing Queries</h2>
+        <p>Type queries about quality control, supply chain, or production. The system provides contextual hints including acronym expansions like <strong>NCM (Non-Conformant Material)</strong>.</p>
+        
+        <input type="text" id="queryInput" class="query-input" placeholder="Example: Show me NCM rates for suppliers with OTD below 95%..." autocomplete="off">
+        
+        <div id="hintsContainer" class="hints-container"></div>
+        
+        <div class="example-queries">
+            <h3>🎯 Example Queries to Try:</h3>
+            <div class="example-query" onclick="setQuery('Show NCM rates above threshold')">
+                🔍 Show NCM rates above threshold
+            </div>
+            <div class="example-query" onclick="setQuery('Find suppliers with poor OTD performance')">
+                📦 Find suppliers with poor OTD performance  
+            </div>
+            <div class="example-query" onclick="setQuery('Compare OEE metrics across production lines')">
+                ⚙️ Compare OEE metrics across production lines
+            </div>
+            <div class="example-query" onclick="setQuery('Show DPMO trends for quality control')">
+                📊 Show DPMO trends for quality control
+            </div>
+            <div class="example-query" onclick="setQuery('Find MTBF patterns for critical equipment')">
+                🔧 Find MTBF patterns for critical equipment
+            </div>
+            <div class="example-query" onclick="setQuery('CAPA effectiveness analysis')">
+                📋 CAPA effectiveness analysis
+            </div>
+        </div>
+        
+        <div class="acronym-showcase">
+            <h3>📚 Manufacturing Acronyms Supported</h3>
+            <div class="acronym-grid">
+                <div class="acronym-card">
+                    <div class="acronym-term">NCM</div>
+                    <div class="acronym-definition">Non-Conformant Material</div>
+                </div>
+                <div class="acronym-card">
+                    <div class="acronym-term">OTD</div>
+                    <div class="acronym-definition">On-Time Delivery</div>
+                </div>
+                <div class="acronym-card">
+                    <div class="acronym-term">OEE</div>
+                    <div class="acronym-definition">Overall Equipment Effectiveness</div>
+                </div>
+                <div class="acronym-card">
+                    <div class="acronym-term">DPMO</div>
+                    <div class="acronym-definition">Defects Per Million Opportunities</div>
+                </div>
+                <div class="acronym-card">
+                    <div class="acronym-term">MTBF</div>
+                    <div class="acronym-definition">Mean Time Between Failures</div>
+                </div>
+                <div class="acronym-card">
+                    <div class="acronym-term">CAPA</div>
+                    <div class="acronym-definition">Corrective and Preventive Action</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const queryInput = document.getElementById('queryInput');
+        const hintsContainer = document.getElementById('hintsContainer');
+        let debounceTimer;
+
+        queryInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = this.value.trim();
+                if (query.length > 2) {
+                    getHints(query);
+                } else {
+                    hintsContainer.innerHTML = '';
+                }
+            }, 300);
+        });
+
+        function setQuery(query) {
+            queryInput.value = query;
+            getHints(query);
+            queryInput.focus();
+        }
+
+        async function getHints(query) {
+            try {
+                hintsContainer.innerHTML = '<div class="loading">🤔 Analyzing query context...</div>';
+                
+                const response = await fetch('/api/hints', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        fields: ['defect_rate', 'ontime_rate', 'supplier_name', 'product_line', 'ncm_count', 'oee_score', 'dpmo_rate', 'mtbf_hours', 'quality_score', 'delivery_performance', 'capa_status']
+                    })
+                });
+
+                const data = await response.json();
+                displayHints(data.hints);
+            } catch (error) {
+                hintsContainer.innerHTML = '<div style="color: red; text-align: center; padding: 20px;">Error getting hints: ' + error.message + '</div>';
+            }
+        }
+
+        function displayHints(hints) {
+            if (hints.length === 0) {
+                hintsContainer.innerHTML = '<div class="hint"><div class="hint-text">No specific hints available for this query.</div></div>';
+                return;
+            }
+
+            let html = '';
+            hints.forEach(hint => {
+                const confidenceColor = hint.confidence > 0.8 ? '#28a745' : hint.confidence > 0.6 ? '#ffc107' : '#6c757d';
+                html += `
+                    <div class="hint">
+                        <div class="hint-type">${hint.type.replace('_', ' ')}</div>
+                        <div class="hint-confidence" style="background-color: ${confidenceColor};">
+                            ${Math.round(hint.confidence * 100)}%
+                        </div>
+                        <div class="hint-text">${hint.text}</div>
+                        <div class="hint-explanation">${hint.explanation}</div>
+                        ${hint.suggested_fields && hint.suggested_fields.length > 0 ? 
+                            `<div class="hint-fields">
+                                Suggested fields: ${hint.suggested_fields.join(', ')}
+                            </div>` : ''}
+                        ${hint.example_query ? 
+                            `<div class="hint-example">
+                                Example: ${hint.example_query}
+                            </div>` : ''}
+                    </div>
+                `;
+            });
+            hintsContainer.innerHTML = html;
+        }
+
+        // Initialize with a demo query
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                setQuery('Show NCM');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
