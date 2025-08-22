@@ -87,6 +87,25 @@ This project features an interactive Python educational script designed to help 
 
 ## Recent Major Changes
 
+### Contextual UI Hints System for Complex Data Queries (August 22, 2025)
+- **Architecture**: Intelligent hint system for manufacturing domain terminology and query assistance
+- **Core Components**:
+  - `app/contextual_hints.py`: Manufacturing domain knowledge base with acronym mappings and business context
+  - `/api/hints` endpoint: Real-time contextual suggestions for query input
+  - `/api/acronym/<acronym>` endpoint: Detailed acronym expansion and related field suggestions
+  - `/contextual-hints-demo` page: Interactive demonstration with professional UI
+- **Manufacturing Intelligence Features**:
+  - Acronym expansion: NCM (Non-Conformant Material), OTD (On-Time Delivery), OEE (Overall Equipment Effectiveness)
+  - Domain-specific field suggestions based on query context (quality, supply chain, production, financial)
+  - Query completion patterns for common manufacturing intelligence scenarios
+  - Confidence scoring for hint relevance and business context explanations
+- **User Experience**:
+  - Real-time hints with 300ms debounced input processing
+  - Visual confidence indicators and categorized hint types
+  - Interactive example queries for different manufacturing domains
+  - Professional gradient design with hover effects and smooth transitions
+- **Status**: Fully functional with comprehensive manufacturing terminology support and integrated navigation
+
 ### Dual Statistical Analysis Tools for Manufacturing Quality Control (August 15, 2025)
 - **Architecture**: Two comprehensive statistical analysis tools for manufacturing quality metrics
 - **Core Components**:

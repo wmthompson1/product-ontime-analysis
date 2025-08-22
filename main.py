@@ -31,6 +31,7 @@ db.init_app(app)
 
 # Import and initialize models
 from models import create_user_model
+from app.contextual_hints import get_contextual_hints, expand_acronym
 
 User = create_user_model(db)
 
@@ -1143,5 +1144,92 @@ analyzer.generate_report()
         return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
 
+# Contextual Hints API endpoints
+@app.route("/api/hints", methods=["POST"])
+def get_query_hints():
+    """Get contextual hints for query input"""
+    try:
+        data = request.json
+        partial_query = data.get("query", "").strip()
+        available_fields = data.get("fields", [])
+        
+        if not partial_query:
+            return jsonify({"hints": []})
+        
+        hints = get_contextual_hints(partial_query, available_fields)
+        
+        return jsonify({
+            "hints": hints,
+            "query": partial_query,
+            "field_count": len(available_fields)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/acronym/<acronym>")
+def get_acronym_info(acronym):
+    """Get detailed information about manufacturing acronyms"""
+    try:
+        info = expand_acronym(acronym)
+        if info:
+            return jsonify(info)
+        else:
+            return jsonify({"error": "Acronym not found"}), 404
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/contextual-hints-demo")
+def contextual_hints_demo():
+    """Demo page for contextual hints system"""
+    return render_template("contextual_hints_demo.html")
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+# Contextual Hints API endpoints
+@app.route("/api/hints", methods=["POST"])
+def get_query_hints():
+    """Get contextual hints for query input"""
+    try:
+        data = request.json
+        partial_query = data.get("query", "").strip()
+        available_fields = data.get("fields", [])
+        
+        if not partial_query:
+            return jsonify({"hints": []})
+        
+        hints = get_contextual_hints(partial_query, available_fields)
+        
+        return jsonify({
+            "hints": hints,
+            "query": partial_query,
+            "field_count": len(available_fields)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/acronym/<acronym>")
+def get_acronym_info(acronym):
+    """Get detailed information about manufacturing acronyms"""
+    try:
+        info = expand_acronym(acronym)
+        if info:
+            return jsonify(info)
+        else:
+            return jsonify({"error": "Acronym not found"}), 404
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/contextual-hints-demo")
+def contextual_hints_demo():
+    """Demo page for contextual hints system"""
+    return render_template("contextual_hints_demo.html")
+
