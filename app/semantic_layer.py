@@ -21,7 +21,7 @@ except ImportError:
     LANGCHAIN_AVAILABLE = False
 
 import openai
-from app.schema_context import (
+from schema_context import (
     SQL_SCHEMA_DESCRIPTION, 
     get_schema_context, 
     validate_sql_safety,

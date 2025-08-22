@@ -11,16 +11,17 @@ from typing import Dict, List, Any
 import json
 
 # Add the app directory to the path for imports
-sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
 
 try:
     from semantic_layer import SemanticLayer, QueryRequest
     from database_executor import DatabaseExecutor
     from schema_context import SchemaInspector
     SEMANTIC_LAYER_AVAILABLE = True
-except ImportError:
+    print("✅ Semantic layer components loaded successfully")
+except ImportError as e:
     SEMANTIC_LAYER_AVAILABLE = False
-    print("Note: Full semantic layer not available. Running demo mode.")
+    print(f"Note: Full semantic layer not available ({e}). Running demo mode.")
 
 class BusinessIntelligenceDemo:
     """Interactive demo for Berkeley Haas capstone presentation"""
