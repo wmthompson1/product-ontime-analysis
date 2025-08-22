@@ -86,10 +86,7 @@ CRITICAL SAFETY RULES:
 
 Your responses must be valid PostgreSQL SQL that follows these constraints."""
 
-        simple_template = """
-{system_prompt}
-
-Schema Context:
+        simple_template = """Schema Context:
 {schema_context}
 
 Generate a SQL query for: "{user_query}"
@@ -101,10 +98,7 @@ EXPLANATION: [brief explanation of the query logic]
 CONFIDENCE: [score 0.0-1.0]
 """
 
-        complex_template = """
-{system_prompt}
-
-Schema Context:
+        complex_template = """Schema Context:
 {schema_context}
 
 Previous conversation context:
@@ -346,11 +340,18 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
         template_name = "complex" if complexity != QueryComplexity.SIMPLE else "simple"
         template = self.templates[template_name]
         
-        # 4. Format prompt
-        prompt = template.format(
-            user_query=request.natural_language,
-            **context
-        )
+        # 4. Format prompt - fix template key issues
+        try:
+            prompt = template.format(
+                user_query=request.natural_language,
+                **context
+            )
+        except KeyError as e:
+            # Fallback formatting if template keys don't match
+            prompt = template.format(
+                user_query=request.natural_language,
+                schema_context=context.get("schema_context", "")
+            )
         
         # 5. Generate SQL
         try:
