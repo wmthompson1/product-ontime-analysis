@@ -258,15 +258,21 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             "complexity": QueryComplexity.SIMPLE
         }
         
+        # Clean up response content
+        response_content = response_content.strip()
+        
         # First try to extract SQL from structured format
         lines = response_content.split('\n')
         current_section = None
+        sql_lines = []
         
         for line in lines:
             line = line.strip()
             
             if line.startswith('SQL:'):
-                result["sql"] = line[4:].strip()
+                sql_content = line[4:].strip()
+                if sql_content:
+                    result["sql"] = sql_content
                 current_section = "sql"
             elif line.startswith('PARAMS:'):
                 try:

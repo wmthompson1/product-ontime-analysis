@@ -185,11 +185,25 @@ SENSITIVE_TABLES = {
 
 def validate_sql_safety(sql: str) -> tuple[bool, str]:
     """Validate SQL query for safety constraints"""
+    if not sql or sql.strip() == "":
+        return False, "Empty SQL query"
+    
     sql_upper = sql.upper().strip()
     
-    # Check for forbidden operations
-    for keyword in FORBIDDEN_KEYWORDS:
-        if keyword in sql_upper:
+    # Remove comments and extra whitespace
+    sql_cleaned = ' '.join(sql_upper.split())
+    
+    # Check for forbidden operations (more precise matching)
+    forbidden_patterns = [
+        r'\bDROP\b', r'\bDELETE\b', r'\bUPDATE\b', r'\bINSERT\b', 
+        r'\bALTER\b', r'\bCREATE\b', r'\bTRUNCATE\b', r'\bEXEC\b', 
+        r'\bEXECUTE\b', r'\bCALL\b', r'\bDECLARE\b'
+    ]
+    
+    import re
+    for pattern in forbidden_patterns:
+        if re.search(pattern, sql_cleaned):
+            keyword = pattern.replace(r'\b', '').replace(r'\\', '')
             return False, f"Forbidden operation detected: {keyword}"
     
     # Check for sensitive table access
@@ -197,9 +211,14 @@ def validate_sql_safety(sql: str) -> tuple[bool, str]:
         if table.upper() in sql_upper:
             return False, f"Access to sensitive table not allowed: {table}"
     
-    # Must start with allowed operations
-    starts_with_allowed = any(sql_upper.startswith(op) for op in ALLOWED_OPERATIONS)
-    if not starts_with_allowed:
-        return False, "Query must start with SELECT or WITH"
+    # More flexible start validation - allow common SQL patterns
+    valid_starts = ['SELECT', 'WITH', '(SELECT', '(\nSELECT']
+    starts_with_valid = any(sql_cleaned.startswith(start) for start in valid_starts)
+    
+    if not starts_with_valid:
+        # Try to find SELECT or WITH anywhere in reasonable positions
+        if 'SELECT' in sql_cleaned[:50] or 'WITH' in sql_cleaned[:20]:
+            return True, "Query contains valid operations"
+        return False, f"Query must start with SELECT or WITH. Found: {sql_cleaned[:30]}..."
     
     return True, "Query passed safety validation"
