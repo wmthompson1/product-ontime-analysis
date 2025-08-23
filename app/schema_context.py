@@ -85,12 +85,33 @@ CORRECTIVE_ACTIONS table:
 - effectiveness_score (DECIMAL(3,2)): Effectiveness rating (1-5)
 - status (VARCHAR(50)): Planning, In Progress, Completed
 
+EQUIPMENT_RELIABILITY table:
+- reliability_id (INTEGER, Primary Key): Reliability record identifier
+- equipment_id (INTEGER, Foreign Key → equipment_metrics.equipment_id)
+- measurement_period (DATE, NOT NULL): Monthly measurement period
+- mtbf_hours (DECIMAL(10,2)): Mean Time Between Failures in hours
+- target_mtbf (DECIMAL(10,2)): Target MTBF for equipment type
+- failure_count (INTEGER): Number of failures in period
+- operating_hours (DECIMAL(10,2)): Total operating hours in period
+- reliability_score (DECIMAL(5,4)): Overall reliability rating (0.0-1.0)
+
+FAILURE_EVENTS table:
+- failure_id (INTEGER, Primary Key): Failure event identifier
+- equipment_id (INTEGER, Foreign Key → equipment_metrics.equipment_id)
+- failure_date (TIMESTAMP, NOT NULL): Failure occurrence date/time
+- failure_type (VARCHAR(100)): Mechanical, Electrical, Software, etc.
+- downtime_hours (DECIMAL(8,2)): Hours of downtime caused
+- repair_cost (DECIMAL(10,2)): Cost of repair
+- severity (VARCHAR(50)): Critical, Major, Minor
+- root_cause (TEXT): Root cause analysis
+
 Manufacturing KPIs:
 - OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
 - NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
 - OEE = availability_rate * performance_rate * quality_rate
 - DPMO = (defect_count / total_produced) * 1,000,000
-- Industry Standards: OTD ≥95%, NCM ≤2.5%, OEE ≥85% (World Class)
+- MTBF = operating_hours / failure_count from equipment_reliability
+- Industry Standards: OTD ≥95%, NCM ≤2.5%, OEE ≥85% (World Class), MTBF varies by equipment type
 
 Security constraints:
 - Only SELECT operations allowed
