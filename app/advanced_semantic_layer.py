@@ -220,9 +220,10 @@ class AdvancedSemanticLayer(SemanticLayer):
         if RAG_AVAILABLE and self.embeddings:
             try:
                 self._create_example_retriever()
-            except ImportError as e:
-                logger.warning(f"Advanced RAG features disabled: {e}")
+            except Exception as e:
+                logger.warning(f"Vector retrieval disabled, using fallback: {str(e)}")
                 self.retriever = None
+                self._setup_fallback_retriever()
     
     def _create_example_retriever(self):
         """Create vector store retriever from SQL examples"""
@@ -253,6 +254,7 @@ class AdvancedSemanticLayer(SemanticLayer):
         except Exception as e:
             logger.warning(f"Could not create retriever: {e}")
             self.retriever = None
+            self._setup_fallback_retriever()
     
     def _setup_advanced_templates(self):
         """Setup enhanced prompt templates with few-shot examples"""
@@ -310,6 +312,52 @@ Generate a SQL query for manufacturing analytics:"""
         # Enhanced system template for RAG
         self.templates["advanced_system"] = system_prompt
         self.templates["few_shot"] = self.few_shot_template
+    
+    def _setup_fallback_retriever(self):
+        """Setup simple keyword-based retriever when FAISS is not available"""
+        logger.info("Setting up fallback retriever using keyword matching")
+        
+        # Create simple keyword-based retriever
+        self.fallback_examples = {}
+        for example in self.sql_examples:
+            # Index by domain and key terms
+            domain = example.domain
+            if domain not in self.fallback_examples:
+                self.fallback_examples[domain] = []
+            self.fallback_examples[domain].append(example)
+        
+        logger.info(f"Fallback retriever configured with {len(self.sql_examples)} examples across {len(self.fallback_examples)} domains")
+    
+    def _retrieve_similar_examples(self, query: str, domain: str = None) -> List[Dict]:
+        """Retrieve similar examples using fallback keyword matching"""
+        if self.retriever:
+            # Use vector retriever if available
+            try:
+                docs = self.retriever.get_relevant_documents(query)
+                return [{"content": doc.page_content} for doc in docs[:3]]
+            except Exception as e:
+                logger.warning(f"Vector retrieval failed, using fallback: {e}")
+        
+        # Use fallback keyword matching
+        if not hasattr(self, 'fallback_examples'):
+            return []
+        
+        # Simple keyword matching
+        query_lower = query.lower()
+        keywords = ["supplier", "delivery", "mtbf", "oee", "ncm", "defect", "quality", "equipment", "reliability"]
+        
+        # Try domain-specific examples first
+        examples = []
+        if domain and domain in self.fallback_examples:
+            examples.extend(self.fallback_examples[domain][:2])
+        
+        # Add examples from other domains if needed
+        for d, exs in self.fallback_examples.items():
+            if d != domain and len(examples) < 3:
+                examples.extend(exs[:1])
+        
+        return [{"content": f"Query: {ex.natural_language}\nSQL: {ex.sql_query}\nExplanation: {ex.explanation}"} 
+                for ex in examples[:3]]
     
     def _retrieve_similar_examples(self, query: str, k: int = 3) -> List[str]:
         """Retrieve similar SQL examples using RAG"""
