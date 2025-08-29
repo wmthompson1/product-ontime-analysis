@@ -190,6 +190,47 @@ DOWNTIME_EVENTS table:
 - resolution_method (TEXT): How the issue was resolved
 - reported_by (VARCHAR(100)): Person who reported the event
 
+PRODUCT_LINES table:
+- product_line_id (INTEGER, Primary Key): Product line identifier
+- product_line_name (VARCHAR(100), NOT NULL): Product line name
+- product_category (VARCHAR(100)): Product category classification
+- target_volume (INTEGER): Annual target production volume
+- unit_price (DECIMAL(10,2)): Standard unit price
+- profit_margin (DECIMAL(5,4)): Expected profit margin
+- launch_date (DATE): Product line launch date
+- lifecycle_stage (VARCHAR(50)): Introduction, Growth, Mature, Decline
+- primary_market (VARCHAR(100)): Target market segment
+- complexity_rating (VARCHAR(50)): Low, Medium, High complexity
+- regulatory_requirements (TEXT): Applicable regulations and standards
+
+QUALITY_COSTS table:
+- cost_id (INTEGER, Primary Key): Quality cost record identifier
+- product_line_id (INTEGER, Foreign Key → product_lines.product_line_id): Associated product line
+- cost_date (DATE, NOT NULL): Date cost was incurred
+- cost_category (VARCHAR(100), NOT NULL): Prevention, Appraisal, Internal Failure, External Failure
+- cost_subcategory (VARCHAR(100)): Specific subcategory of cost
+- cost_amount (DECIMAL(12,2), NOT NULL): Total cost amount
+- units_affected (INTEGER): Number of units affected
+- cost_per_unit (DECIMAL(10,4)): Cost impact per unit
+- cost_driver (VARCHAR(200)): Primary cause of the cost
+- prevention_opportunity (TEXT): Identified prevention opportunities
+- department_charged (VARCHAR(100)): Department responsible for cost
+
+FINANCIAL_IMPACT table:
+- impact_id (INTEGER, Primary Key): Financial impact record identifier
+- event_date (DATE, NOT NULL): Date of financial impact event
+- impact_type (VARCHAR(100), NOT NULL): Type of financial impact
+- impact_category (VARCHAR(100)): Category of impact
+- gross_impact (DECIMAL(15,2), NOT NULL): Total gross financial impact
+- recovery_amount (DECIMAL(15,2)): Amount recovered through mitigation
+- net_impact (DECIMAL(15,2), NOT NULL): Net financial impact after recovery
+- affected_product_lines (INTEGER): Number of product lines affected
+- root_cause_category (VARCHAR(100)): Primary root cause category
+- business_unit (VARCHAR(100)): Business unit responsible
+- impact_duration_days (INTEGER): Duration of impact in days
+- mitigation_cost (DECIMAL(12,2)): Cost of mitigation efforts
+- lessons_learned (TEXT): Key lessons learned from the event
+
 Manufacturing KPIs:
 - OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
 - NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
