@@ -218,7 +218,11 @@ class AdvancedSemanticLayer(SemanticLayer):
         
         # Create retriever from examples if RAG is available
         if RAG_AVAILABLE and self.embeddings:
-            self._create_example_retriever()
+            try:
+                self._create_example_retriever()
+            except ImportError as e:
+                logger.warning(f"Advanced RAG features disabled: {e}")
+                self.retriever = None
     
     def _create_example_retriever(self):
         """Create vector store retriever from SQL examples"""
@@ -236,11 +240,14 @@ class AdvancedSemanticLayer(SemanticLayer):
             )
             splits = text_splitter.create_documents(documents)
             
-            self.vectorstore = FAISS.from_documents(splits, self.embeddings)
-            self.retriever = self.vectorstore.as_retriever(
-                search_type="similarity",
-                search_kwargs={"k": 3}
-            )
+            if 'FAISS' in globals():
+                self.vectorstore = FAISS.from_documents(splits, self.embeddings)
+                self.retriever = self.vectorstore.as_retriever(
+                    search_type="similarity",
+                    search_kwargs={"k": 3}
+                )
+            else:
+                raise ImportError("FAISS not available")
             logger.info("Created vector store retriever with SQL examples")
             
         except Exception as e:
