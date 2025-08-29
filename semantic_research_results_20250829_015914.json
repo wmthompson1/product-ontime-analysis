@@ -1,0 +1,174 @@
+{
+  "timestamp": "2025-08-29T01:59:14.472354",
+  "test_results": [
+    {
+      "test_id": "supply_chain_001",
+      "domain": "supply_chain",
+      "query": "Show suppliers with delivery performance below 95% affecting production schedule",
+      "generated_sql": "```sql SELECT s.supplier_id, s.supplier_name, AVG(d.ontime_rate) AS average_ontime_rate FROM SUPPLIERS s JOIN DAILY_DELIVERIES d ON s.supplier_id = d.supplier_id GROUP BY s.supplier_id, s.supplier_name HAVING AVG(d.ontime_rate) < %s; ```",
+      "confidence": 1.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": " This query joins the SUPPLIERS and DAILY_DELIVERIES tables on the supplier_id field. It then groups the results by supplier_id and supplier_name, and calculates the average ontime_rate for each supplier. The HAVING clause filters out suppliers with an average ontime_rate of 95% or higher, leaving only those suppliers with an average ontime_rate below 95%.",
+      "safety_check": true,
+      "quality_score": 0.4,
+      "concept_coverage": 0.25,
+      "contextual_hints_count": 3,
+      "acronyms_detected": 2,
+      "timestamp": "2025-08-29T01:58:34.093745"
+    },
+    {
+      "test_id": "quality_001",
+      "domain": "quality_control",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "```sql WITH industry_standard AS ( SELECT benchmark_value FROM INDUSTRY_BENCHMARKS WHERE metric_name = 'NCM Rate' ), product_ncm_rate AS ( SELECT product_line, AVG(defect_rate) AS avg_defect_rate FROM PRODUCT_DEFECTS WHERE defect_type = 'NCM' GROUP BY product_line ) SELECT p.id, p.description, n.product_line, n.avg_defect_rate FROM products p JOIN product_ncm_rate n ON p.description = n.product_line WHERE n.avg_defect_rate > (SELECT benchmark_value FROM industry_standard); ```",
+      "confidence": 0.9,
+      "complexity": "QueryComplexity.MEDIUM",
+      "explanation": " The query first creates a subquery 'industry_standard' to get the industry standard for 'NCM Rate' from the INDUSTRY_BENCHMARKS table. Then, it creates another subquery 'product_ncm_rate' to calculate the average defect rate for each product line from the PRODUCT_DEFECTS table where the defect type is 'NCM'. Finally, it joins the 'products' table with the 'product_ncm_rate' subquery on the product description and product line, and filters out the products where the average defect rate is greater than the industry standard. This query uses a WITH clause to create temporary views for better readability and performance. The join operation is performed on the product description and product line, which are likely indexed for performance. The final result is a list of products with their NCM rates trending above industry standards.",
+      "safety_check": true,
+      "quality_score": 0.45,
+      "concept_coverage": 1.0,
+      "contextual_hints_count": 5,
+      "acronyms_detected": 5,
+      "timestamp": "2025-08-29T01:58:46.267721"
+    },
+    {
+      "test_id": "production_001",
+      "domain": "production_efficiency",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "```sql WITH critical_equipment AS ( SELECT equipment_id, equipment_name, measurement_date, availability_rate * performance_rate * quality_rate AS oee, downtime_hours FROM equipment_metrics WHERE equipment_type = %s ), downtime_pattern AS ( SELECT equipment_id, DATE_PART('month', measurement_date) AS month, AVG(downtime_hours) AS avg_downtime FROM critical_equipment GROUP BY equipment_id, month ) SELECT ce.equipment_id, ce.equipment_name, ce.measurement_date, ce.oee, dp.avg_downtime FROM critical_equipment ce JOIN downtime_pattern dp ON ce.equipment_id = dp.equipment_id AND DATE_PART('month', ce.measurement_date) = dp.month ORDER BY ce.equipment_id, ce.measurement_date; ```",
+      "confidence": 1.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": " The query first creates a CTE (Common Table Expression) named 'critical_equipment' that selects all the critical equipment from the 'equipment_metrics' table and calculates the OEE (Overall Equipment Effectiveness) for each. Then, it creates another CTE named 'downtime_pattern' that calculates the average downtime for each equipment per month. Finally, it joins these two CTEs on 'equipment_id' and 'month' to show the OEE and average downtime for each critical equipment.",
+      "safety_check": true,
+      "quality_score": 0.5,
+      "concept_coverage": 1.0,
+      "contextual_hints_count": 2,
+      "acronyms_detected": 2,
+      "timestamp": "2025-08-29T01:58:55.228695"
+    },
+    {
+      "test_id": "maintenance_001",
+      "domain": "maintenance",
+      "query": "Show equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "SELECT 'Error: Could not generate safe SQL' as error_message",
+      "confidence": 0.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": "Query processing failed: OpenAI API error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}",
+      "safety_check": false,
+      "quality_score": 0.3,
+      "concept_coverage": 0.0,
+      "contextual_hints_count": 2,
+      "acronyms_detected": 2,
+      "timestamp": "2025-08-29T01:59:12.517616"
+    },
+    {
+      "test_id": "compliance_001",
+      "domain": "compliance",
+      "query": "Analyze CAPA effectiveness for recurring quality issues",
+      "generated_sql": "SELECT 'Error: Could not generate safe SQL' as error_message",
+      "confidence": 0.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": "Query processing failed: OpenAI API error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}",
+      "safety_check": false,
+      "quality_score": 0.3,
+      "concept_coverage": 0.0,
+      "contextual_hints_count": 4,
+      "acronyms_detected": 3,
+      "timestamp": "2025-08-29T01:59:14.472219"
+    }
+  ],
+  "summary_statistics": {
+    "total_tests": 5,
+    "successful_tests": 5,
+    "success_rate": 1.0,
+    "average_quality": 0.39,
+    "average_confidence": 0.58,
+    "average_concept_coverage": 0.45,
+    "total_acronyms_detected": 14,
+    "safety_compliance": 0.6
+  },
+  "domain_analysis": {
+    "supply_chain": {
+      "count": 1,
+      "quality_scores": [
+        0.4
+      ],
+      "confidence_scores": [
+        1.0
+      ],
+      "concept_coverage": [
+        0.25
+      ],
+      "avg_quality": 0.4,
+      "avg_confidence": 1.0,
+      "avg_concept_coverage": 0.25
+    },
+    "quality_control": {
+      "count": 1,
+      "quality_scores": [
+        0.45
+      ],
+      "confidence_scores": [
+        0.9
+      ],
+      "concept_coverage": [
+        1.0
+      ],
+      "avg_quality": 0.45,
+      "avg_confidence": 0.9,
+      "avg_concept_coverage": 1.0
+    },
+    "production_efficiency": {
+      "count": 1,
+      "quality_scores": [
+        0.5
+      ],
+      "confidence_scores": [
+        1.0
+      ],
+      "concept_coverage": [
+        1.0
+      ],
+      "avg_quality": 0.5,
+      "avg_confidence": 1.0,
+      "avg_concept_coverage": 1.0
+    },
+    "maintenance": {
+      "count": 1,
+      "quality_scores": [
+        0.3
+      ],
+      "confidence_scores": [
+        0.0
+      ],
+      "concept_coverage": [
+        0.0
+      ],
+      "avg_quality": 0.3,
+      "avg_confidence": 0.0,
+      "avg_concept_coverage": 0.0
+    },
+    "compliance": {
+      "count": 1,
+      "quality_scores": [
+        0.3
+      ],
+      "confidence_scores": [
+        0.0
+      ],
+      "concept_coverage": [
+        0.0
+      ],
+      "avg_quality": 0.3,
+      "avg_confidence": 0.0,
+      "avg_concept_coverage": 0.0
+    }
+  },
+  "research_insights": [
+    "High success rate indicates robust SQL generation capabilities",
+    "SQL quality could be improved through better domain knowledge integration",
+    "Business concept recognition needs enhancement for better domain alignment",
+    "Strongest performance in production_efficiency domain (quality: 0.50)",
+    "Contextual hints successfully detected 14 manufacturing acronyms"
+  ]
+}
