@@ -117,7 +117,7 @@ class AdvancedSemanticLayer(SemanticLayer):
                     COUNT(d.delivery_id) as total_deliveries,
                     s.contract_value
                 FROM suppliers s
-                JOIN deliveries d ON s.supplier_id = d.supplier_id
+                JOIN daily_deliveries d ON s.supplier_id = d.supplier_id
                 WHERE d.delivery_date >= CURRENT_DATE - INTERVAL '90 days'
                 GROUP BY s.supplier_id, s.supplier_name, s.contract_value
                 HAVING AVG(d.ontime_rate) < 0.95
@@ -493,9 +493,9 @@ def create_test_evaluation_set() -> List[Dict]:
     return [
         {
             "query": "Show suppliers with poor delivery performance affecting our production schedule",
-            "expected_sql": "SELECT supplier_name, AVG(ontime_rate) FROM suppliers s JOIN deliveries d ON s.supplier_id = d.supplier_id WHERE d.date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY supplier_name HAVING AVG(ontime_rate) < 0.95",
+            "expected_sql": "SELECT supplier_name, AVG(ontime_rate) FROM suppliers s JOIN daily_deliveries d ON s.supplier_id = d.supplier_id WHERE d.delivery_date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY supplier_name HAVING AVG(ontime_rate) < 0.95",
             "context": "Supply chain analysis for production planning",
-            "tables": ["suppliers", "deliveries"]
+            "tables": ["suppliers", "daily_deliveries"]
         },
         {
             "query": "Find product lines with NCM rates above industry benchmarks", 
