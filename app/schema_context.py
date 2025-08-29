@@ -60,12 +60,32 @@ PRODUCTION_METRICS table:
 
 EQUIPMENT_METRICS table:
 - equipment_id (INTEGER, Primary Key): Equipment identifier
-- line_id (INTEGER, Foreign Key → production_lines.line_id)
-- date (DATE, NOT NULL): Measurement date
-- availability (DECIMAL(5,4)): Availability factor
-- performance (DECIMAL(5,4)): Performance factor  
-- quality (DECIMAL(5,4)): Quality factor
-- equipment_type (VARCHAR(50)): Critical, Standard
+- line_id (VARCHAR(50), NOT NULL): Production line identifier
+- equipment_type (VARCHAR(100)): Equipment category
+- equipment_name (VARCHAR(255)): Equipment name
+- measurement_date (DATE, NOT NULL): Measurement date
+- availability_rate (DECIMAL(5,4)): Availability factor
+- performance_rate (DECIMAL(5,4)): Performance factor  
+- quality_rate (DECIMAL(5,4)): Quality factor
+- oee_score (DECIMAL(5,4)): Overall Equipment Effectiveness
+- downtime_hours (DECIMAL(8,2)): Equipment downtime
+
+PRODUCTION_QUALITY table:
+- quality_id (INTEGER, Primary Key): Quality record identifier
+- product_line (VARCHAR(100), NOT NULL): Product line name
+- production_date (DATE, NOT NULL): Production date
+- defect_rate (DECIMAL(6,5)): Defect rate (0.0-1.0)
+- total_produced (INTEGER): Total units produced
+- defect_count (INTEGER): Number of defective units
+- shift_id (VARCHAR(50)): Production shift identifier
+
+INDUSTRY_BENCHMARKS table:
+- benchmark_id (INTEGER, Primary Key): Benchmark record identifier
+- metric_name (VARCHAR(100), NOT NULL): KPI metric name
+- industry_sector (VARCHAR(100)): Manufacturing sector
+- benchmark_value (DECIMAL(10,6)): Benchmark target value
+- measurement_unit (VARCHAR(50)): Unit of measurement
+- benchmark_class (VARCHAR(50)): World Class, Industry Average, Minimum Acceptable
 
 NON_CONFORMANT_MATERIALS table:
 - ncm_id (INTEGER, Primary Key): NCM incident identifier
