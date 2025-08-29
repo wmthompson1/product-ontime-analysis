@@ -192,7 +192,7 @@ Here are examples of high-quality manufacturing SQL queries:
         
         return few_shot_template
     
-    def generate_sql_with_few_shot(self, user_query: str) -> Dict[str, Any]:
+    def generate_sql_with_few_shot(self, user_query: str, use_compact_schema: bool = True) -> Dict[str, Any]:
         """
         Generate SQL using few-shot learning approach
         This is your main study method for Frank Kane techniques
@@ -200,8 +200,11 @@ Here are examples of high-quality manufacturing SQL queries:
         print(f"🔍 Processing query: {user_query}")
         
         try:
-            # Get database schema context
-            schema_context = get_schema_context()
+            # Get database schema context (compact version for token efficiency)
+            if use_compact_schema:
+                schema_context = self._get_compact_schema_context()
+            else:
+                schema_context = get_schema_context()
             
             # Format the few-shot prompt
             formatted_prompt = self.few_shot_template.format(
@@ -215,7 +218,7 @@ Here are examples of high-quality manufacturing SQL queries:
                     model="gpt-4",
                     messages=[{"role": "user", "content": formatted_prompt}],
                     temperature=0.1,
-                    max_tokens=1500
+                    max_tokens=800  # Reduced for token efficiency
                 )
                 
                 # Extract response
@@ -282,6 +285,35 @@ Here are examples of high-quality manufacturing SQL queries:
                 result['explanation'] += ' ' + line
         
         return result
+    
+    def _get_compact_schema_context(self) -> str:
+        """
+        Get a compact schema context for token efficiency
+        Focus on key manufacturing tables for few-shot learning
+        """
+        compact_schema = """
+CORE MANUFACTURING TABLES:
+
+SUPPLIERS: supplier_id, supplier_name, contract_value, performance_rating
+DAILY_DELIVERIES: delivery_id, supplier_id, delivery_date, ontime_rate, quantity_delivered
+
+PRODUCT_DEFECTS: defect_id, product_line, production_date, defect_rate, defect_count, total_produced
+INDUSTRY_BENCHMARKS: benchmark_id, metric_name, benchmark_value, industry_sector
+
+PRODUCTION_LINES: line_id, line_name, efficiency_rating, theoretical_capacity, actual_capacity
+EQUIPMENT_METRICS: metric_id, line_id, measurement_date, availability, performance_rate, quality_rate
+DOWNTIME_EVENTS: event_id, line_id, event_start_time, downtime_duration_minutes, downtime_category
+
+QUALITY_INCIDENTS: incident_id, product_line, incident_date, severity_level, cost_impact
+FINANCIAL_IMPACT: impact_id, event_date, impact_type, gross_impact, net_impact
+
+Key Manufacturing KPIs:
+- OEE = Availability × Performance × Quality  
+- NCM = Non-Conformant Material rates
+- OTD = On-Time Delivery performance
+- DPMO = Defects Per Million Opportunities
+        """
+        return compact_schema
     
     def analyze_few_shot_performance(self, test_queries: List[str]) -> Dict[str, Any]:
         """
