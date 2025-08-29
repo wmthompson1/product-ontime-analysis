@@ -113,8 +113,8 @@ def run_quick_test():
     print("🧪 QUICK SEMANTIC LAYER TEST")
     print("=" * 30)
     
-    from semantic_layer import SemanticLayer, QueryRequest
-    from advanced_semantic_layer import AdvancedSemanticLayer
+    from app.semantic_layer import SemanticLayer, QueryRequest
+    from app.advanced_semantic_layer import AdvancedSemanticLayer
     
     # Test queries
     test_queries = [
