@@ -231,6 +231,22 @@ FINANCIAL_IMPACT table:
 - mitigation_cost (DECIMAL(12,2)): Cost of mitigation efforts
 - lessons_learned (TEXT): Key lessons learned from the event
 
+FAILURE_EVENTS table:
+- failure_id (INTEGER, Primary Key): Equipment failure event identifier
+- equipment_id (INTEGER, NOT NULL): Equipment identifier that failed
+- failure_date (TIMESTAMP, NOT NULL): Date and time of failure
+- failure_type (VARCHAR(100), NOT NULL): Type of failure (Mechanical, Electrical, Hydraulic, Software)
+- failure_mode (VARCHAR(200)): Specific failure mode description
+- severity_level (VARCHAR(50), NOT NULL): Critical, Major, Medium, Minor
+- downtime_hours (DECIMAL(8,2)): Hours of downtime caused by failure
+- repair_cost (DECIMAL(12,2)): Total cost of repair including parts and labor
+- parts_replaced (TEXT): List of parts replaced during repair
+- technician_assigned (VARCHAR(100)): Technician responsible for repair
+- failure_description (TEXT): Detailed description of the failure
+- root_cause_analysis (TEXT): Analysis of root cause
+- preventive_action (TEXT): Actions taken to prevent recurrence
+- mtbf_impact (DECIMAL(10,2)): Impact on Mean Time Between Failures
+
 Manufacturing KPIs:
 - OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
 - NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
