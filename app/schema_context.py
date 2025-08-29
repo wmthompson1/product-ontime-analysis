@@ -125,6 +125,16 @@ FAILURE_EVENTS table:
 - severity (VARCHAR(50)): Critical, Major, Minor
 - root_cause (TEXT): Root cause analysis
 
+MAINTENANCE_TARGETS table:
+- target_id (INTEGER, Primary Key): Target record identifier
+- equipment_type (VARCHAR(100), NOT NULL): Equipment category
+- target_mtbf (DECIMAL(10,2)): Target Mean Time Between Failures
+- target_availability (DECIMAL(5,4)): Target availability rate
+- target_reliability (DECIMAL(5,4)): Target reliability score
+- maintenance_interval_hours (INTEGER): Scheduled maintenance frequency
+- industry_sector (VARCHAR(100)): Manufacturing sector classification
+- target_class (VARCHAR(50)): World Class, Industry Standard, Minimum
+
 Manufacturing KPIs:
 - OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
 - NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
