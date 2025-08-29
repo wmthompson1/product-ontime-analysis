@@ -135,6 +135,33 @@ MAINTENANCE_TARGETS table:
 - industry_sector (VARCHAR(100)): Manufacturing sector classification
 - target_class (VARCHAR(50)): World Class, Industry Standard, Minimum
 
+QUALITY_INCIDENTS table:
+- incident_id (INTEGER, Primary Key): Quality incident identifier
+- product_line (VARCHAR(100), NOT NULL): Product line affected
+- incident_date (DATE, NOT NULL): Date incident occurred
+- incident_type (VARCHAR(100), NOT NULL): Type of quality incident
+- severity_level (VARCHAR(50), NOT NULL): Critical, Major, Minor
+- affected_units (INTEGER): Number of units affected
+- cost_impact (DECIMAL(12,2)): Financial impact of incident
+- detection_method (VARCHAR(100)): How incident was detected
+- status (VARCHAR(50)): Open, In Progress, Closed
+- assigned_to (VARCHAR(100)): Responsible team/person
+- resolution_date (DATE): Date incident was resolved
+- root_cause (TEXT): Root cause analysis results
+
+EFFECTIVENESS_METRICS table:
+- metric_id (INTEGER, Primary Key): Effectiveness metric identifier
+- measurement_date (DATE, NOT NULL): Date metric was measured
+- metric_type (VARCHAR(100), NOT NULL): Type of effectiveness metric
+- metric_value (DECIMAL(10,6), NOT NULL): Measured effectiveness value
+- target_value (DECIMAL(10,6)): Target effectiveness value
+- variance_percentage (DECIMAL(8,4)): Variance from target
+- measurement_unit (VARCHAR(50)): Unit of measurement
+- department (VARCHAR(100)): Department responsible for metric
+- measurement_method (VARCHAR(100)): How metric was measured
+- confidence_level (DECIMAL(5,4)): Confidence in measurement accuracy
+- data_source (VARCHAR(100)): Source system for metric data
+
 Manufacturing KPIs:
 - OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
 - NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
