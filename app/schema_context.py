@@ -162,6 +162,34 @@ EFFECTIVENESS_METRICS table:
 - confidence_level (DECIMAL(5,4)): Confidence in measurement accuracy
 - data_source (VARCHAR(100)): Source system for metric data
 
+PRODUCTION_LINES table:
+- line_id (INTEGER, Primary Key): Production line identifier
+- line_name (VARCHAR(100), NOT NULL): Production line name
+- facility_location (VARCHAR(100)): Physical location in facility
+- line_type (VARCHAR(50)): Type of production line
+- theoretical_capacity (INTEGER): Maximum theoretical output
+- actual_capacity (INTEGER): Actual achievable output
+- efficiency_rating (DECIMAL(5,4)): Line efficiency rating
+- installation_date (DATE): Date line was installed
+- last_maintenance_date (DATE): Most recent maintenance date
+- status (VARCHAR(50)): Active, Maintenance, Inactive
+- supervisor (VARCHAR(100)): Line supervisor name
+
+DOWNTIME_EVENTS table:
+- event_id (INTEGER, Primary Key): Downtime event identifier
+- line_id (INTEGER, Foreign Key → production_lines.line_id): Associated production line
+- equipment_id (INTEGER): Specific equipment involved
+- event_start_time (TIMESTAMP, NOT NULL): Downtime start time
+- event_end_time (TIMESTAMP): Downtime end time
+- downtime_duration_minutes (INTEGER): Total downtime in minutes
+- downtime_category (VARCHAR(100), NOT NULL): Category of downtime
+- downtime_reason (VARCHAR(200)): Specific reason for downtime
+- impact_severity (VARCHAR(50)): Low, Medium, High, Critical
+- production_loss_units (INTEGER): Units lost due to downtime
+- cost_impact (DECIMAL(12,2)): Financial impact of downtime
+- resolution_method (TEXT): How the issue was resolved
+- reported_by (VARCHAR(100)): Person who reported the event
+
 Manufacturing KPIs:
 - OTD (On-Time Delivery) = AVG(ontime_rate) from daily_deliveries
 - NCM Rate = AVG(defect_rate) from product_defects where defect_type = 'NCM'
