@@ -1,0 +1,145 @@
+{
+  "timestamp": "2025-08-29T03:01:54.709915",
+  "test_cases": 6,
+  "standard_layer_results": [
+    {
+      "test_id": "supply_chain_001",
+      "query": "Show suppliers with delivery performance issues affecting production",
+      "generated_sql": "```sql SELECT s.supplier_id, s.supplier_name, AVG(dd.ontime_rate) AS average_ontime_rate FROM suppliers s JOIN daily_deliveries dd ON s.supplier_id = dd.supplier_id GROUP BY s.supplier_id, s.supplier_name HAVING AVG(dd.ontime_rate) < %s ORDER BY average_ontime_rate ASC LIMIT %s; ```",
+      "confidence": 0.85,
+      "safety_check": true,
+      "explanation": " This query joins the suppliers and daily_deliveries tables on the supplier_id. It then groups the results by supplier_id and supplier_name, and calculates the average ontime_rate for each supplier. The HAVING clause filters out suppliers with an average ontime_rate of 95% or higher, as per the industry standard for On-Time Delivery (OTD). The results are ordered in ascending order of average_ontime_rate, so suppliers with the worst delivery performance appear first. The query is limited to 100 results to prevent resource exhaustion. 1.0",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "quality_001",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "```sql WITH product_ncm_rate AS ( SELECT pd.product_line, AVG(pd.defect_rate) AS avg_defect_rate FROM product_defects pd WHERE pd.defect_type = 'NCM' GROUP BY pd.product_line ), industry_standard AS ( SELECT ib.benchmark_value FROM industry_benchmarks ib WHERE ib.metric_name = 'NCM Rate' AND ib.benchmark_class = 'Industry Average' ) SELECT pnr.product_line, pnr.avg_defect_rate FROM product_ncm_rate pnr, industry_standard is WHERE pnr.avg_defect_rate > is.benchmark_value ORDER BY pnr.avg_defect_rate DESC LIMIT %s; ```",
+      "confidence": 0.9,
+      "safety_check": true,
+      "explanation": " This query first calculates the average NCM defect rate for each product line in the `product_ncm_rate` CTE. It then gets the industry standard for NCM Rate from the `industry_benchmarks` table in the `industry_standard` CTE. The main SELECT statement then compares the average NCM rate for each product line with the industry standard and returns those product lines where the NCM rate is higher than the industry standard. The results are ordered in descending order of the NCM rate and limited to the top 100.",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "production_001",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "```sql WITH equipment_oee AS ( SELECT equipment_id, equipment_name, measurement_date, availability_rate * performance_rate * quality_rate AS oee FROM equipment_metrics WHERE equipment_type = %s ), equipment_downtime AS ( SELECT equipment_id, SUM(downtime_hours) AS total_downtime FROM downtime_events GROUP BY equipment_id ) SELECT e.equipment_id, e.equipment_name, e.measurement_date, e.oee, d.total_downtime FROM equipment_oee e LEFT JOIN equipment_downtime d ON e.equipment_id = d.equipment_id ORDER BY e.measurement_date; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query calculates the OEE (Overall Equipment Effectiveness) for each piece of critical equipment and also shows the total downtime for each piece of equipment. The query first calculates the OEE for each piece of equipment in the \"equipment_oee\" CTE (Common Table Expression) and then calculates the total downtime for each piece of equipment in the \"equipment_downtime\" CTE. The final SELECT statement then joins these two CTEs together on the equipment_id field and orders the results by the measurement_date.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "financial_001",
+      "query": "Show cost impact of quality issues by product line",
+      "generated_sql": "```sql SELECT product_line, SUM(cost_impact) AS total_cost_impact FROM quality_incidents GROUP BY product_line ORDER BY total_cost_impact DESC; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "This query selects the product line and the sum of the cost impact from the quality_incidents table. It groups the results by product line, which means it will calculate the total cost impact for each product line separately. The results are ordered in descending order by the total cost impact, so the product line with the highest cost impact will be at the top.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "maintenance_001",
+      "query": "Find equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "```sql SELECT er.equipment_id, er.mtbf_hours, mt.target_mtbf FROM equipment_reliability er JOIN maintenance_targets mt ON er.equipment_id = mt.target_id WHERE er.mtbf_hours < mt.target_mtbf; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "This query joins the equipment_reliability and maintenance_targets tables on the equipment_id and target_id respectively. It then selects the equipment_id, mtbf_hours from the equipment_reliability table and target_mtbf from the maintenance_targets table where the mtbf_hours is less than the target_mtbf. This will return the equipment that has a Mean Time Between Failures (MTBF) below the target, indicating that these pieces of equipment require immediate attention.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "compliance_001",
+      "query": "Show CAPA effectiveness for recurring quality issues",
+      "generated_sql": "SELECT 'Error: Could not generate safe SQL' as error_message",
+      "confidence": 0.0,
+      "safety_check": false,
+      "explanation": "Query processing failed: OpenAI API error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}",
+      "complexity": "QueryComplexity.SIMPLE"
+    }
+  ],
+  "advanced_layer_results": [
+    {
+      "test_id": "supply_chain_001",
+      "query": "Show suppliers with delivery performance issues affecting production",
+      "generated_sql": "SELECT \n    s.supplier_name,\n    COUNT(d.delivery_id) as total_deliveries,\n    AVG(d.ontime_rate) as avg_delivery_performance,\n    COUNT(ps.schedule_id) as affected_production_schedules\nFROM suppliers s\nJOIN daily_deliveries d ON s.supplier_id = d.supplier_id\nJOIN production_schedule ps ON d.delivery_date = ps.planned_start\nWHERE d.ontime_rate < 0.95 AND d.delivery_date >= CURRENT_DATE - INTERVAL '90 days'\nGROUP BY s.supplier_id, s.supplier_name\nHAVING COUNT(ps.schedule_id) > 0\nORDER BY affected_production_schedules DESC, avg_delivery_performance ASC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "quality_001",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "SELECT \n        product_line,\n        DATE_TRUNC('month', production_date) as month,\n        AVG(defect_rate) as monthly_ncm_rate\n    FROM product_defects\n    WHERE defect_type = 'NCM' AND production_date >= CURRENT_DATE - INTERVAL '6 months'\n    GROUP BY product_line, DATE_TRUNC('month', production_date)\n),\nindustry_standard AS (\n    SELECT \n        benchmark_value as ncm_standard\n    FROM industry_benchmarks\n    WHERE metric_name = 'NCM Rate'\n),\ntrend_analysis AS (\n    SELECT \n        product_line,\n        month,\n        monthly_ncm_rate,\n        LAG(monthly_ncm_rate) OVER (PARTITION BY product_line ORDER BY month) as prev_month_rate,\n        ncm_standard\n    FROM monthly_ncm, industry_standard\n)\nSELECT \n    product_line,\n    COUNT(*) as months_analyzed,\n    AVG(monthly_ncm_rate) as avg_ncm_rate,\n    (monthly_ncm_rate - prev_month_rate) as trend_change,\n    ncm_standard\nFROM trend_analysis\nWHERE prev_month_rate IS NOT NULL\n    AND monthly_ncm_rate > prev_month_rate\n    AND monthly_ncm_rate > ncm_standard\nGROUP BY product_line, monthly_ncm_rate, prev_month_rate, ncm_standard\nHAVING COUNT(*) >= 2\nORDER BY trend_change DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.COMPLEX"
+    },
+    {
+      "test_id": "production_001",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "SELECT \n    em.equipment_name,\n    em.equipment_type,\n    AVG(em.availability_rate) as availability,\n    AVG(em.performance_rate) as performance,\n    AVG(em.quality_rate) as quality,\n    (AVG(em.availability_rate) * AVG(em.performance_rate) * AVG(em.quality_rate)) as oee_score,\n    COUNT(de.event_id) as downtime_events,\n    AVG(de.downtime_duration_minutes) as avg_downtime_minutes\nFROM equipment_metrics em\nJOIN downtime_events de ON em.equipment_id = de.equipment_id\nWHERE em.measurement_date >= CURRENT_DATE - INTERVAL '30 days'\n    AND em.equipment_type = 'Critical'\nGROUP BY em.equipment_id, em.equipment_name, em.equipment_type\nHAVING COUNT(de.event_id) > 1\nORDER BY oee_score ASC, downtime_events DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "financial_001",
+      "query": "Show cost impact of quality issues by product line",
+      "generated_sql": "SELECT \n    product_line,\n    COUNT(incident_id) as total_incidents,\n    SUM(cost_impact) as total_cost_impact\nFROM quality_incidents\nWHERE incident_date >= CURRENT_DATE - INTERVAL '1 year'\nGROUP BY product_line\nORDER BY total_cost_impact DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "maintenance_001",
+      "query": "Find equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "SELECT \n    er.equipment_id,\n    em.equipment_name,\n    er.mtbf_hours,\n    mt.target_mtbf,\n    (er.mtbf_hours - mt.target_mtbf) as mtbf_variance,\n    CASE \n        WHEN er.mtbf_hours < mt.target_mtbf THEN 'Below Target'\n        ELSE 'On Target'\n    END as status\nFROM equipment_reliability er\nJOIN equipment_metrics em ON er.equipment_id = em.equipment_id\nJOIN maintenance_targets mt ON em.equipment_type = mt.equipment_type\nWHERE er.measurement_period >= CURRENT_DATE - INTERVAL '30 days'\n    AND er.mtbf_hours < mt.target_mtbf\nORDER BY mtbf_variance ASC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "compliance_001",
+      "query": "Show CAPA effectiveness for recurring quality issues",
+      "generated_sql": "SELECT 'Query generation failed' as status, %s as error_message",
+      "confidence": 0.0,
+      "safety_check": false,
+      "explanation": "Could not generate SQL: OpenAI API error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}",
+      "complexity": "QueryComplexity.SIMPLE"
+    }
+  ],
+  "performance_comparison": {
+    "success_rates": {
+      "standard": 0.8333333333333334,
+      "advanced": 0.8333333333333334
+    },
+    "average_confidence": {
+      "standard": 0.95,
+      "advanced": 1.0
+    },
+    "complexity_distribution": {
+      "standard": {
+        "QueryComplexity.SIMPLE": 4,
+        "QueryComplexity.MEDIUM": 1
+      },
+      "advanced": {
+        "QueryComplexity.MEDIUM": 3,
+        "QueryComplexity.COMPLEX": 1,
+        "QueryComplexity.SIMPLE": 1
+      }
+    },
+    "safety_compliance": {
+      "standard": 0.8333333333333334,
+      "advanced": 0.8333333333333334
+    },
+    "improvement_metrics": {
+      "success_rate_improvement": 0.0,
+      "confidence_improvement": 0.052631578947368474
+    }
+  }
+}
