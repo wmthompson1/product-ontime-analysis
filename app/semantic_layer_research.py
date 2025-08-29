@@ -48,10 +48,10 @@ class SemanticLayerResearcher:
                 "query": "Show suppliers with delivery performance issues affecting production",
                 "domain": "supply_chain",
                 "complexity": "medium",
-                "expected_tables": ["suppliers", "deliveries", "production_schedule"],
+                "expected_tables": ["suppliers", "daily_deliveries", "production_schedule"],
                 "key_metrics": ["ontime_rate", "delivery_date", "impact_score"],
                 "business_context": "Identify supply chain bottlenecks impacting manufacturing schedule",
-                "expected_sql_pattern": "JOIN suppliers with deliveries, filter by performance thresholds"
+                "expected_sql_pattern": "JOIN suppliers with daily_deliveries, filter by performance thresholds"
             },
             {
                 "id": "quality_001", 
