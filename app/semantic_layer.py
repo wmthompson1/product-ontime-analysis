@@ -66,11 +66,9 @@ class SemanticLayer:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         openai.api_key = self.api_key
         
-        # Initialize memory for conversation context
-        self.memory = ConversationBufferWindowMemory(
-            k=5,  # Keep last 5 exchanges
-            return_messages=True
-        ) if LANGCHAIN_AVAILABLE else None
+        # Simple conversation tracking (replaces deprecated memory)
+        self.conversation_history = []
+        self.max_history = 5  # Keep last 5 exchanges
         
         # Query templates for different complexity levels
         self.templates = self._initialize_templates()
@@ -193,14 +191,13 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             inferred_tables = self._extract_table_hints(request.natural_language)
             schema_context = get_schema_context(inferred_tables) if inferred_tables else SQL_SCHEMA_DESCRIPTION
         
-        # Conversation history
+        # Conversation history (simple tracking)
         conversation_history = ""
-        if self.memory:
-            messages = self.memory.chat_memory.messages
+        if self.conversation_history:
+            recent_exchanges = self.conversation_history[-2:]  # Last 2 exchanges
             conversation_history = "\n".join([
-                f"Human: {msg.content}" if isinstance(msg, HumanMessage) 
-                else f"Assistant: {msg.content}"
-                for msg in messages[-4:]  # Last 2 exchanges
+                f"Human: {exchange['query']}\nAssistant: Generated SQL for: {exchange['sql'][:100]}..."
+                for exchange in recent_exchanges
             ])
         
         # Additional context
@@ -370,10 +367,15 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             if not is_safe:
                 raise Exception(f"Safety validation failed: {safety_message}")
             
-            # 7. Store in memory for context
-            if self.memory:
-                self.memory.chat_memory.add_user_message(request.natural_language)
-                self.memory.chat_memory.add_ai_message(f"Generated SQL: {parsed['sql']}")
+            # 7. Store in conversation history (simple tracking)
+            self.conversation_history.append({
+                "query": request.natural_language,
+                "sql": parsed["sql"],
+                "confidence": parsed["confidence"]
+            })
+            # Keep only last 5 exchanges
+            if len(self.conversation_history) > self.max_history:
+                self.conversation_history = self.conversation_history[-self.max_history:]
             
             # 8. Return structured result
             return QueryResult(
