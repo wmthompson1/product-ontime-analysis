@@ -189,7 +189,15 @@ Here are examples of high-quality manufacturing SQL queries:
             examples=[asdict(ex) for ex in self.manufacturing_examples],
             example_prompt=example_prompt,
             prefix=system_prompt,
-            suffix="Business Query: {user_query}\n\nGenerate SQL:",
+            suffix="""Business Query: {user_query}
+
+Generate SQL using EXACTLY this format:
+SQL: [your PostgreSQL query here]
+EXPLANATION: [business context and logic]
+CONFIDENCE: [score between 0.0-1.0]
+COMPLEXITY: [simple|medium|complex]
+
+Response:""",
             input_variables=["user_query", "schema_context"]
         )
         
@@ -256,7 +264,11 @@ Here are examples of high-quality manufacturing SQL queries:
             }
     
     def _parse_sql_response(self, response: str) -> Dict[str, Any]:
-        """Parse structured response from the model"""
+        """Parse structured response from the model with debug output"""
+        
+        # Debug: Show what we received from OpenAI
+        print(f"🔍 DEBUG: Raw OpenAI response:\n{response[:500]}...")
+        
         result = {
             'sql': None,
             'explanation': '',
@@ -276,10 +288,14 @@ Here are examples of high-quality manufacturing SQL queries:
                 current_section = 'explanation'
                 result['explanation'] = line[12:].strip()
             elif line.startswith('CONFIDENCE:'):
+                confidence_str = line[11:].strip()
+                print(f"🔍 DEBUG: Found confidence string: '{confidence_str}'")
                 try:
-                    result['confidence'] = float(line[11:].strip())
-                except:
-                    result['confidence'] = 0.5
+                    result['confidence'] = float(confidence_str)
+                    print(f"🔍 DEBUG: Parsed confidence: {result['confidence']}")
+                except Exception as e:
+                    print(f"🔍 DEBUG: Failed to parse confidence '{confidence_str}': {e}")
+                    result['confidence'] = 0.8  # Better default than 0.0
             elif line.startswith('COMPLEXITY:'):
                 result['complexity'] = line[11:].strip().lower()
             elif current_section == 'sql' and line and not line.startswith(('EXPLANATION:', 'CONFIDENCE:', 'COMPLEXITY:')):

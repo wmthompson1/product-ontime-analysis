@@ -247,6 +247,9 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
     def _parse_response(self, response_content: str) -> Dict[str, Any]:
         """Parse structured response from LLM with improved error handling"""
         
+        # Debug: Print raw response to understand format issues
+        print(f"🔍 DEBUG: Raw LLM Response:\n{response_content[:300]}...")
+        
         result = {
             "sql": "",
             "params": [],
@@ -283,8 +286,12 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
                 current_section = "explanation"
             elif line.startswith('CONFIDENCE:'):
                 try:
-                    result["confidence"] = float(line[11:].strip())
-                except:
+                    confidence_str = line[11:].strip()
+                    print(f"🔍 DEBUG: Found confidence string: '{confidence_str}'")
+                    result["confidence"] = float(confidence_str)
+                    print(f"🔍 DEBUG: Parsed confidence: {result['confidence']}")
+                except Exception as e:
+                    print(f"🔍 DEBUG: Failed to parse confidence: {e}")
                     result["confidence"] = 0.85
             elif line.startswith('COMPLEXITY:'):
                 try:
