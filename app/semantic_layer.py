@@ -14,8 +14,14 @@ from enum import Enum
 try:
     from langchain.prompts import PromptTemplate, ChatPromptTemplate
     from langchain.schema import HumanMessage, SystemMessage
-    from langchain.memory import ConversationBufferWindowMemory
-    from langchain.callbacks import get_openai_callback
+    try:
+        from langchain_community.memory import ConversationBufferWindowMemory
+    except ImportError:
+        from langchain.memory import ConversationBufferWindowMemory
+    try:
+        from langchain_community.callbacks.manager import get_openai_callback
+    except ImportError:
+        from langchain.callbacks import get_openai_callback
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False
