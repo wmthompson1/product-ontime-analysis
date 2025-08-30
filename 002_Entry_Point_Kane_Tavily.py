@@ -3,8 +3,8 @@ import os
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain.tools import Tool
 
-# In Replit, TAVILY_API_KEY is already available as environment variable
-# No need to manually set it - it's automatically loaded from secrets
+#from google.colab import userdata
+# os.environ["TAVILY_API_KEY"] = secrets.get('TAVILY_API_KEY')
 
 search_tavily = TavilySearchResults()
 
