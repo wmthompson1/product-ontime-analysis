@@ -1,7 +1,7 @@
 # check if Tavily can be accessed
 import os
 from langchain_community.tools.tavily_search import TavilySearchResults
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 
 #from google.colab import userdata
 # os.environ["TAVILY_API_KEY"] = secrets.get('TAVILY_API_KEY')
