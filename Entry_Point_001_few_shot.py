@@ -89,7 +89,11 @@ class AdvancedRAGMetrics:
         domain_score = self._calculate_domain_relevance(query)
         
         # Safety assessment
-        safety_score = 1.0 if result.get('safety_check', (True, ""))[0] else 0.0
+        safety_check = result.get('safety_check', True)
+        if isinstance(safety_check, tuple):
+            safety_score = 1.0 if safety_check[0] else 0.0
+        else:
+            safety_score = 1.0 if safety_check else 0.0
         
         # Cost calculation
         cost = token_usage.get('total_cost', 0.0) if token_usage else 0.0
