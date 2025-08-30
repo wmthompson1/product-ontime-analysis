@@ -16,7 +16,10 @@ sys.path.append('app')
 # Core LangChain imports for few-shot learning
 from langchain.prompts import PromptTemplate, FewShotPromptTemplate
 from langchain.schema import HumanMessage, SystemMessage
-from langchain.callbacks import get_openai_callback
+try:
+    from langchain_community.callbacks.manager import get_openai_callback
+except ImportError:
+    from langchain.callbacks import get_openai_callback
 import openai
 
 # Import our semantic layer components
