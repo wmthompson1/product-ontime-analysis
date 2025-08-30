@@ -34,7 +34,7 @@ from Entry_Point_001_few_shot import (
     RAGMetrics,
     SQLExample
 )
-from schema_context import validate_sql_safety, get_schema_context
+from app.schema_context import validate_sql_safety, get_schema_context
 
 @dataclass
 class RAGASMetrics:
