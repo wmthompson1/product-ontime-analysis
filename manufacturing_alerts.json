@@ -1,31 +1,30 @@
 [
   {
-    "alert_id": "578356cd",
+    "alert_id": "3e2dd67a",
     "equipment_id": "CNC-001",
     "alert_type": "equipment_failure",
-    "severity": "critical",
-    "description": "Equipment failure detected in CNC-001: Emergency stop activated due to coolant leak",
-    "timestamp": "2025-09-01T09:00:45",
+    "severity": "high",
+    "description": "Equipment failure detected in CNC-001: Program execution halted - invalid G-code",
+    "timestamp": "2025-09-01T14:20:35",
     "recommended_actions": [
       "To address the issues with equipment CNC-001, here are three specific recommended actions:",
-      "1. **Inspect and Repair the Spindle Motor:**",
-      "Conduct a thorough inspection of the spindle motor to identify the root cause of the fault. Check for any signs of wear, overheating, or electrical issues.",
-      "Ensure that all connections are secure and that there are no signs of damage to the motor windings or bearings.",
-      "If necessary, replace or repair any faulty components to prevent further failures.",
-      "2. **Address the Coolant Leak:**",
-      "Identify the source of the coolant leak by inspecting hoses, seals, and connections for any signs of damage or wear.",
-      "Repair or replace any damaged components to stop the leak. Ensure that all fittings are properly tightened and that seals are intact.",
-      "After repairs, test the coolant system under normal operating conditions to ensure that the leak has been fully resolved.",
-      "3. **Review and Update Maintenance Procedures:**",
-      "Review the current maintenance schedule and procedures for CNC-001 to ensure they are adequate for preventing similar issues in the future.",
-      "Implement more frequent inspections of critical components such as the spindle motor and coolant system.",
-      "Train operators and maintenance personnel on the updated procedures and emphasize the importance of early detection and reporting of potential issues.",
-      "By taking these actions, you can help ensure the reliability and longevity of CNC-001 while minimizing downtime and potential damage."
+      "1. **Axis Servo Drive Communication Error:**",
+      "**Inspect and Secure Connections:** Check all cables and connectors related to the servo drive for any signs of wear, damage, or loose connections. Ensure that all connections are secure and replace any damaged cables.",
+      "**Update or Reinstall Firmware/Software:** Verify that the servo drive's firmware and any related software are up to date. If necessary, reinstall the firmware to ensure there are no software-related issues causing the communication error.",
+      "**Check for Interference:** Investigate potential sources of electromagnetic interference (EMI) that could be affecting communication. Ensure that the equipment is properly shielded and that there are no nearby devices causing interference.",
+      "2. **Tool Changer Mechanism Jammed:**",
+      "**Inspect and Clean the Mechanism:** Examine the tool changer for any obstructions, debris, or signs of wear that could cause jamming. Clean the mechanism thoroughly and remove any foreign objects.",
+      "**Lubricate Moving Parts:** Ensure that all moving parts of the tool changer are properly lubricated according to the manufacturer's specifications to prevent friction-related jams.",
+      "**Check Alignment and Calibration:** Verify that the tool changer is correctly aligned and calibrated. Misalignment can lead to jamming, so adjust as necessary to ensure smooth operation.",
+      "3. **Program Execution Halted - Invalid G-code:**",
+      "**Review and Correct G-code:** Analyze the G-code for errors or unsupported commands. Correct any mistakes and ensure that the code is compatible with the CNC machine's capabilities.",
+      "**Implement Error Checking Procedures:** Introduce a process for validating G-code before execution, such as using simulation software to detect potential errors or conflicts.",
+      "**Provide Operator Training:** Ensure that operators are adequately trained in G-code programming and aware of the machine's specific requirements to prevent future errors. Consider providing refresher courses or additional resources as needed."
     ],
-    "log_entries_count": 2
+    "log_entries_count": 6
   },
   {
-    "alert_id": "f9282d80",
+    "alert_id": "f97f61aa",
     "equipment_id": "CNC-001",
     "alert_type": "maintenance_required",
     "severity": "medium",
@@ -39,31 +38,32 @@
     "log_entries_count": 1
   },
   {
-    "alert_id": "77cecf13",
+    "alert_id": "b5cfffa6",
     "equipment_id": "PRESS-002",
     "alert_type": "equipment_failure",
     "severity": "high",
-    "description": "Equipment failure detected in PRESS-002: Hydraulic pump failure",
-    "timestamp": "2025-09-01T12:45:30",
+    "description": "Equipment failure detected in PRESS-002: Ram position encoder failure",
+    "timestamp": "2025-09-01T18:10:30",
     "recommended_actions": [
-      "To address the hydraulic pump failure in equipment PRESS-002, consider the following recommended actions:",
-      "1. **Inspect and Diagnose the Hydraulic System:**",
-      "Conduct a thorough inspection of the hydraulic system to identify any visible signs of damage or wear, such as leaks, cracks, or loose connections.",
-      "Use diagnostic tools to check the hydraulic pressure and flow rates to ensure they are within the manufacturer's specifications.",
-      "Examine the hydraulic fluid for contamination or degradation, which could indicate a need for fluid replacement or system flushing.",
-      "2. **Perform Maintenance and Repairs:**",
-      "Replace any damaged or worn components, such as seals, hoses, or the pump itself, to restore the system's integrity.",
-      "Clean or replace the hydraulic filters to ensure proper fluid cleanliness and prevent future contamination.",
-      "If the hydraulic fluid is contaminated or degraded, perform a complete fluid change and flush the system to remove any residual contaminants.",
-      "3. **Implement Preventive Measures:**",
-      "Establish a regular maintenance schedule for the hydraulic system, including routine inspections, fluid checks, and filter replacements.",
-      "Train operators and maintenance personnel on best practices for operating and maintaining the hydraulic system to prevent future failures.",
-      "Consider installing monitoring sensors to provide real-time data on hydraulic system performance, allowing for early detection of potential issues before they lead to failures."
+      "To address the failures of equipment PRESS-002, consider the following recommended actions:",
+      "1. **Die Alignment Sensor Inspection and Calibration:**",
+      "Conduct a thorough inspection of the die alignment sensor to identify any physical damage or misalignment.",
+      "Clean the sensor and its surroundings to ensure there is no debris or obstruction affecting its operation.",
+      "Recalibrate the sensor to ensure it is providing accurate readings. If the sensor is faulty, replace it with a new one.",
+      "2. **Pressure Relief Valve Maintenance:**",
+      "Inspect the pressure relief valve for any signs of wear, corrosion, or blockage that might cause it to stick open.",
+      "Clean the valve and its components to remove any debris or buildup that could impede its function.",
+      "Test the valve's operation to ensure it opens and closes properly. If necessary, replace the valve to prevent future malfunctions.",
+      "3. **Ram Position Encoder Evaluation and Replacement:**",
+      "Examine the ram position encoder for any signs of mechanical or electrical failure, such as damaged wiring or connectors.",
+      "Verify the encoder's alignment and secure mounting to ensure accurate position tracking.",
+      "If the encoder is found to be defective, replace it with a compatible unit and test the system to confirm proper operation.",
+      "Implementing these actions should help mitigate the current issues and improve the reliability of equipment PRESS-002. Additionally, consider scheduling regular maintenance checks to prevent similar failures in the future."
     ],
-    "log_entries_count": 1
+    "log_entries_count": 5
   },
   {
-    "alert_id": "e9f4f263",
+    "alert_id": "cbb24fc5",
     "equipment_id": "PRESS-002",
     "alert_type": "maintenance_required",
     "severity": "medium",
@@ -77,7 +77,7 @@
     "log_entries_count": 1
   },
   {
-    "alert_id": "f92d5588",
+    "alert_id": "70da488a",
     "equipment_id": "PRESS-002",
     "alert_type": "quality_issue",
     "severity": "high",
@@ -91,7 +91,31 @@
     "log_entries_count": 1
   },
   {
-    "alert_id": "ba5e8d40",
+    "alert_id": "c85d1a35",
+    "equipment_id": "ROBOT-003",
+    "alert_type": "equipment_failure",
+    "severity": "high",
+    "description": "Equipment failure detected in ROBOT-003: Communication timeout with controller",
+    "timestamp": "2025-09-01T19:10:15",
+    "recommended_actions": [
+      "To address the failures experienced by Equipment ROBOT-003, consider the following recommended actions:",
+      "1. **Inspect and Test Joint 2 Servo Motor:**",
+      "Conduct a thorough inspection of the servo motor in Joint 2 to identify any signs of wear, damage, or overheating. Check for any obstructions or mechanical issues that might be causing the overcurrent fault.",
+      "Test the electrical connections and wiring associated with the servo motor to ensure they are secure and free from damage. Replace any faulty components as necessary.",
+      "Consider recalibrating the servo motor and updating its firmware to ensure optimal performance and prevent future overcurrent issues.",
+      "2. **Review and Adjust Safety Scanner Settings:**",
+      "Analyze the conditions under which the emergency stop was triggered by the safety scanner. Ensure that the safety scanner is properly calibrated and positioned to accurately detect potential hazards without causing unnecessary stops.",
+      "Review the safety protocols and settings to ensure they align with the operational environment and do not trigger false alarms. Adjust the sensitivity or coverage area if needed.",
+      "Conduct a safety audit to ensure all safety devices and protocols are functioning correctly and are compliant with relevant safety standards.",
+      "3. **Diagnose and Resolve Communication Timeout Issues:**",
+      "Investigate the communication timeout between the robot and its controller. Check for any network or connectivity issues, such as loose cables, faulty ports, or interference that might be causing the timeout.",
+      "Update the controller's software and firmware to the latest versions to address any known bugs or compatibility issues that could lead to communication problems.",
+      "Implement a monitoring system to track communication performance and detect any anomalies in real-time, allowing for proactive maintenance and quick resolution of future issues."
+    ],
+    "log_entries_count": 4
+  },
+  {
+    "alert_id": "baa13cac",
     "equipment_id": "ROBOT-003",
     "alert_type": "quality_issue",
     "severity": "high",
@@ -105,28 +129,31 @@
     "log_entries_count": 1
   },
   {
-    "alert_id": "781b6e8c",
+    "alert_id": "e4c3c2d2",
     "equipment_id": "LINE-A",
     "alert_type": "equipment_failure",
     "severity": "high",
-    "description": "Equipment failure detected in LINE-A: Station 3 sensor malfunction",
-    "timestamp": "2025-09-01T13:30:10",
+    "description": "Equipment failure detected in LINE-A: PLC communication error with HMI station",
+    "timestamp": "2025-09-01T20:15:55",
     "recommended_actions": [
-      "To address the sensor malfunction in Equipment LINE-A at Station 3, consider the following recommended actions:",
-      "1. **Conduct a Sensor Diagnostic and Calibration:**",
-      "Perform a thorough diagnostic check on the malfunctioning sensor to identify any specific issues such as connectivity problems, calibration errors, or physical damage.",
-      "Recalibrate the sensor to ensure it is providing accurate readings. This may involve using a known reference point or standard to adjust the sensor's output.",
-      "2. **Inspect and Repair or Replace Faulty Components:**",
-      "Inspect the wiring and connections associated with the sensor for any signs of wear, corrosion, or disconnection. Repair or replace any damaged components.",
-      "If the sensor itself is found to be defective and cannot be repaired, replace it with a new, compatible sensor to restore functionality.",
-      "3. **Implement Preventive Maintenance Measures:**",
-      "Review and update the maintenance schedule for the sensors and related equipment to prevent future malfunctions. This could include regular cleaning, calibration, and testing.",
-      "Train staff on proper handling and maintenance procedures for sensors to minimize the risk of future failures. Additionally, consider installing monitoring software that can provide early warnings of potential issues."
+      "To address the issues with Equipment LINE-A, here are three specific recommended actions:",
+      "1. **Parts Feeder Bowl Vibration Motor Failure:**",
+      "**Inspection and Maintenance:** Conduct a thorough inspection of the vibration motor and its components. Check for any signs of wear, damage, or misalignment. Ensure that the motor is properly secured and that all connections are tight. Perform routine maintenance, such as cleaning and lubrication, to prevent future failures.",
+      "**Replacement or Repair:** If the inspection reveals significant damage or wear, consider replacing the vibration motor or its components. If feasible, repair any minor issues to restore functionality.",
+      "**Vibration Analysis:** Implement a vibration analysis program to monitor the motor's performance over time. This can help identify potential issues before they lead to failure, allowing for proactive maintenance.",
+      "2. **Barcode Scanner Unable to Read Labels:**",
+      "**Calibration and Cleaning:** Check the barcode scanner for any dirt, dust, or obstructions that may be affecting its ability to read labels. Clean the scanner lens and recalibrate the device to ensure optimal performance.",
+      "**Label Quality Check:** Verify the quality and positioning of the labels being used. Ensure that they are printed clearly and are properly aligned for the scanner to read them accurately. Consider using higher-quality labels if necessary.",
+      "**Software Update:** Ensure that the scanner's software and firmware are up to date. Updates may include improvements in scanning algorithms and compatibility with different label types.",
+      "3. **PLC Communication Error with HMI Station:**",
+      "**Connection and Configuration Check:** Inspect all physical connections between the PLC and HMI station to ensure they are secure and undamaged. Verify that the network configuration settings are correct and that both devices are on the same network.",
+      "**Software and Firmware Update:** Check for any available updates for the PLC and HMI software and firmware. Updates may resolve known communication issues and improve system stability.",
+      "**Diagnostic Testing:** Perform diagnostic tests to identify the root cause of the communication error. This may involve using diagnostic tools or software to trace the communication path and pinpoint where the failure occurs. Once identified, take corrective actions to resolve the issue."
     ],
-    "log_entries_count": 1
+    "log_entries_count": 5
   },
   {
-    "alert_id": "dcf6d97a",
+    "alert_id": "b559dbe1",
     "equipment_id": "LINE-A",
     "alert_type": "quality_issue",
     "severity": "high",
@@ -138,5 +165,37 @@
       "Review LINE-A quality control procedures"
     ],
     "log_entries_count": 2
+  },
+  {
+    "alert_id": "94fde53a",
+    "equipment_id": "QC-001",
+    "alert_type": "equipment_failure",
+    "severity": "high",
+    "description": "Equipment failure detected in QC-001: Go/No-Go gauge pneumatic system leak",
+    "timestamp": "2025-09-01T19:00:20",
+    "recommended_actions": [
+      "To address the failures of Equipment QC-001, here are three specific recommended actions:",
+      "1. **Torque Tester Communication Failure:**",
+      "**Action:** Inspect and troubleshoot the communication interface and connections of the torque tester. Check for any loose cables, damaged connectors, or software issues that might be causing the communication failure. Update or reinstall the device drivers and firmware if necessary. Ensure that the communication protocols are correctly configured.",
+      "2. **Hardness Tester Indenter Worn Beyond Limits:**",
+      "**Action:** Replace the worn indenter with a new one that meets the manufacturer's specifications. After replacement, recalibrate the hardness tester to ensure accurate measurements. Implement a regular inspection and maintenance schedule to monitor the condition of the indenter and prevent future wear-related issues.",
+      "3. **Go/No-Go Gauge Pneumatic System Leak:**",
+      "**Action:** Conduct a thorough inspection of the pneumatic system to identify the source of the leak. Check for damaged hoses, fittings, or seals and replace any faulty components. After repairs, test the system for leaks and ensure it is operating at the correct pressure. Consider implementing a routine maintenance plan to regularly check the pneumatic system for leaks and other potential issues."
+    ],
+    "log_entries_count": 6
+  },
+  {
+    "alert_id": "77cb12fa",
+    "equipment_id": "QC-001",
+    "alert_type": "quality_issue",
+    "severity": "high",
+    "description": "Quality issue detected in QC-001: Optical inspection camera focus error",
+    "timestamp": "2025-09-01T13:50:10",
+    "recommended_actions": [
+      "Inspect QC-001 output quality",
+      "Calibrate QC-001 quality sensors",
+      "Review QC-001 quality control procedures"
+    ],
+    "log_entries_count": 4
   }
 ]
