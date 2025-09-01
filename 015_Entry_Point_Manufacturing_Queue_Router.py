@@ -201,9 +201,9 @@ class ManufacturingQueueProcessor:
     def __init__(self, openai_api_key: str = None):
         self.api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         
-        # Initialize LLMs
-        self.llm = init_chat_model("gpt-4", temperature=0.0)
-        self.llm_router = self.llm.with_structured_output(ManufacturingQueueRouter, method="function_calling")
+        # Initialize LLMs - Using GPT-4o for 100% reliable structured output
+        self.llm = init_chat_model("openai:gpt-4o-2024-08-06", temperature=0.0)
+        self.llm_router = self.llm.with_structured_output(ManufacturingQueueRouter)
         
         # Get tools
         self.tools = get_manufacturing_queue_tools()
