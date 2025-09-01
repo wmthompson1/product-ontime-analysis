@@ -13,6 +13,7 @@ Learning path: Advanced Python for business applications, preparing to work with
 Capstone project: Creating semantic layer using LangChain for Berkeley Haas AI strategy class, focusing on business intelligence and natural language to SQL conversion for manufacturing industry applications.
 Development approach: Learning-first methodology - prefers understanding building blocks thoroughly before integration to avoid unnecessary API costs. Systematic 123[n..]_Entry_Point_Topic.py naming convention for incremental Frank Kane Advanced RAG study.
 API management: Cost-conscious development with OpenAI quota awareness, confirmed pay-as-you-go Tavily integration, prefers demo modes for initial learning before live API usage.
+LangGraph 101 Discovery: Successfully identified and implemented the foundational LangGraph base class patterns from langchain-ai/agents-from-scratch/langgraph_101.ipynb, enabling direct adaptation of email assistant pattern to manufacturing intelligence with proper StateGraph, tool calling loops, and workflow orchestration.
 
 ## System Architecture
 
@@ -29,6 +30,11 @@ API management: Cost-conscious development with OpenAI quota awareness, confirme
     - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
     Both include CSV upload functionality and professional reporting.
 - **Contextual UI Hints System**: Intelligent hint system for manufacturing terminology, acronym expansion, and query assistance, exposed via `/api/hints` and `/api/acronym/<acronym>` endpoints.
+- **LangGraph 101 Implementation**: Complete Entry Point series (010-013) demonstrating LangGraph base class patterns:
+    - Custom manufacturing tools registry system
+    - StateGraph workflow orchestration
+    - Tool calling loop agent patterns
+    - Direct email→manufacturing assistant adaptation following langchain-ai/agents-from-scratch architecture
 
 ### Frontend
 - **Framework**: Astro with React integration
