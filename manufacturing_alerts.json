@@ -1,0 +1,142 @@
+[
+  {
+    "alert_id": "578356cd",
+    "equipment_id": "CNC-001",
+    "alert_type": "equipment_failure",
+    "severity": "critical",
+    "description": "Equipment failure detected in CNC-001: Emergency stop activated due to coolant leak",
+    "timestamp": "2025-09-01T09:00:45",
+    "recommended_actions": [
+      "To address the issues with equipment CNC-001, here are three specific recommended actions:",
+      "1. **Inspect and Repair the Spindle Motor:**",
+      "Conduct a thorough inspection of the spindle motor to identify the root cause of the fault. Check for any signs of wear, overheating, or electrical issues.",
+      "Ensure that all connections are secure and that there are no signs of damage to the motor windings or bearings.",
+      "If necessary, replace or repair any faulty components to prevent further failures.",
+      "2. **Address the Coolant Leak:**",
+      "Identify the source of the coolant leak by inspecting hoses, seals, and connections for any signs of damage or wear.",
+      "Repair or replace any damaged components to stop the leak. Ensure that all fittings are properly tightened and that seals are intact.",
+      "After repairs, test the coolant system under normal operating conditions to ensure that the leak has been fully resolved.",
+      "3. **Review and Update Maintenance Procedures:**",
+      "Review the current maintenance schedule and procedures for CNC-001 to ensure they are adequate for preventing similar issues in the future.",
+      "Implement more frequent inspections of critical components such as the spindle motor and coolant system.",
+      "Train operators and maintenance personnel on the updated procedures and emphasize the importance of early detection and reporting of potential issues.",
+      "By taking these actions, you can help ensure the reliability and longevity of CNC-001 while minimizing downtime and potential damage."
+    ],
+    "log_entries_count": 2
+  },
+  {
+    "alert_id": "f9282d80",
+    "equipment_id": "CNC-001",
+    "alert_type": "maintenance_required",
+    "severity": "medium",
+    "description": "Maintenance required for CNC-001: Maintenance team dispatched",
+    "timestamp": "2025-09-01T09:30:15",
+    "recommended_actions": [
+      "Schedule maintenance for CNC-001",
+      "Check CNC-001 maintenance schedule",
+      "Prepare maintenance tools and parts"
+    ],
+    "log_entries_count": 1
+  },
+  {
+    "alert_id": "77cecf13",
+    "equipment_id": "PRESS-002",
+    "alert_type": "equipment_failure",
+    "severity": "high",
+    "description": "Equipment failure detected in PRESS-002: Hydraulic pump failure",
+    "timestamp": "2025-09-01T12:45:30",
+    "recommended_actions": [
+      "To address the hydraulic pump failure in equipment PRESS-002, consider the following recommended actions:",
+      "1. **Inspect and Diagnose the Hydraulic System:**",
+      "Conduct a thorough inspection of the hydraulic system to identify any visible signs of damage or wear, such as leaks, cracks, or loose connections.",
+      "Use diagnostic tools to check the hydraulic pressure and flow rates to ensure they are within the manufacturer's specifications.",
+      "Examine the hydraulic fluid for contamination or degradation, which could indicate a need for fluid replacement or system flushing.",
+      "2. **Perform Maintenance and Repairs:**",
+      "Replace any damaged or worn components, such as seals, hoses, or the pump itself, to restore the system's integrity.",
+      "Clean or replace the hydraulic filters to ensure proper fluid cleanliness and prevent future contamination.",
+      "If the hydraulic fluid is contaminated or degraded, perform a complete fluid change and flush the system to remove any residual contaminants.",
+      "3. **Implement Preventive Measures:**",
+      "Establish a regular maintenance schedule for the hydraulic system, including routine inspections, fluid checks, and filter replacements.",
+      "Train operators and maintenance personnel on best practices for operating and maintaining the hydraulic system to prevent future failures.",
+      "Consider installing monitoring sensors to provide real-time data on hydraulic system performance, allowing for early detection of potential issues before they lead to failures."
+    ],
+    "log_entries_count": 1
+  },
+  {
+    "alert_id": "e9f4f263",
+    "equipment_id": "PRESS-002",
+    "alert_type": "maintenance_required",
+    "severity": "medium",
+    "description": "Maintenance required for PRESS-002: Maintenance scheduled for hydraulic system",
+    "timestamp": "2025-09-01T13:00:15",
+    "recommended_actions": [
+      "Schedule maintenance for PRESS-002",
+      "Check PRESS-002 maintenance schedule",
+      "Prepare maintenance tools and parts"
+    ],
+    "log_entries_count": 1
+  },
+  {
+    "alert_id": "f92d5588",
+    "equipment_id": "PRESS-002",
+    "alert_type": "quality_issue",
+    "severity": "high",
+    "description": "Quality issue detected in PRESS-002: Quality check - 3 defective parts detected",
+    "timestamp": "2025-09-01T11:30:20",
+    "recommended_actions": [
+      "Inspect PRESS-002 output quality",
+      "Calibrate PRESS-002 quality sensors",
+      "Review PRESS-002 quality control procedures"
+    ],
+    "log_entries_count": 1
+  },
+  {
+    "alert_id": "ba5e8d40",
+    "equipment_id": "ROBOT-003",
+    "alert_type": "quality_issue",
+    "severity": "high",
+    "description": "Quality issue detected in ROBOT-003: Gripper force sensor out of tolerance",
+    "timestamp": "2025-09-01T14:30:55",
+    "recommended_actions": [
+      "Inspect ROBOT-003 output quality",
+      "Calibrate ROBOT-003 quality sensors",
+      "Review ROBOT-003 quality control procedures"
+    ],
+    "log_entries_count": 1
+  },
+  {
+    "alert_id": "781b6e8c",
+    "equipment_id": "LINE-A",
+    "alert_type": "equipment_failure",
+    "severity": "high",
+    "description": "Equipment failure detected in LINE-A: Station 3 sensor malfunction",
+    "timestamp": "2025-09-01T13:30:10",
+    "recommended_actions": [
+      "To address the sensor malfunction in Equipment LINE-A at Station 3, consider the following recommended actions:",
+      "1. **Conduct a Sensor Diagnostic and Calibration:**",
+      "Perform a thorough diagnostic check on the malfunctioning sensor to identify any specific issues such as connectivity problems, calibration errors, or physical damage.",
+      "Recalibrate the sensor to ensure it is providing accurate readings. This may involve using a known reference point or standard to adjust the sensor's output.",
+      "2. **Inspect and Repair or Replace Faulty Components:**",
+      "Inspect the wiring and connections associated with the sensor for any signs of wear, corrosion, or disconnection. Repair or replace any damaged components.",
+      "If the sensor itself is found to be defective and cannot be repaired, replace it with a new, compatible sensor to restore functionality.",
+      "3. **Implement Preventive Maintenance Measures:**",
+      "Review and update the maintenance schedule for the sensors and related equipment to prevent future malfunctions. This could include regular cleaning, calibration, and testing.",
+      "Train staff on proper handling and maintenance procedures for sensors to minimize the risk of future failures. Additionally, consider installing monitoring software that can provide early warnings of potential issues."
+    ],
+    "log_entries_count": 1
+  },
+  {
+    "alert_id": "dcf6d97a",
+    "equipment_id": "LINE-A",
+    "alert_type": "quality_issue",
+    "severity": "high",
+    "description": "Quality issue detected in LINE-A: Quality inspection - 2% defect rate",
+    "timestamp": "2025-09-01T15:00:45",
+    "recommended_actions": [
+      "Inspect LINE-A output quality",
+      "Calibrate LINE-A quality sensors",
+      "Review LINE-A quality control procedures"
+    ],
+    "log_entries_count": 2
+  }
+]
