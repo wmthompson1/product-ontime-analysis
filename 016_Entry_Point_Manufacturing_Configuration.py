@@ -4,7 +4,7 @@
 Official Manufacturing Configuration following LangChain Academy patterns
 Direct adaptation of langchain-ai/agents-from-scratch/configuration.py
 """
-
+# 016_Entry_Point_Manufacturing_Configuration.py
 import os
 from dataclasses import dataclass, fields
 from typing import Any, Optional
