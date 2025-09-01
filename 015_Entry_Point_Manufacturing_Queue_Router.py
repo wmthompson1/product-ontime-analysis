@@ -203,7 +203,7 @@ class ManufacturingQueueProcessor:
         
         # Initialize LLMs
         self.llm = init_chat_model("gpt-4", temperature=0.0)
-        self.llm_router = self.llm.with_structured_output(ManufacturingQueueRouter)
+        self.llm_router = self.llm.with_structured_output(ManufacturingQueueRouter, method="function_calling")
         
         # Get tools
         self.tools = get_manufacturing_queue_tools()
@@ -329,7 +329,7 @@ class ManufacturingQueueProcessor:
         
         return {
             "request_data": request_data,
-            "routing_result": routing_result.dict(),
+            "routing_result": routing_result.model_dump(),
             "processing_result": processing_result,
             "status": "completed"
         }
