@@ -30,12 +30,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
     Both include CSV upload functionality and professional reporting.
 - **Contextual UI Hints System**: Intelligent hint system for manufacturing terminology, acronym expansion, and query assistance, exposed via `/api/hints` and `/api/acronym/<acronym>` endpoints.
-- **LangGraph 101 Implementation**: Complete Entry Point series (010-015) demonstrating LangGraph base class patterns:
+- **LangGraph 101 Implementation**: Complete Entry Point series (010-017) demonstrating LangGraph base class patterns:
     - Custom manufacturing tools registry system
     - StateGraph workflow orchestration
     - Tool calling loop agent patterns
     - Direct email→manufacturing assistant adaptation following langchain-ai/agents-from-scratch architecture
     - Manufacturing Queue Router system with proper edges/nodes configuration (inbox→queue adaptation)
+    - Manufacturing Plant Log Ingestion system adapted from Gmail ingestion for plant operations data processing
 
 ### Frontend
 - **Framework**: Astro with React integration
