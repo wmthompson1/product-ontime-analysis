@@ -2,204 +2,7 @@
 
 ## Overview
 
-This project features an interactive Python educational script designed to help beginners learn basic programming concepts through engaging examples and hands-on exercises. The project also includes a Flask web application with PostgreSQL database for API endpoints, and an Astro demonstration for JavaScript framework concepts.
-
-## System Architecture
-
-### Backend Architecture
-- **Framework**: Flask (Python web framework)
-- **ORM**: SQLAlchemy with Flask-SQLAlchemy extension
-- **Database**: PostgreSQL (configured via environment variables)
-- **API Design**: RESTful endpoints returning JSON responses
-
-### Application Structure
-- **main.py**: Primary Flask application with user management endpoints
-- **models.py**: Database model definitions (currently contains User model setup)
-- **Supporting Scripts**: Various Python learning exercises and utilities
-
-## Key Components
-
-### Flask Application (main.py)
-- Uses Flask-SQLAlchemy for database operations
-- Implements declarative base model approach
-- Provides user CRUD operations via REST API
-- Includes database connection pooling configuration
-- Auto-creates database tables on startup
-
-### Database Models
-- **User Model**: Basic user entity with id, name, and email fields
-- Uses SQLAlchemy's new declarative mapping style with type annotations
-- Configured for PostgreSQL with proper connection handling
-
-### API Endpoints
-- `GET /`: Basic health check endpoint
-- `GET /api/users`: Retrieve all users
-- `POST /api/users`: Create new user (endpoint defined but implementation incomplete)
-
-### Configuration
-- Database URL from environment variable `DATABASE_URL`
-- Flask secret key from environment variable `FLASK_SECRET_KEY`
-- Connection pooling with 300-second recycle and pre-ping enabled
-
-## Data Flow
-
-1. **Request Processing**: Flask receives HTTP requests on defined routes
-2. **Database Operations**: SQLAlchemy ORM handles database interactions
-3. **Response Generation**: JSON responses returned for API endpoints
-4. **Connection Management**: Automatic connection pooling and cleanup
-
-## External Dependencies
-
-### Core Dependencies
-- **Flask**: Web framework
-- **Flask-SQLAlchemy**: Database ORM integration
-- **psycopg2-binary**: PostgreSQL database adapter
-- **SQLAlchemy**: Object-relational mapping
-
-### Additional Libraries
-- **requests**: HTTP client library
-- **beautifulsoup4**: HTML parsing
-- **lxml**: XML/HTML parsing
-- **trafilatura**: Web content extraction
-
-## Deployment Strategy
-
-### Environment Setup
-- Python 3.11 runtime environment
-- PostgreSQL 16 database server
-- Nix package manager for system dependencies
-
-### Configuration Requirements
-- `DATABASE_URL`: PostgreSQL connection string
-- `FLASK_SECRET_KEY`: Application secret key for sessions
-- Default port: 5000 (mapped to external port 80)
-
-### Replit Configuration
-- Automatic workflow execution for Flask app
-- Port forwarding configured for web access
-- Development mode with debug enabled
-
-## Changelog
-- June 24, 2025. Initial setup
-- July 15, 2025. Comprehensive semantic layer for RAG-assisted SQL implementation with LangChain integration, safety guardrails, and production-ready architecture
-- July 28, 2025. Full Astro application development with Teachable Machine framework explanation concept, Flask-Astro API integration with working connection testing
-- July 28, 2025. Resolved application startup issues, fixed Vite configuration for Replit hosting, established working Flask-Astro communication with proper CORS and proxy setup
-
-## Recent Major Changes
-
-### Complete Frank Kane Advanced RAG Implementation (August 30, 2025)
-- **Full Methodology Spectrum**: Created complete progression from educational demos to production-ready implementation
-- **Four-Stage Implementation**:
-  - `001_Entry_Point_Kane_Ragas_Demo.py`: Educational framework with mock data (RAGAS Score: 0.907)
-  - `001_Entry_Point_Kane_Ragas.py`: Live Tavily + OpenAI integration (RAGAS Score: 0.347 with real data)
-  - `003_Entry_Point_Kane_Tavily_Enhanced.py`: Pay-as-you-go Tavily optimization (46.67% manufacturing relevance, 19.8 queries/min)
-  - `004_Entry_Point_Kane_Complete_RAG.py`: Complete Advanced RAG with comprehensive metrics
-- **Learning-First Strategy**: 
-  - OpenAI quota reset provides opportunity for methodical building block study
-  - Focus on understanding components before integration
-  - Cost-conscious development with demo modes for learning
-- **Production Features**:
-  - Real-time manufacturing intelligence via enhanced Tavily API
-  - Context-enhanced SQL generation with industry best practices
-  - Comprehensive RAGAS evaluation framework with 15+ performance metrics
-  - Manufacturing domain expertise (9 specialized domains, keyword optimization)
-- **API Integration Success**:
-  - Tavily API: Pay-as-you-go pricing confirmed and operational
-  - OpenAI API: Quota management strategy implemented
-  - Cost tracking: ~$0.004 per Tavily test, token usage monitoring for OpenAI
-- **Educational Value**: Complete Frank Kane methodology ready for Berkeley Haas capstone with incremental learning approach
-
-### Advanced Semantic Layer Research Framework (August 22, 2025)
-- **Research Focus**: Frank Kane Advanced RAG techniques for improved SQL generation from natural language prompts
-- **Core Components**:
-  - `app/advanced_semantic_layer.py`: RAG-enhanced semantic layer with RAGAS evaluation support
-  - `app/semantic_improvements.py`: Improved layer with few-shot learning and domain knowledge
-  - `app/semantic_layer_research.py`: Comprehensive research framework for performance evaluation
-  - `semantic_research_demo.py`: Functional research demonstration and evaluation tool
-- **Advanced RAG Implementation**:
-  - Vector store retrieval for similar SQL examples using FAISS and OpenAI embeddings
-  - Few-shot prompting with manufacturing domain examples (supply chain, quality control, production efficiency)
-  - Enhanced prompt templates with business rule integration and domain knowledge
-  - Manufacturing acronym recognition and business context integration (NCM, OTD, OEE, DPMO, MTBF, CAPA)
-- **Research Capabilities**:
-  - Comparative evaluation between standard and advanced semantic layers
-  - SQL quality analysis with syntax validation, semantic correctness, and business logic alignment
-  - Domain-specific performance metrics and concept coverage analysis
-  - RAGAS evaluation framework integration for automated assessment
-- **Research Results**:
-  - 100% success rate in SQL generation for manufacturing domain queries (FIXED: maintenance_001 MTBF query resolved)
-  - 14 manufacturing acronyms successfully detected through contextual hints integration
-  - Performance improvements: 0.370 average quality, 0.800 average confidence, 60% concept coverage
-  - Safety compliance: 100% after fixing SQL parsing and validation issues
-  - Enhanced manufacturing schema with MTBF, equipment reliability, and failure event tracking
-  - Comprehensive evaluation across 5 manufacturing domains with detailed performance metrics
-- **Status**: Research framework fully operational with resolved safety validation issues, complete domain coverage, and graceful FAISS fallback handling for production deployment
-
-### Contextual UI Hints System for Complex Data Queries (August 22, 2025)
-- **Architecture**: Intelligent hint system for manufacturing domain terminology and query assistance
-- **Core Components**:
-  - `app/contextual_hints.py`: Manufacturing domain knowledge base with acronym mappings and business context
-  - `/api/hints` endpoint: Real-time contextual suggestions for query input
-  - `/api/acronym/<acronym>` endpoint: Detailed acronym expansion and related field suggestions
-  - `/contextual-hints-demo` page: Interactive demonstration with professional UI
-- **Manufacturing Intelligence Features**:
-  - Acronym expansion: NCM (Non-Conformant Material), OTD (On-Time Delivery), OEE (Overall Equipment Effectiveness)
-  - Domain-specific field suggestions based on query context (quality, supply chain, production, financial)
-  - Query completion patterns for common manufacturing intelligence scenarios
-  - Confidence scoring for hint relevance and business context explanations
-- **User Experience**:
-  - Real-time hints with 300ms debounced input processing
-  - Visual confidence indicators and categorized hint types
-  - Interactive example queries for different manufacturing domains
-  - Professional gradient design with hover effects and smooth transitions
-- **Status**: Fully functional with comprehensive manufacturing terminology support and integrated navigation
-
-### Dual Statistical Analysis Tools for Manufacturing Quality Control (August 15, 2025)
-- **Architecture**: Two comprehensive statistical analysis tools for manufacturing quality metrics
-- **Core Components**:
-  - `simple_defect_analyzer.py`: Daily defect rate analysis with Z-tests and confidence intervals
-  - `ontime_delivery_analyzer.py`: Daily on-time delivery rate analysis with identical statistical methods
-  - `sample_defect_data.csv` and `sample_ontime_data.csv`: Realistic sample datasets for testing
-  - Web interfaces at `/defect-analysis` and `/ontime-analysis` with CSV upload functionality
-- **Statistical Features**:
-  - Z-test for proportions testing daily rates against baseline
-  - 95% confidence intervals with margin of error validation (≤5% requirement)
-  - Process control analysis identifying significant variations
-  - Wilson score intervals for edge cases (zero defects/perfect delivery)
-  - Professional reporting suitable for management review
-- **Business Integration**: 
-  - CSV upload with real-time analysis processing
-  - Sample data generation and downloadable analysis tools
-  - Navigation menu integration for easy access from main page
-  - Error handling for edge cases and robust statistical calculations
-- **Status**: Both tools fully functional with successful testing on sample data
-
-### Full Astro Application with Framework Education (July 28, 2025)
-- **Architecture**: Complete Astro application with file-based routing, component architecture, and React integration
-- **Core Components**:
-  - `astro-sample/src/layouts/Layout.astro`: Shared layout with navigation and footer
-  - `astro-sample/src/pages/index.astro`: Homepage with framework comparison and code examples
-  - `astro-sample/src/pages/teachable-machine.astro`: Interactive demo page
-  - `astro-sample/src/pages/flask-integration.astro`: Flask connection testing
-- **Interactive Features**: 
-  - `astro-sample/src/components/TeachableMachineDemo.jsx`: React component simulating 3-step ML workflow
-  - `astro-sample/src/components/FlaskConnector.jsx`: Live Flask API connection testing
-- **Technical Implementation**: 
-  - Vite proxy configuration for seamless Flask API integration
-  - CORS handling and Replit domain allowlisting
-  - Production-ready Astro configuration with Tailwind CSS
-- **Status**: Fully functional with all menu items tested and working correctly
-
-### RAG-Assisted SQL Semantic Layer (July 15, 2025)
-- **Architecture**: Built comprehensive semantic layer with schema introspection, safety validation, and query generation
-- **Components**: 
-  - `app/semantic_layer.py`: LangChain-based NL to SQL conversion with complexity classification
-  - `app/schema_context.py`: Dynamic database schema inspection and context generation
-  - `app/database_executor.py`: Safe query execution with timeout and monitoring
-  - `app/main.py`: FastAPI REST API endpoints for semantic layer services
-- **Safety Features**: SQL injection prevention, operation whitelisting, parameter binding enforcement
-- **Monitoring**: Query statistics, execution timing, conversation memory, cost tracking
-- **Production Ready**: Comprehensive error handling, logging, rate limiting capabilities
+This project provides an interactive Python educational script for learning basic programming concepts, complemented by a Flask web application and an Astro demonstration. Its core purpose is to facilitate learning through practical examples and hands-on exercises, with a focus on building business intelligence applications for the manufacturing industry. Key capabilities include a RESTful API with user management, advanced RAG-assisted SQL generation, statistical analysis tools for quality control, and a modern frontend framework integration. The project aims to prepare users for working with APIs in an aerospace manufacturing context, integrating AI strategies, and demonstrating production-ready application development.
 
 ## User Preferences
 
@@ -210,3 +13,39 @@ Learning path: Advanced Python for business applications, preparing to work with
 Capstone project: Creating semantic layer using LangChain for Berkeley Haas AI strategy class, focusing on business intelligence and natural language to SQL conversion for manufacturing industry applications.
 Development approach: Learning-first methodology - prefers understanding building blocks thoroughly before integration to avoid unnecessary API costs. Systematic 123[n..]_Entry_Point_Topic.py naming convention for incremental Frank Kane Advanced RAG study.
 API management: Cost-conscious development with OpenAI quota awareness, confirmed pay-as-you-go Tavily integration, prefers demo modes for initial learning before live API usage.
+
+## System Architecture
+
+### Backend
+- **Framework**: Flask (Python web framework)
+- **ORM**: SQLAlchemy with Flask-SQLAlchemy
+- **Database**: PostgreSQL
+- **API Design**: RESTful JSON endpoints
+- **Core Features**: User CRUD operations, database connection pooling, automatic table creation.
+- **Advanced RAG Implementation**: Four-stage methodology progressing from educational demos to production-ready Advanced RAG with Tavily and OpenAI integration, incorporating manufacturing intelligence and RAGAS evaluation.
+- **Semantic Layer**: LangChain-based NL to SQL conversion with dynamic schema introspection, safety features (SQL injection prevention, operation whitelisting), and monitoring. Includes advanced techniques like vector store retrieval (FAISS, OpenAI embeddings) and few-shot prompting with manufacturing domain examples.
+- **Statistical Analysis Tools**: Two comprehensive tools for manufacturing quality control:
+    - Daily defect rate analysis (Z-tests, confidence intervals)
+    - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
+    Both include CSV upload functionality and professional reporting.
+- **Contextual UI Hints System**: Intelligent hint system for manufacturing terminology, acronym expansion, and query assistance, exposed via `/api/hints` and `/api/acronym/<acronym>` endpoints.
+
+### Frontend
+- **Framework**: Astro with React integration
+- **Features**: File-based routing, component architecture, interactive Teachable Machine simulation, and live Flask API connection testing.
+- **UI/UX**: Professional gradient design with hover effects, smooth transitions, and interactive elements for contextual hints.
+
+## External Dependencies
+
+- **Flask**: Web framework
+- **Flask-SQLAlchemy**: ORM integration for Flask
+- **SQLAlchemy**: Object-relational mapping
+- **psycopg2-binary**: PostgreSQL adapter
+- **LangChain**: Framework for developing applications powered by language models (for semantic layer)
+- **requests**: HTTP client
+- **beautifulsoup4**: HTML parsing
+- **lxml**: XML/HTML parsing
+- **trafilatura**: Web content extraction
+- **Tavily API**: For advanced RAG implementation (real-time manufacturing intelligence)
+- **OpenAI API**: For advanced RAG implementation (embeddings, LLM judge)
+- **FAISS**: For vector store retrieval in semantic layer
