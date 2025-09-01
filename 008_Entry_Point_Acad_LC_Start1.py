@@ -73,25 +73,46 @@ class CustomLLMJudge:
 client = Client()
 llm_judge = CustomLLMJudge()
 
-# Create the dataset
-dataset = client.create_dataset(
-    dataset_name="Sample dataset", description="A sample dataset in LangSmith."
-)
+# Create or get existing dataset
+import uuid
+dataset_name = f"Manufacturing_QA_Dataset_{str(uuid.uuid4())[:8]}"
 
-# Create examples in the dataset. Examples consist of inputs and reference outputs 
-examples = [
-    {
-        "inputs": {"question": "Which country is Mount Kilimanjaro located in?"},
-        "outputs": {"answer": "Mount Kilimanjaro is located in Tanzania."},
-    },
-    {
-        "inputs": {"question": "What is Earth's lowest point?"},
-        "outputs": {"answer": "Earth's lowest point is The Dead Sea."},
-    },
-]
-
-# Add the examples to the dataset
-client.create_examples(dataset_id=dataset.id, examples=examples)
+try:
+    # Try to create a new dataset with unique name
+    dataset = client.create_dataset(
+        dataset_name=dataset_name, 
+        description="Manufacturing Q&A dataset for LangChain Academy evaluation."
+    )
+    print(f"📊 Created new dataset: {dataset_name}")
+    
+    # Create examples in the dataset
+    examples = [
+        {
+            "inputs": {"question": "Which country is Mount Kilimanjaro located in?"},
+            "outputs": {"answer": "Mount Kilimanjaro is located in Tanzania."},
+        },
+        {
+            "inputs": {"question": "What is Earth's lowest point?"},
+            "outputs": {"answer": "Earth's lowest point is The Dead Sea."},
+        },
+        {
+            "inputs": {"question": "What is OEE in manufacturing?"},
+            "outputs": {"answer": "Overall Equipment Effectiveness (OEE) is calculated as Availability × Performance × Quality."},
+        },
+        {
+            "inputs": {"question": "What is the typical manufacturing defect rate threshold?"},
+            "outputs": {"answer": "Typical manufacturing defect rates should be below 2% for quality standards."},
+        },
+    ]
+    
+    # Add the examples to the dataset
+    client.create_examples(dataset_id=dataset.id, examples=examples)
+    print(f"✅ Added {len(examples)} examples to dataset")
+    
+except Exception as e:
+    print(f"⚠️ Dataset creation issue: {e}")
+    print("📊 Continuing with evaluation demo without LangSmith dataset...")
+    dataset = None
 
 # Define evaluation function using custom LLM judge
 def evaluate_correctness(run, example):
@@ -144,6 +165,12 @@ def main():
     print("🧪 LangChain Academy Evaluation Demo")
     print("   Custom LLM-as-Judge Implementation")
     print("=" * 50)
+    
+    # Check if dataset was created successfully
+    if dataset:
+        print(f"📊 LangSmith dataset ready: {dataset.name}")
+    else:
+        print("📊 Running in standalone evaluation mode")
     
     # Test the evaluation system
     print("\n📊 Testing Custom LLM Judge...")
