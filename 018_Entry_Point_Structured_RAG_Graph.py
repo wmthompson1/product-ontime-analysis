@@ -19,8 +19,10 @@ import json
 class SchemaGraphManager:
     """Manages schema graph for deterministic join pathfinding"""
     
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: Optional[str] = None):
         self.database_url = database_url or os.getenv("DATABASE_URL")
+        if not self.database_url:
+            raise ValueError("DATABASE_URL must be provided or set in environment")
         self.graph = nx.DiGraph()
         self._load_graph_from_database()
     
@@ -184,7 +186,7 @@ class StructuredRAGEngine:
     - LLM: Natural language understanding and SQL generation (inference)
     """
     
-    def __init__(self, database_url: str = None):
+    def __init__(self, database_url: Optional[str] = None):
         self.schema_graph = SchemaGraphManager(database_url)
     
     def process_query(self, natural_language_query: str, start_table: str, end_table: str) -> Dict[str, Any]:
