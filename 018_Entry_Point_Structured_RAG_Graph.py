@@ -124,22 +124,23 @@ class SchemaGraphManager:
         
         # Extract edge metadata for each join
         for i in range(len(path) - 1):
+            # CRITICAL: Always use path order for deterministic consistency
             from_table = path[i]
             to_table = path[i + 1]
             
-            # Get edge data (handle bidirectional)
+            # Get edge data (handle bidirectional storage)
+            # Retrieve attributes from whichever direction exists
             edge_data = None
             if self.graph.has_edge(from_table, to_table):
                 edge_data = self.graph[from_table][to_table]
             elif self.graph.has_edge(to_table, from_table):
+                # Edge stored in reverse, but keep path direction
                 edge_data = self.graph[to_table][from_table]
-                # Swap for correct direction
-                from_table, to_table = to_table, from_table
             
             if edge_data:
                 join_sequence['joins'].append({
-                    'from': from_table,
-                    'to': to_table,
+                    'from': from_table,  # Path direction preserved
+                    'to': to_table,      # Path direction preserved
                     'relationship': edge_data.get('relationship'),
                     'join_column': edge_data.get('join_column'),
                     'weight': edge_data.get('weight')
