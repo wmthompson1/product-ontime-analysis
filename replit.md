@@ -37,6 +37,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Direct email→manufacturing assistant adaptation following langchain-ai/agents-from-scratch architecture
     - Manufacturing Queue Router system with proper edges/nodes configuration (inbox→queue adaptation)
     - Manufacturing Plant Log Ingestion system adapted from Gmail ingestion for plant operations data processing
+- **Structured RAG with Graph-Theoretic Determinism (Entry Point 018)**: Production-ready implementation separating concerns between deterministic logic and LLM inference:
+    - Graph metadata storage in relational database (schema_nodes, schema_edges tables)
+    - NetworkX integration for deterministic join pathfinding via shortest path algorithms
+    - Three-phase RAG workflow: retrieval (NetworkX), augmentation (structural context), grounded generation (LLM)
+    - Hybrid retrieval strategy: RAG over unstructured data (ChromaDB/FAISS semantic similarity) + RAG over structured data (graph-embedded schema relationships)
+    - Principle of logical determinism: Graph theory guarantees correct multi-hop join sequences, offloading structural navigation from LLM inference to reliable algorithms
+    - Directionally consistent join metadata ensures accurate SQL generation context for manufacturing intelligence queries
 
 ### Frontend
 - **Framework**: Astro with React integration
@@ -57,3 +64,5 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Tavily API**: For advanced RAG implementation (real-time manufacturing intelligence)
 - **OpenAI API**: For advanced RAG implementation (embeddings, LLM judge)
 - **FAISS**: For vector store retrieval in semantic layer
+- **NetworkX**: Graph-theoretic algorithms for deterministic join pathfinding in Structured RAG implementation
+- **LangGraph**: StateGraph workflow orchestration and agent patterns (installed for LangGraph 101 Entry Points)
