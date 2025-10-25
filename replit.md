@@ -44,6 +44,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Hybrid retrieval strategy: RAG over unstructured data (ChromaDB/FAISS semantic similarity) + RAG over structured data (graph-embedded schema relationships)
     - Principle of logical determinism: Graph theory guarantees correct multi-hop join sequences, offloading structural navigation from LLM inference to reliable algorithms
     - Directionally consistent join metadata ensures accurate SQL generation context for manufacturing intelligence queries
+- **NetworkX Graph Patterns (Entry Point 019)**: Comprehensive demonstration of network science patterns from Edward L. Platt's "Network Science with Python and NetworkX Quick Start Guide" (Packt, 2019):
+    - Graph construction patterns: simple (undirected), directed (DAG), weighted, and database-loaded graphs
+    - Centrality analysis: degree, betweenness, closeness centrality measures for identifying critical nodes
+    - Shortest path algorithms applied to manufacturing contexts (supply chains, process flows)
+    - Community detection for identifying equipment clusters and process groups
+    - Graph-level metrics: density, connectivity, clustering coefficients
+    - Integration with Entry Point 018 database schema metadata for practical manufacturing intelligence applications
 
 ### Frontend
 - **Framework**: Astro with React integration
