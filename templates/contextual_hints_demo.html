@@ -193,29 +193,29 @@
         <h2>Try Manufacturing Queries</h2>
         <p>Type queries about quality control, supply chain, or production. The system provides contextual hints including acronym expansions like <strong>NCM (Non-Conformant Material)</strong>.</p>
         
-        <input type="text" id="queryInput" class="query-input" placeholder="Example: Show me NCM rates for suppliers with OTD below 95%..." autocomplete="off">
+        <input type="text" id="queryInput" class="query-input" placeholder="Quality Control | Example: NCM rates for suppliers with OTD below 95%..." autocomplete="off">
         
         <div id="hintsContainer" class="hints-container"></div>
         
         <div class="example-queries">
             <h3>🎯 Example Queries to Try:</h3>
-            <div class="example-query" onclick="setQuery('Show NCM rates above threshold')">
-                🔍 Show NCM rates above threshold
+            <div class="example-query" onclick="setQuery('Quality Control | Example: NCM rates above threshold')">
+                🔍 Quality Control | Example: NCM rates above threshold
             </div>
-            <div class="example-query" onclick="setQuery('Find suppliers with poor OTD performance')">
-                📦 Find suppliers with poor OTD performance  
+            <div class="example-query" onclick="setQuery('Supplier | Example: suppliers with poor OTD performance')">
+                📦 Supplier | Example: suppliers with poor OTD performance  
             </div>
-            <div class="example-query" onclick="setQuery('Compare OEE metrics across production lines')">
-                ⚙️ Compare OEE metrics across production lines
+            <div class="example-query" onclick="setQuery('Production Line | Example: Compare OEE metrics across production lines')">
+                ⚙️ Production Line | Example: Compare OEE metrics across production lines
             </div>
-            <div class="example-query" onclick="setQuery('Show DPMO trends for quality control')">
-                📊 Show DPMO trends for quality control
+            <div class="example-query" onclick="setQuery('Quality Control | Example: DPMO trends for quality inspection')">
+                📊 Quality Control | Example: DPMO trends for quality inspection
             </div>
-            <div class="example-query" onclick="setQuery('Find MTBF patterns for critical equipment')">
-                🔧 Find MTBF patterns for critical equipment
+            <div class="example-query" onclick="setQuery('Equipment | Example: MTBF patterns for critical machinery')">
+                🔧 Equipment | Example: MTBF patterns for critical machinery
             </div>
-            <div class="example-query" onclick="setQuery('CAPA effectiveness analysis')">
-                📋 CAPA effectiveness analysis
+            <div class="example-query" onclick="setQuery('Maintenance Log | Example: CAPA effectiveness analysis')">
+                📋 Maintenance Log | Example: CAPA effectiveness analysis
             </div>
         </div>
         
@@ -329,7 +329,7 @@
         // Initialize with a demo query
         window.addEventListener('load', () => {
             setTimeout(() => {
-                setQuery('Show NCM');
+                setQuery('Quality Control | Example: NCM');
             }, 1000);
         });
     </script>
