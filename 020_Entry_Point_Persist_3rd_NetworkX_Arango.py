@@ -75,7 +75,7 @@ for source, target, data in nx_graph.edges(data=True):
     if data.get('join_column_description'):
         print(f"   Description: {data.get('join_column_description')}")
     if data.get('few_shot_example'):
-        print(f"   SQL Example: {data.get('few_shot_example')}")
+        print(f"   Example: {data.get('few_shot_example')}")
     if data.get('context'):
         print(f"   Context: {data.get('context')}")
 print()
