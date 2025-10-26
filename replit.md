@@ -62,12 +62,16 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **Second Pass (020_Entry_Point_Persist_2nd_NetworkX_Arango.py)**: PostgreSQL → NetworkX → ArangoDB persistence:
         - Loads manufacturing schema from PostgreSQL (schema_nodes, schema_edges tables)
         - Creates NetworkX graph with full metadata preservation (labels, table types, descriptions, relationships)
-        - Persists to ArangoDB with metadata integrity (6 nodes, 7 edges)
+        - **Enhanced edge metadata** for semantic layer: join_column_description, natural_language_alias, few_shot_example, context
+        - Persists to ArangoDB with metadata integrity (6 nodes, 7 edges with enhanced metadata)
     - **Third Pass (020_Entry_Point_Persist_3rd_NetworkX_Arango.py)**: ArangoDB → NetworkX restoration:
         - Restores persisted manufacturing schema graph from ArangoDB
         - Verifies metadata preservation (node labels, types, descriptions, edge relationships, join columns)
+        - **Displays enhanced edge metadata** in semantic-layer-ready format with SQL examples and business context
+        - Handles oddly-named fields (e.g., NCM.ID for Non-Conformance Material) with descriptive aliases and few-shot SQL
         - Provides label-to-ID mapping for intuitive node access using original table names
         - Production-ready pattern for team collaboration and session reuse
+        - **Value proposition**: Domain knowledge embedding enables LangChain to generate correct SQL for real-world manufacturing databases with legacy field naming
 
 ### Frontend
 - **Framework**: Astro with React integration
