@@ -1281,7 +1281,7 @@ def add_acronym():
 def add_edge_metadata():
     """
     Add or update edge metadata for join relationships
-    Expected format: "from_table → to_table: description | Example: SQL join"
+    Expected format: "from_table → to_table: description | Example: join example"
     Example: "equipment → production_line: line ID | Example: e.line_id = pl.line_id"
     """
     try:
@@ -1291,20 +1291,20 @@ def add_edge_metadata():
         if not input_text:
             return jsonify({"error": "No input provided"}), 400
         
-        # Parse format: "from_table → to_table: description | Example: SQL"
+        # Parse format: "from_table → to_table: description | Example: join"
         # Support both → and -> for arrow
         arrow = '→' if '→' in input_text else '->'
         
         if arrow not in input_text or ':' not in input_text:
             return jsonify({
-                "error": "Invalid format. Use: 'from_table → to_table: description | Example: SQL join'"
+                "error": "Invalid format. Use: 'from_table → to_table: description | Example: join example'"
             }), 400
         
         # Extract edge and metadata
         parts = input_text.split(arrow)
         if len(parts) != 2:
             return jsonify({
-                "error": "Invalid format. Expected: 'from_table → to_table: description | Example: SQL'"
+                "error": "Invalid format. Expected: 'from_table → to_table: description | Example: join'"
             }), 400
         
         from_table = parts[0].strip()
@@ -1315,15 +1315,15 @@ def add_edge_metadata():
             desc_part, example_part = remainder.split('|', 1)
             description = desc_part.strip().lstrip(':').strip()
             
-            # Extract SQL example (handle double "Example: Example:" format)
+            # Extract example (handle double "Example: Example:" format)
             if 'Example:' in example_part:
                 # Split on all "Example:" and take the last part
-                sql_example = example_part.split('Example:')[-1].strip()
+                example = example_part.split('Example:')[-1].strip()
             else:
-                sql_example = example_part.strip()
+                example = example_part.strip()
         else:
             description = remainder.lstrip(':').strip()
-            sql_example = ''
+            example = ''
         
         # Extract to_table from description (format: "to_table: desc")
         if ':' in description:
@@ -1366,7 +1366,7 @@ def add_edge_metadata():
                     context = %s
                 WHERE from_table = %s AND to_table = %s
                 RETURNING edge_id
-            """, (description, natural_alias, sql_example, 
+            """, (description, natural_alias, example, 
                   f"Join {from_table} and {to_table} on {description}",
                   from_table, to_table))
             
@@ -1396,7 +1396,7 @@ def add_edge_metadata():
                 "to_table": to_table,
                 "description": description,
                 "natural_alias": natural_alias,
-                "sql_example": sql_example,
+                "example": example,
                 "edge_id": edge_id
             }
         }), 200 if action == "updated" else 201
