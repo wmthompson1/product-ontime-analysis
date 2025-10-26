@@ -38,6 +38,7 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
         - `/api/hints` (POST with table_name support) for contextual query hints
         - `/api/acronym/<acronym>` (GET) for acronym expansion
         - `/api/acronyms` (POST) for idempotent acronym insertion with format "table_name | ACRONYM = Definition"
+        - `/api/edges/metadata` (POST) for updating join metadata with format "from_table → to_table: description | Example: SQL join"
     - **Real-world Database Support**: Handles legacy field naming (e.g., NCM.ID for Non-Conformance Material) with descriptive aliases and SQL examples
     - **User-Defined Acronyms**: Idempotent insertion via `manufacturing_acronyms` table with format "table_name | ACRONYM = Definition", includes automatic cache invalidation for immediate availability
     - **Foreign Key Validation**: Table names validated against schema_nodes to ensure data integrity
