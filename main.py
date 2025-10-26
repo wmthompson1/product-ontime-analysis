@@ -1191,6 +1191,87 @@ def get_acronym_info(acronym):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/acronyms", methods=["POST"])
+def add_acronym():
+    """
+    Add new acronym definition to database
+    Expected format: "table_name | ACRONYM = Definition"
+    Example: "quality_control | NCM = Non-Conformant Material"
+    """
+    try:
+        data = request.json
+        input_text = data.get("text", "").strip()
+        
+        if not input_text:
+            return jsonify({"error": "No input provided"}), 400
+        
+        # Parse format: "table_name | ACRONYM = Definition"
+        if '|' not in input_text or '=' not in input_text:
+            return jsonify({
+                "error": "Invalid format. Use: 'table_name | ACRONYM = Definition'"
+            }), 400
+        
+        # Extract components
+        parts = input_text.split('|')
+        if len(parts) != 2:
+            return jsonify({
+                "error": "Invalid format. Expected: 'table_name | ACRONYM = Definition'"
+            }), 400
+        
+        table_name = parts[0].strip()
+        acronym_def = parts[1].strip()
+        
+        if '=' not in acronym_def:
+            return jsonify({
+                "error": "Missing '=' in acronym definition"
+            }), 400
+        
+        acronym_parts = acronym_def.split('=', 1)
+        acronym = acronym_parts[0].strip()
+        definition = acronym_parts[1].strip()
+        
+        if not acronym or not definition:
+            return jsonify({
+                "error": "Both acronym and definition are required"
+            }), 400
+        
+        # Insert into database (idempotent with ON CONFLICT)
+        import psycopg2
+        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO manufacturing_acronyms (acronym, definition, table_name)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (acronym, table_name) 
+            DO UPDATE SET 
+                definition = EXCLUDED.definition,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING acronym_id, created_at, updated_at
+        """, (acronym, definition, table_name))
+        
+        result = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Acronym '{acronym}' merged into '{table_name}' table",
+            "data": {
+                "acronym": acronym,
+                "definition": definition,
+                "table_name": table_name,
+                "acronym_id": result[0],
+                "created_at": result[1].isoformat() if result[1] else None,
+                "updated_at": result[2].isoformat() if result[2] else None
+            }
+        }), 201
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/contextual-hints-demo")
 def contextual_hints_demo():
     """Demo page for contextual hints system"""
