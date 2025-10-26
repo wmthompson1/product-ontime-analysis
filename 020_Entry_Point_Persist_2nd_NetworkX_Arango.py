@@ -1,233 +1,121 @@
 """
 020_Entry_Point_Persist_2nd_NetworkX_Arango.py
 
-Second Pass: Advanced NetworkX-over-ArangoDB Patterns
-Demonstrates production patterns for manufacturing intelligence graphs
+Second Pass: Load Manufacturing Schema from PostgreSQL → NetworkX → ArangoDB
+Simple, focused pattern for persisting schema graphs.
 
-Key Concepts:
-1. Node metadata preservation (labels, attributes)
-2. Loading existing graphs from previous sessions (3x faster)
-3. Running advanced NetworkX algorithms on ArangoDB-backed graphs
-4. Team collaboration workflow (persist once, load many times)
-
-Based on: NVIDIA Developer Blog "Accelerated, Production-Ready Graph Analytics for NetworkX Users"
+Workflow:
+1. Load schema_nodes and schema_edges from PostgreSQL database
+2. Create NetworkX graph with proper node metadata
+3. Persist to ArangoDB with metadata preservation
 """
 
 import networkx as nx
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 print("=" * 75)
-print("NetworkX over ArangoDB - Second Pass: Advanced Patterns")
+print("NetworkX over ArangoDB - Second Pass")
+print("Load Schema from PostgreSQL → Persist to ArangoDB")
 print("=" * 75)
 
-# Initialize ArangoDB connection
+# Step 1: Connect to PostgreSQL database
+print("\n📊 Step 1: Load schema from PostgreSQL database")
+print("-" * 75)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    print("❌ DATABASE_URL not found")
+    exit(1)
+
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+# Load nodes
+cursor.execute("SELECT * FROM schema_nodes ORDER BY table_name")
+nodes = cursor.fetchall()
+print(f"✅ Loaded {len(nodes)} nodes from schema_nodes table:")
+for node in nodes:
+    print(f"   • {node['table_name']} ({node['table_type']}): {node['description']}")
+
+# Load edges
+cursor.execute("SELECT * FROM schema_edges ORDER BY edge_id")
+edges = cursor.fetchall()
+print(f"\n✅ Loaded {len(edges)} edges from schema_edges table:")
+for edge in edges:
+    print(f"   • {edge['from_table']} → {edge['to_table']} ({edge['relationship_type']})")
+
+cursor.close()
+conn.close()
+
+# Step 2: Build NetworkX graph with metadata
+print("\n📊 Step 2: Build NetworkX graph with metadata")
+print("-" * 75)
+
+G = nx.DiGraph()
+
+# Add nodes with metadata preservation
+for node in nodes:
+    G.add_node(
+        node['table_name'],
+        label=node['table_name'],  # Preserve original name as label
+        table_type=node['table_type'],
+        description=node['description'],
+        node_type='schema_table'
+    )
+
+# Add edges with metadata preservation
+for edge in edges:
+    G.add_edge(
+        edge['from_table'],
+        edge['to_table'],
+        relationship_type=edge['relationship_type'],
+        join_column=edge['join_column'],
+        weight=edge['weight']
+    )
+
+print(f"✅ NetworkX graph created:")
+print(f"   Nodes: {G.number_of_nodes()}")
+print(f"   Edges: {G.number_of_edges()}")
+print(f"\n   Node details:")
+for node, data in G.nodes(data=True):
+    print(f"   • {node}: label={data['label']}, type={data['table_type']}")
+
+# Step 3: Persist to ArangoDB
+print("\n📊 Step 3: Persist to ArangoDB")
+print("-" * 75)
+
 config = ArangoDBConfig()
 persistence = ArangoDBGraphPersistence(config)
 
-print(f"\n📊 Connected to ArangoDB:")
 print(f"   Database: {config.database_name}")
 print(f"   Host: {config.host}")
 
+graph_name = "manufacturing_schema"
+print(f"\n📤 Persisting graph '{graph_name}' to ArangoDB...")
 
-# =============================================================================
-# Pattern 1: Preserve Node Metadata for Identification
-# =============================================================================
-print("\n" + "=" * 75)
-print("Pattern 1: Node Metadata Preservation")
-print("=" * 75)
-
-# Create graph with meaningful node attributes
-G = nx.DiGraph()
-
-# Add nodes with metadata (labels help identify them after loading)
-G.add_node("equipment_A", label="equipment_A", type="machine", capacity=100)
-G.add_node("product_X", label="product_X", type="product", sku="SKU-001")
-G.add_node("order_123", label="order_123", type="order", quantity=50)
-G.add_node("customer_C1", label="customer_C1", type="customer", region="West")
-
-# Add edges with metadata
-G.add_edge("equipment_A", "product_X", relationship="produces", rate=10)
-G.add_edge("product_X", "order_123", relationship="fulfills", units=50)
-G.add_edge("order_123", "customer_C1", relationship="ships_to", priority="high")
-
-print(f"\n✅ Created graph with metadata:")
-print(f"   Nodes: {G.number_of_nodes()}")
-print(f"   Edges: {G.number_of_edges()}")
-for node, data in G.nodes(data=True):
-    print(f"   • {node}: {data}")
-
-# Persist to ArangoDB
-print(f"\n📤 Persisting graph 'manufacturing_flow' to ArangoDB...")
 adb_graph = persistence.persist_graph(
     graph=G,
-    name="manufacturing_flow",
+    name=graph_name,
     overwrite=True
 )
-print(f"✅ Graph 'manufacturing_flow' persisted successfully!")
 
+print(f"✅ Graph '{graph_name}' persisted successfully!")
+print(f"   All node metadata preserved (labels, types, descriptions)")
+print(f"   All edge metadata preserved (relationships, join columns, weights)")
 
-# =============================================================================
-# Pattern 2: Load Graph in New Session (3x Faster)
-# =============================================================================
 print("\n" + "=" * 75)
-print("Pattern 2: Fast Session Loading (Team Collaboration)")
+print("✅ Complete: PostgreSQL → NetworkX → ArangoDB")
 print("=" * 75)
-
-print(f"\n📥 Simulating new session: Loading 'manufacturing_flow' from ArangoDB...")
-loaded_graph = persistence.load_graph(
-    name="manufacturing_flow",
-    directed=True
-)
-
-print(f"✅ Graph loaded: {loaded_graph.number_of_nodes()} nodes, {loaded_graph.number_of_edges()} edges")
-print(f"   ⚡ Benefit: 3x faster than loading from source files")
-print(f"   🤝 Team can collaborate on the same graph")
-
-# Convert to NetworkX for full algorithm support
-nx_graph = nx.DiGraph()
-nx_graph.add_nodes_from(loaded_graph.nodes(data=True))
-nx_graph.add_edges_from(loaded_graph.edges(data=True))
-
-# Access nodes by their labels (metadata preserved!)
-print(f"\n🔍 Node metadata preserved:")
-for node, data in nx_graph.nodes(data=True):
-    if 'label' in data:
-        print(f"   • ArangoDB ID: {node}")
-        print(f"     Label: {data['label']}, Type: {data.get('type', 'N/A')}")
-
-
-# =============================================================================
-# Pattern 3: Advanced NetworkX Algorithms on ArangoDB-Backed Graphs
-# =============================================================================
-print("\n" + "=" * 75)
-print("Pattern 3: Advanced NetworkX Algorithms")
-print("=" * 75)
-
-# Build label-to-id mapping for easy node access
-label_to_id = {data['label']: node for node, data in nx_graph.nodes(data=True) if 'label' in data}
-print(f"\n📋 Label-to-ID mapping created:")
-for label, node_id in label_to_id.items():
-    print(f"   {label} → {node_id}")
-
-# Run shortest path analysis
-print(f"\n🔍 Shortest Path Analysis:")
-if "equipment_A" in label_to_id and "customer_C1" in label_to_id:
-    source_id = label_to_id["equipment_A"]
-    target_id = label_to_id["customer_C1"]
-    
-    path = nx.shortest_path(nx_graph, source=source_id, target=target_id)
-    
-    # Convert path back to labels for readability
-    path_labels = [nx_graph.nodes[node]['label'] for node in path]
-    print(f"   Path (by label): {' → '.join(path_labels)}")
-    print(f"   Path length: {len(path) - 1} hops")
-
-# Run centrality analysis
-print(f"\n📊 Centrality Analysis:")
-degree_centrality = nx.degree_centrality(nx_graph)
-betweenness_centrality = nx.betweenness_centrality(nx_graph)
-
-print(f"\n   Top nodes by degree centrality:")
-for node, centrality in sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:3]:
-    label = nx_graph.nodes[node].get('label', node)
-    print(f"   • {label}: {centrality:.3f}")
-
-print(f"\n   Top nodes by betweenness centrality:")
-for node, centrality in sorted(betweenness_centrality.items(), key=lambda x: x[1], reverse=True)[:3]:
-    label = nx_graph.nodes[node].get('label', node)
-    print(f"   • {label}: {centrality:.3f}")
-
-
-# =============================================================================
-# Pattern 4: Load Schema Graph from Entry Point 018
-# =============================================================================
-print("\n" + "=" * 75)
-print("Pattern 4: Loading Existing Schema Graphs")
-print("=" * 75)
-
-# Check if schema graph exists from Entry Point 018
-print(f"\n🔍 Checking for existing schema graphs...")
-try:
-    # Try to load the supply chain graph from Entry Point 018
-    schema_graph = persistence.load_graph(
-        name="supply_chain_2025_q1",
-        directed=True
-    )
-    print(f"✅ Found 'supply_chain_2025_q1' graph!")
-    print(f"   Nodes: {schema_graph.number_of_nodes()}")
-    print(f"   Edges: {schema_graph.number_of_edges()}")
-    
-    # Convert and analyze
-    schema_nx = nx.DiGraph()
-    schema_nx.add_nodes_from(schema_graph.nodes(data=True))
-    schema_nx.add_edges_from(schema_graph.edges(data=True))
-    
-    print(f"\n📊 Schema graph analysis:")
-    print(f"   Density: {nx.density(schema_nx):.3f}")
-    print(f"   Is DAG: {nx.is_directed_acyclic_graph(schema_nx)}")
-    
-except Exception as e:
-    print(f"⚠️  'supply_chain_2025_q1' not found: {e}")
-    print(f"   Run '018_Entry_Point_Persist_Graph.py' first to create it")
-
-
-# =============================================================================
-# Pattern 5: Team Collaboration Workflow
-# =============================================================================
-print("\n" + "=" * 75)
-print("Pattern 5: Team Collaboration Workflow")
-print("=" * 75)
-
 print(f"""
-🤝 Team Collaboration Pattern:
+Summary:
+• Loaded {len(nodes)} schema nodes from PostgreSQL
+• Loaded {len(edges)} schema edges from PostgreSQL
+• Created NetworkX graph with full metadata
+• Persisted to ArangoDB as '{graph_name}'
 
-1. Data Engineer: Loads raw data → Creates NetworkX graph → Persists to ArangoDB
-   python 018_Entry_Point_Persist_Graph.py
-
-2. Data Analyst: Loads graph from ArangoDB (3x faster) → Runs analysis
-   loaded_graph = persistence.load_graph("supply_chain_2025_q1")
-
-3. Data Scientist: Loads same graph → Runs ML algorithms
-   nx_graph = convert_to_networkx(loaded_graph)
-   communities = nx.community.louvain_communities(nx_graph)
-
-4. Business User: Loads graph → Queries insights via LangChain semantic layer
-   This enables natural language queries over the graph structure!
-
-Benefits:
-✅ Single source of truth (ArangoDB)
-✅ 3x faster session loading vs. loading from CSV/DB
-✅ GPU acceleration available (11-600x speedup with nx-cugraph)
-✅ Scales to billions of edges with ArangoDB clustering
+Next: Run 020_Entry_Point_Persist_3rd_NetworkX_Arango.py to restore
 """)
-
-
-# =============================================================================
-# Summary
-# =============================================================================
-print("=" * 75)
-print("Summary: NetworkX over ArangoDB Production Patterns")
-print("=" * 75)
-
-print(f"""
-✅ Pattern 1: Node metadata preservation → Nodes identifiable after loading
-✅ Pattern 2: Fast session loading → 3x faster than source files
-✅ Pattern 3: Advanced algorithms → Full NetworkX API compatibility
-✅ Pattern 4: Schema graph integration → Entry Point 018 graphs accessible
-✅ Pattern 5: Team collaboration → Shared graph workspace
-
-Next Steps:
-1. Connect Entry Point 018 (Structured RAG) with ArangoDB-backed graphs
-2. Integrate LangChain semantic layer with graph queries
-3. Deploy to production with ArangoDB clustering
-4. Enable GPU acceleration with nx-cugraph backend
-
-🎯 Goal: Production-ready manufacturing intelligence platform with:
-   • Graph-theoretic determinism (NetworkX algorithms)
-   • Natural language interface (LangChain semantic layer)
-   • Scalable persistence (ArangoDB)
-   • Team collaboration (shared graph workspace)
-""")
-
 print("=" * 75)
