@@ -29,7 +29,14 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Daily defect rate analysis (Z-tests, confidence intervals)
     - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
     Both include CSV upload functionality and professional reporting.
-- **Contextual UI Hints System**: Intelligent hint system for manufacturing terminology, acronym expansion, and query assistance, exposed via `/api/hints` and `/api/acronym/<acronym>` endpoints.
+- **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance. Production-ready implementation with:
+    - **Database Integration** (`app/database_hints_loader.py`): Dynamically loads enhanced metadata from PostgreSQL schema_edges table, replacing hardcoded hints with database-driven content
+    - **Enhanced Metadata Support**: Leverages join_column_description, natural_language_alias, few_shot_example, and context fields for rich contextual guidance
+    - **Table-aware Hints**: Extracts table names from query format "Quality Control | Example: NCM rates..." and provides targeted metadata
+    - **Performance Optimization**: @lru_cache decorator ensures efficient schema graph loading for production use
+    - **API Endpoints**: `/api/hints` (POST with table_name support) and `/api/acronym/<acronym>` for contextual intelligence
+    - **Real-world Database Support**: Handles legacy field naming (e.g., NCM.ID for Non-Conformance Material) with descriptive aliases and SQL examples
+    - **Dependencies**: Requires DATABASE_URL environment variable and psycopg2-binary for PostgreSQL connectivity
 - **LangGraph 101 Implementation**: Complete Entry Point series (010-017) demonstrating LangGraph base class patterns:
     - Custom manufacturing tools registry system
     - StateGraph workflow orchestration
