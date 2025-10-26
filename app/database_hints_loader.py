@@ -89,11 +89,38 @@ class DatabaseHintsLoader:
         return None
     
     def build_acronym_mappings(self) -> Dict:
-        """Build acronym mappings from database metadata"""
+        """Build acronym mappings from database metadata and user-defined acronyms"""
         schema = self.load_schema_graph()
         acronyms = {}
         
-        # Extract acronyms from edge metadata
+        # Load user-defined acronyms from manufacturing_acronyms table
+        conn = psycopg2.connect(self.database_url)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        try:
+            cursor.execute("""
+                SELECT acronym, definition, table_name, category
+                FROM manufacturing_acronyms
+                ORDER BY acronym
+            """)
+            user_acronyms = cursor.fetchall()
+            
+            # Add user-defined acronyms first (they take priority)
+            for record in user_acronyms:
+                acronym_key = record['acronym'].upper()
+                acronyms[acronym_key] = {
+                    'full_name': record['definition'],
+                    'related_fields': [],
+                    'related_tables': [record['table_name']] if record['table_name'] else [],
+                    'context': f"User-defined acronym for {record['table_name'] or 'general use'}",
+                    'example_sql': '',
+                    'source': 'user_defined'
+                }
+        finally:
+            cursor.close()
+            conn.close()
+        
+        # Extract acronyms from edge metadata (fallback if not user-defined)
         for edge in schema['edges']:
             # Look for acronyms in natural_language_alias and context
             if edge.get('natural_language_alias'):
@@ -108,10 +135,12 @@ class DatabaseHintsLoader:
                             'related_fields': [],
                             'related_tables': [],
                             'context': context_text,
-                            'example_sql': edge.get('few_shot_example', '')
+                            'example_sql': edge.get('few_shot_example', ''),
+                            'source': 'metadata'
                         }
-                    acronyms['NCM']['related_fields'].append(edge['join_column'])
-                    acronyms['NCM']['related_tables'].extend([edge['from_table'], edge['to_table']])
+                    if 'source' not in acronyms['NCM'] or acronyms['NCM']['source'] != 'user_defined':
+                        acronyms['NCM']['related_fields'].append(edge['join_column'])
+                        acronyms['NCM']['related_tables'].extend([edge['from_table'], edge['to_table']])
                 
                 # OTD (On-Time Delivery)
                 if 'OTD' in context_text or 'delivery' in context_text.lower():
@@ -121,10 +150,12 @@ class DatabaseHintsLoader:
                             'related_fields': [],
                             'related_tables': [],
                             'context': context_text,
-                            'example_sql': edge.get('few_shot_example', '')
+                            'example_sql': edge.get('few_shot_example', ''),
+                            'source': 'metadata'
                         }
-                    acronyms['OTD']['related_fields'].append(edge['join_column'])
-                    acronyms['OTD']['related_tables'].extend([edge['from_table'], edge['to_table']])
+                    if 'source' not in acronyms['OTD'] or acronyms['OTD']['source'] != 'user_defined':
+                        acronyms['OTD']['related_fields'].append(edge['join_column'])
+                        acronyms['OTD']['related_tables'].extend([edge['from_table'], edge['to_table']])
         
         # Deduplicate related tables
         for acronym in acronyms:
