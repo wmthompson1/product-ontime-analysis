@@ -1144,24 +1144,33 @@ analyzer.generate_report()
         return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
 
-# Contextual Hints API endpoints
+# Contextual Hints API endpoints (Database-Backed)
 @app.route("/api/hints", methods=["POST"])
 def get_query_hints():
-    """Get contextual hints for query input"""
+    """Get contextual hints for query input with database integration"""
     try:
         data = request.json
         partial_query = data.get("query", "").strip()
         available_fields = data.get("fields", [])
+        table_name = data.get("table_name")  # Optional: extracted from query like "Quality Control | Example: ..."
         
         if not partial_query:
             return jsonify({"hints": []})
         
-        hints = get_contextual_hints(partial_query, available_fields)
+        # Extract table name from query if present
+        if not table_name and '|' in partial_query:
+            parts = partial_query.split('|')
+            if len(parts) >= 2:
+                table_name = parts[0].strip()
+        
+        hints = get_contextual_hints(partial_query, available_fields, table_name)
         
         return jsonify({
             "hints": hints,
             "query": partial_query,
-            "field_count": len(available_fields)
+            "table_name": table_name,
+            "field_count": len(available_fields),
+            "source": "database-backed" if table_name else "mixed"
         })
     
     except Exception as e:
@@ -1190,46 +1199,4 @@ def contextual_hints_demo():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-# Contextual Hints API endpoints
-@app.route("/api/hints", methods=["POST"])
-def get_query_hints():
-    """Get contextual hints for query input"""
-    try:
-        data = request.json
-        partial_query = data.get("query", "").strip()
-        available_fields = data.get("fields", [])
-        
-        if not partial_query:
-            return jsonify({"hints": []})
-        
-        hints = get_contextual_hints(partial_query, available_fields)
-        
-        return jsonify({
-            "hints": hints,
-            "query": partial_query,
-            "field_count": len(available_fields)
-        })
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/api/acronym/<acronym>")
-def get_acronym_info(acronym):
-    """Get detailed information about manufacturing acronyms"""
-    try:
-        info = expand_acronym(acronym)
-        if info:
-            return jsonify(info)
-        else:
-            return jsonify({"error": "Acronym not found"}), 404
-    
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route("/contextual-hints-demo")
-def contextual_hints_demo():
-    """Demo page for contextual hints system"""
-    return render_template("contextual_hints_demo.html")
 
