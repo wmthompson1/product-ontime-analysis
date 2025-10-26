@@ -1277,6 +1277,138 @@ def add_acronym():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/edges/metadata", methods=["POST"])
+def add_edge_metadata():
+    """
+    Add or update edge metadata for join relationships
+    Expected format: "from_table → to_table: description | Example: SQL join"
+    Example: "equipment → production_line: line ID | Example: e.line_id = pl.line_id"
+    """
+    try:
+        data = request.json
+        input_text = data.get("text", "").strip()
+        
+        if not input_text:
+            return jsonify({"error": "No input provided"}), 400
+        
+        # Parse format: "from_table → to_table: description | Example: SQL"
+        # Support both → and -> for arrow
+        arrow = '→' if '→' in input_text else '->'
+        
+        if arrow not in input_text or ':' not in input_text:
+            return jsonify({
+                "error": "Invalid format. Use: 'from_table → to_table: description | Example: SQL join'"
+            }), 400
+        
+        # Extract edge and metadata
+        parts = input_text.split(arrow)
+        if len(parts) != 2:
+            return jsonify({
+                "error": "Invalid format. Expected: 'from_table → to_table: description | Example: SQL'"
+            }), 400
+        
+        from_table = parts[0].strip()
+        remainder = parts[1].strip()
+        
+        # Split description and example
+        if '|' in remainder:
+            desc_part, example_part = remainder.split('|', 1)
+            description = desc_part.strip().lstrip(':').strip()
+            
+            # Extract SQL example
+            if 'Example:' in example_part:
+                sql_example = example_part.split('Example:', 1)[1].strip()
+            else:
+                sql_example = example_part.strip()
+        else:
+            description = remainder.lstrip(':').strip()
+            sql_example = ''
+        
+        # Extract to_table from description (format: "to_table: desc")
+        if ':' in description:
+            to_table_part, desc_only = description.split(':', 1)
+            to_table = to_table_part.strip()
+            description = desc_only.strip()
+        else:
+            return jsonify({
+                "error": "Invalid format. Missing ':' after to_table name"
+            }), 400
+        
+        if not from_table or not to_table or not description:
+            return jsonify({
+                "error": "Missing required fields: from_table, to_table, or description"
+            }), 400
+        
+        # Update edge in database
+        import psycopg2
+        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        cur = conn.cursor()
+        
+        # Create natural language alias
+        natural_alias = f"{from_table} to {to_table} via {description}"
+        
+        # Check if edge exists
+        cur.execute("""
+            SELECT edge_id FROM schema_edges 
+            WHERE from_table = %s AND to_table = %s
+        """, (from_table, to_table))
+        
+        edge = cur.fetchone()
+        
+        if edge:
+            # Update existing edge
+            cur.execute("""
+                UPDATE schema_edges 
+                SET join_column_description = %s,
+                    natural_language_alias = %s,
+                    few_shot_example = %s,
+                    context = %s
+                WHERE from_table = %s AND to_table = %s
+                RETURNING edge_id
+            """, (description, natural_alias, sql_example, 
+                  f"Join {from_table} and {to_table} on {description}",
+                  from_table, to_table))
+            
+            result = cur.fetchone()
+            edge_id = result[0]
+            action = "updated"
+        else:
+            return jsonify({
+                "error": f"Edge {from_table} → {to_table} does not exist. Create the edge first in schema_edges table.",
+                "suggestion": "Add the edge with join_column information before updating metadata"
+            }), 404
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Clear cache so new metadata is immediately available
+        from app.database_hints_loader import get_database_hints_loader
+        loader = get_database_hints_loader()
+        loader.clear_cache()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Edge metadata {action}: {from_table} → {to_table}",
+            "data": {
+                "from_table": from_table,
+                "to_table": to_table,
+                "description": description,
+                "natural_alias": natural_alias,
+                "sql_example": sql_example,
+                "edge_id": edge_id
+            }
+        }), 200 if action == "updated" else 201
+    
+    except psycopg2.IntegrityError as e:
+        return jsonify({
+            "error": f"Database constraint violation: {str(e)}",
+            "suggestion": "Ensure both table names exist in schema_nodes"
+        }), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/contextual-hints-demo")
 def contextual_hints_demo():
     """Demo page for contextual hints system"""
