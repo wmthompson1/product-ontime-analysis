@@ -1255,6 +1255,11 @@ def add_acronym():
         cur.close()
         conn.close()
         
+        # Clear cache so new acronyms are immediately available
+        from app.database_hints_loader import get_database_hints_loader
+        loader = get_database_hints_loader()
+        loader.clear_cache()
+        
         return jsonify({
             "status": "success",
             "message": f"Acronym '{acronym}' merged into '{table_name}' table",
