@@ -1315,9 +1315,10 @@ def add_edge_metadata():
             desc_part, example_part = remainder.split('|', 1)
             description = desc_part.strip().lstrip(':').strip()
             
-            # Extract SQL example
+            # Extract SQL example (handle double "Example: Example:" format)
             if 'Example:' in example_part:
-                sql_example = example_part.split('Example:', 1)[1].strip()
+                # Split on all "Example:" and take the last part
+                sql_example = example_part.split('Example:')[-1].strip()
             else:
                 sql_example = example_part.strip()
         else:
