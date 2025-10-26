@@ -34,8 +34,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **Enhanced Metadata Support**: Leverages join_column_description, natural_language_alias, few_shot_example, and context fields for rich contextual guidance
     - **Table-aware Hints**: Extracts table names from query format "Quality Control | Example: NCM rates..." and provides targeted metadata
     - **Performance Optimization**: @lru_cache decorator ensures efficient schema graph loading for production use
-    - **API Endpoints**: `/api/hints` (POST with table_name support) and `/api/acronym/<acronym>` for contextual intelligence
+    - **API Endpoints**: 
+        - `/api/hints` (POST with table_name support) for contextual query hints
+        - `/api/acronym/<acronym>` (GET) for acronym expansion
+        - `/api/acronyms` (POST) for idempotent acronym insertion with format "table_name | ACRONYM = Definition"
     - **Real-world Database Support**: Handles legacy field naming (e.g., NCM.ID for Non-Conformance Material) with descriptive aliases and SQL examples
+    - **User-Defined Acronyms**: Idempotent insertion via `manufacturing_acronyms` table with format "table_name | ACRONYM = Definition", includes automatic cache invalidation for immediate availability
+    - **Foreign Key Validation**: Table names validated against schema_nodes to ensure data integrity
     - **Dependencies**: Requires DATABASE_URL environment variable and psycopg2-binary for PostgreSQL connectivity
 - **LangGraph 101 Implementation**: Complete Entry Point series (010-017) demonstrating LangGraph base class patterns:
     - Custom manufacturing tools registry system
