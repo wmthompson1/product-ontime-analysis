@@ -1,12 +1,14 @@
 """
 Contextual UI Hints System for Manufacturing Domain Queries
 Provides intelligent suggestions for complex data queries with domain-specific terminology
+Enhanced with database-backed metadata from schema_edges table
 """
 
 import re
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
+from app.database_hints_loader import get_database_hints_loader
 
 class HintType(Enum):
     ACRONYM = "acronym"
@@ -150,39 +152,105 @@ class ManufacturingDomainHints:
         }
 
 class ContextualHintEngine:
-    """Main engine for generating contextual hints"""
+    """Main engine for generating contextual hints with database integration"""
     
-    def __init__(self):
+    def __init__(self, use_database: bool = True):
         self.domain_hints = ManufacturingDomainHints()
         self.recent_queries = []  # Track recent queries for context
+        self.use_database = use_database
+        self.db_loader = None
+        
+        # Initialize database loader if enabled
+        if self.use_database:
+            try:
+                self.db_loader = get_database_hints_loader()
+            except Exception as e:
+                print(f"Warning: Could not initialize database hints loader: {e}")
+                self.use_database = False
     
-    def generate_hints(self, partial_query: str, available_fields: List[str] = None) -> List[ContextualHint]:
+    def generate_hints(self, partial_query: str, available_fields: List[str] = None, table_name: str = None) -> List[ContextualHint]:
         """Generate contextual hints based on partial query input"""
         hints = []
         
         # Clean and analyze the partial query
         query_lower = partial_query.lower().strip()
         
-        # 1. Detect acronyms and provide expansions
+        # Extract table name from query if present (e.g., "Quality Control | Example: ...")
+        if not table_name and '|' in partial_query:
+            parts = partial_query.split('|')
+            if len(parts) >= 2:
+                table_name = parts[0].strip()
+        
+        # 1. Try database-backed hints first (production-ready)
+        if self.use_database and self.db_loader:
+            try:
+                db_hints = self._get_database_hints(partial_query, table_name)
+                hints.extend(db_hints)
+            except Exception as e:
+                print(f"Error loading database hints: {e}")
+        
+        # 2. Detect acronyms and provide expansions
         acronym_hints = self._detect_acronyms(partial_query)
         hints.extend(acronym_hints)
         
-        # 2. Suggest relevant fields based on context
+        # 3. Suggest relevant fields based on context
         if available_fields:
             field_hints = self._suggest_fields(query_lower, available_fields)
             hints.extend(field_hints)
         
-        # 3. Provide query completion suggestions
+        # 4. Provide query completion suggestions
         completion_hints = self._suggest_completions(query_lower)
         hints.extend(completion_hints)
         
-        # 4. Add business context hints
+        # 5. Add business context hints
         context_hints = self._add_business_context(query_lower)
         hints.extend(context_hints)
         
         # Sort by confidence and return top suggestions
         hints.sort(key=lambda x: x.confidence, reverse=True)
         return hints[:8]  # Return top 8 hints
+    
+    def _get_database_hints(self, query: str, table_name: str = None) -> List[ContextualHint]:
+        """Get hints from database-backed schema metadata"""
+        hints = []
+        
+        if not self.db_loader:
+            return hints
+        
+        # Convert table name to database format (e.g., "Quality Control" → "quality_control")
+        if table_name:
+            db_table_name = table_name.lower().replace(' ', '_')
+            
+            # Get edges for this table
+            edges = self.db_loader.get_edges_for_node(db_table_name)
+            
+            for edge in edges:
+                if edge.get('context') or edge.get('join_column_description'):
+                    hint = ContextualHint(
+                        text=f"{edge['from_table']} → {edge['to_table']}: {edge.get('natural_language_alias', edge['relationship_type'])}",
+                        hint_type=HintType.TABLE_RELATIONSHIP,
+                        confidence=0.95,
+                        explanation=edge.get('join_column_description', edge.get('context', '')),
+                        suggested_fields=[edge['join_column']] if edge.get('join_column') else [],
+                        example_query=edge.get('few_shot_example')
+                    )
+                    hints.append(hint)
+        
+        # Get acronym hints from database
+        db_acronyms = self.db_loader.build_acronym_mappings()
+        for acronym, data in db_acronyms.items():
+            if acronym in query.upper():
+                hint = ContextualHint(
+                    text=f"{acronym} = {data['full_name']} (from database)",
+                    hint_type=HintType.ACRONYM,
+                    confidence=0.98,  # Higher confidence for database-backed hints
+                    explanation=data.get('context', f"Relates to {', '.join(data['related_tables'][:3])}"),
+                    suggested_fields=data.get('related_fields', [])[:5],
+                    example_query=data.get('example_sql')
+                )
+                hints.append(hint)
+        
+        return hints
     
     def _detect_acronyms(self, query: str) -> List[ContextualHint]:
         """Detect and expand manufacturing acronyms"""
@@ -331,9 +399,9 @@ class ContextualHintEngine:
 # Global hint engine instance
 hint_engine = ContextualHintEngine()
 
-def get_contextual_hints(partial_query: str, available_fields: List[str] = None) -> List[Dict]:
-    """Main function to get contextual hints for UI"""
-    hints = hint_engine.generate_hints(partial_query, available_fields)
+def get_contextual_hints(partial_query: str, available_fields: List[str] = None, table_name: str = None) -> List[Dict]:
+    """Main function to get contextual hints for UI with database integration"""
+    hints = hint_engine.generate_hints(partial_query, available_fields, table_name)
     
     # Convert to dictionary format for JSON serialization
     return [
