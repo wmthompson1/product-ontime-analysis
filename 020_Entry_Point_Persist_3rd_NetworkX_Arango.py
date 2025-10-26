@@ -59,14 +59,26 @@ for node, data in nx_graph.nodes(data=True):
         print(f"     ArangoDB ID: {node}")
         print()
 
-print(f"✅ Edge metadata verification:")
+print(f"✅ Enhanced Edge Metadata (Ready for Semantic Layer):")
+print("=" * 75)
 for source, target, data in nx_graph.edges(data=True):
     source_label = nx_graph.nodes[source].get('label', source)
     target_label = nx_graph.nodes[target].get('label', target)
-    print(f"   • {source_label} → {target_label}")
-    print(f"     Relationship: {data.get('relationship_type', 'N/A')}")
-    print(f"     Join Column: {data.get('join_column', 'N/A')}")
-    print()
+    print(f"\n   {source_label} → {target_label}")
+    print(f"   {'─' * 70}")
+    print(f"   Relationship: {data.get('relationship_type', 'N/A')}")
+    print(f"   Join Column: {data.get('join_column', 'N/A')}")
+    
+    # Enhanced metadata for LangChain semantic layer
+    if data.get('natural_language_alias'):
+        print(f"   Alias: {data.get('natural_language_alias')}")
+    if data.get('join_column_description'):
+        print(f"   Description: {data.get('join_column_description')}")
+    if data.get('few_shot_example'):
+        print(f"   SQL Example: {data.get('few_shot_example')}")
+    if data.get('context'):
+        print(f"   Context: {data.get('context')}")
+print()
 
 # Step 4: Create label-to-ID mapping for easy access
 print("=" * 75)

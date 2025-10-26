@@ -66,14 +66,19 @@ for node in nodes:
         node_type='schema_table'
     )
 
-# Add edges with metadata preservation
+# Add edges with enhanced metadata preservation
 for edge in edges:
     G.add_edge(
         edge['from_table'],
         edge['to_table'],
         relationship_type=edge['relationship_type'],
         join_column=edge['join_column'],
-        weight=edge['weight']
+        weight=edge['weight'],
+        # Enhanced metadata for semantic layer
+        join_column_description=edge.get('join_column_description'),
+        natural_language_alias=edge.get('natural_language_alias'),
+        few_shot_example=edge.get('few_shot_example'),
+        context=edge.get('context')
     )
 
 print(f"✅ NetworkX graph created:")
@@ -105,6 +110,7 @@ adb_graph = persistence.persist_graph(
 print(f"✅ Graph '{graph_name}' persisted successfully!")
 print(f"   All node metadata preserved (labels, types, descriptions)")
 print(f"   All edge metadata preserved (relationships, join columns, weights)")
+print(f"   Enhanced metadata preserved (aliases, descriptions, few-shot examples, context)")
 
 print("\n" + "=" * 75)
 print("✅ Complete: PostgreSQL → NetworkX → ArangoDB")
