@@ -46,7 +46,11 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Interactive data preview (first 20 rows) with professional table styling
     - Downloadable cleansed Excel files with preserved data integrity and proper cell formatting (@text for invoice numbers)
     - Comprehensive reporting: processing steps, warnings, outlier analysis with valid ranges
-    - Module: `app/excel_cleansing.py` (pandas-based processing), Template: `templates/excel_cleansing.html`, Entry Point: `021_Entry_Point_Excel_Data_Cleansing.py`
+    - Module: `app/excel_cleansing.py` (pandas-based processing), Template: `templates/excel_cleansing.html`
+    - **Terminal Interface**: `021_Entry_Point_Excel_Data_Cleansing.py` provides full CLI access with argparse support
+        - Usage: `python 021_Entry_Point_Excel_Data_Cleansing.py input.xlsx --schema schema.json --preview`
+        - Supports all web features: schema enforcement, statistics reporting, data preview
+        - Options: `--output` (custom output path), `--schema` (JSON type rules), `--preview` (show first 20 rows), `--no-save` (dry run)
 - **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance. Production-ready implementation with:
     - **Database Integration** (`app/database_hints_loader.py`): Dynamically loads enhanced metadata from PostgreSQL schema_edges table, replacing hardcoded hints with database-driven content
     - **Enhanced Metadata Support**: Leverages join_column_description, natural_language_alias, few_shot_example, and context fields for rich contextual guidance
