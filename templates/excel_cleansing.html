@@ -221,6 +221,36 @@
             margin: 5px 0;
             font-size: 0.9em;
         }
+        
+        .schema-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px dashed #dee2e6;
+        }
+        
+        .schema-section h3 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1.1em;
+        }
+        
+        .schema-example {
+            background: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .help-text {
+            font-size: 0.9em;
+            color: #6c757d;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -240,6 +270,27 @@
                 <div class="upload-hint">Supports .xlsx and .xls files</div>
                 <input type="file" id="fileInput" name="file" accept=".xlsx,.xls">
             </div>
+            
+            <div class="schema-section">
+                <h3>📋 Optional: Column Schema (Recommended for Consistent ETL)</h3>
+                <p class="help-text">Upload a JSON schema to enforce data types across uploads. Perfect for invoice numbers that might be numeric this week but alphanumeric next week.</p>
+                
+                <div class="schema-example">
+{<br>
+&nbsp;&nbsp;"customer_reference": "text",<br>
+&nbsp;&nbsp;"invoice_number": "text",<br>
+&nbsp;&nbsp;"amount": "numeric",<br>
+&nbsp;&nbsp;"payment_date": "date"<br>
+}
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <label for="schemaInput" style="display: block; margin-bottom: 8px; color: #495057; font-weight: 500;">Schema File (optional .json):</label>
+                    <input type="file" id="schemaInput" name="schema" accept=".json" style="display: block; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9em;">
+                </div>
+                <p class="help-text" style="margin-top: 10px; font-size: 0.85em;">💡 <strong>Tip:</strong> Schema is optional. If not provided, we'll auto-detect types based on column names.</p>
+            </div>
+            
             <div style="text-align: center; margin-top: 20px;">
                 <button type="submit" class="btn" id="uploadBtn" disabled>Upload & Cleanse</button>
             </div>

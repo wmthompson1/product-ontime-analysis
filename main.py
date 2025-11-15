@@ -1435,8 +1435,21 @@ def excel_cleansing():
     if not file.filename.endswith(('.xlsx', '.xls')):
         return jsonify({"error": "Please upload an Excel file (.xlsx or .xls)"}), 400
     
+    schema_dict = None
+    if 'schema' in request.files:
+        schema_file = request.files['schema']
+        if schema_file.filename != '':
+            try:
+                import json
+                schema_content = schema_file.read().decode('utf-8')
+                schema_dict = json.loads(schema_content)
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid JSON schema: {str(e)}"}), 400
+            except Exception as e:
+                return jsonify({"error": f"Error reading schema file: {str(e)}"}), 400
+    
     try:
-        df, report, cleansed_bytes = cleanse_uploaded_excel(file)
+        df, report, cleansed_bytes = cleanse_uploaded_excel(file, schema_dict)
         
         preview_html = df.head(20).to_html(classes='table table-striped', index=False)
         
@@ -1461,7 +1474,16 @@ def download_cleansed_excel():
             return jsonify({"error": "No file provided"}), 400
         
         file = request.files['file']
-        df, report, cleansed_bytes = cleanse_uploaded_excel(file)
+        
+        schema_dict = None
+        if 'schema' in request.files:
+            schema_file = request.files['schema']
+            if schema_file.filename != '':
+                import json
+                schema_content = schema_file.read().decode('utf-8')
+                schema_dict = json.loads(schema_content)
+        
+        df, report, cleansed_bytes = cleanse_uploaded_excel(file, schema_dict)
         
         return send_file(
             BytesIO(cleansed_bytes),
