@@ -29,6 +29,14 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Daily defect rate analysis (Z-tests, confidence intervals)
     - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
     Both include CSV upload functionality and professional reporting.
+- **Excel Data Cleansing**: Web-based tool (`/excel-cleansing`) for preparing manufacturing data for analytics:
+    - Drag-and-drop file upload interface (.xlsx, .xls support)
+    - 10-step automated cleansing pipeline: missing value imputation, duplicate removal, text standardization, column name normalization (snake_case), outlier detection (IQR method), data type optimization
+    - Real-time cleansing statistics: original/final row counts, missing values fixed, duplicates removed, outliers detected
+    - Interactive data preview (first 20 rows) with professional table styling
+    - Downloadable cleansed Excel files with preserved data integrity
+    - Comprehensive reporting: processing steps, warnings, outlier analysis with valid ranges
+    - Module: `app/excel_cleansing.py` (pandas-based processing), Template: `templates/excel_cleansing.html`, Entry Point: `021_Entry_Point_Excel_Data_Cleansing.py`
 - **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance. Production-ready implementation with:
     - **Database Integration** (`app/database_hints_loader.py`): Dynamically loads enhanced metadata from PostgreSQL schema_edges table, replacing hardcoded hints with database-driven content
     - **Enhanced Metadata Support**: Leverages join_column_description, natural_language_alias, few_shot_example, and context fields for rich contextual guidance
@@ -107,3 +115,5 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **FAISS**: For vector store retrieval in semantic layer
 - **NetworkX**: Graph-theoretic algorithms for deterministic join pathfinding in Structured RAG implementation
 - **LangGraph**: StateGraph workflow orchestration and agent patterns (installed for LangGraph 101 Entry Points)
+- **pandas**: Data manipulation and analysis for Excel cleansing
+- **openpyxl**: Excel file reading and writing (.xlsx format support)
