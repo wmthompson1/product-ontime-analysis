@@ -1,8 +1,9 @@
 # Adding a new route to integrate Claude sample via iframe.
 import os
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+from io import BytesIO
 
 
 class Base(DeclarativeBase):
@@ -32,6 +33,7 @@ db.init_app(app)
 # Import and initialize models
 from models import create_user_model
 from app.contextual_hints import get_contextual_hints, expand_acronym
+from app.excel_cleansing import cleanse_uploaded_excel
 
 User = create_user_model(db)
 
@@ -1414,6 +1416,62 @@ def add_edge_metadata():
 def contextual_hints_demo():
     """Demo page for contextual hints system"""
     return render_template("contextual_hints_demo.html")
+
+
+@app.route("/excel-cleansing", methods=["GET", "POST"])
+def excel_cleansing():
+    """Excel data cleansing interface"""
+    if request.method == "GET":
+        return render_template("excel_cleansing.html")
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return jsonify({"error": "Please upload an Excel file (.xlsx or .xls)"}), 400
+    
+    try:
+        df, report, cleansed_bytes = cleanse_uploaded_excel(file)
+        
+        preview_html = df.head(20).to_html(classes='table table-striped', index=False)
+        
+        response_data = {
+            "success": True,
+            "report": report,
+            "preview": preview_html,
+            "download_ready": True
+        }
+        
+        return jsonify(response_data)
+    
+    except Exception as e:
+        return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+
+
+@app.route("/excel-cleansing/download", methods=["POST"])
+def download_cleansed_excel():
+    """Download cleansed Excel file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        df, report, cleansed_bytes = cleanse_uploaded_excel(file)
+        
+        return send_file(
+            BytesIO(cleansed_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f"cleansed_{file.filename}"
+        )
+    
+    except Exception as e:
+        return jsonify({"error": f"Error creating download: {str(e)}"}), 500
 
 
 if __name__ == '__main__':
