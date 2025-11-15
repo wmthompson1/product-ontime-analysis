@@ -127,3 +127,4 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **LangGraph**: StateGraph workflow orchestration and agent patterns (installed for LangGraph 101 Entry Points)
 - **pandas**: Data manipulation and analysis for Excel cleansing
 - **openpyxl**: Excel file reading and writing (.xlsx format support)
+- **xlrd**: Legacy Excel file reading (.xls format support)
