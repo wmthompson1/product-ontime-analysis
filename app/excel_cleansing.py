@@ -10,12 +10,14 @@ import re
 from io import BytesIO
 
 
-def cleanse_uploaded_excel(file_stream):
+def cleanse_uploaded_excel(file_stream, schema_dict=None):
     """
     Cleanse Excel data from uploaded file stream.
     
     Args:
         file_stream: File-like object from request.files
+        schema_dict: Optional dict mapping column names to data types
+                     e.g., {"invoice_number": "text", "amount": "numeric"}
         
     Returns:
         tuple: (cleansed_df, report_dict, cleansed_excel_bytes)
@@ -119,21 +121,44 @@ def cleanse_uploaded_excel(file_stream):
     
     text_column_patterns = ['invoice', 'id', 'number', 'code', 'sku', 'part', 'serial', 'account', 'ref']
     text_format_cols = []
+    schema_applied = False
     
-    for col in df.columns:
-        is_id_like = any(pattern in col.lower() for pattern in text_column_patterns)
+    if schema_dict:
+        schema_applied = True
+        report['steps'].append(f"✓ Applying user-defined schema with {len(schema_dict)} column rules")
         
-        if df[col].dtype == 'object' and not is_id_like:
-            try:
-                df[col] = pd.to_numeric(df[col])
-            except (ValueError, TypeError):
-                pass
-        elif is_id_like:
-            df[col] = df[col].astype(str)
-            text_format_cols.append(col)
+        for col in df.columns:
+            schema_type = schema_dict.get(col)
+            
+            if schema_type == 'text':
+                df[col] = df[col].astype(str)
+                text_format_cols.append(col)
+            elif schema_type == 'numeric':
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                except (ValueError, TypeError):
+                    report['warnings'].append(f"Could not convert {col} to numeric as specified in schema")
+            elif schema_type == 'date':
+                try:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                except (ValueError, TypeError):
+                    report['warnings'].append(f"Could not convert {col} to date as specified in schema")
+    else:
+        for col in df.columns:
+            is_id_like = any(pattern in col.lower() for pattern in text_column_patterns)
+            
+            if df[col].dtype == 'object' and not is_id_like:
+                try:
+                    df[col] = pd.to_numeric(df[col])
+                except (ValueError, TypeError):
+                    pass
+            elif is_id_like:
+                df[col] = df[col].astype(str)
+                text_format_cols.append(col)
     
     if text_format_cols:
-        report['steps'].append(f"✓ Preserved {len(text_format_cols)} ID/invoice columns as text format")
+        source = "schema" if schema_applied else "auto-detection"
+        report['steps'].append(f"✓ Preserved {len(text_format_cols)} columns as text format ({source})")
         report['statistics']['text_format_columns'] = text_format_cols
     
     report['statistics']['final_rows'] = len(df)
