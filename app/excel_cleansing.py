@@ -117,12 +117,24 @@ def cleanse_uploaded_excel(file_stream):
         report['steps'].append(f"✓ Detected outliers in {len(outliers)} columns")
         report['statistics']['outliers'] = outliers
     
+    text_column_patterns = ['invoice', 'id', 'number', 'code', 'sku', 'part', 'serial', 'account', 'ref']
+    text_format_cols = []
+    
     for col in df.columns:
-        if df[col].dtype == 'object':
+        is_id_like = any(pattern in col.lower() for pattern in text_column_patterns)
+        
+        if df[col].dtype == 'object' and not is_id_like:
             try:
                 df[col] = pd.to_numeric(df[col])
             except (ValueError, TypeError):
                 pass
+        elif is_id_like:
+            df[col] = df[col].astype(str)
+            text_format_cols.append(col)
+    
+    if text_format_cols:
+        report['steps'].append(f"✓ Preserved {len(text_format_cols)} ID/invoice columns as text format")
+        report['statistics']['text_format_columns'] = text_format_cols
     
     report['statistics']['final_rows'] = len(df)
     report['statistics']['final_cols'] = len(df.columns)
@@ -132,7 +144,19 @@ def cleanse_uploaded_excel(file_stream):
     report['steps'].append(f"✓ Final shape: {df.shape}")
     
     output = BytesIO()
-    df.to_excel(output, index=False, engine='openpyxl')
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        
+        workbook = writer.book
+        worksheet = writer.sheets['Sheet1']
+        
+        for idx, col in enumerate(df.columns, 1):
+            if col in text_format_cols:
+                for row in range(2, len(df) + 2):
+                    cell = worksheet.cell(row=row, column=idx)
+                    cell.number_format = '@'
+    
     output.seek(0)
     cleansed_bytes = output.getvalue()
     
