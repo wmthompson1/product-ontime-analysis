@@ -30,11 +30,21 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
     Both include CSV upload functionality and professional reporting.
 - **Excel Data Cleansing**: Web-based tool (`/excel-cleansing`) for preparing manufacturing data for analytics:
-    - Drag-and-drop file upload interface (.xlsx, .xls support)
-    - 10-step automated cleansing pipeline: missing value imputation, duplicate removal, text standardization, column name normalization (snake_case), outlier detection (IQR method), data type optimization
-    - Real-time cleansing statistics: original/final row counts, missing values fixed, duplicates removed, outliers detected
+    - Drag-and-drop file upload interface (.xlsx, .xls support including xlrd for legacy .xls files)
+    - **Optional JSON Schema Upload**: Enforces consistent data types across uploads - critical for ETL pipelines when columns vary between numeric/alphanumeric week-to-week
+    - Schema Format Example:
+      ```json
+      {
+        "customer_reference": "text",
+        "invoice_number": "text",
+        "amount": "numeric",
+        "payment_date": "date"
+      }
+      ```
+    - 10-step automated cleansing pipeline: NBSP removal (headers and data cells), missing value imputation, duplicate removal, text standardization, column name normalization (snake_case), outlier detection (IQR method), schema-driven or pattern-based data type optimization
+    - Real-time cleansing statistics: original/final row counts, missing values fixed, duplicates removed, outliers detected, text-formatted columns
     - Interactive data preview (first 20 rows) with professional table styling
-    - Downloadable cleansed Excel files with preserved data integrity
+    - Downloadable cleansed Excel files with preserved data integrity and proper cell formatting (@text for invoice numbers)
     - Comprehensive reporting: processing steps, warnings, outlier analysis with valid ranges
     - Module: `app/excel_cleansing.py` (pandas-based processing), Template: `templates/excel_cleansing.html`, Entry Point: `021_Entry_Point_Excel_Data_Cleansing.py`
 - **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance. Production-ready implementation with:
