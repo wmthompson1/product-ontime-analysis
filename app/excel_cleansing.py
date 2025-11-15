@@ -30,6 +30,11 @@ def cleanse_uploaded_excel(file_stream):
     df = pd.read_excel(file_stream)
     original_shape = df.shape
     
+    nbsp_in_headers = any('\xa0' in str(col) for col in df.columns)
+    if nbsp_in_headers:
+        df.columns = [str(col).replace('\xa0', ' ') for col in df.columns]
+        report['steps'].append("✓ Removed NBSP characters from column headers")
+    
     report['steps'].append(f"✓ Loaded {len(df)} rows and {len(df.columns)} columns")
     report['statistics']['original_rows'] = len(df)
     report['statistics']['original_cols'] = len(df.columns)
@@ -67,10 +72,15 @@ def cleanse_uploaded_excel(file_stream):
         report['warnings'].append(f"Removed {duplicates_before} duplicate rows")
     
     text_columns = df.select_dtypes(include=['object']).columns
+    nbsp_count = 0
     for col in text_columns:
-        df[col] = df[col].astype(str).str.strip()
+        df[col] = df[col].astype(str).str.replace('\xa0', ' ', regex=False)
+        nbsp_count += df[col].str.contains('\xa0').sum()
+        df[col] = df[col].str.strip()
         df[col] = df[col].str.replace(r'\s+', ' ', regex=True)
     
+    if nbsp_count > 0:
+        report['steps'].append(f"✓ Removed NBSP characters from data cells")
     report['steps'].append(f"✓ Standardized text in {len(text_columns)} columns")
     
     original_cols = df.columns.tolist()
