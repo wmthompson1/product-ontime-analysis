@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Data Cleansing - Manufacturing Intelligence</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            line-height: 1.6;
+        }
+        .header { 
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%); 
+            color: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            margin-bottom: 30px; 
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1em; }
+        
+        .upload-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08); 
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #28a745;
+            background: #e9f7ef;
+        }
+        
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #6c757d;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(40, 167, 69, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results-container {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .step {
+            background: #e9f7ef;
+            border-left: 5px solid #28a745;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 0 8px 8px 0;
+            color: #856404;
+        }
+        
+        .statistics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #28a745;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .preview-table {
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #28a745;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #28a745;
+            text-decoration: none;
+            font-size: 1.1em;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .outlier-info {
+            background: #fff3cd;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div class="header">
+        <h1>📊 Excel Data Cleansing</h1>
+        <p>Upload your Excel file and we'll clean it for manufacturing analytics</p>
+    </div>
+    
+    <div class="upload-container">
+        <h2>Upload Excel File</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Click to browse or drag and drop</div>
+                <div class="upload-hint">Supports .xlsx and .xls files</div>
+                <input type="file" id="fileInput" name="file" accept=".xlsx,.xls">
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button type="submit" class="btn" id="uploadBtn" disabled>Upload & Cleanse</button>
+            </div>
+        </form>
+        
+        <div id="selectedFile" style="margin-top: 20px; text-align: center; color: #6c757d;"></div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Cleansing your data... Please wait</p>
+    </div>
+    
+    <div class="results-container" id="results">
+        <h2>Cleansing Results</h2>
+        
+        <div class="statistics" id="statistics"></div>
+        
+        <h3>Processing Steps</h3>
+        <div id="steps"></div>
+        
+        <div id="warnings"></div>
+        
+        <div id="outliers"></div>
+        
+        <h3>Data Preview (First 20 Rows)</h3>
+        <div class="preview-table" id="preview"></div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn" id="downloadBtn">Download Cleansed Excel</button>
+            <button class="btn" onclick="location.reload()" style="background: #6c757d; margin-left: 10px;">Upload Another File</button>
+        </div>
+    </div>
+    
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const selectedFile = document.getElementById('selectedFile');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        
+        let currentFile = null;
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        });
+        
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            if (file) {
+                currentFile = file;
+                selectedFile.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                uploadBtn.disabled = false;
+            }
+        }
+        
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            
+            uploadBtn.disabled = true;
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            
+            try {
+                const response = await fetch('/excel-cleansing', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    uploadBtn.disabled = false;
+                    loading.style.display = 'none';
+                    return;
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                alert('Error uploading file: ' + error.message);
+                uploadBtn.disabled = false;
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+        
+        function displayResults(data) {
+            const stats = data.report.statistics;
+            const steps = data.report.steps;
+            const warnings = data.report.warnings || [];
+            
+            document.getElementById('statistics').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Original Rows</div>
+                    <div class="stat-value">${stats.original_rows}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Final Rows</div>
+                    <div class="stat-value">${stats.final_rows}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Columns</div>
+                    <div class="stat-value">${stats.final_cols}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Missing Values Fixed</div>
+                    <div class="stat-value">${stats.missing_values_before}</div>
+                </div>
+            `;
+            
+            document.getElementById('steps').innerHTML = steps.map(step => 
+                `<div class="step">${step}</div>`
+            ).join('');
+            
+            if (warnings.length > 0) {
+                document.getElementById('warnings').innerHTML = 
+                    '<h3>Warnings</h3>' +
+                    warnings.map(w => `<div class="warning">${w}</div>`).join('');
+            }
+            
+            if (stats.outliers) {
+                const outlierHTML = '<h3>Outliers Detected</h3>' +
+                    Object.entries(stats.outliers).map(([col, info]) => 
+                        `<div class="outlier-info">
+                            <strong>${col}:</strong> ${info.count} outliers detected<br>
+                            Valid range: ${info.range}
+                        </div>`
+                    ).join('');
+                document.getElementById('outliers').innerHTML = outlierHTML;
+            }
+            
+            document.getElementById('preview').innerHTML = data.preview;
+            
+            results.style.display = 'block';
+        }
+        
+        document.getElementById('downloadBtn').addEventListener('click', async () => {
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            
+            try {
+                const response = await fetch('/excel-cleansing/download', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cleansed_${currentFile.name}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+            } catch (error) {
+                alert('Error downloading file: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
