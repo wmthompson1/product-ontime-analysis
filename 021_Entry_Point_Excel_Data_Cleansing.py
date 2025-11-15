@@ -1,192 +1,196 @@
 #!/usr/bin/env python3
 """
-Excel Data Cleansing One-Pager
-===============================
-A comprehensive guide to cleansing Excel data using Python and Pandas.
-Perfect for manufacturing quality control data preparation.
+Excel Data Cleansing - Terminal Interface
+==========================================
+Command-line interface for cleansing Excel data with optional schema enforcement.
+Provides the same functionality as the web interface in /excel-cleansing
 
 Author: Manufacturing Intelligence Team
 Purpose: Berkeley Haas AI Strategy - Data Preparation for Analytics
+
+Usage:
+    python 021_Entry_Point_Excel_Data_Cleansing.py input.xlsx
+    python 021_Entry_Point_Excel_Data_Cleansing.py input.xlsx --schema schema.json
+    python 021_Entry_Point_Excel_Data_Cleansing.py input.xlsx --output cleansed.xlsx
 """
 
-import pandas as pd
-import numpy as np
+import argparse
+import json
+import sys
+from pathlib import Path
 from datetime import datetime
-import re
-
-def cleanse_excel_data(input_file: str, output_file: str):
-    """
-    Complete data cleansing pipeline for Excel files.
-    
-    Args:
-        input_file: Path to input Excel file
-        output_file: Path to save cleansed Excel file
-    """
-    
-    print("="*60)
-    print("EXCEL DATA CLEANSING PIPELINE")
-    print("="*60)
-    
-    print(f"\n1. LOADING DATA from {input_file}...")
-    df = pd.read_excel(input_file)
-    print(f"   ✓ Loaded {len(df)} rows and {len(df.columns)} columns")
-    print(f"   Columns: {list(df.columns)}")
-    
-    print("\n2. INITIAL DATA INSPECTION")
-    print(f"   Shape: {df.shape}")
-    print(f"   Memory usage: {df.memory_usage(deep=True).sum() / 1024:.2f} KB")
-    print("\n   Data types:")
-    print(df.dtypes)
-    
-    print("\n3. HANDLING MISSING VALUES")
-    missing_before = df.isnull().sum().sum()
-    print(f"   Missing values found: {missing_before}")
-    if missing_before > 0:
-        print("\n   Missing values by column:")
-        for col in df.columns:
-            missing = df[col].isnull().sum()
-            if missing > 0:
-                pct = (missing / len(df)) * 100
-                print(f"   - {col}: {missing} ({pct:.1f}%)")
-        
-        for col in df.columns:
-            if df[col].dtype in ['float64', 'int64']:
-                df[col].fillna(df[col].median(), inplace=True)
-            elif df[col].dtype == 'object':
-                df[col].fillna('Unknown', inplace=True)
-            elif pd.api.types.is_datetime64_any_dtype(df[col]):
-                df[col].fillna(pd.NaT, inplace=True)
-        
-        print(f"   ✓ Filled {missing_before} missing values")
-    
-    print("\n4. REMOVING DUPLICATE ROWS")
-    duplicates_before = df.duplicated().sum()
-    print(f"   Duplicates found: {duplicates_before}")
-    if duplicates_before > 0:
-        df = df.drop_duplicates()
-        print(f"   ✓ Removed {duplicates_before} duplicate rows")
-    
-    print("\n5. STANDARDIZING TEXT COLUMNS")
-    text_columns = df.select_dtypes(include=['object']).columns
-    for col in text_columns:
-        df[col] = df[col].astype(str).str.strip()
-        df[col] = df[col].str.replace(r'\s+', ' ', regex=True)
-        print(f"   ✓ Cleaned whitespace in: {col}")
-    
-    print("\n6. STANDARDIZING COLUMN NAMES")
-    original_cols = df.columns.tolist()
-    df.columns = [
-        re.sub(r'[^\w\s]', '', col)
-        .strip()
-        .replace(' ', '_')
-        .lower()
-        for col in df.columns
-    ]
-    print("   Column name changes:")
-    for old, new in zip(original_cols, df.columns):
-        if old != new:
-            print(f"   - '{old}' → '{new}'")
-    
-    print("\n7. DETECTING AND HANDLING OUTLIERS")
-    numeric_cols = df.select_dtypes(include=[np.number]).columns
-    for col in numeric_cols:
-        Q1 = df[col].quantile(0.25)
-        Q3 = df[col].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - 3 * IQR
-        upper_bound = Q3 + 3 * IQR
-        
-        outliers = ((df[col] < lower_bound) | (df[col] > upper_bound)).sum()
-        if outliers > 0:
-            print(f"   - {col}: {outliers} outliers detected")
-            print(f"     Valid range: [{lower_bound:.2f}, {upper_bound:.2f}]")
-    
-    print("\n8. DATA TYPE OPTIMIZATION")
-    for col in df.columns:
-        if df[col].dtype == 'object':
-            try:
-                df[col] = pd.to_numeric(df[col])
-                print(f"   ✓ Converted {col} to numeric")
-            except (ValueError, TypeError):
-                try:
-                    df[col] = pd.to_datetime(df[col])
-                    print(f"   ✓ Converted {col} to datetime")
-                except (ValueError, TypeError):
-                    pass
-    
-    print("\n9. FINAL DATA SUMMARY")
-    print(f"   Final shape: {df.shape}")
-    print(f"   Missing values: {df.isnull().sum().sum()}")
-    print(f"   Duplicates: {df.duplicated().sum()}")
-    
-    print(f"\n10. SAVING CLEANSED DATA to {output_file}...")
-    df.to_excel(output_file, index=False, engine='openpyxl')
-    print(f"    ✓ Saved successfully!")
-    
-    print("\n" + "="*60)
-    print("DATA CLEANSING COMPLETE")
-    print("="*60)
-    
-    return df
+from app.excel_cleansing import cleanse_uploaded_excel
 
 
-def create_sample_manufacturing_data():
-    """
-    Create a sample manufacturing dataset with common data quality issues.
-    This simulates real-world messy data from production systems.
-    """
+def print_banner():
+    """Print welcome banner."""
+    print("\n" + "="*70)
+    print("🔧 EXCEL DATA CLEANSING FOR MANUFACTURING QUALITY CONTROL 🔧".center(70))
+    print("="*70)
+
+
+def print_section(title):
+    """Print section header."""
+    print(f"\n{'─'*70}")
+    print(f"  {title}")
+    print(f"{'─'*70}")
+
+
+def print_statistics(stats):
+    """Print cleansing statistics in a nice table format."""
+    print_section("📊 CLEANSING STATISTICS")
     
-    data = {
-        'Part ID   ': ['P001', 'P002', 'P003', 'P001', 'P004', None, 'P005', 'P006'],
-        'Production Date': ['2024-01-15', '2024-01-16', '01/17/2024', '2024-01-15', 
-                            '2024-01-18', '2024-01-19', None, '2024-01-20'],
-        'Defect Count ': [2, 0, 1, 2, 15, 3, 1, 0],
-        ' Operator Name': ['  John Smith', 'Jane Doe  ', 'Bob Johnson', 'John Smith', 
-                           'Mary Wilson', 'Jane Doe', 'Bob Johnson', None],
-        'Line #': ['Line 1', 'Line 2', 'Line 1', 'Line 1', 'Line 3', 'Line 2', 
-                   'Line 1', 'Line 2'],
-        'Cycle Time (min)': [45.5, 42.0, 48.2, 45.5, 120.0, 43.5, 46.8, 41.9]
-    }
+    print(f"\n  Original Data:")
+    print(f"    • Rows: {stats.get('original_rows', 0)}")
+    print(f"    • Columns: {stats.get('original_cols', 0)}")
     
-    df = pd.DataFrame(data)
-    sample_file = 'sample_manufacturing_data_dirty.xlsx'
-    df.to_excel(sample_file, index=False, engine='openpyxl')
+    print(f"\n  Final Data:")
+    print(f"    • Rows: {stats.get('final_rows', 0)}")
+    print(f"    • Columns: {stats.get('final_cols', 0)}")
     
-    print("\n" + "="*60)
-    print("SAMPLE DIRTY DATA CREATED")
-    print("="*60)
-    print(f"\nCreated: {sample_file}")
-    print("\nData Quality Issues Included:")
-    print("  ✗ Extra whitespace in column names and values")
-    print("  ✗ Duplicate rows (Part ID P001)")
-    print("  ✗ Missing values (Part ID, Production Date, Operator Name)")
-    print("  ✗ Inconsistent date formats")
-    print("  ✗ Outlier data (Defect Count: 15, Cycle Time: 120.0)")
-    print("  ✗ Inconsistent spacing in text fields")
-    print("="*60)
+    print(f"\n  Data Quality:")
+    print(f"    • Missing values fixed: {stats.get('missing_values_before', 0)}")
+    print(f"    • Duplicates removed: {stats.get('duplicates_before', 0)}")
     
-    return sample_file
+    if stats.get('outliers'):
+        print(f"    • Outliers detected in: {len(stats['outliers'])} columns")
+    
+    if stats.get('text_format_columns'):
+        print(f"    • Text columns preserved: {len(stats['text_format_columns'])}")
+        for col in stats['text_format_columns']:
+            print(f"        - {col}")
+
+
+def print_report(report):
+    """Print the full processing report."""
+    print_section("⚙️  PROCESSING STEPS")
+    for step in report['steps']:
+        print(f"  {step}")
+    
+    if report.get('warnings'):
+        print_section("⚠️  WARNINGS")
+        for warning in report['warnings']:
+            print(f"  • {warning}")
+    
+    if report.get('statistics', {}).get('outliers'):
+        print_section("🔍 OUTLIER ANALYSIS")
+        for col, info in report['statistics']['outliers'].items():
+            print(f"  • {col}: {info['count']} outliers detected")
+            print(f"    Valid range: {info['range']}")
+    
+    print_statistics(report['statistics'])
+
+
+def load_schema(schema_path):
+    """Load schema from JSON file."""
+    try:
+        with open(schema_path, 'r') as f:
+            schema = json.load(f)
+        print(f"\n✓ Loaded schema from {schema_path}")
+        print(f"  Schema rules for {len(schema)} columns:")
+        for col, dtype in schema.items():
+            print(f"    • {col}: {dtype}")
+        return schema
+    except Exception as e:
+        print(f"\n✗ Error loading schema: {e}")
+        sys.exit(1)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Cleanse Excel files for manufacturing analytics with optional schema enforcement',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s data.xlsx
+  %(prog)s payments.xlsx --schema schema.json
+  %(prog)s data.xlsx --output clean_data.xlsx --schema my_schema.json
+
+Schema Format (JSON):
+  {
+    "customer_reference": "text",
+    "invoice_number": "text",
+    "amount": "numeric",
+    "payment_date": "date"
+  }
+
+Supported Types: text, numeric, date
+        """
+    )
+    
+    parser.add_argument('input', 
+                        help='Input Excel file (.xlsx or .xls)')
+    parser.add_argument('-o', '--output',
+                        help='Output file path (default: input_cleaned.xlsx)')
+    parser.add_argument('-s', '--schema',
+                        help='JSON schema file to enforce column data types')
+    parser.add_argument('-p', '--preview',
+                        action='store_true',
+                        help='Show data preview (first 20 rows)')
+    parser.add_argument('--no-save',
+                        action='store_true',
+                        help='Process but do not save output file')
+    
+    args = parser.parse_args()
+    
+    print_banner()
+    
+    input_path = Path(args.input)
+    if not input_path.exists():
+        print(f"\n✗ Error: Input file not found: {args.input}")
+        sys.exit(1)
+    
+    if args.output:
+        output_path = Path(args.output)
+    else:
+        output_path = input_path.parent / f"{input_path.stem}_cleaned{input_path.suffix}"
+    
+    schema_dict = None
+    if args.schema:
+        schema_dict = load_schema(args.schema)
+    
+    print(f"\n📁 Input:  {input_path}")
+    print(f"💾 Output: {output_path}")
+    if schema_dict:
+        print(f"📋 Schema: Enforcing {len(schema_dict)} column type rules")
+    else:
+        print(f"📋 Schema: Auto-detection mode (use --schema to enforce types)")
+    
+    print("\n🚀 Starting data cleansing pipeline...")
+    
+    try:
+        with open(input_path, 'rb') as f:
+            df, report, cleansed_bytes = cleanse_uploaded_excel(f, schema_dict)
+        
+        print("\n✅ Cleansing completed successfully!")
+        
+        print_report(report)
+        
+        if args.preview:
+            print_section("📋 DATA PREVIEW (First 20 Rows)")
+            print("\n" + df.head(20).to_string())
+        
+        if not args.no_save:
+            with open(output_path, 'wb') as f:
+                f.write(cleansed_bytes)
+            print_section("💾 FILE SAVED")
+            print(f"\n  ✓ Cleansed data saved to: {output_path}")
+            print(f"  ✓ File size: {len(cleansed_bytes) / 1024:.2f} KB")
+        
+        print("\n" + "="*70)
+        print("✅ SUCCESS! Your data is clean and ready for analysis.".center(70))
+        print("="*70 + "\n")
+        
+        if schema_dict:
+            print("💡 TIP: Schema enforcement ensures consistent data types across uploads!")
+            print("         Perfect for weekly ETL pipelines with varying data formats.\n")
+        
+    except Exception as e:
+        print(f"\n✗ Error during cleansing: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    print("\n" + "🔧 EXCEL DATA CLEANSING FOR MANUFACTURING QUALITY CONTROL 🔧\n")
-    
-    sample_file = create_sample_manufacturing_data()
-    
-    print("\n\nPROCEEDING WITH DATA CLEANSING...")
-    input("\nPress Enter to start cleansing the sample data...")
-    
-    cleansed_df = cleanse_excel_data(
-        input_file=sample_file,
-        output_file='sample_manufacturing_data_clean.xlsx'
-    )
-    
-    print("\n\n📊 CLEANSED DATA PREVIEW:")
-    print(cleansed_df.to_string())
-    
-    print("\n\n✅ SUCCESS! Your data is now clean and ready for analysis.")
-    print("\nNext Steps:")
-    print("  1. Review the cleansed file: sample_manufacturing_data_clean.xlsx")
-    print("  2. Use this script with your own Excel files")
-    print("  3. Integrate with your manufacturing quality control pipeline")
-    print("\n💡 TIP: Customize the cleansing rules based on your specific data needs!")
+    main()
