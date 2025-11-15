@@ -1,0 +1,6 @@
+{
+  "customer_reference": "text",
+  "invoice_number": "text",
+  "amount": "numeric",
+  "payment_date": "date"
+}
