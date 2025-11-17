@@ -1,11 +1,9 @@
 # Python Educational Script with Flask Application
 
 ## Overview
-
 This project provides an interactive Python educational script for learning basic programming concepts, complemented by a Flask web application and an Astro demonstration. Its core purpose is to facilitate learning through practical examples and hands-on exercises, with a focus on building business intelligence applications for the manufacturing industry. Key capabilities include a RESTful API with user management, advanced RAG-assisted SQL generation, statistical analysis tools for quality control, and a modern frontend framework integration. The project aims to prepare users for working with APIs in an aerospace manufacturing context, integrating AI strategies, and demonstrating production-ready application development.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 Technical preferences: LangChain for semantic layer, comprehensive safety guardrails for SQL execution, production-ready architecture with monitoring.
 JavaScript framework interest: Exploring Astro as modern frontend framework to complement Flask backend, interested in Teachable Machine analogy for understanding framework concepts.
@@ -16,97 +14,21 @@ API management: Cost-conscious development with OpenAI quota awareness, confirme
 LangGraph 101 Discovery: Successfully identified and implemented the foundational LangGraph base class patterns from langchain-ai/agents-from-scratch/langgraph_101.ipynb, enabling direct adaptation of email assistant pattern to manufacturing intelligence with proper StateGraph, tool calling loops, and workflow orchestration.
 
 ## System Architecture
-
 ### Backend
 - **Framework**: Flask (Python web framework)
 - **ORM**: SQLAlchemy with Flask-SQLAlchemy
 - **Database**: PostgreSQL
-- **API Design**: RESTful JSON endpoints
-- **Core Features**: User CRUD operations, database connection pooling, automatic table creation.
+- **API Design**: RESTful JSON endpoints for user CRUD, database connection pooling, and automatic table creation.
 - **Advanced RAG Implementation**: Four-stage methodology progressing from educational demos to production-ready Advanced RAG with Tavily and OpenAI integration, incorporating manufacturing intelligence and RAGAS evaluation.
-- **Semantic Layer**: LangChain-based NL to SQL conversion with dynamic schema introspection, safety features (SQL injection prevention, operation whitelisting), and monitoring. Includes advanced techniques like vector store retrieval (FAISS, OpenAI embeddings) and few-shot prompting with manufacturing domain examples.
-- **Statistical Analysis Tools**: Two comprehensive tools for manufacturing quality control:
-    - Daily defect rate analysis (Z-tests, confidence intervals)
-    - Daily on-time delivery rate analysis (Z-tests, confidence intervals)
-    Both include CSV upload functionality and professional reporting.
-- **Excel Data Cleansing**: Web-based tool (`/excel-cleansing`) for preparing manufacturing data for analytics:
-    - Drag-and-drop file upload interface (.xlsx, .xls support including xlrd for legacy .xls files)
-    - **Optional JSON Schema Upload**: Enforces consistent data types across uploads - critical for ETL pipelines when columns vary between numeric/alphanumeric week-to-week
-    - Schema Format Example:
-      ```json
-      {
-        "customer_reference": "text",
-        "invoice_number": "text",
-        "amount": "numeric",
-        "payment_date": "date"
-      }
-      ```
-    - 10-step automated cleansing pipeline: NBSP removal (headers and data cells), missing value imputation, duplicate removal, text standardization, column name normalization (snake_case), outlier detection (IQR method), schema-driven or pattern-based data type optimization
-    - Real-time cleansing statistics: original/final row counts, missing values fixed, duplicates removed, outliers detected, text-formatted columns
-    - Interactive data preview (first 20 rows) with professional table styling
-    - Downloadable cleansed Excel files with preserved data integrity and proper cell formatting (@text for invoice numbers)
-    - Comprehensive reporting: processing steps, warnings, outlier analysis with valid ranges
-    - Module: `app/excel_cleansing.py` (pandas-based processing), Template: `templates/excel_cleansing.html`
-    - **Terminal Interface**: `021_Entry_Point_Excel_Data_Cleansing.py` provides full CLI access with argparse support
-        - Usage: `python 021_Entry_Point_Excel_Data_Cleansing.py input.xlsx --schema schema.json --preview`
-        - Supports all web features: schema enforcement, statistics reporting, data preview
-        - Options: `--output` (custom output path), `--schema` (JSON type rules), `--preview` (show first 20 rows), `--no-save` (dry run)
-- **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance. Production-ready implementation with:
-    - **Database Integration** (`app/database_hints_loader.py`): Dynamically loads enhanced metadata from PostgreSQL schema_edges table, replacing hardcoded hints with database-driven content
-    - **Enhanced Metadata Support**: Leverages join_column_description, natural_language_alias, few_shot_example, and context fields for rich contextual guidance
-    - **Table-aware Hints**: Extracts table names from query format "Quality Control | Example: NCM rates..." and provides targeted metadata
-    - **Performance Optimization**: @lru_cache decorator ensures efficient schema graph loading for production use
-    - **API Endpoints**: 
-        - `/api/hints` (POST with table_name support) for contextual query hints
-        - `/api/acronym/<acronym>` (GET) for acronym expansion
-        - `/api/acronyms` (POST) for idempotent acronym insertion with format "table_name | ACRONYM = Definition"
-        - `/api/edges/metadata` (POST) for updating join metadata with format "from_table → to_table: description | Example: SQL join"
-    - **Real-world Database Support**: Handles legacy field naming (e.g., NCM.ID for Non-Conformance Material) with descriptive aliases and SQL examples
-    - **User-Defined Acronyms**: Idempotent insertion via `manufacturing_acronyms` table with format "table_name | ACRONYM = Definition", includes automatic cache invalidation for immediate availability
-    - **Foreign Key Validation**: Table names validated against schema_nodes to ensure data integrity
-    - **Dependencies**: Requires DATABASE_URL environment variable and psycopg2-binary for PostgreSQL connectivity
-- **LangGraph 101 Implementation**: Complete Entry Point series (010-017) demonstrating LangGraph base class patterns:
-    - Custom manufacturing tools registry system
-    - StateGraph workflow orchestration
-    - Tool calling loop agent patterns
-    - Direct email→manufacturing assistant adaptation following langchain-ai/agents-from-scratch architecture
-    - Manufacturing Queue Router system with proper edges/nodes configuration (inbox→queue adaptation)
-    - Manufacturing Plant Log Ingestion system adapted from Gmail ingestion for plant operations data processing
-- **Structured RAG with Graph-Theoretic Determinism (Entry Point 018)**: Production-ready implementation separating concerns between deterministic logic and LLM inference:
-    - Graph metadata storage in relational database (schema_nodes, schema_edges tables)
-    - NetworkX integration for deterministic join pathfinding via shortest path algorithms
-    - Three-phase RAG workflow: retrieval (NetworkX), augmentation (structural context), grounded generation (LLM)
-    - Hybrid retrieval strategy: RAG over unstructured data (ChromaDB/FAISS semantic similarity) + RAG over structured data (graph-embedded schema relationships)
-    - Principle of logical determinism: Graph theory guarantees correct multi-hop join sequences, offloading structural navigation from LLM inference to reliable algorithms
-    - Directionally consistent join metadata ensures accurate SQL generation context for manufacturing intelligence queries
-- **NetworkX Graph Patterns (Entry Point 019)**: Comprehensive demonstration of network science patterns from Edward L. Platt's "Network Science with Python and NetworkX Quick Start Guide" (Packt, 2019):
-    - Graph construction patterns: simple (undirected), directed (DAG), weighted, and database-loaded graphs
-    - Centrality analysis: degree, betweenness, closeness centrality measures for identifying critical nodes
-    - Shortest path algorithms applied to manufacturing contexts (supply chains, process flows)
-    - Community detection for identifying equipment clusters and process groups
-    - Graph-level metrics: density, connectivity, clustering coefficients
-    - Integration with Entry Point 018 database schema metadata for practical manufacturing intelligence applications
-- **ArangoDB Graph Persistence (Entry Point 020)**: Production-ready graph persistence utilities based on NVIDIA Developer Blog "Accelerated, Production-Ready Graph Analytics for NetworkX Users":
-    - nx-arangodb integration for persisting NetworkX graphs to ArangoDB database
-    - Utility classes for ArangoDB configuration and connection management
-    - Graph persistence patterns: create locally → persist to ArangoDB → load in new sessions → collaborate with team
-    - Integration with Entry Points 018 (schema graphs) and 019 (manufacturing networks) for production deployment
-    - Supports GPU-accelerated analytics with nx-cugraph backend (11-600x speedup for betweenness centrality)
-    - 3x faster session loading when graphs persisted in ArangoDB vs. loading from source
-    - Environment variable-based credential management for security best practices
-    - **Second Pass (020_Entry_Point_Persist_2nd_NetworkX_Arango.py)**: PostgreSQL → NetworkX → ArangoDB persistence:
-        - Loads manufacturing schema from PostgreSQL (schema_nodes, schema_edges tables)
-        - Creates NetworkX graph with full metadata preservation (labels, table types, descriptions, relationships)
-        - **Enhanced edge metadata** for semantic layer: join_column_description, natural_language_alias, few_shot_example, context
-        - Persists to ArangoDB with metadata integrity (6 nodes, 7 edges with enhanced metadata)
-    - **Third Pass (020_Entry_Point_Persist_3rd_NetworkX_Arango.py)**: ArangoDB → NetworkX restoration:
-        - Restores persisted manufacturing schema graph from ArangoDB
-        - Verifies metadata preservation (node labels, types, descriptions, edge relationships, join columns)
-        - **Displays enhanced edge metadata** in semantic-layer-ready format with SQL examples and business context
-        - Handles oddly-named fields (e.g., NCM.ID for Non-Conformance Material) with descriptive aliases and few-shot SQL
-        - Provides label-to-ID mapping for intuitive node access using original table names
-        - Production-ready pattern for team collaboration and session reuse
-        - **Value proposition**: Domain knowledge embedding enables LangChain to generate correct SQL for real-world manufacturing databases with legacy field naming
+- **Semantic Layer**: LangChain-based Natural Language to SQL conversion with dynamic schema introspection, safety features (SQL injection prevention, operation whitelisting), and monitoring. Includes advanced techniques like vector store retrieval (FAISS, OpenAI embeddings) and few-shot prompting with manufacturing domain examples.
+- **Statistical Analysis Tools**: Two comprehensive tools for manufacturing quality control: Daily defect rate analysis and daily on-time delivery rate analysis, both with CSV upload functionality and professional reporting.
+- **Excel Data Cleansing**: Web-based and CLI tool (`/excel-cleansing`, `021_Entry_Point_Excel_Data_Cleansing.py`) for preparing manufacturing data, supporting drag-and-drop .xlsx/.xls uploads, optional JSON schema enforcement, a 10-step automated cleansing pipeline (NBSP removal, missing value imputation, duplicate removal, outlier detection), real-time statistics, and downloadable cleansed Excel files.
+- **Document Segmentation for Hybrid RAG**: Web-based and CLI tool (`/document-segmentation`, `022_Entry_Point_Document_Segmentation.py`) for segmenting Excel documents into structured blocks based on cell ranges and segment types (Free-form for metadata, Tabular-form for structured data), enabling hybrid RAG architectures.
+- **Contextual UI Hints System**: Database-backed intelligent hint system (`app/database_hints_loader.py`) for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata from `schema_edges` table, table-aware hints, and user-defined acronyms.
+- **LangGraph 101 Implementation**: Entry Point series (010-017) demonstrating LangGraph base class patterns for custom manufacturing tools, workflow orchestration, and agent patterns, including a Manufacturing Queue Router and Plant Log Ingestion system.
+- **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation (Entry Point 018) separating deterministic logic (NetworkX for join pathfinding via shortest path algorithms) from LLM inference, using graph metadata stored in a relational database (`schema_nodes`, `schema_edges`).
+- **NetworkX Graph Patterns**: Comprehensive demonstration (Entry Point 019) of network science patterns (graph construction, centrality analysis, shortest path, community detection) applied to manufacturing contexts, integrated with database schema metadata.
+- **ArangoDB Graph Persistence**: Production-ready utilities (Entry Point 020) for persisting NetworkX graphs to ArangoDB, supporting GPU-accelerated analytics and enabling faster session loading and team collaboration for manufacturing schema graphs.
 
 ### Frontend
 - **Framework**: Astro with React integration
@@ -114,7 +36,6 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **UI/UX**: Professional gradient design with hover effects, smooth transitions, and interactive elements for contextual hints.
 
 ## External Dependencies
-
 - **Flask**: Web framework
 - **Flask-SQLAlchemy**: ORM integration for Flask
 - **SQLAlchemy**: Object-relational mapping
@@ -124,11 +45,11 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **beautifulsoup4**: HTML parsing
 - **lxml**: XML/HTML parsing
 - **trafilatura**: Web content extraction
-- **Tavily API**: For advanced RAG implementation (real-time manufacturing intelligence)
-- **OpenAI API**: For advanced RAG implementation (embeddings, LLM judge)
+- **Tavily API**: For advanced RAG implementation
+- **OpenAI API**: For advanced RAG implementation
 - **FAISS**: For vector store retrieval in semantic layer
-- **NetworkX**: Graph-theoretic algorithms for deterministic join pathfinding in Structured RAG implementation
-- **LangGraph**: StateGraph workflow orchestration and agent patterns (installed for LangGraph 101 Entry Points)
-- **pandas**: Data manipulation and analysis for Excel cleansing
-- **openpyxl**: Excel file reading and writing (.xlsx format support)
-- **xlrd**: Legacy Excel file reading (.xls format support)
+- **NetworkX**: Graph-theoretic algorithms
+- **LangGraph**: StateGraph workflow orchestration
+- **pandas**: Data manipulation and analysis
+- **openpyxl**: Excel file reading and writing (.xlsx)
+- **xlrd**: Legacy Excel file reading (.xls)
