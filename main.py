@@ -1535,6 +1535,51 @@ def save_uploaded_file():
         return jsonify({"error": f"Error saving file: {str(e)}"}), 500
 
 
+@app.route("/document-segmentation")
+def document_segmentation_page():
+    """Document segmentation interface"""
+    return render_template('document_segmentation.html')
+
+
+@app.route("/document-segmentation/process", methods=["POST"])
+def process_document_segmentation():
+    """Process document segmentation"""
+    from app.document_segmentation import segment_document, format_segmentation_report
+    import json as json_lib
+    
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No Excel file provided"}), 400
+        
+        excel_file = request.files['file']
+        
+        if excel_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        segmentation_content = None
+        if 'scheme' in request.files and request.files['scheme'].filename != '':
+            scheme_file = request.files['scheme']
+            segmentation_content = scheme_file.read().decode('utf-8')
+        
+        result = segment_document(excel_file, segmentation_content)
+        
+        report = format_segmentation_report(result)
+        
+        return jsonify({
+            "success": True,
+            "result": result,
+            "report": report,
+            "filename": excel_file.filename
+        })
+    
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": f"Error processing segmentation: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 
