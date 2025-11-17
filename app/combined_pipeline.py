@@ -101,7 +101,7 @@ def process_combined_pipeline(
             
             df_filtered, filter_stats = filter_columns_by_schema(df_transposed, block_schema)
             
-            df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema)
+            df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema, normalize_columns=False)
             
             df_cleaned.to_csv(csv_path, index=False)
             
@@ -125,7 +125,7 @@ def process_combined_pipeline(
             
             df_filtered, filter_stats = filter_columns_by_schema(df, block_schema)
             
-            df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema)
+            df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema, normalize_columns=False)
             
             df_cleaned.to_csv(csv_path, index=False)
             
