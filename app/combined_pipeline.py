@@ -46,9 +46,9 @@ def process_combined_pipeline(
             - statistics: Processing statistics per block
             - report: Human-readable report
     """
-    default_scheme = """Doc,block,upper_left,lower_right,Segment type,Block_output_csv
-1,1,A3,B5,Free-form,identity.csv
-1,2,A8,Doc 1 end,Tabular-form,Data.csv"""
+    default_scheme = """Doc,block,upper_left,lower_right,Segment type,Block_output_csv,schema_number
+1,1,A3,B5,Free-form,identity.csv,
+1,2,A8,Doc 1 end,Tabular-form,Data.csv,1"""
     
     scheme = segmentation_scheme if segmentation_scheme else default_scheme
     scheme_df = parse_segmentation_scheme_with_output(scheme)
@@ -75,6 +75,7 @@ def process_combined_pipeline(
         range_str = f"{row['upper_left']}:{row['lower_right']}"
         segment_type = row['Segment type']
         output_csv = row['Block_output_csv']
+        schema_number = row.get('schema_number', None)
         
         start_row, end_row, start_col, end_col = excel_range_to_indices(range_str, sheet)
         
@@ -82,7 +83,8 @@ def process_combined_pipeline(
             'block_id': block_id,
             'range': range_str,
             'segment_type': segment_type,
-            'output_csv': output_csv
+            'output_csv': output_csv,
+            'schema_number': schema_number if pd.notna(schema_number) else None
         }
         
         csv_path = os.path.join(output_dir, output_csv)
@@ -131,10 +133,10 @@ def process_combined_pipeline(
 
 def parse_segmentation_scheme_with_output(scheme_content: str) -> pd.DataFrame:
     """
-    Parse segmentation scheme with Block_output_csv column.
+    Parse segmentation scheme with Block_output_csv and optional schema_number columns.
     
     Args:
-        scheme_content: CSV string with columns: Doc, block, upper_left, lower_right, Segment type, Block_output_csv
+        scheme_content: CSV string with columns: Doc, block, upper_left, lower_right, Segment type, Block_output_csv, schema_number (optional)
         
     Returns:
         DataFrame with segmentation scheme
