@@ -10,6 +10,25 @@ import re
 from io import BytesIO
 
 
+def normalize_column_names(columns):
+    """
+    Normalize column names: remove special chars, replace spaces with underscores, lowercase.
+    
+    Args:
+        columns: List or Index of column names
+        
+    Returns:
+        List of normalized column names
+    """
+    return [
+        re.sub(r'[^\w\s]', '', str(col))
+        .strip()
+        .replace(' ', '_')
+        .lower()
+        for col in columns
+    ]
+
+
 def cleanse_dataframe(df: pd.DataFrame, schema_dict=None):
     """
     Core cleansing logic for DataFrames.
@@ -88,13 +107,7 @@ def cleanse_dataframe(df: pd.DataFrame, schema_dict=None):
     report['steps'].append(f"✓ Standardized text in {len(text_columns)} columns")
     
     original_cols = df.columns.tolist()
-    df.columns = [
-        re.sub(r'[^\w\s]', '', col)
-        .strip()
-        .replace(' ', '_')
-        .lower()
-        for col in df.columns
-    ]
+    df.columns = normalize_column_names(df.columns)
     
     col_changes = [f"'{old}' → '{new}'" for old, new in zip(original_cols, df.columns) if old != new]
     if col_changes:

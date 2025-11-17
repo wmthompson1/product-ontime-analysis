@@ -27,8 +27,9 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Combined Cleansing + Segmentation Pipeline**: Production-ready ETL pipeline (`/combined-pipeline`, `023_Entry_Point_Combined_Pipeline.py`, `app/combined_pipeline.py`) integrating data cleansing and document segmentation with multi-CSV output:
     - **Core Architecture**: Refactored `cleanse_dataframe(df, schema_dict)` in `app/excel_cleansing.py` provides reusable DataFrame cleansing shared across web upload and combined pipeline workflows
     - **Segmentation Scheme Format** (CSV): `Doc,block,upper_left,lower_right,Segment type,Block_output_csv,schema_number`
-        - Schema numbering: 0 = no schema enforcement (keep all columns), 1+ = specific schema enforcement (filter columns)
-        - Example: Block 1 outputs to `identity.csv` with schema 0, Block 2 outputs to `Data.csv` with schema 1
+        - Schema numbering: Each block can reference its own schema (1, 2, 3, etc.) or 0 for no enforcement
+        - Example: Block 1 outputs to `identity.csv` with schema 1, Block 2 outputs to `Data.csv` with schema 2
+        - Schemas use normalized column names (spaces→underscores, lowercase, special chars removed)
         - Free-form blocks are transposed: key-value pairs → single-row DataFrame with columns per metadata field
         - Tabular blocks remain tabular: header row + data rows → DataFrame
     - **Schema-Based Column Filtering**: Automatically filters DataFrame columns to keep only those defined in the schema, with comprehensive statistics tracking:
