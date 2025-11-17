@@ -47,10 +47,18 @@ Segmentation Scheme Format (CSV):
   
 Schema Format (JSON):
   {
-    "invoice_number": "text",
-    "amount": "numeric",
-    "payment_date": "date"
+    "0": {},
+    "1": {
+      "date": "date",
+      "total_received": "numeric",
+      "received_late": "numeric"
+    }
   }
+  
+  Notes:
+  - Schemas are indexed by schema_number (from segmentation scheme)
+  - Only columns defined in the schema are kept in the output
+  - Extra columns are automatically filtered out
         '''
     )
     
