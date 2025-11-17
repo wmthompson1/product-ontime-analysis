@@ -1616,11 +1616,17 @@ def process_combined_pipeline():
         schema_rules = {}
         if 'schema1' in request.files and request.files['schema1'].filename != '':
             schema1_file = request.files['schema1']
-            schema_rules[1] = json_lib.load(schema1_file)
+            try:
+                schema_rules[1] = json_lib.load(schema1_file)
+            except json_lib.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid JSON in Schema 1 file: {str(e)}"}), 400
         
         if 'schema2' in request.files and request.files['schema2'].filename != '':
             schema2_file = request.files['schema2']
-            schema_rules[2] = json_lib.load(schema2_file)
+            try:
+                schema_rules[2] = json_lib.load(schema2_file)
+            except json_lib.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid JSON in Schema 2 file: {str(e)}"}), 400
         
         if not schema_rules:
             schema_rules = None
