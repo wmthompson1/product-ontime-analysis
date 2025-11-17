@@ -251,13 +251,16 @@ Doc,block,upper_left,lower_right,Segment type,Block_output_csv,schema_number<br>
             
             <div class="section">
                 <h3>🔍 Optional: Data Type Schema (JSON)</h3>
-                <p class="help-text">Enforce consistent data types for ETL pipelines.</p>
+                <p class="help-text">Define column schemas indexed by schema_number. Only columns in the schema are kept (extra columns are filtered out).</p>
                 
                 <div class="example">
 {<br>
-&nbsp;&nbsp;"invoice_number": "text",<br>
-&nbsp;&nbsp;"amount": "numeric",<br>
-&nbsp;&nbsp;"payment_date": "date"<br>
+&nbsp;&nbsp;"0": {},<br>
+&nbsp;&nbsp;"1": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"date": "date",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"total_received": "numeric",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"received_late": "numeric"<br>
+&nbsp;&nbsp;}<br>
 }
                 </div>
                 
