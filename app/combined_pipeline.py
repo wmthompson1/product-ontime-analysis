@@ -21,7 +21,7 @@ from app.document_segmentation import (
     extract_freeform_block,
     extract_tabular_block
 )
-from app.excel_cleansing import cleanse_dataframe, normalize_column_names
+from app.excel_cleansing import cleanse_dataframe
 
 
 def process_combined_pipeline(
@@ -99,9 +99,6 @@ def process_combined_pipeline(
             
             df_transposed = transpose_freeform_to_dataframe(metadata)
             
-            # Normalize column names BEFORE filtering so schemas can use clean names
-            df_transposed.columns = normalize_column_names(df_transposed.columns)
-            
             df_filtered, filter_stats = filter_columns_by_schema(df_transposed, block_schema)
             
             df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema)
@@ -125,9 +122,6 @@ def process_combined_pipeline(
             table_data = extract_tabular_block(sheet, start_row, end_row, start_col, end_col)
             
             df = pd.DataFrame(table_data['data'], columns=table_data['columns'])
-            
-            # Normalize column names BEFORE filtering so schemas can use clean names
-            df.columns = normalize_column_names(df.columns)
             
             df_filtered, filter_stats = filter_columns_by_schema(df, block_schema)
             
