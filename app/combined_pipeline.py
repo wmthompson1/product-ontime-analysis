@@ -99,38 +99,48 @@ def process_combined_pipeline(
             
             df_transposed = transpose_freeform_to_dataframe(metadata)
             
-            df_filtered = filter_columns_by_schema(df_transposed, block_schema)
+            df_filtered, filter_stats = filter_columns_by_schema(df_transposed, block_schema)
             
-            df_cleaned, stats = cleanse_dataframe(df_filtered, block_schema)
+            df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema)
             
             df_cleaned.to_csv(csv_path, index=False)
+            
+            combined_stats = cleanse_stats.copy()
+            combined_stats.update({k: v for k, v in filter_stats.items() if k != 'warnings'})
+            combined_stats['warnings'] = cleanse_stats.get('warnings', []) + filter_stats.get('warnings', [])
             
             block_data['content_type'] = 'metadata'
             block_data['row_count'] = len(df_cleaned)
             block_data['column_count'] = len(df_cleaned.columns)
             block_data['csv_path'] = csv_path
-            block_data['columns_filtered'] = stats.get('columns_filtered', 0)
+            block_data['columns_filtered'] = filter_stats['columns_filtered']
+            block_data['columns_dropped'] = filter_stats['columns_dropped']
             
-            result['statistics'][output_csv] = stats
+            result['statistics'][output_csv] = combined_stats
             
         elif segment_type.lower() == 'tabular-form':
             table_data = extract_tabular_block(sheet, start_row, end_row, start_col, end_col)
             
             df = pd.DataFrame(table_data['data'], columns=table_data['columns'])
             
-            df_filtered = filter_columns_by_schema(df, block_schema)
+            df_filtered, filter_stats = filter_columns_by_schema(df, block_schema)
             
-            df_cleaned, stats = cleanse_dataframe(df_filtered, block_schema)
+            df_cleaned, cleanse_stats = cleanse_dataframe(df_filtered, block_schema)
             
             df_cleaned.to_csv(csv_path, index=False)
+            
+            combined_stats = cleanse_stats.copy()
+            combined_stats.update({k: v for k, v in filter_stats.items() if k != 'warnings'})
+            combined_stats['warnings'] = cleanse_stats.get('warnings', []) + filter_stats.get('warnings', [])
             
             block_data['content_type'] = 'table'
             block_data['row_count'] = len(df_cleaned)
             block_data['column_count'] = len(df_cleaned.columns)
             block_data['csv_path'] = csv_path
-            block_data['columns_filtered'] = stats.get('columns_filtered', 0)
+            block_data['columns_filtered'] = filter_stats['columns_filtered']
+            block_data['columns_dropped'] = filter_stats['columns_dropped']
             
-            result['statistics'][output_csv] = stats
+            result['statistics'][output_csv] = combined_stats
         
         result['blocks'].append(block_data)
         result['csv_files'][output_csv] = csv_path
@@ -166,7 +176,7 @@ def get_schema_for_block(schema_rules: Optional[Dict], schema_number: Optional[i
     return None
 
 
-def filter_columns_by_schema(df: pd.DataFrame, schema: Optional[Dict]) -> pd.DataFrame:
+def filter_columns_by_schema(df: pd.DataFrame, schema: Optional[Dict]) -> tuple[pd.DataFrame, Dict]:
     """
     Filter DataFrame columns to keep only those defined in the schema.
     
@@ -179,20 +189,44 @@ def filter_columns_by_schema(df: pd.DataFrame, schema: Optional[Dict]) -> pd.Dat
                 Example: {"date": "date", "total_received": "numeric", "received_late": "numeric"}
         
     Returns:
-        Filtered DataFrame with only schema-defined columns
+        Tuple of (filtered_df, filter_stats)
+        - filtered_df: DataFrame with only schema-defined columns
+        - filter_stats: Dictionary with filtering statistics
     """
+    filter_stats = {
+        'columns_filtered': 0,
+        'columns_dropped': [],
+        'columns_missing': [],
+        'warnings': []
+    }
+    
     if schema is None or not schema:
-        return df
+        return df, filter_stats
     
     schema_columns = list(schema.keys())
-    
     available_columns = [col for col in schema_columns if col in df.columns]
+    missing_columns = [col for col in schema_columns if col not in df.columns]
+    dropped_columns = [col for col in df.columns if col not in schema_columns]
+    
+    if missing_columns:
+        filter_stats['columns_missing'] = missing_columns
+        filter_stats['warnings'].append(
+            f"Schema requires {len(missing_columns)} columns not found in data: {', '.join(missing_columns)}"
+        )
+    
+    if not available_columns:
+        filter_stats['warnings'].append(
+            f"No schema columns found in data! Schema expects: {', '.join(schema_columns)}, "
+            f"but data has: {', '.join(df.columns.tolist())}"
+        )
+        return pd.DataFrame(), filter_stats
     
     df_filtered = df[available_columns].copy()
     
-    columns_dropped = len(df.columns) - len(df_filtered.columns)
+    filter_stats['columns_filtered'] = len(dropped_columns)
+    filter_stats['columns_dropped'] = dropped_columns
     
-    return df_filtered
+    return df_filtered, filter_stats
 
 
 def parse_segmentation_scheme_with_output(scheme_content: str) -> pd.DataFrame:
