@@ -1580,6 +1580,72 @@ def process_document_segmentation():
         }), 500
 
 
+@app.route("/combined-pipeline")
+def combined_pipeline_page():
+    """Combined cleansing + segmentation pipeline interface"""
+    return render_template('combined_pipeline.html')
+
+
+@app.route("/combined-pipeline/process", methods=["POST"])
+def process_combined_pipeline():
+    """Process combined cleansing + segmentation pipeline"""
+    from app.combined_pipeline import process_combined_pipeline
+    import json as json_lib
+    import zipfile
+    from pathlib import Path
+    
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No Excel file provided"}), 400
+        
+        excel_file = request.files['file']
+        
+        if excel_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        segmentation_content = None
+        if 'scheme' in request.files and request.files['scheme'].filename != '':
+            scheme_file = request.files['scheme']
+            segmentation_content = scheme_file.read().decode('utf-8')
+        
+        schema_rules = None
+        if 'schema' in request.files and request.files['schema'].filename != '':
+            schema_file = request.files['schema']
+            schema_rules = json_lib.load(schema_file)
+        
+        result = process_combined_pipeline(
+            excel_file=excel_file,
+            segmentation_scheme=segmentation_content,
+            schema_rules=schema_rules
+        )
+        
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for csv_name, csv_path in result['csv_files'].items():
+                with open(csv_path, 'rb') as f:
+                    zip_file.writestr(csv_name, f.read())
+        
+        zip_buffer.seek(0)
+        
+        zip_base64 = base64.b64encode(zip_buffer.getvalue()).decode('utf-8')
+        
+        return jsonify({
+            "success": True,
+            "result": result,
+            "report": result['report'],
+            "filename": excel_file.filename,
+            "zip_download": zip_base64,
+            "csv_count": len(result['csv_files'])
+        })
+    
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": f"Error processing pipeline: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 
