@@ -35,8 +35,10 @@ def process_combined_pipeline(
     
     Args:
         excel_file: File-like object or path to Excel file
-        segmentation_scheme: CSV string with columns: Doc, block, upper_left, lower_right, Segment type, Block_output_csv
-        schema_rules: Optional JSON schema for data type enforcement
+        segmentation_scheme: CSV string with columns: Doc, block, upper_left, lower_right, Segment type, Block_output_csv, schema_number
+        schema_rules: Optional dictionary of schemas indexed by schema_number
+                     Example: {0: {}, 1: {"date": "date", "total_received": "numeric"}}
+                     When a schema is provided for a block, only columns in the schema are kept
         output_dir: Directory to save output CSV files (default: temp directory)
         
     Returns:
@@ -89,12 +91,17 @@ def process_combined_pipeline(
         
         csv_path = os.path.join(output_dir, output_csv)
         
+        block_schema_num = int(schema_number) if pd.notna(schema_number) else None
+        block_schema = get_schema_for_block(schema_rules, block_schema_num)
+        
         if segment_type.lower() == 'free-form':
             metadata = extract_freeform_block(sheet, start_row, end_row, start_col, end_col)
             
             df_transposed = transpose_freeform_to_dataframe(metadata)
             
-            df_cleaned, stats = cleanse_dataframe(df_transposed, schema_rules)
+            df_filtered = filter_columns_by_schema(df_transposed, block_schema)
+            
+            df_cleaned, stats = cleanse_dataframe(df_filtered, block_schema)
             
             df_cleaned.to_csv(csv_path, index=False)
             
@@ -102,6 +109,7 @@ def process_combined_pipeline(
             block_data['row_count'] = len(df_cleaned)
             block_data['column_count'] = len(df_cleaned.columns)
             block_data['csv_path'] = csv_path
+            block_data['columns_filtered'] = stats.get('columns_filtered', 0)
             
             result['statistics'][output_csv] = stats
             
@@ -110,7 +118,9 @@ def process_combined_pipeline(
             
             df = pd.DataFrame(table_data['data'], columns=table_data['columns'])
             
-            df_cleaned, stats = cleanse_dataframe(df, schema_rules)
+            df_filtered = filter_columns_by_schema(df, block_schema)
+            
+            df_cleaned, stats = cleanse_dataframe(df_filtered, block_schema)
             
             df_cleaned.to_csv(csv_path, index=False)
             
@@ -118,6 +128,7 @@ def process_combined_pipeline(
             block_data['row_count'] = len(df_cleaned)
             block_data['column_count'] = len(df_cleaned.columns)
             block_data['csv_path'] = csv_path
+            block_data['columns_filtered'] = stats.get('columns_filtered', 0)
             
             result['statistics'][output_csv] = stats
         
@@ -129,6 +140,59 @@ def process_combined_pipeline(
     result['report'] = format_combined_report(result)
     
     return result
+
+
+def get_schema_for_block(schema_rules: Optional[Dict], schema_number: Optional[int]) -> Optional[Dict]:
+    """
+    Get the schema rules for a specific block based on its schema_number.
+    
+    Args:
+        schema_rules: Dictionary of schemas indexed by schema_number
+                     Example: {0: {}, 1: {"date": "date", "total_received": "numeric"}}
+        schema_number: The schema number for the block
+        
+    Returns:
+        Schema dict for the block, or None if no schema is defined
+    """
+    if schema_rules is None or schema_number is None:
+        return None
+    
+    if isinstance(schema_rules, dict) and schema_number in schema_rules:
+        return schema_rules[schema_number]
+    
+    if isinstance(schema_rules, dict) and str(schema_number) in schema_rules:
+        return schema_rules[str(schema_number)]
+    
+    return None
+
+
+def filter_columns_by_schema(df: pd.DataFrame, schema: Optional[Dict]) -> pd.DataFrame:
+    """
+    Filter DataFrame columns to keep only those defined in the schema.
+    
+    If schema is None or empty, returns the original DataFrame unchanged.
+    If schema is provided, only keeps columns that appear in the schema.
+    
+    Args:
+        df: DataFrame to filter
+        schema: Schema dictionary with column names as keys
+                Example: {"date": "date", "total_received": "numeric", "received_late": "numeric"}
+        
+    Returns:
+        Filtered DataFrame with only schema-defined columns
+    """
+    if schema is None or not schema:
+        return df
+    
+    schema_columns = list(schema.keys())
+    
+    available_columns = [col for col in schema_columns if col in df.columns]
+    
+    df_filtered = df[available_columns].copy()
+    
+    columns_dropped = len(df.columns) - len(df_filtered.columns)
+    
+    return df_filtered
 
 
 def parse_segmentation_scheme_with_output(scheme_content: str) -> pd.DataFrame:
