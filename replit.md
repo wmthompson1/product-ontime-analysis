@@ -26,17 +26,24 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Document Segmentation for Hybrid RAG**: Web-based and CLI tool (`/document-segmentation`, `022_Entry_Point_Document_Segmentation.py`) for segmenting Excel documents into structured blocks based on cell ranges and segment types (Free-form for metadata, Tabular-form for structured data), enabling hybrid RAG architectures.
 - **Combined Cleansing + Segmentation Pipeline**: Production-ready ETL pipeline (`/combined-pipeline`, `023_Entry_Point_Combined_Pipeline.py`, `app/combined_pipeline.py`) integrating data cleansing and document segmentation with multi-CSV output:
     - **Core Architecture**: Refactored `cleanse_dataframe(df, schema_dict)` in `app/excel_cleansing.py` provides reusable DataFrame cleansing shared across web upload and combined pipeline workflows
-    - **Segmentation Scheme Format** (CSV): `Doc,block,upper_left,lower_right,Segment type,Block_output_csv`
-        - Example: Block 1 outputs to `identity.csv`, Block 2 outputs to `Data.csv`
+    - **Segmentation Scheme Format** (CSV): `Doc,block,upper_left,lower_right,Segment type,Block_output_csv,schema_number`
+        - Schema numbering: 0 = no schema enforcement (keep all columns), 1+ = specific schema enforcement (filter columns)
+        - Example: Block 1 outputs to `identity.csv` with schema 0, Block 2 outputs to `Data.csv` with schema 1
         - Free-form blocks are transposed: key-value pairs → single-row DataFrame with columns per metadata field
         - Tabular blocks remain tabular: header row + data rows → DataFrame
+    - **Schema-Based Column Filtering**: Automatically filters DataFrame columns to keep only those defined in the schema, with comprehensive statistics tracking:
+        - `columns_filtered`: count of columns dropped
+        - `columns_dropped`: list of dropped column names
+        - `columns_missing`: list of schema columns not found in data
+        - Validation warnings for schema/data mismatches
+        - Warning merge logic preserves telemetry from both filtering and cleansing stages
     - **Per-Block Cleansing**: Each segmented block is independently cleansed with NBSP removal, missing value imputation, duplicate removal, text standardization, outlier detection, and optional schema enforcement
     - **Multi-CSV Output**: Outputs separate CSV files per block (e.g., `identity.csv` for invoice metadata, `Data.csv` for delivery performance table)
     - **Web Interface** (`/combined-pipeline`): Drag-and-drop Excel upload with optional segmentation scheme CSV and schema JSON, ZIP download of all generated CSVs
     - **Terminal Interface**: `python 023_Entry_Point_Combined_Pipeline.py invoice.xlsx --scheme scheme.csv --schema schema.json --preview`
-    - **Real-world Test Results**: Invoice sample successfully segmented into `identity.csv` (1 row × 3 columns: supplier_invoice, document_reference, payment_settlement_date) and `Data.csv` (31 rows × 5 columns: date, total_received, received_late, col_3, col_4)
-    - **Production ETL Use Case**: Perfect for invoice processing workflows requiring separate metadata and tabular data outputs for downstream systems
-    - **Architect Reviewed**: Pass - cleanly reuses `cleanse_dataframe` across entry points, correct free-form transpose logic, production-ready for stated ETL use case
+    - **Real-world Test Results**: Invoice sample successfully segmented with schema-based filtering into `identity.csv` (1 row × 3 columns: supplier_invoice, document_reference, payment_settlement_date) and `Data.csv` (31 rows × 3 columns: date, total_received, received_late) - col_3 and col_4 automatically dropped per schema
+    - **Production ETL Use Case**: Perfect for invoice processing workflows requiring separate metadata and tabular data outputs for downstream systems, with automatic column filtering for data quality control
+    - **Architect Reviewed**: Pass - cleanly reuses `cleanse_dataframe` across entry points, correct free-form transpose logic, comprehensive statistics tracking with proper warning merge, production-ready for stated ETL use case
 - **Contextual UI Hints System**: Database-backed intelligent hint system (`app/database_hints_loader.py`) for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata from `schema_edges` table, table-aware hints, and user-defined acronyms.
 - **LangGraph 101 Implementation**: Entry Point series (010-017) demonstrating LangGraph base class patterns for custom manufacturing tools, workflow orchestration, and agent patterns, including a Manufacturing Queue Router and Plant Log Ingestion system.
 - **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation (Entry Point 018) separating deterministic logic (NetworkX for join pathfinding via shortest path algorithms) from LLM inference, using graph metadata stored in a relational database (`schema_nodes`, `schema_edges`).
