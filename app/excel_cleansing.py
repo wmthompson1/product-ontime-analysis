@@ -29,7 +29,7 @@ def normalize_column_names(columns):
     ]
 
 
-def cleanse_dataframe(df: pd.DataFrame, schema_dict=None):
+def cleanse_dataframe(df: pd.DataFrame, schema_dict=None, normalize_columns=True):
     """
     Core cleansing logic for DataFrames.
     Reusable across file uploads and segmented document blocks.
@@ -38,6 +38,8 @@ def cleanse_dataframe(df: pd.DataFrame, schema_dict=None):
         df: pandas DataFrame to cleanse
         schema_dict: Optional dict mapping column names to data types
                      e.g., {"invoice_number": "text", "amount": "numeric"}
+        normalize_columns: Whether to normalize column names (default: True)
+                          Set to False to preserve original Excel column names
         
     Returns:
         tuple: (cleansed_df, report_dict)
@@ -106,13 +108,14 @@ def cleanse_dataframe(df: pd.DataFrame, schema_dict=None):
         report['steps'].append(f"✓ Removed NBSP characters from data cells")
     report['steps'].append(f"✓ Standardized text in {len(text_columns)} columns")
     
-    original_cols = df.columns.tolist()
-    df.columns = normalize_column_names(df.columns)
-    
-    col_changes = [f"'{old}' → '{new}'" for old, new in zip(original_cols, df.columns) if old != new]
-    if col_changes:
-        report['steps'].append(f"✓ Standardized {len(col_changes)} column names")
-        report['statistics']['column_changes'] = col_changes
+    if normalize_columns:
+        original_cols = df.columns.tolist()
+        df.columns = normalize_column_names(df.columns)
+        
+        col_changes = [f"'{old}' → '{new}'" for old, new in zip(original_cols, df.columns) if old != new]
+        if col_changes:
+            report['steps'].append(f"✓ Standardized {len(col_changes)} column names")
+            report['statistics']['column_changes'] = col_changes
     
     outliers = {}
     numeric_cols = df.select_dtypes(include=[np.number]).columns
