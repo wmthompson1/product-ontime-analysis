@@ -1,7 +1,7 @@
 """
 Excel Data Cleansing Module for Web Upload
 ==========================================
-Provides data cleansing functionality for uploaded Excel files.
+Provides data cleansing functionality for uploaded Excel files and DataFrames.
 """
 
 import pandas as pd
@@ -10,34 +10,30 @@ import re
 from io import BytesIO
 
 
-def cleanse_uploaded_excel(file_stream, schema_dict=None):
+def cleanse_dataframe(df: pd.DataFrame, schema_dict=None):
     """
-    Cleanse Excel data from uploaded file stream.
+    Core cleansing logic for DataFrames.
+    Reusable across file uploads and segmented document blocks.
     
     Args:
-        file_stream: File-like object from request.files
+        df: pandas DataFrame to cleanse
         schema_dict: Optional dict mapping column names to data types
                      e.g., {"invoice_number": "text", "amount": "numeric"}
         
     Returns:
-        tuple: (cleansed_df, report_dict, cleansed_excel_bytes)
+        tuple: (cleansed_df, report_dict)
     """
-    
     report = {
         'steps': [],
         'warnings': [],
         'statistics': {}
     }
     
-    df = pd.read_excel(file_stream)
-    original_shape = df.shape
-    
     nbsp_in_headers = any('\xa0' in str(col) for col in df.columns)
     if nbsp_in_headers:
         df.columns = [str(col).replace('\xa0', ' ') for col in df.columns]
         report['steps'].append("✓ Removed NBSP characters from column headers")
     
-    report['steps'].append(f"✓ Loaded {len(df)} rows and {len(df.columns)} columns")
     report['statistics']['original_rows'] = len(df)
     report['statistics']['original_cols'] = len(df.columns)
     report['statistics']['original_columns'] = list(df.columns)
@@ -64,6 +60,9 @@ def cleanse_uploaded_excel(file_stream, schema_dict=None):
         
         report['steps'].append(f"✓ Filled {missing_before} missing values")
         report['warnings'].extend(missing_details)
+        report['statistics']['missing_values_fixed'] = int(missing_before)
+    else:
+        report['statistics']['missing_values_fixed'] = 0
     
     duplicates_before = df.duplicated().sum()
     report['statistics']['duplicates_before'] = int(duplicates_before)
@@ -72,6 +71,9 @@ def cleanse_uploaded_excel(file_stream, schema_dict=None):
         df = df.drop_duplicates()
         report['steps'].append(f"✓ Removed {duplicates_before} duplicate rows")
         report['warnings'].append(f"Removed {duplicates_before} duplicate rows")
+        report['statistics']['duplicates_removed'] = int(duplicates_before)
+    else:
+        report['statistics']['duplicates_removed'] = 0
     
     text_columns = df.select_dtypes(include=['object']).columns
     nbsp_count = 0
@@ -118,6 +120,9 @@ def cleanse_uploaded_excel(file_stream, schema_dict=None):
     if outliers:
         report['steps'].append(f"✓ Detected outliers in {len(outliers)} columns")
         report['statistics']['outliers'] = outliers
+        report['statistics']['outliers_detected'] = sum(o['count'] for o in outliers.values())
+    else:
+        report['statistics']['outliers_detected'] = 0
     
     text_column_patterns = ['invoice', 'id', 'number', 'code', 'sku', 'part', 'serial', 'account', 'ref']
     text_format_cols = []
@@ -166,23 +171,46 @@ def cleanse_uploaded_excel(file_stream, schema_dict=None):
     report['statistics']['missing_values_after'] = int(df.isnull().sum().sum())
     report['statistics']['duplicates_after'] = int(df.duplicated().sum())
     
-    report['steps'].append(f"✓ Final shape: {df.shape}")
+    return df, report
+
+
+def cleanse_uploaded_excel(file_stream, schema_dict=None):
+    """
+    Cleanse Excel data from uploaded file stream.
+    Thin wrapper around cleanse_dataframe() that handles file I/O and Excel formatting.
+    
+    Args:
+        file_stream: File-like object from request.files
+        schema_dict: Optional dict mapping column names to data types
+                     e.g., {"invoice_number": "text", "amount": "numeric"}
+        
+    Returns:
+        tuple: (cleansed_df, report_dict, cleansed_excel_bytes)
+    """
+    df = pd.read_excel(file_stream)
+    
+    df_cleansed, report = cleanse_dataframe(df, schema_dict)
+    
+    report['steps'].insert(0, f"✓ Loaded {report['statistics']['original_rows']} rows and {report['statistics']['original_cols']} columns")
+    report['steps'].append(f"✓ Final shape: {df_cleansed.shape}")
+    
+    text_format_cols = report['statistics'].get('text_format_columns', [])
     
     output = BytesIO()
     
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        df_cleansed.to_excel(writer, index=False, sheet_name='Sheet1')
         
         workbook = writer.book
         worksheet = writer.sheets['Sheet1']
         
-        for idx, col in enumerate(df.columns, 1):
+        for idx, col in enumerate(df_cleansed.columns, 1):
             if col in text_format_cols:
-                for row in range(2, len(df) + 2):
+                for row in range(2, len(df_cleansed) + 2):
                     cell = worksheet.cell(row=row, column=idx)
                     cell.number_format = '@'
     
     output.seek(0)
     cleansed_bytes = output.getvalue()
     
-    return df, report, cleansed_bytes
+    return df_cleansed, report, cleansed_bytes
