@@ -1496,6 +1496,45 @@ def download_cleansed_excel():
         return jsonify({"error": f"Error creating download: {str(e)}"}), 500
 
 
+@app.route("/upload-file")
+def upload_file_page():
+    """File upload interface to save files to workspace"""
+    return render_template('upload_file.html')
+
+
+@app.route("/upload-file/save", methods=["POST"])
+def save_uploaded_file():
+    """Save uploaded file to workspace uploads directory"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        upload_dir = os.path.join(os.getcwd(), 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        filepath = os.path.join(upload_dir, file.filename)
+        file.save(filepath)
+        
+        file_size = os.path.getsize(filepath)
+        
+        return jsonify({
+            "success": True,
+            "message": f"File uploaded successfully!",
+            "filename": file.filename,
+            "path": f"uploads/{file.filename}",
+            "size": file_size,
+            "size_kb": round(file_size / 1024, 2)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": f"Error saving file: {str(e)}"}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 
