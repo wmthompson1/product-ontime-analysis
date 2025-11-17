@@ -30,7 +30,7 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
         - Schema numbering: 0 = no enforcement (default, keeps all columns), 1+ = specific schema enforcement
         - Default behavior: Both blocks use schema 0 (no filtering)
         - Example with schemas: Block 1 uses schema 1 (`schema_1.json`), Block 2 uses schema 2 (`schema_2.json`)
-        - Schemas use normalized column names (spaces→underscores, lowercase, special chars removed)
+        - Schemas use raw Excel column names (match what you see in Excel: spaces, "#", etc.), output is automatically normalized
         - Free-form blocks are transposed: key-value pairs → single-row DataFrame with columns per metadata field
         - Tabular blocks remain tabular: header row + data rows → DataFrame
     - **Schema-Based Column Filtering**: Automatically filters DataFrame columns to keep only those defined in the schema, with comprehensive statistics tracking:
