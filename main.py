@@ -1589,6 +1589,10 @@ def combined_pipeline_page():
 @app.route("/combined-pipeline/process", methods=["POST"])
 def process_combined_pipeline():
     """Process combined cleansing + segmentation pipeline"""
+    import importlib
+    import sys
+    if 'app.combined_pipeline' in sys.modules:
+        importlib.reload(sys.modules['app.combined_pipeline'])
     from app.combined_pipeline import process_combined_pipeline
     import json as json_lib
     import zipfile
