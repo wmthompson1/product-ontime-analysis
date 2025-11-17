@@ -1613,10 +1613,17 @@ def process_combined_pipeline():
             scheme_file = request.files['scheme']
             segmentation_content = scheme_file.read().decode('utf-8')
         
-        schema_rules = None
-        if 'schema' in request.files and request.files['schema'].filename != '':
-            schema_file = request.files['schema']
-            schema_rules = json_lib.load(schema_file)
+        schema_rules = {}
+        if 'schema1' in request.files and request.files['schema1'].filename != '':
+            schema1_file = request.files['schema1']
+            schema_rules[1] = json_lib.load(schema1_file)
+        
+        if 'schema2' in request.files and request.files['schema2'].filename != '':
+            schema2_file = request.files['schema2']
+            schema_rules[2] = json_lib.load(schema2_file)
+        
+        if not schema_rules:
+            schema_rules = None
         
         result = process_combined_pipeline(
             excel_file=excel_file,
