@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined Pipeline - Manufacturing Intelligence</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            line-height: 1.6;
+        }
+        .header { 
+            background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%); 
+            color: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            margin-bottom: 30px; 
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1em; }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #20c997;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .back-link:hover { color: #17a2b8; }
+        
+        .upload-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08); 
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            border-color: #20c997;
+            background: #e6fff7;
+        }
+        
+        .upload-area.dragover {
+            border-color: #20c997;
+            background: #d1fff0;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            color: #6c757d;
+        }
+        
+        .upload-text {
+            font-size: 1.1em;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .upload-hint {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(32, 201, 151, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(32, 201, 151, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #20c997;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results-container {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .info-box {
+            background: #e6fff7;
+            border-left: 5px solid #20c997;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .section h3 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1.1em;
+        }
+        
+        .example {
+            background: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .help-text {
+            font-size: 0.9em;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        
+        .report-text {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .csv-list {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .csv-item {
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .csv-item:last-child {
+            border-bottom: none;
+        }
+        
+        .csv-icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div class="header">
+        <h1>🔄 Combined Pipeline</h1>
+        <p>Cleansing + Segmentation → Multi-CSV Output</p>
+    </div>
+    
+    <div class="info-box">
+        <strong>🎯 Production ETL Pipeline:</strong> Segments documents into blocks, cleanses each block's data, and outputs multiple CSV files. 
+        Perfect for invoice processing with separate identity.csv and Data.csv outputs.
+    </div>
+    
+    <div class="upload-container">
+        <h2>Upload Excel Document</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="excelArea">
+                <div class="upload-icon">📊</div>
+                <div class="upload-text">Excel Document (.xlsx)</div>
+                <div class="upload-hint">Click to browse or drag and drop</div>
+                <input type="file" id="excelInput" name="file" accept=".xlsx">
+            </div>
+            
+            <div class="section">
+                <h3>📋 Optional: Segmentation Scheme (CSV)</h3>
+                <p class="help-text">Define how to segment and where to output each block.</p>
+                
+                <div class="example">
+Doc,block,upper_left,lower_right,Segment type,Block_output_csv<br>
+1,1,A3,B5,Free-form,identity.csv<br>
+1,2,A8,Doc 1 end,Tabular-form,Data.csv
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <label for="schemeInput" style="display: block; margin-bottom: 8px; color: #495057; font-weight: 500;">Segmentation Scheme (optional .csv):</label>
+                    <input type="file" id="schemeInput" name="scheme" accept=".csv" style="display: block; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9em;">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>🔍 Optional: Data Type Schema (JSON)</h3>
+                <p class="help-text">Enforce consistent data types for ETL pipelines.</p>
+                
+                <div class="example">
+{<br>
+&nbsp;&nbsp;"invoice_number": "text",<br>
+&nbsp;&nbsp;"amount": "numeric",<br>
+&nbsp;&nbsp;"payment_date": "date"<br>
+}
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <label for="schemaInput" style="display: block; margin-bottom: 8px; color: #495057; font-weight: 500;">Schema (optional .json):</label>
+                    <input type="file" id="schemaInput" name="schema" accept=".json" style="display: block; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9em;">
+                </div>
+            </div>
+            
+            <div id="selectedFile" style="margin-top: 20px; text-align: center; color: #6c757d;"></div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button type="submit" class="btn" id="uploadBtn" disabled>Process Pipeline</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Processing pipeline... Cleansing and segmenting data</p>
+    </div>
+    
+    <div class="results-container" id="results">
+        <h2>Pipeline Results</h2>
+        
+        <div id="summary"></div>
+        
+        <h3>Generated CSV Files</h3>
+        <div class="csv-list" id="csvList"></div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="btn" id="downloadBtn">Download All CSV Files (ZIP)</button>
+        </div>
+        
+        <h3>Full Report</h3>
+        <div class="report-text" id="report"></div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn" onclick="location.reload()">Process Another Document</button>
+        </div>
+    </div>
+    
+    <script>
+        const excelArea = document.getElementById('excelArea');
+        const excelInput = document.getElementById('excelInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const selectedFile = document.getElementById('selectedFile');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        
+        let zipDownloadData = null;
+        
+        excelArea.addEventListener('click', () => excelInput.click());
+        
+        excelInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                selectedFile.textContent = `Selected: ${file.name}`;
+                uploadBtn.disabled = false;
+            }
+        });
+        
+        excelArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            excelArea.classList.add('dragover');
+        });
+        
+        excelArea.addEventListener('dragleave', () => {
+            excelArea.classList.remove('dragover');
+        });
+        
+        excelArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            excelArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                excelInput.files = e.dataTransfer.files;
+                const file = e.dataTransfer.files[0];
+                selectedFile.textContent = `Selected: ${file.name}`;
+                uploadBtn.disabled = false;
+            }
+        });
+        
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(uploadForm);
+            
+            document.querySelector('.upload-container').style.display = 'none';
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/combined-pipeline/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+                
+                if (data.success) {
+                    displayResults(data);
+                    results.style.display = 'block';
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    location.reload();
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                alert('Processing failed: ' + error.message);
+                location.reload();
+            }
+        });
+        
+        function displayResults(data) {
+            const result = data.result;
+            
+            zipDownloadData = data.zip_download;
+            
+            document.getElementById('summary').innerHTML = `
+                <div class="info-box">
+                    <strong>Document ID:</strong> ${result.document_id}<br>
+                    <strong>Total Blocks:</strong> ${result.total_blocks}<br>
+                    <strong>CSV Files Generated:</strong> ${data.csv_count}<br>
+                    <strong>Input File:</strong> ${data.filename}
+                </div>
+            `;
+            
+            const csvListHtml = result.blocks.map(block => {
+                return `
+                    <div class="csv-item">
+                        <div class="csv-icon">📄</div>
+                        <div>
+                            <strong>${block.output_csv}</strong><br>
+                            <small style="color: #6c757d;">Block ${block.block_id} (${block.segment_type}) - ${block.row_count} rows × ${block.column_count} columns</small>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('csvList').innerHTML = csvListHtml;
+            
+            document.getElementById('report').textContent = data.report;
+            
+            document.getElementById('downloadBtn').onclick = () => {
+                const blob = b64toBlob(zipDownloadData, 'application/zip');
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pipeline_results_${Date.now()}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+        }
+        
+        function b64toBlob(b64Data, contentType='', sliceSize=512) {
+            const byteCharacters = atob(b64Data);
+            const byteArrays = [];
+
+            for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                const slice = byteCharacters.slice(offset, offset + sliceSize);
+
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+
+            const blob = new Blob(byteArrays, {type: contentType});
+            return blob;
+        }
+    </script>
+</body>
+</html>
