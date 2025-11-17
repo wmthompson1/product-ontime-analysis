@@ -49,8 +49,8 @@ def process_combined_pipeline(
             - report: Human-readable report
     """
     default_scheme = """Doc,block,upper_left,lower_right,Segment type,Block_output_csv,schema_number
-1,1,A3,B5,Free-form,identity.csv,1
-1,2,A8,Doc 1 end,Tabular-form,Data.csv,2"""
+1,1,A3,B5,Free-form,identity.csv,0
+1,2,A8,Doc 1 end,Tabular-form,Data.csv,0"""
     
     scheme = segmentation_scheme if segmentation_scheme else default_scheme
     scheme_df = parse_segmentation_scheme_with_output(scheme)

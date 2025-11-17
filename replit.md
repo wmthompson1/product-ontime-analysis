@@ -27,8 +27,9 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Combined Cleansing + Segmentation Pipeline**: Production-ready ETL pipeline (`/combined-pipeline`, `023_Entry_Point_Combined_Pipeline.py`, `app/combined_pipeline.py`) integrating data cleansing and document segmentation with multi-CSV output:
     - **Core Architecture**: Refactored `cleanse_dataframe(df, schema_dict)` in `app/excel_cleansing.py` provides reusable DataFrame cleansing shared across web upload and combined pipeline workflows
     - **Segmentation Scheme Format** (CSV): `Doc,block,upper_left,lower_right,Segment type,Block_output_csv,schema_number`
-        - Schema numbering: Each block can reference its own schema (1, 2, 3, etc.) or 0 for no enforcement
-        - Example: Block 1 outputs to `identity.csv` with schema 1, Block 2 outputs to `Data.csv` with schema 2
+        - Schema numbering: 0 = no enforcement (default, keeps all columns), 1+ = specific schema enforcement
+        - Default behavior: Both blocks use schema 0 (no filtering)
+        - Example with schemas: Block 1 uses schema 1 (`schema_1.json`), Block 2 uses schema 2 (`schema_2.json`)
         - Schemas use normalized column names (spaces→underscores, lowercase, special chars removed)
         - Free-form blocks are transposed: key-value pairs → single-row DataFrame with columns per metadata field
         - Tabular blocks remain tabular: header row + data rows → DataFrame
@@ -42,7 +43,9 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **Multi-CSV Output**: Outputs separate CSV files per block (e.g., `identity.csv` for invoice metadata, `Data.csv` for delivery performance table)
     - **Web Interface** (`/combined-pipeline`): Drag-and-drop Excel upload with optional segmentation scheme CSV and schema JSON, ZIP download of all generated CSVs
     - **Terminal Interface**: `python 023_Entry_Point_Combined_Pipeline.py invoice.xlsx --scheme scheme.csv --schema schema.json --preview`
-    - **Real-world Test Results**: Invoice sample successfully segmented with schema-based filtering into `identity.csv` (1 row × 3 columns: supplier_invoice, document_reference, payment_settlement_date) and `Data.csv` (31 rows × 3 columns: date, total_received, received_late) - col_3 and col_4 automatically dropped per schema
+    - **Real-world Test Results**: 
+        - **Default (no schemas)**: Invoice sample outputs `identity.csv` (3 columns) and `Data.csv` (5 columns including col_3, col_4)
+        - **With schemas**: Same invoice with schema_1 and schema_2 filters to `identity.csv` (3 columns) and `Data.csv` (3 columns, col_3/col_4 dropped)
     - **Production ETL Use Case**: Perfect for invoice processing workflows requiring separate metadata and tabular data outputs for downstream systems, with automatic column filtering for data quality control
     - **Architect Reviewed**: Pass - cleanly reuses `cleanse_dataframe` across entry points, correct free-form transpose logic, comprehensive statistics tracking with proper warning merge, production-ready for stated ETL use case
 - **Contextual UI Hints System**: Database-backed intelligent hint system (`app/database_hints_loader.py`) for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata from `schema_edges` table, table-aware hints, and user-defined acronyms.
