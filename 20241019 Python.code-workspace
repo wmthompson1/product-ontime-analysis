@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"github.codespaces.defaultExtensions": [
+			"GitHub.codespaces",
+			"GitHub.vscode-pull-request-github",
+			"Github.copilot"
+		]
+	}
+}
