@@ -1,0 +1,21 @@
+{
+  "name": "sql-assistant-space",
+  "description": "Interactive read-only SQL schema explorer and query runner (dev-only)",
+  "image": "ghcr.io/your-org/sql-assistant-space:latest",
+  "ports": [8080],
+  "inputs": [
+    {
+      "id": "AUTH_TOKEN",
+      "type": "promptString",
+      "description": "Bearer token used to secure the HTTP endpoints (keep secret)",
+      "password": true
+    },
+    {
+      "id": "DB_PATH",
+      "type": "promptString",
+      "description": "Path to the SQLite DB inside the container (for dev use)",
+      "password": false
+    }
+  ],
+  "notes": "This is a suggested manifest. Use your MCP server UI to register the image and inputs. Do NOT use production data; limit to dev/test snapshots."
+}
