@@ -7,5 +7,13 @@
 			"password": true
 		}
 	],
-	"servers": {}
+	"servers": {
+		"io.github.github/github-mcp-server": {
+			"url": "https://api.githubcopilot.com/mcp/",
+			"type": "http",
+			"headers": {
+				"Authorization": "${input:Authorization}"
+			}
+		}
+	}
 }
