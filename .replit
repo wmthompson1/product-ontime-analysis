@@ -29,10 +29,6 @@ args = "Flask App"
 task = "workflow.run"
 args = "Astro Dev Server"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "HF Space Inventory SQL"
-
 [[workflows.workflow]]
 name = "Flask App"
 author = "agent"
@@ -68,18 +64,6 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd hello-astro && npm run dev -- --host 0.0.0.0 --port 3000"
-
-[[workflows.workflow]]
-name = "HF Space Inventory SQL"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd hf-space-inventory-sqlgen && python app.py"
-waitForPort = 8000
 
 [deployment]
 run = ["sh", "-c", "python3 helloWorld.py"]
