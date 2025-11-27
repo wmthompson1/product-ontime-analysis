@@ -1664,6 +1664,87 @@ def process_combined_pipeline():
         }), 500
 
 
+@app.route('/huggingface-mcp')
+def huggingface_mcp_page():
+    """Hugging Face MCP Server Interface for Manufacturing Semantic Context"""
+    return render_template('huggingface_mcp.html')
+
+
+@app.route('/huggingface-mcp/search')
+def huggingface_mcp_search():
+    """Search Hugging Face Hub via MCP interface"""
+    from app.huggingface_mcp import create_hf_mcp_client
+    
+    query = request.args.get('query', '')
+    search_type = request.args.get('type', 'models')
+    limit = int(request.args.get('limit', 10))
+    task = request.args.get('task', '')
+    sort = request.args.get('sort', 'downloads')
+    
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+    
+    try:
+        client = create_hf_mcp_client()
+        if not client:
+            return jsonify({"error": "HUGGINGFACE_TOKEN not configured"}), 500
+        
+        if search_type == 'models':
+            result = client.search_models(query=query, task=task if task else None, limit=limit, sort=sort)
+        elif search_type == 'datasets':
+            result = client.search_datasets(query=query, limit=limit, sort=sort)
+        elif search_type == 'spaces':
+            result = client.search_spaces(query=query, limit=limit, sort=sort)
+        else:
+            return jsonify({"error": f"Unknown search type: {search_type}"}), 400
+        
+        if result.success:
+            return jsonify({"results": result.data})
+        else:
+            return jsonify({"error": result.error}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/huggingface-mcp/model/<path:model_id>')
+def huggingface_mcp_model_info(model_id):
+    """Get detailed information about a specific model"""
+    from app.huggingface_mcp import create_hf_mcp_client
+    
+    try:
+        client = create_hf_mcp_client()
+        if not client:
+            return jsonify({"error": "HUGGINGFACE_TOKEN not configured"}), 500
+        
+        result = client.get_model_info(model_id)
+        
+        if result.success:
+            return jsonify({"model": result.data})
+        else:
+            return jsonify({"error": result.error}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/huggingface-mcp/tools')
+def huggingface_mcp_tools():
+    """List available MCP tools"""
+    from app.huggingface_mcp import create_hf_mcp_client
+    
+    try:
+        client = create_hf_mcp_client()
+        if not client:
+            return jsonify({"error": "HUGGINGFACE_TOKEN not configured"}), 500
+        
+        tools = client.get_mcp_tools()
+        return jsonify({"tools": tools})
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 
