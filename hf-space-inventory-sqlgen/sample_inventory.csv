@@ -1,0 +1,16 @@
+part_id,part_name,category,quantity_on_hand,reorder_point,unit_cost,supplier_id,warehouse_location,last_updated
+P001,Aluminum Sheet 4x8,raw_material,150,100,45.00,SUP001,A-01-01,2025-11-20 08:30:00
+P002,Steel Rod 1in,raw_material,75,50,28.50,SUP001,A-01-02,2025-11-22 10:15:00
+P003,Bearing Assembly,component,200,150,12.75,SUP002,B-02-01,2025-11-25 14:00:00
+P004,Motor Drive Unit,component,25,30,285.00,SUP003,B-03-01,2025-11-26 09:45:00
+P005,Control Board v2,component,45,40,125.00,SUP002,B-02-02,2025-11-24 11:30:00
+P006,Hydraulic Pump,component,18,25,450.00,SUP003,C-01-01,2025-11-21 16:00:00
+P007,Finished Actuator,finished_good,60,50,750.00,SUP004,D-01-01,2025-11-27 08:00:00
+P008,Sensor Module,component,90,75,65.00,SUP002,B-02-03,2025-11-23 13:20:00
+P009,Gasket Set,raw_material,300,200,8.25,SUP001,A-02-01,2025-11-19 07:00:00
+P010,Wiring Harness,component,40,35,95.00,SUP004,B-04-01,2025-11-26 15:30:00
+P011,Titanium Plate 2x4,raw_material,30,50,225.00,SUP005,A-03-01,2025-11-25 10:00:00
+P012,Precision Gear Set,component,55,60,185.00,SUP003,B-03-02,2025-11-24 08:45:00
+P013,Assembled Valve Unit,finished_good,35,40,520.00,SUP004,D-02-01,2025-11-27 09:30:00
+P014,O-Ring Kit,raw_material,500,300,3.50,SUP001,A-02-02,2025-11-22 12:00:00
+P015,Servo Controller,component,22,25,340.00,SUP002,B-02-04,2025-11-26 14:15:00
