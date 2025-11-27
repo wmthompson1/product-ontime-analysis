@@ -60,6 +60,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **Quick Actions**: Pre-configured searches for text-to-SQL, manufacturing, SQLCoder, and tabular data models
     - **MCP Tools**: Exposes structured tool definitions following Model Context Protocol conventions
     - **Authentication**: Uses HUGGINGFACE_TOKEN secret for API access
+- **Manufacturing Inventory SQL Generator (HF Space)**: Standalone Hugging Face Space project (`hf-space-inventory-sqlgen/`) ready for deployment:
+    - **Natural Language to SQL**: Convert plain English inventory queries to optimized SQL
+    - **MCP-Compliant API**: Full discovery, tool definitions, and resource endpoints for AI agent integration
+    - **Manufacturing Schema**: Pre-built schema for inventory, suppliers, and transactions tables
+    - **Gradio Interface**: Interactive web UI with query generator, SQL templates, and schema viewer
+    - **Test Client**: Python test client for validating all MCP endpoints
+    - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
 
 ### Frontend
 - **Framework**: Astro with React integration
