@@ -53,6 +53,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation (Entry Point 018) separating deterministic logic (NetworkX for join pathfinding via shortest path algorithms) from LLM inference, using graph metadata stored in a relational database (`schema_nodes`, `schema_edges`).
 - **NetworkX Graph Patterns**: Comprehensive demonstration (Entry Point 019) of network science patterns (graph construction, centrality analysis, shortest path, community detection) applied to manufacturing contexts, integrated with database schema metadata.
 - **ArangoDB Graph Persistence**: Production-ready utilities (Entry Point 020) for persisting NetworkX graphs to ArangoDB, supporting GPU-accelerated analytics and enabling faster session loading and team collaboration for manufacturing schema graphs.
+- **Hugging Face MCP Server Integration**: Web-based interface (`/huggingface-mcp`, `app/huggingface_mcp.py`) implementing Model Context Protocol patterns for accessing Hugging Face Hub:
+    - **Model Search**: Find ML models including text-to-SQL models for manufacturing semantic layer (SQLCoder, T5, etc.)
+    - **Dataset Search**: Discover manufacturing and quality control datasets for training and evaluation
+    - **Spaces Search**: Explore ML-powered applications and demos
+    - **Quick Actions**: Pre-configured searches for text-to-SQL, manufacturing, SQLCoder, and tabular data models
+    - **MCP Tools**: Exposes structured tool definitions following Model Context Protocol conventions
+    - **Authentication**: Uses HUGGINGFACE_TOKEN secret for API access
 
 ### Frontend
 - **Framework**: Astro with React integration
@@ -77,3 +84,5 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **pandas**: Data manipulation and analysis
 - **openpyxl**: Excel file reading and writing (.xlsx)
 - **xlrd**: Legacy Excel file reading (.xls)
+- **mcp**: Model Context Protocol SDK for building MCP servers and clients
+- **httpx**: Modern async HTTP client for API integrations
