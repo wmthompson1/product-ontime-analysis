@@ -133,7 +133,7 @@ class SQLGenerationResponse(BaseModel):
     estimated_complexity: str
 
 class SchemaUploadRequest(BaseModel):
-    schema_json: str = Field(..., description="JSON schema definition")
+    schema_definition: str = Field(..., description="JSON schema definition")
 
 def analyze_query_intent(query: str) -> Dict[str, Any]:
     """Analyze natural language query to determine SQL intent"""
@@ -458,7 +458,7 @@ def create_gradio_interface():
     def show_schema() -> str:
         return json.dumps(SAMPLE_SCHEMA, indent=2)
     
-    with gr.Blocks(title="Manufacturing Inventory SQL Generator", theme=gr.themes.Soft()) as demo:
+    with gr.Blocks() as demo:
         gr.Markdown("""
         # 🏭 Manufacturing Inventory SQL Generator
         
@@ -548,4 +548,5 @@ app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
