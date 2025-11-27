@@ -1,0 +1,4 @@
+sku,location,quantity_on_hand,reserved_qty,last_seen
+SKU-001,WH-A,100,10,2025-11-20
+SKU-002,WH-B,0,0,2025-11-18
+SKU-003,WH-A,5,2,2025-11-22

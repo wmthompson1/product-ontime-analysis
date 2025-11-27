@@ -1,0 +1,72 @@
+
+--*Fictional ERP Schema (FormSpace/erp-schema)
+-- Language: English
+-- This SQL script defines tables for a fictional ERP system focused on manufacturing and inventory management.
+
+-- 1. ProductionOrders (order planning)
+-- ProductionOrders, WorkOrders, Components (inventory), Suppliers (procurement), BillOfMaterials (component relationships)
+CREATE TABLE ProductionOrders (
+    OrderID INT PRIMARY KEY,
+    OrderNumber VARCHAR(50),
+    ProductionLine VARCHAR(100),  -- e.g., "Line 2A"
+    StartDate DATE,
+    DueDate DATE,
+    Status ENUM('Scheduled', 'In Progress', 'Completed', 'Delayed') NOT NULL
+);
+
+-- 2. WorkOrders (execution tracking)
+CREATE TABLE WorkOrders (
+    WorkOrderID INT PRIMARY KEY,
+    OrderID INT,
+    ComponentID INT,
+    Quantity INT,
+    ActualStartDate DATE,
+    CompletionDate DATE
+);
+
+-- 3. Components (inventory catalog)
+CREATE TABLE Components (
+    ComponentID INT PRIMARY KEY,
+    ComponentName VARCHAR(100),
+    UnitCost DECIMAL(10,2),
+    LeadTime INT,
+    ReorderPoint INT
+);
+
+-- 4. Suppliers (procurement)
+CREATE TABLE Suppliers (
+    SupplierID INT PRIMARY KEY,
+    Name VARCHAR(100),
+    ContactEmail VARCHAR(100),
+    Rating INT  -- 1-5 rating
+);
+
+-- 5. BillOfMaterials (component relationships)
+CREATE TABLE BillOfMaterials (
+    BOMID INT PRIMARY KEY,
+    ProductID INT,
+    ComponentID INT,
+    RequiredQuantity INT,
+    FOREIGN KEY (ComponentID) REFERENCES Components(ComponentID)
+);
+
+-- Add a PurchaseOrders table for procurement history
+CREATE TABLE PurchaseOrders (
+    PurchaseOrderID INT PRIMARY KEY,
+    SupplierID INT,
+    ComponentID INT,
+    OrderDate DATE,
+    DeliveryDate DATE,
+    Quantity INT,
+    UnitPrice DECIMAL(10,2),
+    FOREIGN KEY (SupplierID) REFERENCES Suppliers(SupplierID),
+    FOREIGN KEY (ComponentID) REFERENCES Component(ComponentID)
+);
+
+-- Add Inventory tracking
+CREATE TABLE Inventory (
+    ComponentID INT PRIMARY KEY,
+    InventoryLevel INT,
+    Location VARCHAR(100),
+    FOREIGN KEY (ComponentID) REFERENCES Components(ComponentID)
+);

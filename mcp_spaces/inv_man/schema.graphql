@@ -1,0 +1,7 @@
+hf-space-inventory-sqlgen/
+├── app.py                 # FastAPI app (main)
+├── mcp_discovery.json     # Full MCP discovery response (example)
+├── test_client.py         # Python test client for discovery + tool calls
+├── sample_inventory.csv   # small sample CSV for testing
+├── requirements.txt
+└── README.md
