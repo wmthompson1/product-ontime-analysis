@@ -1,0 +1,125 @@
+{
+  "name": "manufacturing-inventory-sqlgen",
+  "version": "1.0.0",
+  "description": "Natural language to SQL generator for manufacturing inventory management",
+  "protocol_version": "2024-11-05",
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": true
+  },
+  "tools": [
+    {
+      "name": "generate_sql",
+      "description": "Convert natural language query to SQL for inventory database. Supports queries about stock levels, inventory value, supplier performance, and transaction history.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Natural language query about inventory (e.g., 'Show me parts below reorder point')"
+          },
+          "include_explanation": {
+            "type": "boolean",
+            "default": true,
+            "description": "Include explanation of generated SQL logic"
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "get_schema",
+      "description": "Get the complete database schema for inventory management tables including inventory, suppliers, and transactions tables with column types and relationships.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "get_sql_templates",
+      "description": "Get pre-built SQL templates for common inventory queries. Available templates: low_stock, inventory_value, supplier_performance, transaction_summary.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "template_name": {
+            "type": "string",
+            "enum": ["low_stock", "inventory_value", "supplier_performance", "transaction_summary"],
+            "description": "Name of the SQL template to retrieve"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "analyze_csv",
+      "description": "Analyze uploaded CSV file content to suggest database schema and sample queries. Detects column types and provides query suggestions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "csv_content": {
+            "type": "string",
+            "description": "CSV file content as string"
+          }
+        },
+        "required": ["csv_content"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "schema://inventory",
+      "name": "Inventory Schema",
+      "description": "Complete database schema for manufacturing inventory management including tables, columns, types, and relationships",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "templates://sql",
+      "name": "SQL Templates",
+      "description": "Pre-built SQL query templates for common inventory operations",
+      "mimeType": "application/json"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "inventory_query",
+      "description": "Template prompt for inventory-related natural language queries",
+      "arguments": [
+        {
+          "name": "question",
+          "description": "The inventory question to convert to SQL",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "supplier_analysis",
+      "description": "Template prompt for supplier performance analysis queries",
+      "arguments": [
+        {
+          "name": "metric",
+          "description": "The supplier metric to analyze (quality, delivery, lead_time)",
+          "required": true
+        },
+        {
+          "name": "threshold",
+          "description": "Optional threshold value for filtering",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "server_info": {
+    "base_url": "https://YOUR-SPACE-NAME.hf.space",
+    "endpoints": {
+      "discovery": "/mcp/discover",
+      "generate_sql": "/mcp/tools/generate_sql",
+      "get_schema": "/mcp/tools/get_schema",
+      "get_templates": "/mcp/tools/get_sql_templates",
+      "analyze_csv": "/mcp/tools/analyze_csv"
+    },
+    "authentication": "None required for public Space",
+    "rate_limits": "Subject to Hugging Face Space limits"
+  }
+}
