@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		// other settings...
+		// remove or clear the mcp block
+		"mcp": {}
+	}
+}

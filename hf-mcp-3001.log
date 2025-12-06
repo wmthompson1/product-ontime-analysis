@@ -1,0 +1,72 @@
+[20:14:32.983] [32mINFO[39m (83572): [36mStarting (STDIO) server...[39m
+[20:14:32.987] [32mINFO[39m (83572): [36mUsing internal API client with user config API: http://localhost:3001}[39m
+[20:14:32.992] [32mINFO[39m (83572): [36mServer running at http://localhost:3001[39m
+[20:14:32.992] [32mINFO[39m (83572): [36mServer configuration[39m
+    [35mtransportType[39m: "stdio"
+    [35mmode[39m: "development with HMR"
+[20:14:32.992] [32mINFO[39m (83572): [36mHMR is active - frontend changes will be automatically reflected in the browser[39m
+[20:14:32.992] [32mINFO[39m (83572): [36mFor server changes, use 'npm run dev:watch' to automatically rebuild and apply changes[39m
+[20:14:33.253] [32mINFO[39m (83572): [36mTool selection strategy applied[39m
+    [35mmode[39m: "internal_api"
+    [35mreason[39m: "Internal API user settings"
+    [35menabledCount[39m: 13
+    [35mtotalTools[39m: 15
+✘ [ERROR] Could not resolve "/Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts"
+
+failed to load config from /Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts
+[20:14:33.907] [32mINFO[39m (83572): [36mGradio space discovery complete[39m
+    [35mrequested[39m: 1
+    [35msuccessful[39m: 1
+    [35mfailed[39m: 0
+    [35mdurationMs[39m: 653
+[20:14:33.909] [32mINFO[39m (83572): [36mSTDIO transport initialized[39m
+[20:14:36.006] [31mERROR[39m (83572): [36mError setting up Vite middleware[39m
+    err: {
+      "type": "Error",
+      "message": "Build failed with 1 error:\nerror: Could not resolve \"/Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts\"",
+      "stack":
+          Error: Build failed with 1 error:
+          error: Could not resolve "/Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts"
+              at failureErrorWithLog (/Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:1467:15)
+              at /Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:926:25
+              at runOnEndCallbacks (/Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:1307:45)
+              at buildResponseToResult (/Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:924:7)
+              at /Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:951:16
+              at responseCallbacks.<computed> (/Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:603:9)
+              at handleIncomingPacket (/Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:658:12)
+              at Socket.readFromStdout (/Users/williamthompson/bbb/20241019 Python/node_modules/esbuild/lib/main.js:581:7)
+              at Socket.emit (node:events:508:28)
+              at addChunk (node:internal/streams/readable:559:12)
+      "aggregateErrors": [
+        {
+          "id": "",
+          "location": null,
+          "notes": [],
+          "pluginName": "",
+          "text": "Could not resolve \"/Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts\""
+        }
+      ],
+      "errors": [
+        {
+          "id": "",
+          "location": null,
+          "notes": [],
+          "pluginName": "",
+          "text": "Could not resolve \"/Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts\""
+        }
+      ],
+      "warnings": []
+    }
+[20:14:36.007] [31mERROR[39m (83572): [36mServer error[39m
+    error: {
+      "errors": [
+        {
+          "id": "",
+          "location": null,
+          "notes": [],
+          "pluginName": "",
+          "text": "Could not resolve \"/Users/williamthompson/bbb/20241019 Python/node_modules/@llmindset/app/vite.config.ts\""
+        }
+      ],
+      "warnings": []
+    }
