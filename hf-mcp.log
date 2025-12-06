@@ -1,1 +1,8 @@
-env: node: No such file or directory
+{"level":30,"time":"2025-11-29T03:39:51.123Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","msg":"Starting (STDIO) server..."}
+{"level":30,"time":"2025-11-29T03:39:51.130Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","msg":"Using internal API client with user config API: http://localhost:3000}"}
+{"level":30,"time":"2025-11-29T03:39:51.136Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","msg":"Server running at http://localhost:3000"}
+{"level":30,"time":"2025-11-29T03:39:51.136Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","transportType":"stdio","mode":"production","msg":"Server configuration"}
+{"level":30,"time":"2025-11-29T03:39:51.202Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","mode":"internal_api","reason":"Internal API user settings","enabledCount":13,"totalTools":15,"msg":"Tool selection strategy applied"}
+{"level":30,"time":"2025-11-29T03:39:52.206Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","requested":1,"successful":1,"failed":0,"durationMs":1004,"msg":"Gradio space discovery complete"}
+{"level":30,"time":"2025-11-29T03:39:52.209Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","msg":"STDIO transport initialized"}
+{"level":30,"time":"2025-11-29T03:39:52.210Z","pid":70133,"hostname":"Williams-MacBook-Pro.local","msg":"Starting API polling with interval 5000ms"}
