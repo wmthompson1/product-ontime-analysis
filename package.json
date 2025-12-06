@@ -1,24 +1,19 @@
 {
-  "name": "workspace",
-  "version": "1.0.0",
-  "main": "teachable_machine_ver1.js",
+  "name": "product-ontime-analysis-npm",
+  "version": "0.1.0",
+  "description": "NPM-first dev setup: embedded Postgres (pg-embed) + graphology + optional Python NetworkX exporter",
+  "main": "scripts/init_db.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "install-deps": "npm ci",
+    "init-db": "node scripts/init_db.js",
+    "init-db-keep": "KEEP_PG=1 node scripts/init_db.js",
+    "build-graph-node": "node scripts/build_graph_node.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "@astrojs/check": "^0.9.4",
-    "@astrojs/react": "^4.3.0",
-    "@astrojs/tailwind": "^5.1.5",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "astro": "^5.12.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.0.0",
+    "graphology": "^0.25.0",
+    "pg": "^8.10.0",
+    "pg-embed": "^2.1.0"
   }
 }

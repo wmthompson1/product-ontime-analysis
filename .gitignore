@@ -72,6 +72,12 @@ logs/
 # Database
 *.db
 *.sqlite3
+.pgdata/
+
+# Generated graph files
+graph_nodes.csv
+graph_edges.csv
+supply_chain_graph.png
 
 # Temporary files
 *.tmp
