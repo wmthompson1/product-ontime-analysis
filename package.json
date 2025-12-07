@@ -14,7 +14,7 @@
     "start:python": "python3 ./001_Entry_Point_Kane_Ragas.py",
 
     "dev:astro": "bash -lc \"cd astro-sample && npm install && npm run dev\"",
-    "dev:flask": "bash -lc \"npm run venv:install && .venv/bin/python main.py\"",
+    "dev:flask": "bash -lc \"npm run venv:install && ./.venv/bin/python main.py\"",
     "dev:hf": "bash -lc \"cd hf-space-inventory-sqlgen && python3 -m venv .venv || true && . .venv/bin/activate && pip install -r requirements.txt && python app.py\"",
 
     "dev:all": "concurrently \"npm:dev:astro\" \"npm:dev:flask\" \"npm:dev:hf\"",
