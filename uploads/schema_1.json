@@ -1,0 +1,5 @@
+{
+  "supplier invoice #": "text",
+  "document reference #": "text",
+  "payment settlement date": "date"
+}
