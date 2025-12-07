@@ -45,13 +45,13 @@ VALUES ('CNC-01', 'Plant A', '2023-01-15'),
 ON CONFLICT DO NOTHING;
 
 INSERT INTO pta.production_runs (product_id, machine_id, start_time, end_time, quantity, status)
-VALUES (1, 1, now() - interval '10 days', now() - interval '9 days', 2, 'complete')
+VALUES (1, 1, '2025-10-05 08:00:00', '2025-10-06 16:00:00', 2, 'complete')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO pta.quality_checks (run_id, checked_at, passed, defects_count, notes)
-VALUES (1, now() - interval '9 days', TRUE, 0, 'Good')
+VALUES (1, '2025-10-06 17:00:00', TRUE, 0, 'Good')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO pta.shipments (order_id, shipped_at, carrier, tracking_number)
-VALUES (1, now() - interval '8 days', 'AeroShip', 'TRK123456')
+VALUES (1, '2025-10-08 10:00:00', 'AeroShip', 'TRK123456')
 ON CONFLICT DO NOTHING;

@@ -78,8 +78,14 @@ async function main() {
       console.log('To stop Postgres, kill this process or use Ctrl+C');
       console.log('');
       
-      // Keep process alive
-      await new Promise(() => {});
+      // Keep process alive with signal handlers for graceful shutdown
+      process.stdin.resume();
+      process.on('SIGINT', async () => {
+        console.log('\n🛑 Stopping Postgres...');
+        await pg.stop();
+        console.log('✅ Postgres stopped');
+        process.exit(0);
+      });
     } else {
       console.log('🛑 Stopping embedded Postgres...');
       await pg.stop();

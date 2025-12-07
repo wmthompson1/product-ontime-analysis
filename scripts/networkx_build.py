@@ -39,6 +39,7 @@ def load_graph():
                 data = {}
             
             # Avoid conflict with NetworkX's internal 'type' attribute
+            # NetworkX reserves 'type' for internal use, so we use 'node_type' instead
             attrs = {'node_type': node_type, 'label': label}
             attrs.update(data)
             G.add_node(node_id, **attrs)

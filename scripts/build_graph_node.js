@@ -47,11 +47,15 @@ async function buildGraph() {
   console.log('🔩 Adding parts...');
   const parts = await client.query('SELECT * FROM pta.parts');
   for (const row of parts.rows) {
+    const unitCost = row.unit_cost !== null ? parseFloat(row.unit_cost) : null;
+    if (unitCost === null) {
+      console.warn(`Warning: Part ${row.part_id} has null unit_cost`);
+    }
     graph.addNode(`part_${row.part_id}`, {
       type: 'part',
       part_number: row.part_number,
       description: row.description,
-      unit_cost: parseFloat(row.unit_cost) || 0,
+      unit_cost: unitCost || 0,
     });
     if (row.supplier_id) {
       graph.addEdge(
@@ -88,11 +92,15 @@ async function buildGraph() {
   console.log('📦 Adding products...');
   const products = await client.query('SELECT * FROM pta.products');
   for (const row of products.rows) {
+    const listPrice = row.list_price !== null ? parseFloat(row.list_price) : null;
+    if (listPrice === null) {
+      console.warn(`Warning: Product ${row.product_id} has null list_price`);
+    }
     graph.addNode(`product_${row.product_id}`, {
       type: 'product',
       sku: row.sku,
       name: row.name,
-      list_price: parseFloat(row.list_price) || 0,
+      list_price: listPrice || 0,
     });
     if (row.assembly_id) {
       graph.addEdge(
