@@ -1,0 +1,174 @@
+{
+  "timestamp": "2025-08-23T18:10:11.483936",
+  "test_results": [
+    {
+      "test_id": "supply_chain_001",
+      "domain": "supply_chain",
+      "query": "Show suppliers with delivery performance below 95% affecting production schedule",
+      "generated_sql": "```sql SELECT s.supplier_id, s.supplier_name, AVG(d.ontime_rate) AS average_ontime_rate FROM SUPPLIERS s JOIN DAILY_DELIVERIES d ON s.supplier_id = d.supplier_id GROUP BY s.supplier_id, s.supplier_name HAVING AVG(d.ontime_rate) < %s; ```",
+      "confidence": 1.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": " This query joins the SUPPLIERS and DAILY_DELIVERIES tables on the supplier_id field. It then groups the results by supplier_id and supplier_name, and calculates the average ontime_rate for each supplier. The HAVING clause filters out any suppliers with an average ontime_rate of 95% or higher, leaving only those suppliers with an average ontime_rate below 95%.",
+      "safety_check": true,
+      "quality_score": 0.4,
+      "concept_coverage": 0.25,
+      "contextual_hints_count": 3,
+      "acronyms_detected": 2,
+      "timestamp": "2025-08-23T18:09:45.891520"
+    },
+    {
+      "test_id": "quality_001",
+      "domain": "quality_control",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "```sql WITH defect_rates AS ( SELECT product_line, AVG(defect_rate) AS avg_defect_rate FROM product_defects WHERE defect_type = 'NCM' GROUP BY product_line ), product_ncm AS ( SELECT p.id, p.description, dr.avg_defect_rate FROM products p JOIN defect_rates dr ON p.description = dr.product_line ) SELECT id, description, avg_defect_rate FROM product_ncm WHERE avg_defect_rate > %s; ```",
+      "confidence": 0.9,
+      "complexity": "QueryComplexity.MEDIUM",
+      "explanation": " The query first creates a CTE (Common Table Expression) named 'defect_rates' that calculates the average defect rate for each product line where the defect type is 'NCM'. Then, another CTE named 'product_ncm' is created that joins the 'products' table with the 'defect_rates' CTE based on the product line. Finally, the main query selects the product id, description, and average defect rate from the 'product_ncm' CTE where the average defect rate is greater than the industry standard (2.5%).",
+      "safety_check": true,
+      "quality_score": 0.45,
+      "concept_coverage": 0.5,
+      "contextual_hints_count": 5,
+      "acronyms_detected": 5,
+      "timestamp": "2025-08-23T18:09:54.194955"
+    },
+    {
+      "test_id": "production_001",
+      "domain": "production_efficiency",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "```sql WITH critical_equipment AS ( SELECT e.equipment_id, e.date, e.availability * e.performance * e.quality AS oee, f.downtime_hours FROM equipment_metrics e LEFT JOIN failure_events f ON e.equipment_id = f.equipment_id AND e.date = f.failure_date::date WHERE e.equipment_type = %s ) SELECT date, AVG(oee) AS avg_oee, SUM(downtime_hours) AS total_downtime FROM critical_equipment GROUP BY date ORDER BY date; ```",
+      "confidence": 1.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": " This query first creates a temporary table (critical_equipment) that joins the equipment_metrics and failure_events tables on equipment_id and date, and filters for 'Critical' equipment. It calculates the OEE for each piece of equipment and also gets the downtime hours. Then, it calculates the average OEE and total downtime for each date.",
+      "safety_check": true,
+      "quality_score": 0.5,
+      "concept_coverage": 1.0,
+      "contextual_hints_count": 2,
+      "acronyms_detected": 2,
+      "timestamp": "2025-08-23T18:09:59.542473"
+    },
+    {
+      "test_id": "maintenance_001",
+      "domain": "maintenance",
+      "query": "Show equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "```sql SELECT e.equipment_id, e.equipment_type, r.mtbf_hours, r.target_mtbf FROM EQUIPMENT_METRICS e JOIN EQUIPMENT_RELIABILITY r ON e.equipment_id = r.equipment_id WHERE r.mtbf_hours < r.target_mtbf; ```",
+      "confidence": 1.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": " This query joins the EQUIPMENT_METRICS table with the EQUIPMENT_RELIABILITY table on the equipment_id field. It then filters the results to only include rows where the Mean Time Between Failures (mtbf_hours) is less than the target MTBF (target_mtbf). This will return a list of equipment that is failing more frequently than expected and may require immediate attention.",
+      "safety_check": true,
+      "quality_score": 0.35000000000000003,
+      "concept_coverage": 0.75,
+      "contextual_hints_count": 2,
+      "acronyms_detected": 2,
+      "timestamp": "2025-08-23T18:10:04.508576"
+    },
+    {
+      "test_id": "compliance_001",
+      "domain": "compliance",
+      "query": "Analyze CAPA effectiveness for recurring quality issues",
+      "generated_sql": "```sql WITH recurring_issues AS ( SELECT ncm_id, COUNT(*) AS recurrence_count FROM non_conformant_materials GROUP BY ncm_id HAVING COUNT(*) > 1 ), capa_effectiveness AS ( SELECT ca.ncm_id, AVG(ca.effectiveness_score) AS avg_effectiveness_score FROM corrective_actions ca JOIN recurring_issues ri ON ca.ncm_id = ri.ncm_id GROUP BY ca.ncm_id ) SELECT ri.ncm_id, ri.recurrence_count, ce.avg_effectiveness_score FROM recurring_issues ri JOIN capa_effectiveness ce ON ri.ncm_id = ce.ncm_id ORDER BY ri.recurrence_count DESC, ce.avg_effectiveness_score ASC; ```",
+      "confidence": 1.0,
+      "complexity": "QueryComplexity.SIMPLE",
+      "explanation": " This query first identifies recurring quality issues by counting the number of times each NCM incident occurs in the non_conformant_materials table. It then calculates the average effectiveness score for each of these recurring issues from the corrective_actions table. The final result is a list of recurring NCM incidents, along with their recurrence count and average CAPA effectiveness score, ordered by the number of recurrences and effectiveness score.",
+      "safety_check": true,
+      "quality_score": 0.55,
+      "concept_coverage": 1.0,
+      "contextual_hints_count": 4,
+      "acronyms_detected": 3,
+      "timestamp": "2025-08-23T18:10:11.483818"
+    }
+  ],
+  "summary_statistics": {
+    "total_tests": 5,
+    "successful_tests": 5,
+    "success_rate": 1.0,
+    "average_quality": 0.45,
+    "average_confidence": 0.9800000000000001,
+    "average_concept_coverage": 0.7,
+    "total_acronyms_detected": 14,
+    "safety_compliance": 1.0
+  },
+  "domain_analysis": {
+    "supply_chain": {
+      "count": 1,
+      "quality_scores": [
+        0.4
+      ],
+      "confidence_scores": [
+        1.0
+      ],
+      "concept_coverage": [
+        0.25
+      ],
+      "avg_quality": 0.4,
+      "avg_confidence": 1.0,
+      "avg_concept_coverage": 0.25
+    },
+    "quality_control": {
+      "count": 1,
+      "quality_scores": [
+        0.45
+      ],
+      "confidence_scores": [
+        0.9
+      ],
+      "concept_coverage": [
+        0.5
+      ],
+      "avg_quality": 0.45,
+      "avg_confidence": 0.9,
+      "avg_concept_coverage": 0.5
+    },
+    "production_efficiency": {
+      "count": 1,
+      "quality_scores": [
+        0.5
+      ],
+      "confidence_scores": [
+        1.0
+      ],
+      "concept_coverage": [
+        1.0
+      ],
+      "avg_quality": 0.5,
+      "avg_confidence": 1.0,
+      "avg_concept_coverage": 1.0
+    },
+    "maintenance": {
+      "count": 1,
+      "quality_scores": [
+        0.35000000000000003
+      ],
+      "confidence_scores": [
+        1.0
+      ],
+      "concept_coverage": [
+        0.75
+      ],
+      "avg_quality": 0.35000000000000003,
+      "avg_confidence": 1.0,
+      "avg_concept_coverage": 0.75
+    },
+    "compliance": {
+      "count": 1,
+      "quality_scores": [
+        0.55
+      ],
+      "confidence_scores": [
+        1.0
+      ],
+      "concept_coverage": [
+        1.0
+      ],
+      "avg_quality": 0.55,
+      "avg_confidence": 1.0,
+      "avg_concept_coverage": 1.0
+    }
+  },
+  "research_insights": [
+    "High success rate indicates robust SQL generation capabilities",
+    "SQL quality could be improved through better domain knowledge integration",
+    "Strong business concept coverage in generated queries",
+    "Strongest performance in compliance domain (quality: 0.55)",
+    "Contextual hints successfully detected 14 manufacturing acronyms"
+  ]
+}

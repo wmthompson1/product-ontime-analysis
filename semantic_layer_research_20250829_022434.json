@@ -1,0 +1,143 @@
+{
+  "timestamp": "2025-08-29T02:21:41.869304",
+  "test_cases": 6,
+  "standard_layer_results": [
+    {
+      "test_id": "supply_chain_001",
+      "query": "Show suppliers with delivery performance issues affecting production",
+      "generated_sql": "```sql SELECT s.supplier_id, s.supplier_name, AVG(d.ontime_rate) AS average_ontime_rate FROM suppliers AS s JOIN daily_deliveries AS d ON s.supplier_id = d.supplier_id GROUP BY s.supplier_id, s.supplier_name HAVING AVG(d.ontime_rate) < %s ORDER BY average_ontime_rate ASC; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query joins the suppliers and daily_deliveries tables on the supplier_id. It then groups the results by supplier_id and supplier_name, and calculates the average ontime_rate for each supplier. The HAVING clause filters out suppliers with an average ontime_rate of 95% or higher, as per the industry standard for On-Time Delivery (OTD). The results are ordered by average_ontime_rate in ascending order, so suppliers with the worst delivery performance are listed first.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "quality_001",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "```sql WITH product_ncm_rate AS ( SELECT pd.product_line, AVG(pd.defect_rate) AS avg_defect_rate FROM product_defects pd WHERE pd.defect_type = 'NCM' GROUP BY pd.product_line ), industry_standard AS ( SELECT ib.benchmark_value FROM industry_benchmarks ib WHERE ib.metric_name = 'NCM Rate' AND ib.benchmark_class = 'Industry Average' ) SELECT pnr.product_line, pnr.avg_defect_rate FROM product_ncm_rate pnr, industry_standard is WHERE pnr.avg_defect_rate > is.benchmark_value ORDER BY pnr.avg_defect_rate DESC; ```",
+      "confidence": 0.95,
+      "safety_check": true,
+      "explanation": " This query first creates a subquery 'product_ncm_rate' that calculates the average NCM defect rate for each product line from the 'product_defects' table. Another subquery 'industry_standard' is created to get the industry standard value for 'NCM Rate' from the 'industry_benchmarks' table. The main query then compares the average NCM rate of each product line with the industry standard and returns the product lines where the NCM rate is above the industry standard. The result is ordered by the average NCM rate in descending order.",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "production_001",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "```sql SELECT em.equipment_name, em.measurement_date, em.availability_rate * em.performance_rate * em.quality_rate AS oee, em.downtime_hours FROM equipment_metrics AS em WHERE em.equipment_type = %s ORDER BY em.measurement_date; ```",
+      "confidence": 0.85,
+      "safety_check": true,
+      "explanation": " This query selects the equipment name, measurement date, calculates the OEE (Overall Equipment Effectiveness) by multiplying the availability rate, performance rate, and quality rate, and selects the downtime hours from the equipment_metrics table where the equipment type is 'Critical'. The results are ordered by the measurement date to show the pattern over time. 1.0",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "financial_001",
+      "query": "Show cost impact of quality issues by product line",
+      "generated_sql": "```sql SELECT product_line, SUM(cost_impact) AS total_cost_impact FROM non_conformant_materials GROUP BY product_line; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query selects the product line and the sum of the cost impact from the non_conformant_materials table. It then groups the results by the product line, effectively showing the total cost impact of quality issues for each product line.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "maintenance_001",
+      "query": "Find equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "```sql SELECT er.equipment_id, em.equipment_name, er.mtbf_hours, er.target_mtbf FROM equipment_reliability er JOIN equipment_metrics em ON er.equipment_id = em.equipment_id WHERE er.mtbf_hours < er.target_mtbf; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query joins the equipment_reliability and equipment_metrics tables on the equipment_id field. It then selects the equipment_id, equipment_name, mtbf_hours, and target_mtbf where the mtbf_hours is less than the target_mtbf. This will return all equipment where the Mean Time Between Failures (MTBF) is below the target, indicating that these pieces of equipment require immediate attention.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "compliance_001",
+      "query": "Show CAPA effectiveness for recurring quality issues",
+      "generated_sql": "```sql WITH recurring_issues AS ( SELECT ncm_id, COUNT(*) AS recurrence_count FROM non_conformant_materials GROUP BY ncm_id HAVING COUNT(*) > 1 ), capa_effectiveness AS ( SELECT ncm_id, AVG(effectiveness_score) AS avg_effectiveness FROM corrective_actions WHERE ncm_id IN (SELECT ncm_id FROM recurring_issues) GROUP BY ncm_id ) SELECT n.ncm_id, n.failure_mode, n.root_cause, r.recurrence_count, c.avg_effectiveness FROM non_conformant_materials n JOIN recurring_issues r ON n.ncm_id = r.ncm_id JOIN capa_effectiveness c ON n.ncm_id = c.ncm_id ORDER BY r.recurrence_count DESC, c.avg_effectiveness ASC; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query first identifies recurring quality issues by counting the number of times each NCM ID appears in the non_conformant_materials table and filtering for those that appear more than once. It then calculates the average effectiveness of the corrective actions associated with each of these recurring issues. The final SELECT statement joins these results with the non_conformant_materials table to provide details about the failure mode and root cause of each recurring issue, and orders the results by the number of recurrences and the average effectiveness of the corrective actions.",
+      "complexity": "QueryComplexity.SIMPLE"
+    }
+  ],
+  "advanced_layer_results": [
+    {
+      "test_id": "supply_chain_001",
+      "query": "Show suppliers with delivery performance issues affecting production",
+      "generated_sql": "SELECT \n    s.supplier_name,\n    COUNT(d.delivery_id) as total_deliveries,\n    AVG(d.ontime_rate) as avg_delivery_performance,\n    COUNT(ps.schedule_id) as affected_production_schedules\nFROM suppliers s\nJOIN daily_deliveries d ON s.supplier_id = d.supplier_id\nJOIN production_schedule ps ON d.delivery_date = ps.planned_start\nWHERE d.ontime_rate < 0.95 AND d.delivery_date >= CURRENT_DATE - INTERVAL '90 days'\nGROUP BY s.supplier_id, s.supplier_name\nHAVING COUNT(ps.schedule_id) > 0\nORDER BY affected_production_schedules DESC, avg_delivery_performance ASC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "quality_001",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "SELECT \n    pq.product_line,\n    AVG(pq.defect_rate) as avg_ncm_rate,\n    ib.benchmark_value as industry_standard,\n    CASE \n        WHEN AVG(pq.defect_rate) > ib.benchmark_value THEN 'Above Standard'\n        ELSE 'Below Standard'\n    END as performance\nFROM production_quality pq\nJOIN industry_benchmarks ib ON ib.metric_name = 'NCM Rate'\nWHERE pq.production_date >= CURRENT_DATE - INTERVAL '6 months'\nGROUP BY pq.product_line, ib.benchmark_value\nHAVING AVG(pq.defect_rate) > ib.benchmark_value\nORDER BY avg_ncm_rate DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "production_001",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "SELECT \n    em.equipment_name,\n    em.equipment_type,\n    AVG(em.availability_rate) as availability,\n    AVG(em.performance_rate) as performance,\n    AVG(em.quality_rate) as quality,\n    (AVG(em.availability_rate) * AVG(em.performance_rate) * AVG(em.quality_rate)) as oee_score,\n    AVG(em.downtime_hours) as avg_downtime_hours,\n    COUNT(fe.failure_id) as failure_count\nFROM equipment_metrics em\nLEFT JOIN failure_events fe ON em.equipment_id = fe.equipment_id\nWHERE em.measurement_date >= CURRENT_DATE - INTERVAL '30 days'\n    AND em.equipment_type = 'Critical'\nGROUP BY em.equipment_id, em.equipment_name, em.equipment_type\nHAVING AVG(em.downtime_hours) > (SELECT AVG(downtime_hours) FROM equipment_metrics WHERE equipment_type = 'Critical')\nORDER BY oee_score ASC, avg_downtime_hours DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "financial_001",
+      "query": "Show cost impact of quality issues by product line",
+      "generated_sql": "SELECT \n    pd.product_line,\n    COUNT(pd.defect_id) as total_defects,\n    SUM(ncm.cost_impact) as total_cost_impact\nFROM product_defects pd\nJOIN non_conformant_materials ncm ON pd.product_line = ncm.product_line\nWHERE pd.defect_type = 'NCM'\nGROUP BY pd.product_line\nORDER BY total_cost_impact DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "maintenance_001",
+      "query": "Find equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "SELECT \n    em.equipment_name,\n    er.measurement_period,\n    er.mtbf_hours,\n    er.target_mtbf,\n    er.failure_count,\n    er.operating_hours,\n    er.reliability_score,\n    CASE \n        WHEN er.mtbf_hours < er.target_mtbf THEN 'Below Target'\n        ELSE 'On Target'\n    END as mtbf_status\nFROM equipment_reliability er\nJOIN equipment_metrics em ON er.equipment_id = em.equipment_id\nWHERE er.measurement_period >= CURRENT_DATE - INTERVAL '30 days'\n    AND er.mtbf_hours < er.target_mtbf\nORDER BY er.mtbf_hours ASC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "compliance_001",
+      "query": "Show CAPA effectiveness for recurring quality issues",
+      "generated_sql": "SELECT \n    ncm.product_line,\n    ncm.failure_mode,\n    COUNT(capa.capa_id) as capa_count,\n    AVG(capa.effectiveness_score) as avg_effectiveness,\n    CASE \n        WHEN AVG(capa.effectiveness_score) >= 4 THEN 'Highly Effective'\n        WHEN AVG(capa.effectiveness_score) >= 3 THEN 'Effective'\n        ELSE 'Needs Improvement'\n    END as effectiveness_rating\nFROM non_conformant_materials ncm\nJOIN corrective_actions capa ON ncm.ncm_id = capa.ncm_id\nWHERE ncm.status = 'Closed'\n    AND capa.status = 'Completed'\n    AND ncm.incident_date >= CURRENT_DATE - INTERVAL '1 year'\nGROUP BY ncm.product_line, ncm.failure_mode\nHAVING COUNT(capa.capa_id) > 1\nORDER BY avg_effectiveness ASC, capa_count DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    }
+  ],
+  "performance_comparison": {
+    "success_rates": {
+      "standard": 1.0,
+      "advanced": 1.0
+    },
+    "average_confidence": {
+      "standard": 0.9666666666666667,
+      "advanced": 1.0
+    },
+    "complexity_distribution": {
+      "standard": {
+        "QueryComplexity.SIMPLE": 5,
+        "QueryComplexity.MEDIUM": 1
+      },
+      "advanced": {
+        "QueryComplexity.MEDIUM": 6
+      }
+    },
+    "safety_compliance": {
+      "standard": 1.0,
+      "advanced": 1.0
+    },
+    "improvement_metrics": {
+      "success_rate_improvement": 0.0,
+      "confidence_improvement": 0.03448275862068965
+    }
+  }
+}

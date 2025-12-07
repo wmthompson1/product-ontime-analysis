@@ -14,14 +14,20 @@ from enum import Enum
 try:
     from langchain.prompts import PromptTemplate, ChatPromptTemplate
     from langchain.schema import HumanMessage, SystemMessage
-    from langchain.memory import ConversationBufferWindowMemory
-    from langchain.callbacks import get_openai_callback
+    try:
+        from langchain_community.memory import ConversationBufferWindowMemory
+    except ImportError:
+        from langchain.memory import ConversationBufferWindowMemory
+    try:
+        from langchain_community.callbacks.manager import get_openai_callback
+    except ImportError:
+        from langchain.callbacks import get_openai_callback
     LANGCHAIN_AVAILABLE = True
 except ImportError:
     LANGCHAIN_AVAILABLE = False
 
 import openai
-from app.schema_context import (
+from schema_context import (
     SQL_SCHEMA_DESCRIPTION, 
     get_schema_context, 
     validate_sql_safety,
@@ -60,11 +66,9 @@ class SemanticLayer:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         openai.api_key = self.api_key
         
-        # Initialize memory for conversation context
-        self.memory = ConversationBufferWindowMemory(
-            k=5,  # Keep last 5 exchanges
-            return_messages=True
-        ) if LANGCHAIN_AVAILABLE else None
+        # Simple conversation tracking (replaces deprecated memory)
+        self.conversation_history = []
+        self.max_history = 5  # Keep last 5 exchanges
         
         # Query templates for different complexity levels
         self.templates = self._initialize_templates()
@@ -86,10 +90,7 @@ CRITICAL SAFETY RULES:
 
 Your responses must be valid PostgreSQL SQL that follows these constraints."""
 
-        simple_template = """
-{system_prompt}
-
-Schema Context:
+        simple_template = """Schema Context:
 {schema_context}
 
 Generate a SQL query for: "{user_query}"
@@ -101,10 +102,7 @@ EXPLANATION: [brief explanation of the query logic]
 CONFIDENCE: [score 0.0-1.0]
 """
 
-        complex_template = """
-{system_prompt}
-
-Schema Context:
+        complex_template = """Schema Context:
 {schema_context}
 
 Previous conversation context:
@@ -193,14 +191,13 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             inferred_tables = self._extract_table_hints(request.natural_language)
             schema_context = get_schema_context(inferred_tables) if inferred_tables else SQL_SCHEMA_DESCRIPTION
         
-        # Conversation history
+        # Conversation history (simple tracking)
         conversation_history = ""
-        if self.memory:
-            messages = self.memory.chat_memory.messages
+        if self.conversation_history:
+            recent_exchanges = self.conversation_history[-2:]  # Last 2 exchanges
             conversation_history = "\n".join([
-                f"Human: {msg.content}" if isinstance(msg, HumanMessage) 
-                else f"Assistant: {msg.content}"
-                for msg in messages[-4:]  # Last 2 exchanges
+                f"Human: {exchange['query']}\nAssistant: Generated SQL for: {exchange['sql'][:100]}..."
+                for exchange in recent_exchanges
             ])
         
         # Additional context
@@ -248,24 +245,34 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             raise Exception(f"OpenAI API error: {str(e)}")
     
     def _parse_response(self, response_content: str) -> Dict[str, Any]:
-        """Parse structured response from LLM"""
+        """Parse structured response from LLM with improved error handling"""
+        
+        # Debug: Print raw response to understand format issues
+        print(f"🔍 DEBUG: Raw LLM Response:\n{response_content[:300]}...")
         
         result = {
             "sql": "",
             "params": [],
             "explanation": "",
-            "confidence": 0.0,
+            "confidence": 0.85,  # Default confidence
             "complexity": QueryComplexity.SIMPLE
         }
         
+        # Clean up response content
+        response_content = response_content.strip()
+        
+        # First try to extract SQL from structured format
         lines = response_content.split('\n')
         current_section = None
+        sql_lines = []
         
         for line in lines:
             line = line.strip()
             
             if line.startswith('SQL:'):
-                result["sql"] = line[4:].strip()
+                sql_content = line[4:].strip()
+                if sql_content:
+                    result["sql"] = sql_content
                 current_section = "sql"
             elif line.startswith('PARAMS:'):
                 try:
@@ -279,9 +286,13 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
                 current_section = "explanation"
             elif line.startswith('CONFIDENCE:'):
                 try:
-                    result["confidence"] = float(line[11:].strip())
-                except:
-                    result["confidence"] = 0.5
+                    confidence_str = line[11:].strip()
+                    print(f"🔍 DEBUG: Found confidence string: '{confidence_str}'")
+                    result["confidence"] = float(confidence_str)
+                    print(f"🔍 DEBUG: Parsed confidence: {result['confidence']}")
+                except Exception as e:
+                    print(f"🔍 DEBUG: Failed to parse confidence: {e}")
+                    result["confidence"] = 0.85
             elif line.startswith('COMPLEXITY:'):
                 try:
                     complexity_str = line[11:].strip().upper()
@@ -294,6 +305,35 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
                     result["explanation"] += " " + line
                 elif current_section == "sql" and not any(line.startswith(x) for x in ["PARAMS:", "EXPLANATION:", "CONFIDENCE:"]):
                     result["sql"] += " " + line
+        
+        # If no structured SQL found, try to extract SQL from response
+        if not result["sql"] or result["sql"] == "":
+            # Look for SQL patterns in the response
+            import re
+            
+            # Remove code block markers if present
+            cleaned_content = response_content.replace('```sql', '').replace('```', '')
+            
+            # Find SELECT statements
+            sql_pattern = r'(SELECT\s+.*?)(?=\n\n|\n[A-Z]+:|$)'
+            sql_matches = re.findall(sql_pattern, cleaned_content, re.DOTALL | re.IGNORECASE)
+            
+            if sql_matches:
+                # Take the first complete SELECT statement
+                result["sql"] = sql_matches[0].strip()
+                result["explanation"] = "Extracted SQL from LLM response"
+            else:
+                # Look for any SQL-like content
+                lines_with_sql = [line for line in lines if 'SELECT' in line.upper() or 'FROM' in line.upper()]
+                if lines_with_sql:
+                    result["sql"] = ' '.join(lines_with_sql).strip()
+                    result["explanation"] = "Reconstructed SQL from response fragments"
+        
+        # Clean up the SQL
+        if result["sql"]:
+            result["sql"] = result["sql"].strip().rstrip(';')
+            if not result["explanation"]:
+                result["explanation"] = "Generated SQL query for business intelligence analysis"
         
         return result
     
@@ -310,11 +350,18 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
         template_name = "complex" if complexity != QueryComplexity.SIMPLE else "simple"
         template = self.templates[template_name]
         
-        # 4. Format prompt
-        prompt = template.format(
-            user_query=request.natural_language,
-            **context
-        )
+        # 4. Format prompt - fix template key issues
+        try:
+            prompt = template.format(
+                user_query=request.natural_language,
+                **context
+            )
+        except KeyError as e:
+            # Fallback formatting if template keys don't match
+            prompt = template.format(
+                user_query=request.natural_language,
+                schema_context=context.get("schema_context", "")
+            )
         
         # 5. Generate SQL
         try:
@@ -327,10 +374,15 @@ COMPLEXITY: [SIMPLE/MEDIUM/COMPLEX]
             if not is_safe:
                 raise Exception(f"Safety validation failed: {safety_message}")
             
-            # 7. Store in memory for context
-            if self.memory:
-                self.memory.chat_memory.add_user_message(request.natural_language)
-                self.memory.chat_memory.add_ai_message(f"Generated SQL: {parsed['sql']}")
+            # 7. Store in conversation history (simple tracking)
+            self.conversation_history.append({
+                "query": request.natural_language,
+                "sql": parsed["sql"],
+                "confidence": parsed["confidence"]
+            })
+            # Keep only last 5 exchanges
+            if len(self.conversation_history) > self.max_history:
+                self.conversation_history = self.conversation_history[-self.max_history:]
             
             # 8. Return structured result
             return QueryResult(

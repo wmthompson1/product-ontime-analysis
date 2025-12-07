@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Segmentation - Manufacturing Intelligence</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            line-height: 1.6;
+        }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            margin-bottom: 30px; 
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1em; }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .back-link:hover { color: #764ba2; }
+        
+        .upload-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08); 
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e6e6ff;
+        }
+        
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            color: #6c757d;
+        }
+        
+        .upload-text {
+            font-size: 1.1em;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .upload-hint {
+            font-size: 0.85em;
+            color: #6c757d;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results-container {
+            display: none;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+        
+        .info-box {
+            background: #f0f0ff;
+            border-left: 5px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .scheme-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .scheme-section h3 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1.1em;
+        }
+        
+        .scheme-example {
+            background: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            margin: 10px 0;
+            border: 1px solid #dee2e6;
+        }
+        
+        .help-text {
+            font-size: 0.9em;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        
+        .report-text {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .block-card {
+            background: white;
+            border-left: 5px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 0 10px 10px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .block-header {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .metadata-table {
+            margin: 10px 0;
+        }
+        
+        .metadata-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .metadata-key {
+            flex: 0 0 200px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .metadata-value {
+            flex: 1;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div class="header">
+        <h1>📄 Document Segmentation</h1>
+        <p>Extract structured blocks from Excel documents for hybrid RAG</p>
+    </div>
+    
+    <div class="info-box">
+        <strong>🎯 Perfect for Advanced RAG:</strong> Segment documents into free-form metadata and tabular data. 
+        Free-form blocks go to vector search, tabular blocks go to SQL databases.
+    </div>
+    
+    <div class="upload-container">
+        <h2>Upload Excel Document</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area" id="excelArea">
+                <div class="upload-icon">📊</div>
+                <div class="upload-text">Excel Document (.xlsx)</div>
+                <div class="upload-hint">Click to browse or drag and drop</div>
+                <input type="file" id="excelInput" name="file" accept=".xlsx">
+            </div>
+            
+            <div class="scheme-section">
+                <h3>📋 Optional: Segmentation Scheme (CSV)</h3>
+                <p class="help-text">Upload a CSV to define how to segment the document. If not provided, uses default scheme for invoice documents.</p>
+                
+                <div class="scheme-example">
+Doc,block,upper_left,lower_right,Segment type<br>
+1,1,A3,B5,Free-form<br>
+1,2,A8,Doc 1 end,Tabular-form
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <label for="schemeInput" style="display: block; margin-bottom: 8px; color: #495057; font-weight: 500;">Segmentation Scheme (optional .csv):</label>
+                    <input type="file" id="schemeInput" name="scheme" accept=".csv" style="display: block; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9em;">
+                </div>
+                <p class="help-text" style="margin-top: 10px; font-size: 0.85em;">💡 <strong>Tip:</strong> Scheme is optional. Default scheme works for supplier invoices.</p>
+            </div>
+            
+            <div id="selectedFile" style="margin-top: 20px; text-align: center; color: #6c757d;"></div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button type="submit" class="btn" id="uploadBtn" disabled>Segment Document</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Segmenting document... Please wait</p>
+    </div>
+    
+    <div class="results-container" id="results">
+        <h2>Segmentation Results</h2>
+        
+        <div id="summary"></div>
+        
+        <h3>Segmented Blocks</h3>
+        <div id="blocks"></div>
+        
+        <h3>Full Report</h3>
+        <div class="report-text" id="report"></div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <button class="btn" onclick="location.reload()">Segment Another Document</button>
+        </div>
+    </div>
+    
+    <script>
+        const excelArea = document.getElementById('excelArea');
+        const excelInput = document.getElementById('excelInput');
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const selectedFile = document.getElementById('selectedFile');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        
+        // Click to browse
+        excelArea.addEventListener('click', () => excelInput.click());
+        
+        // File selection
+        excelInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                selectedFile.textContent = `Selected: ${file.name}`;
+                uploadBtn.disabled = false;
+            }
+        });
+        
+        // Drag and drop
+        excelArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            excelArea.classList.add('dragover');
+        });
+        
+        excelArea.addEventListener('dragleave', () => {
+            excelArea.classList.remove('dragover');
+        });
+        
+        excelArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            excelArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                excelInput.files = e.dataTransfer.files;
+                const file = e.dataTransfer.files[0];
+                selectedFile.textContent = `Selected: ${file.name}`;
+                uploadBtn.disabled = false;
+            }
+        });
+        
+        // Form submission
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(uploadForm);
+            
+            document.querySelector('.upload-container').style.display = 'none';
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/document-segmentation/process', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+                
+                if (data.success) {
+                    displayResults(data);
+                    results.style.display = 'block';
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    location.reload();
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                alert('Processing failed: ' + error.message);
+                location.reload();
+            }
+        });
+        
+        function displayResults(data) {
+            const result = data.result;
+            
+            // Summary
+            document.getElementById('summary').innerHTML = `
+                <div class="info-box">
+                    <strong>Document ID:</strong> ${result.document_id}<br>
+                    <strong>Total Blocks:</strong> ${result.total_blocks}<br>
+                    <strong>File:</strong> ${data.filename}
+                </div>
+            `;
+            
+            // Blocks
+            const blocksHtml = result.blocks.map(block => {
+                let contentHtml = '';
+                
+                if (block.content_type === 'metadata') {
+                    contentHtml = '<div class="metadata-table">';
+                    for (const [key, value] of Object.entries(block.content)) {
+                        contentHtml += `
+                            <div class="metadata-row">
+                                <div class="metadata-key">${key}</div>
+                                <div class="metadata-value">${value}</div>
+                            </div>
+                        `;
+                    }
+                    contentHtml += '</div>';
+                } else if (block.content_type === 'table') {
+                    contentHtml = `
+                        <p><strong>Columns:</strong> ${block.content.columns.join(', ')}</p>
+                        <p><strong>Rows:</strong> ${block.content.row_count}</p>
+                        <p><strong>First 3 rows:</strong></p>
+                        <pre>${JSON.stringify(block.content.data.slice(0, 3), null, 2)}</pre>
+                    `;
+                }
+                
+                return `
+                    <div class="block-card">
+                        <div class="block-header">Block ${block.block_id}: ${block.segment_type}</div>
+                        <p><strong>Range:</strong> ${block.range}</p>
+                        <p><strong>Content Type:</strong> ${block.content_type}</p>
+                        ${contentHtml}
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('blocks').innerHTML = blocksHtml;
+            
+            // Report
+            document.getElementById('report').textContent = data.report;
+        }
+    </script>
+</body>
+</html>
