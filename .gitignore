@@ -88,6 +88,15 @@ uploads/
 test_output/
 *.jsonl
 
+# Graph output files
+graph_output.json
+graph_networkx.json
+graph_*.json
+graph_*.gexf
+graph_*.graphml
+graph_*.png
+*.pickle
+
 # Model files (if large)
 *.bin
 weights.bin

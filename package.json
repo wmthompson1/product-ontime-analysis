@@ -1,14 +1,25 @@
 {
-  "name": "workspace",
+  "name": "product-ontime-analysis",
   "version": "1.0.0",
   "main": "teachable_machine_ver1.js",
+  "description": "Product on-time delivery analysis with NPM-first embedded Postgres setup",
   "scripts": {
+    "db:init": "node scripts/init_db.js",
+    "db:init:sample": "node scripts/init_db.js --sample-data",
+    "db:reset": "node scripts/init_db.js --drop-existing --sample-data",
+    "graph:build": "node scripts/build_graph_node.js --analyze",
+    "graph:build:python": "python scripts/networkx_build.py --analyze",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "manufacturing",
+    "supply-chain",
+    "analytics",
+    "postgres",
+    "graph-analysis"
+  ],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@astrojs/check": "^0.9.4",
     "@astrojs/react": "^4.3.0",
@@ -16,9 +27,15 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "astro": "^5.12.3",
+    "graphology": "^0.25.4",
+    "graphology-metrics": "^2.2.0",
+    "pg": "^8.11.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5"
   }
 }
