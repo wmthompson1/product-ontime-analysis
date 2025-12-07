@@ -3,6 +3,14 @@ import os
 from typing import Dict, Any
 import pathlib
 
+# Load .env in development when present (optional). Uses python-dotenv.
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    # python-dotenv is optional at runtime; it's included in requirements for dev installs
+    pass
+
 app = FastAPI(title="MCP Server - product-ontime-analysis")
 
 SPACE_NAME = os.getenv("SPACE_NAME", "wmthompson1_sql")
