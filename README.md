@@ -1,10 +1,10 @@
 # Product On-Time Analysis
 
-NPM-first development setup with embedded Postgres (pg-embed), graphology graph building, and optional Python NetworkX exporter for aerospace manufacturing supply chain analysis.
+NPM-first development setup with embedded Postgres (embedded-postgres), graphology graph building, and optional Python NetworkX exporter for aerospace manufacturing supply chain analysis.
 
 ## Features
 
-- **Embedded Postgres**: Uses `pg-embed` to run Postgres locally without external dependencies
+- **Embedded Postgres**: Uses `embedded-postgres` to run Postgres locally without external dependencies
 - **Aerospace Manufacturing Schema**: Comprehensive schema covering suppliers, parts, assemblies, products, orders, production, and quality
 - **Sample Data**: Pre-populated test data for quick validation
 - **Graph Analysis**: Build supply chain graphs using graphology (Node.js) or NetworkX (Python)

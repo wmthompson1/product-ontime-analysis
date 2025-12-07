@@ -38,7 +38,10 @@ def load_graph():
             except json.JSONDecodeError:
                 data = {}
             
-            G.add_node(node_id, type=node_type, label=label, **data)
+            # Avoid conflict with NetworkX's internal 'type' attribute
+            attrs = {'node_type': node_type, 'label': label}
+            attrs.update(data)
+            G.add_node(node_id, **attrs)
     
     print(f'  ✅ Loaded {G.number_of_nodes()} nodes')
     
@@ -59,7 +62,10 @@ def load_graph():
             except json.JSONDecodeError:
                 data = {}
             
-            G.add_edge(source, target, relationship=relationship, **data)
+            # Merge relationship with data attributes
+            attrs = {'edge_relationship': relationship}
+            attrs.update(data)
+            G.add_edge(source, target, **attrs)
     
     print(f'  ✅ Loaded {G.number_of_edges()} edges')
     
@@ -76,7 +82,7 @@ def analyze_graph(G):
     # Node types breakdown
     node_types = {}
     for node, data in G.nodes(data=True):
-        node_type = data.get('type', 'unknown')
+        node_type = data.get('node_type', 'unknown')
         node_types[node_type] = node_types.get(node_type, 0) + 1
     
     print('  Node types:')
@@ -106,7 +112,7 @@ def visualize_graph(G):
         'product': '#96CEB4',
     }
     
-    node_colors = [color_map.get(G.nodes[node].get('type', 'unknown'), '#95A5A6') for node in G.nodes()]
+    node_colors = [color_map.get(G.nodes[node].get('node_type', 'unknown'), '#95A5A6') for node in G.nodes()]
     node_labels = {node: G.nodes[node].get('label', node) for node in G.nodes()}
     
     # Draw graph

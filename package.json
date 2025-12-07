@@ -1,7 +1,7 @@
 {
   "name": "product-ontime-analysis-npm",
   "version": "0.1.0",
-  "description": "NPM-first dev setup: embedded Postgres (pg-embed) + graphology + optional Python NetworkX exporter",
+  "description": "NPM-first dev setup: embedded Postgres (embedded-postgres) + graphology + optional Python NetworkX exporter",
   "main": "scripts/init_db.js",
   "scripts": {
     "install-deps": "npm ci",
@@ -12,8 +12,8 @@
   "dependencies": {
     "csv-writer": "^1.6.0",
     "dotenv": "^16.0.0",
+    "embedded-postgres": "^18.1.0-beta.15",
     "graphology": "^0.25.0",
-    "pg": "^8.10.0",
-    "pg-embed": "^2.1.0"
+    "pg": "^8.10.0"
   }
 }
