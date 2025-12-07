@@ -30,6 +30,14 @@ except ImportError as e:
     print("Install with: pip install networkx psycopg2-binary")
     sys.exit(1)
 
+# Optional: matplotlib for visualization
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+
 # Database configuration
 DB_CONFIG = {
     'host': os.getenv('PGHOST', 'localhost'),
@@ -226,58 +234,55 @@ def visualize_graph(graph: nx.DiGraph, output_file: str = 'graph_visualization.p
     """
     Create a visualization of the graph (requires matplotlib).
     """
-    try:
-        import matplotlib.pyplot as plt
-        
-        print(f"\n📊 Creating visualization...")
-        
-        # Create figure
-        plt.figure(figsize=(16, 12))
-        
-        # Use hierarchical layout
-        pos = nx.spring_layout(graph, k=2, iterations=50)
-        
-        # Color nodes by type
-        node_colors = []
-        for node in graph.nodes():
-            node_type = graph.nodes[node].get('type', 'unknown')
-            if node_type == 'supplier':
-                node_colors.append('#3498db')  # Blue
-            elif node_type == 'part':
-                node_colors.append('#2ecc71')  # Green
-            elif node_type == 'product':
-                node_colors.append('#e74c3c')  # Red
-            else:
-                node_colors.append('#95a5a6')  # Gray
-        
-        # Draw graph
-        nx.draw(graph, pos,
-               node_color=node_colors,
-               node_size=800,
-               with_labels=False,
-               arrows=True,
-               arrowsize=10,
-               edge_color='#7f8c8d',
-               alpha=0.7)
-        
-        # Add legend
-        from matplotlib.patches import Patch
-        legend_elements = [
-            Patch(facecolor='#3498db', label='Supplier'),
-            Patch(facecolor='#2ecc71', label='Part'),
-            Patch(facecolor='#e74c3c', label='Product')
-        ]
-        plt.legend(handles=legend_elements, loc='upper right')
-        
-        plt.title('Supply Chain Graph', fontsize=16, fontweight='bold')
-        plt.axis('off')
-        plt.tight_layout()
-        plt.savefig(output_file, dpi=300, bbox_inches='tight')
-        print(f"✅ Visualization saved to {output_file}")
-        
-    except ImportError:
+    if not MATPLOTLIB_AVAILABLE:
         print("⚠️  Matplotlib not installed. Skipping visualization.")
         print("    Install with: pip install matplotlib")
+        return
+    
+    print(f"\n📊 Creating visualization...")
+    
+    # Create figure
+    plt.figure(figsize=(16, 12))
+    
+    # Use hierarchical layout
+    pos = nx.spring_layout(graph, k=2, iterations=50)
+    
+    # Color nodes by type
+    node_colors = []
+    for node in graph.nodes():
+        node_type = graph.nodes[node].get('type', 'unknown')
+        if node_type == 'supplier':
+            node_colors.append('#3498db')  # Blue
+        elif node_type == 'part':
+            node_colors.append('#2ecc71')  # Green
+        elif node_type == 'product':
+            node_colors.append('#e74c3c')  # Red
+        else:
+            node_colors.append('#95a5a6')  # Gray
+    
+    # Draw graph
+    nx.draw(graph, pos,
+           node_color=node_colors,
+           node_size=800,
+           with_labels=False,
+           arrows=True,
+           arrowsize=10,
+           edge_color='#7f8c8d',
+           alpha=0.7)
+    
+    # Add legend
+    legend_elements = [
+        Patch(facecolor='#3498db', label='Supplier'),
+        Patch(facecolor='#2ecc71', label='Part'),
+        Patch(facecolor='#e74c3c', label='Product')
+    ]
+    plt.legend(handles=legend_elements, loc='upper right')
+    
+    plt.title('Supply Chain Graph', fontsize=16, fontweight='bold')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    print(f"✅ Visualization saved to {output_file}")
 
 
 def main():
@@ -336,8 +341,9 @@ def main():
         
     except Exception as e:
         print(f'\n❌ Error: {e}')
-        import traceback
-        traceback.print_exc()
+        if os.getenv('DEBUG', '').lower() in ('true', '1', 'yes'):
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
     finally:
         if 'cursor' in locals():

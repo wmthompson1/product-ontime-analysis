@@ -65,11 +65,11 @@ SELECT
 FROM parts pt
 JOIN suppliers s ON pt.supplier_id = s.supplier_id
 JOIN assemblies a ON pt.part_id = a.part_id
-WHERE pt.part_id IN (
-    SELECT part_id 
-    FROM parts 
-    GROUP BY part_id 
-    HAVING COUNT(DISTINCT supplier_id) = 1
+WHERE NOT EXISTS (
+    SELECT 1 
+    FROM parts p2 
+    WHERE p2.part_number = pt.part_number 
+      AND p2.supplier_id != pt.supplier_id
 )
 GROUP BY pt.part_id, pt.part_number, pt.part_name, s.supplier_name
 ORDER BY products_affected DESC;

@@ -166,7 +166,12 @@ function analyzeGraph(graph) {
   console.log('\n📊 Graph Analysis:');
   console.log(`  Nodes: ${graph.order}`);
   console.log(`  Edges: ${graph.size}`);
-  console.log(`  Density: ${(graph.size / (graph.order * (graph.order - 1))).toFixed(4)}`);
+  
+  // Calculate density, handling edge case where graph has fewer than 2 nodes
+  const density = graph.order >= 2 
+    ? (graph.size / (graph.order * (graph.order - 1))).toFixed(4)
+    : '0.0000';
+  console.log(`  Density: ${density}`);
   
   // Count by node type
   const nodeTypes = {};
