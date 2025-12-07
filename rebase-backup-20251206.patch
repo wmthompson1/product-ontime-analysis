@@ -1,0 +1,27 @@
+diff --git a/hf-mcp.log b/hf-mcp.log
+new file mode 100644
+index 0000000..e62ac03
+--- /dev/null
++++ b/hf-mcp.log
+@@ -0,0 +1 @@
++env: node: No such file or directory
+diff --git a/hf-mcp.pid b/hf-mcp.pid
+new file mode 100644
+index 0000000..8b13789
+--- /dev/null
++++ b/hf-mcp.pid
+@@ -0,0 +1 @@
++
+diff --git a/mcp_spaces/inv_man/README.md b/mcp_spaces/inv_man/README.md
+new file mode 100644
+index 0000000..7dd9b77
+--- /dev/null
++++ b/mcp_spaces/inv_man/README.md
+@@ -0,0 +1,6 @@
++# HF Space: Inventory SQL Generator (MCP-enabled)
++
++This repository is a Hugging Face Space (FastAPI) template that exposes simple MCP-style tools for inventory-management focused SQL generation (Postgres).
++
++## Local dev
++1. Create venv, install:
+... (patch truncated in file)
