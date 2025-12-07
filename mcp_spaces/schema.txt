@@ -1,4 +1,4 @@
-
+-- file path: 
 --*Fictional ERP Schema (FormSpace/erp-schema)
 -- Language: English
 -- This SQL script defines tables for a fictional ERP system focused on manufacturing and inventory management.
