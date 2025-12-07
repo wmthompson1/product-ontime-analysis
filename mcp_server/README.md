@@ -29,6 +29,21 @@ Codespaces/Space notes:
 - Ensure port `8000` is forwarded/exposed in the Codespace preview settings so you can access the running server.
 - Set `SPACE_NAME` as an environment variable in the Space settings if you want to override the default `wmthompson1_sql`.
 
+Local `.env` and Codespaces secrets
+----------------------------------
+
+This project supports two safe ways to provide runtime secrets and configuration:
+
+- Codespaces secrets (recommended for cloud dev): add secrets via **Repository → Settings → Secrets and variables → Codespaces**. Secrets added there are available as environment variables in the Codespace runtime.
+- Local `.env` (developer convenience only): copy `mcp_server/.env.example` to `mcp_server/.env` or repo root `.env` and fill values. The server will load `.env` automatically when `python-dotenv` is available.
+
+Important: never commit a real `.env` file. `.env` is ignored via `.gitignore`.
+
+Devcontainer
+-----------
+
+This repository includes a minimal Codespaces devcontainer at `.devcontainer/devcontainer.json`. It uses an image (no Dockerfile required) and runs a post-create command to install `mcp_server` dependencies. When you open the Codespace, the container will provision and install dependencies automatically.
+
 Resource endpoint (Git repo path)
 --------------------------------
 

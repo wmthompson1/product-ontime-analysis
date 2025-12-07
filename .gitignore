@@ -1,3 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local env files
+.env
+.env.local
+
+# IDE/editor
+.vscode/
 
 # Python
 __pycache__/
