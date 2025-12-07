@@ -1,4 +1,18 @@
 {
+  "name": "product-ontime-analysis",
+  "version": "0.1.0",
+  "description": "Helper npm metadata and scripts for local development (primary Python project).",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start:python": "python3 ./001_Entry_Point_Kane_Ragas.py",
+    "venv:create": "python3 -m venv .venv",
+    "venv:install": ". .venv/bin/activate && pip install -r requirements.txt || true",
+    "list": "ls -la"
+  }
+}
+{
   "dependencies": {
     "@llmindset/hf-mcp-server": "^0.2.55"
   }
