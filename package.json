@@ -22,12 +22,10 @@
     "check:node": "node -v && npm -v",
     "check:python": "python3 --version"
   },
-  "devDependencies": {
-    "concurrently": "^7.6.0"
-  }
-}
-{
   "dependencies": {
     "@llmindset/hf-mcp-server": "^0.2.55"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
   }
 }
