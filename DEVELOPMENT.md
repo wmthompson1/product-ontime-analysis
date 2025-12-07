@@ -36,6 +36,30 @@ NPM helpers
   - `npm run venv:install` — activate the venv and run `pip install -r requirements.txt` (best run from an interactive shell).
   - `npm run start:python` — runs `python3 ./001_Entry_Point_Kane_Ragas.py` (adjust to your preferred entrypoint).
 
+NPM scripts (root `package.json`)
+
+This repo includes a more comprehensive `package.json` at the repository root to help run the main components without Docker. Useful scripts:
+
+- `npm run venv:create` — create a Python venv at `.venv`.
+- `npm run venv:install` — activate `.venv` and install `requirements.txt` (interactive shell recommended).
+- `npm run dev:astro` — run the Astro frontend locally: `cd astro-sample && npm install && npm run dev`.
+- `npm run dev:flask` — installs Python deps (via `venv:install`) and runs the Flask backend: `python main.py`.
+- `npm run dev:hf` — runs the HF Space app in `hf-space-inventory-sqlgen` (creates venv there, installs deps, runs `app.py`).
+- `npm run dev:all` — runs `dev:astro`, `dev:flask`, and `dev:hf` in parallel using `concurrently` (devDependency). This is convenient for local full-stack dev.
+
+Examples
+
+```bash
+# start Astro only
+npm run dev:astro
+
+# start Flask only (after creating .venv once)
+npm run dev:flask
+
+# start all components in parallel
+npm run dev:all
+```
+
 Why this approach
 
 - Simpler for a single user: no Docker images to build or manage.

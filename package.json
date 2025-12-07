@@ -1,15 +1,29 @@
 {
   "name": "product-ontime-analysis",
-  "version": "0.1.0",
-  "description": "Helper npm metadata and scripts for local development (primary Python project).",
+  "version": "0.2.0",
+  "description": "Root npm helpers for local (Docker-free) development of the product-ontime-analysis repo.",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start:python": "python3 ./001_Entry_Point_Kane_Ragas.py",
+    "list": "ls -la",
+
     "venv:create": "python3 -m venv .venv",
     "venv:install": ". .venv/bin/activate && pip install -r requirements.txt || true",
-    "list": "ls -la"
+
+    "start:python": "python3 ./001_Entry_Point_Kane_Ragas.py",
+
+    "dev:astro": "bash -lc \"cd astro-sample && npm install && npm run dev\"",
+    "dev:flask": "bash -lc \"npm run venv:install && python main.py\"",
+    "dev:hf": "bash -lc \"cd hf-space-inventory-sqlgen && python3 -m venv .venv || true && . .venv/bin/activate && pip install -r requirements.txt && python app.py\"",
+
+    "dev:all": "concurrently \"npm:dev:astro\" \"npm:dev:flask\" \"npm:dev:hf\"",
+
+    "check:node": "node -v && npm -v",
+    "check:python": "python3 --version"
+  },
+  "devDependencies": {
+    "concurrently": "^7.6.0"
   }
 }
 {
