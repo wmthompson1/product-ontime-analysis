@@ -82,3 +82,21 @@ Below are the main components and how to run them locally (Docker-free):
   - Use a local PostgreSQL instance or a cloud provider (Neon, Supabase, etc.) and configure connection strings in your app's config or environment variables.
 
 If you'd like, I can add helper scripts to `package.json` to run these components from the repo root.
+
+Environment variables
+
+The repository uses runtime secrets and connection strings that should be kept local. A safe starter file is provided as `.env.example`. Do NOT commit a real `.env` file — instead copy the example and fill in your values:
+
+```bash
+cp .env.example .env
+# then edit .env and add your secrets
+```
+
+Required variables (examples):
+
+- `DATABASE_URL` — e.g. `postgresql://user:pass@localhost:5432/yourdb`
+- `OPENAI_API_KEY` — your OpenAI API key
+- `TAVILY_API_KEY` — your Tavily API key
+- `HUGGINGFACE_TOKEN` — your Hugging Face token
+
+The repo's `.gitignore` already includes `.env` so your local file will not be committed.
