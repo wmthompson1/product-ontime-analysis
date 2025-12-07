@@ -30,13 +30,8 @@ except ImportError as e:
     print("Install with: pip install networkx psycopg2-binary")
     sys.exit(1)
 
-# Optional: matplotlib for visualization
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-    MATPLOTLIB_AVAILABLE = True
-except ImportError:
-    MATPLOTLIB_AVAILABLE = False
+# Matplotlib availability will be checked lazily in the visualization function
+MATPLOTLIB_AVAILABLE = None
 
 # Database configuration
 DB_CONFIG = {
@@ -234,10 +229,24 @@ def visualize_graph(graph: nx.DiGraph, output_file: str = 'graph_visualization.p
     """
     Create a visualization of the graph (requires matplotlib).
     """
+    # Lazy import matplotlib only when visualization is needed
+    global MATPLOTLIB_AVAILABLE
+    if MATPLOTLIB_AVAILABLE is None:
+        try:
+            import matplotlib.pyplot as plt
+            from matplotlib.patches import Patch
+            MATPLOTLIB_AVAILABLE = True
+        except ImportError:
+            MATPLOTLIB_AVAILABLE = False
+    
     if not MATPLOTLIB_AVAILABLE:
         print("⚠️  Matplotlib not installed. Skipping visualization.")
         print("    Install with: pip install matplotlib")
         return
+    
+    # Import matplotlib modules here after availability check
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
     
     print(f"\n📊 Creating visualization...")
     

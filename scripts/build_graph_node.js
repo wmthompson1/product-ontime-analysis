@@ -167,7 +167,9 @@ function analyzeGraph(graph) {
   console.log(`  Nodes: ${graph.order}`);
   console.log(`  Edges: ${graph.size}`);
   
-  // Calculate density, handling edge case where graph has fewer than 2 nodes
+  // Calculate density for directed graph: edges / (nodes * (nodes - 1))
+  // Note: This assumes no self-loops, which is enforced by our graph configuration (multi: false)
+  // Handling edge case where graph has fewer than 2 nodes
   const density = graph.order >= 2 
     ? (graph.size / (graph.order * (graph.order - 1))).toFixed(4)
     : '0.0000';
