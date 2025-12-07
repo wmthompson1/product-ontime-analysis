@@ -47,6 +47,26 @@ This repo includes a more comprehensive `package.json` at the repository root to
 - `npm run dev:hf` — runs the HF Space app in `hf-space-inventory-sqlgen` (creates venv there, installs deps, runs `app.py`).
 - `npm run dev:all` — runs `dev:astro`, `dev:flask`, and `dev:hf` in parallel using `concurrently` (devDependency). This is convenient for local full-stack dev.
 
+Replit quick-start and added scripts
+
+The Replit setup provides additional convenience scripts. The following commands are available from the repository root:
+
+- `npm run setup` — install Node and Python deps (runs `setup:node` and `setup:python`).
+- `npm run setup:node` — install Node deps only (`npm install`).
+- `npm run setup:python` — create `.venv` and install Python deps (`pip install -r requirements.txt`).
+- `npm run dev` — start Flask (port 5000) and Astro (port 4321) together.
+- `npm run dev:all` — start Flask + Astro + HF Space (HF Space on port 8000).
+- `npm run flask` — start the Flask backend only.
+- `npm run astro` — start the Astro frontend only.
+- `npm run hf-space` — start the HF Space MCP server only.
+
+Testing shortcuts:
+
+- `npm run test:api` — run the Flask API health test (if `test_api.py` exists).
+- `npm run test:mcp` or `npm run hf-space:test` — run the HF Space MCP tests (if present).
+
+Port allocation (local): Flask=5000, Astro=4321, HF Space=8000
+
 Examples
 
 ```bash

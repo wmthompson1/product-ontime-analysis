@@ -19,6 +19,21 @@
 
     "dev:all": "concurrently \"npm:dev:astro\" \"npm:dev:flask\" \"npm:dev:hf\"",
 
+    "dev": "concurrently \"npm:dev:astro\" \"npm:dev:flask\"",
+    "flask": "npm run dev:flask",
+    "astro": "npm run dev:astro",
+    "hf-space": "npm run dev:hf",
+
+    "setup:node": "npm install",
+    "setup:python": "npm run venv:create && npm run venv:install",
+    "setup": "npm run setup:node && npm run setup:python",
+
+    "clean": "bash -lc \"rm -rf node_modules .venv package-lock.json && echo 'cleaned'\"",
+
+    "test:api": "bash -lc 'if [ -f test_api.py ]; then python3 test_api.py; else echo \"test_api.py not found\"; fi'",
+    "hf-space:test": "bash -lc 'cd hf-space-inventory-sqlgen && if [ -f test_mcp.py ]; then python3 test_mcp.py; else echo \"no hf-space tests found\"; fi'",
+    "test:mcp": "npm run hf-space:test",
+
     "check:node": "node -v && npm -v",
     "check:python": "python3 --version"
   },
