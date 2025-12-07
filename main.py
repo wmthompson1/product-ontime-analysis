@@ -1,8 +1,9 @@
 # Adding a new route to integrate Claude sample via iframe.
 import os
-from flask import Flask, request, jsonify, send_from_directory, render_template
+from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
+from io import BytesIO
 
 
 class Base(DeclarativeBase):
@@ -31,6 +32,8 @@ db.init_app(app)
 
 # Import and initialize models
 from models import create_user_model
+from app.contextual_hints import get_contextual_hints, expand_acronym
+from app.excel_cleansing import cleanse_uploaded_excel
 
 User = create_user_model(db)
 
@@ -1143,5 +1146,605 @@ analyzer.generate_report()
         return {"status": "error", "message": f"Error processing file: {str(e)}"}
 
 
+# Contextual Hints API endpoints (Database-Backed)
+@app.route("/api/hints", methods=["POST"])
+def get_query_hints():
+    """Get contextual hints for query input with database integration"""
+    try:
+        data = request.json
+        partial_query = data.get("query", "").strip()
+        available_fields = data.get("fields", [])
+        table_name = data.get("table_name")  # Optional: extracted from query like "Quality Control | Example: ..."
+        
+        if not partial_query:
+            return jsonify({"hints": []})
+        
+        # Extract table name from query if present
+        if not table_name and '|' in partial_query:
+            parts = partial_query.split('|')
+            if len(parts) >= 2:
+                table_name = parts[0].strip()
+        
+        hints = get_contextual_hints(partial_query, available_fields, table_name)
+        
+        return jsonify({
+            "hints": hints,
+            "query": partial_query,
+            "table_name": table_name,
+            "field_count": len(available_fields),
+            "source": "database-backed" if table_name else "mixed"
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/acronym/<acronym>")
+def get_acronym_info(acronym):
+    """Get detailed information about manufacturing acronyms"""
+    try:
+        info = expand_acronym(acronym)
+        if info:
+            return jsonify(info)
+        else:
+            return jsonify({"error": "Acronym not found"}), 404
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/acronyms", methods=["POST"])
+def add_acronym():
+    """
+    Add new acronym definition to database
+    Expected format: "table_name | ACRONYM = Definition"
+    Example: "quality_control | NCM = Non-Conformant Material"
+    """
+    try:
+        data = request.json
+        input_text = data.get("text", "").strip()
+        
+        if not input_text:
+            return jsonify({"error": "No input provided"}), 400
+        
+        # Parse format: "table_name | ACRONYM = Definition"
+        if '|' not in input_text or '=' not in input_text:
+            return jsonify({
+                "error": "Invalid format. Use: 'table_name | ACRONYM = Definition'"
+            }), 400
+        
+        # Extract components
+        parts = input_text.split('|')
+        if len(parts) != 2:
+            return jsonify({
+                "error": "Invalid format. Expected: 'table_name | ACRONYM = Definition'"
+            }), 400
+        
+        table_name = parts[0].strip()
+        acronym_def = parts[1].strip()
+        
+        if '=' not in acronym_def:
+            return jsonify({
+                "error": "Missing '=' in acronym definition"
+            }), 400
+        
+        acronym_parts = acronym_def.split('=', 1)
+        acronym = acronym_parts[0].strip()
+        definition = acronym_parts[1].strip()
+        
+        if not acronym or not definition:
+            return jsonify({
+                "error": "Both acronym and definition are required"
+            }), 400
+        
+        # Insert into database (idempotent with ON CONFLICT)
+        import psycopg2
+        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        cur = conn.cursor()
+        
+        cur.execute("""
+            INSERT INTO manufacturing_acronyms (acronym, definition, table_name)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (acronym, table_name) 
+            DO UPDATE SET 
+                definition = EXCLUDED.definition,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING acronym_id, created_at, updated_at
+        """, (acronym, definition, table_name))
+        
+        result = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Clear cache so new acronyms are immediately available
+        from app.database_hints_loader import get_database_hints_loader
+        loader = get_database_hints_loader()
+        loader.clear_cache()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Acronym '{acronym}' merged into '{table_name}' table",
+            "data": {
+                "acronym": acronym,
+                "definition": definition,
+                "table_name": table_name,
+                "acronym_id": result[0],
+                "created_at": result[1].isoformat() if result[1] else None,
+                "updated_at": result[2].isoformat() if result[2] else None
+            }
+        }), 201
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/edges/metadata", methods=["POST"])
+def add_edge_metadata():
+    """
+    Add or update edge metadata for join relationships
+    Expected format: "from_table → to_table: description | Example: join example"
+    Example: "equipment → production_line: line ID | Example: e.line_id = pl.line_id"
+    """
+    try:
+        data = request.json
+        input_text = data.get("text", "").strip()
+        
+        if not input_text:
+            return jsonify({"error": "No input provided"}), 400
+        
+        # Parse format: "from_table → to_table: description | Example: join"
+        # Support both → and -> for arrow
+        arrow = '→' if '→' in input_text else '->'
+        
+        if arrow not in input_text or ':' not in input_text:
+            return jsonify({
+                "error": "Invalid format. Use: 'from_table → to_table: description | Example: join example'"
+            }), 400
+        
+        # Extract edge and metadata
+        parts = input_text.split(arrow)
+        if len(parts) != 2:
+            return jsonify({
+                "error": "Invalid format. Expected: 'from_table → to_table: description | Example: join'"
+            }), 400
+        
+        from_table = parts[0].strip()
+        remainder = parts[1].strip()
+        
+        # Split description and example
+        if '|' in remainder:
+            desc_part, example_part = remainder.split('|', 1)
+            description = desc_part.strip().lstrip(':').strip()
+            
+            # Extract example (handle double "Example: Example:" format)
+            if 'Example:' in example_part:
+                # Split on all "Example:" and take the last part
+                example = example_part.split('Example:')[-1].strip()
+            else:
+                example = example_part.strip()
+        else:
+            description = remainder.lstrip(':').strip()
+            example = ''
+        
+        # Extract to_table from description (format: "to_table: desc")
+        if ':' in description:
+            to_table_part, desc_only = description.split(':', 1)
+            to_table = to_table_part.strip()
+            description = desc_only.strip()
+        else:
+            return jsonify({
+                "error": "Invalid format. Missing ':' after to_table name"
+            }), 400
+        
+        if not from_table or not to_table or not description:
+            return jsonify({
+                "error": "Missing required fields: from_table, to_table, or description"
+            }), 400
+        
+        # Update edge in database
+        import psycopg2
+        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        cur = conn.cursor()
+        
+        # Create natural language alias
+        natural_alias = f"{from_table} to {to_table} via {description}"
+        
+        # Check if edge exists
+        cur.execute("""
+            SELECT edge_id FROM schema_edges 
+            WHERE from_table = %s AND to_table = %s
+        """, (from_table, to_table))
+        
+        edge = cur.fetchone()
+        
+        if edge:
+            # Update existing edge
+            cur.execute("""
+                UPDATE schema_edges 
+                SET join_column_description = %s,
+                    natural_language_alias = %s,
+                    few_shot_example = %s,
+                    context = %s
+                WHERE from_table = %s AND to_table = %s
+                RETURNING edge_id
+            """, (description, natural_alias, example, 
+                  f"Join {from_table} and {to_table} on {description}",
+                  from_table, to_table))
+            
+            result = cur.fetchone()
+            edge_id = result[0]
+            action = "updated"
+        else:
+            return jsonify({
+                "error": f"Edge {from_table} → {to_table} does not exist. Create the edge first in schema_edges table.",
+                "suggestion": "Add the edge with join_column information before updating metadata"
+            }), 404
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # Clear cache so new metadata is immediately available
+        from app.database_hints_loader import get_database_hints_loader
+        loader = get_database_hints_loader()
+        loader.clear_cache()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Edge metadata {action}: {from_table} → {to_table}",
+            "data": {
+                "from_table": from_table,
+                "to_table": to_table,
+                "description": description,
+                "natural_alias": natural_alias,
+                "example": example,
+                "edge_id": edge_id
+            }
+        }), 200 if action == "updated" else 201
+    
+    except psycopg2.IntegrityError as e:
+        return jsonify({
+            "error": f"Database constraint violation: {str(e)}",
+            "suggestion": "Ensure both table names exist in schema_nodes"
+        }), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/contextual-hints-demo")
+def contextual_hints_demo():
+    """Demo page for contextual hints system"""
+    return render_template("contextual_hints_demo.html")
+
+
+@app.route("/excel-cleansing", methods=["GET", "POST"])
+def excel_cleansing():
+    """Excel data cleansing interface"""
+    if request.method == "GET":
+        return render_template("excel_cleansing.html")
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return jsonify({"error": "Please upload an Excel file (.xlsx or .xls)"}), 400
+    
+    schema_dict = None
+    if 'schema' in request.files:
+        schema_file = request.files['schema']
+        if schema_file.filename != '':
+            try:
+                import json
+                schema_content = schema_file.read().decode('utf-8')
+                schema_dict = json.loads(schema_content)
+            except json.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid JSON schema: {str(e)}"}), 400
+            except Exception as e:
+                return jsonify({"error": f"Error reading schema file: {str(e)}"}), 400
+    
+    try:
+        df, report, cleansed_bytes = cleanse_uploaded_excel(file, schema_dict)
+        
+        preview_html = df.head(20).to_html(classes='table table-striped', index=False)
+        
+        response_data = {
+            "success": True,
+            "report": report,
+            "preview": preview_html,
+            "download_ready": True
+        }
+        
+        return jsonify(response_data)
+    
+    except Exception as e:
+        return jsonify({"error": f"Error processing file: {str(e)}"}), 500
+
+
+@app.route("/excel-cleansing/download", methods=["POST"])
+def download_cleansed_excel():
+    """Download cleansed Excel file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        
+        schema_dict = None
+        if 'schema' in request.files:
+            schema_file = request.files['schema']
+            if schema_file.filename != '':
+                import json
+                schema_content = schema_file.read().decode('utf-8')
+                schema_dict = json.loads(schema_content)
+        
+        df, report, cleansed_bytes = cleanse_uploaded_excel(file, schema_dict)
+        
+        return send_file(
+            BytesIO(cleansed_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f"cleansed_{file.filename}"
+        )
+    
+    except Exception as e:
+        return jsonify({"error": f"Error creating download: {str(e)}"}), 500
+
+
+@app.route("/upload-file")
+def upload_file_page():
+    """File upload interface to save files to workspace"""
+    return render_template('upload_file.html')
+
+
+@app.route("/upload-file/save", methods=["POST"])
+def save_uploaded_file():
+    """Save uploaded file to workspace uploads directory"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        upload_dir = os.path.join(os.getcwd(), 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        filepath = os.path.join(upload_dir, file.filename)
+        file.save(filepath)
+        
+        file_size = os.path.getsize(filepath)
+        
+        return jsonify({
+            "success": True,
+            "message": f"File uploaded successfully!",
+            "filename": file.filename,
+            "path": f"uploads/{file.filename}",
+            "size": file_size,
+            "size_kb": round(file_size / 1024, 2)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": f"Error saving file: {str(e)}"}), 500
+
+
+@app.route("/document-segmentation")
+def document_segmentation_page():
+    """Document segmentation interface"""
+    return render_template('document_segmentation.html')
+
+
+@app.route("/document-segmentation/process", methods=["POST"])
+def process_document_segmentation():
+    """Process document segmentation"""
+    from app.document_segmentation import segment_document, format_segmentation_report
+    import json as json_lib
+    
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No Excel file provided"}), 400
+        
+        excel_file = request.files['file']
+        
+        if excel_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        segmentation_content = None
+        if 'scheme' in request.files and request.files['scheme'].filename != '':
+            scheme_file = request.files['scheme']
+            segmentation_content = scheme_file.read().decode('utf-8')
+        
+        result = segment_document(excel_file, segmentation_content)
+        
+        report = format_segmentation_report(result)
+        
+        return jsonify({
+            "success": True,
+            "result": result,
+            "report": report,
+            "filename": excel_file.filename
+        })
+    
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": f"Error processing segmentation: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@app.route("/combined-pipeline")
+def combined_pipeline_page():
+    """Combined cleansing + segmentation pipeline interface"""
+    return render_template('combined_pipeline.html')
+
+
+@app.route("/combined-pipeline/process", methods=["POST"])
+def process_combined_pipeline():
+    """Process combined cleansing + segmentation pipeline"""
+    import importlib
+    import sys
+    import base64
+    if 'app.combined_pipeline' in sys.modules:
+        importlib.reload(sys.modules['app.combined_pipeline'])
+    from app.combined_pipeline import process_combined_pipeline
+    import json as json_lib
+    import zipfile
+    from pathlib import Path
+    
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No Excel file provided"}), 400
+        
+        excel_file = request.files['file']
+        
+        if excel_file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        segmentation_content = None
+        if 'scheme' in request.files and request.files['scheme'].filename != '':
+            scheme_file = request.files['scheme']
+            segmentation_content = scheme_file.read().decode('utf-8')
+        
+        schema_rules = {}
+        if 'schema1' in request.files and request.files['schema1'].filename != '':
+            schema1_file = request.files['schema1']
+            try:
+                schema_rules[1] = json_lib.load(schema1_file)
+            except json_lib.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid JSON in Schema 1 file: {str(e)}"}), 400
+        
+        if 'schema2' in request.files and request.files['schema2'].filename != '':
+            schema2_file = request.files['schema2']
+            try:
+                schema_rules[2] = json_lib.load(schema2_file)
+            except json_lib.JSONDecodeError as e:
+                return jsonify({"error": f"Invalid JSON in Schema 2 file: {str(e)}"}), 400
+        
+        if not schema_rules:
+            schema_rules = None
+        
+        result = process_combined_pipeline(
+            excel_file=excel_file,
+            segmentation_scheme=segmentation_content,
+            schema_rules=schema_rules
+        )
+        
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for csv_name, csv_path in result['csv_files'].items():
+                with open(csv_path, 'rb') as f:
+                    zip_file.writestr(csv_name, f.read())
+        
+        zip_buffer.seek(0)
+        
+        zip_base64 = base64.b64encode(zip_buffer.getvalue()).decode('utf-8')
+        
+        return jsonify({
+            "success": True,
+            "result": result,
+            "report": result['report'],
+            "filename": excel_file.filename,
+            "zip_download": zip_base64,
+            "csv_count": len(result['csv_files'])
+        })
+    
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": f"Error processing pipeline: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@app.route('/huggingface-mcp')
+def huggingface_mcp_page():
+    """Hugging Face MCP Server Interface for Manufacturing Semantic Context"""
+    return render_template('huggingface_mcp.html')
+
+
+@app.route('/huggingface-mcp/search')
+def huggingface_mcp_search():
+    """Search Hugging Face Hub via MCP interface"""
+    from app.huggingface_mcp import create_hf_mcp_client
+    
+    query = request.args.get('query', '')
+    search_type = request.args.get('type', 'models')
+    limit = int(request.args.get('limit', 10))
+    task = request.args.get('task', '')
+    sort = request.args.get('sort', 'downloads')
+    
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+    
+    try:
+        client = create_hf_mcp_client()
+        if not client:
+            return jsonify({"error": "HUGGINGFACE_TOKEN not configured"}), 500
+        
+        if search_type == 'models':
+            result = client.search_models(query=query, task=task if task else None, limit=limit, sort=sort)
+        elif search_type == 'datasets':
+            result = client.search_datasets(query=query, limit=limit, sort=sort)
+        elif search_type == 'spaces':
+            result = client.search_spaces(query=query, limit=limit, sort=sort)
+        else:
+            return jsonify({"error": f"Unknown search type: {search_type}"}), 400
+        
+        if result.success:
+            return jsonify({"results": result.data})
+        else:
+            return jsonify({"error": result.error}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/huggingface-mcp/model/<path:model_id>')
+def huggingface_mcp_model_info(model_id):
+    """Get detailed information about a specific model"""
+    from app.huggingface_mcp import create_hf_mcp_client
+    
+    try:
+        client = create_hf_mcp_client()
+        if not client:
+            return jsonify({"error": "HUGGINGFACE_TOKEN not configured"}), 500
+        
+        result = client.get_model_info(model_id)
+        
+        if result.success:
+            return jsonify({"model": result.data})
+        else:
+            return jsonify({"error": result.error}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/huggingface-mcp/tools')
+def huggingface_mcp_tools():
+    """List available MCP tools"""
+    from app.huggingface_mcp import create_hf_mcp_client
+    
+    try:
+        client = create_hf_mcp_client()
+        if not client:
+            return jsonify({"error": "HUGGINGFACE_TOKEN not configured"}), 500
+        
+        tools = client.get_mcp_tools()
+        return jsonify({"tools": tools})
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
