@@ -15,3 +15,4 @@ openpyxl>=3.1.0
 xlrd>=2.0.1
 networkx>=3.0
 python-dotenv>=1.0.0
+git+https://github.com/MarcusJellinghaus/mcp_server_filesystem.git
