@@ -1010,9 +1010,10 @@ def create_gradio_interface():
             
             ### Usage with VS Code + Copilot
             
-            1. Use **Copy to Copilot** tab to build context
-            2. Paste context into Copilot Chat
-            3. Ask follow-up questions about your manufacturing data
+            1. Go to **Copilot Context** tab
+            2. Click the **Copy to Copilot** button to build context
+            3. Paste context into Copilot Chat
+            4. Ask follow-up questions about your manufacturing data
             """)
     
     return demo
