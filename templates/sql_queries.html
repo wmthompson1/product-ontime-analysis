@@ -175,12 +175,11 @@
 </div>
 
 <script>
-const HF_SPACE_URL = 'http://localhost:8000';
 let currentQueries = [];
 
 async function loadCategories() {
     try {
-        const response = await fetch(`${HF_SPACE_URL}/mcp/tools/get_saved_categories`);
+        const response = await fetch('/api/sql-queries/categories');
         const data = await response.json();
         
         if (data.error) {
@@ -211,7 +210,7 @@ async function selectCategory(categoryId, categoryName) {
     document.getElementById('queries-list').innerHTML = '<div class="loading">Loading queries...</div>';
     
     try {
-        const response = await fetch(`${HF_SPACE_URL}/mcp/tools/get_saved_queries?category_id=${categoryId}`);
+        const response = await fetch(`/api/sql-queries/queries?category_id=${categoryId}`);
         const data = await response.json();
         currentQueries = data.queries;
         
@@ -261,7 +260,7 @@ async function executeQuery(index) {
         const formData = new FormData();
         formData.append('sql', query.sql);
         
-        const response = await fetch(`${HF_SPACE_URL}/mcp/tools/execute_sql`, {
+        const response = await fetch('/api/sql-queries/execute', {
             method: 'POST',
             body: formData
         });
