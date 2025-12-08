@@ -828,64 +828,94 @@ def create_gradio_interface():
     
     with gr.Blocks() as demo:
         gr.Markdown("""
-        # 🏭 Manufacturing Inventory SQL Generator
+        # 🏭 Manufacturing SQL Semantic Layer
         
-        Convert natural language questions to SQL queries for inventory management.
-        This tool follows the **Model Context Protocol (MCP)** pattern for AI tool integration.
+        **MCP Context Builder** for GitHub Copilot integration.
+        Select resources below and click **Copy to Copilot** to bundle context.
         
-        ### Example Questions:
-        - "Show me parts that are low on stock"
-        - "What's the total inventory value by category?"
-        - "Which suppliers have the best quality ratings?"
-        - "Show transaction activity for the last 30 days"
+        | MCP Component | Purpose |
+        |---------------|---------|
+        | **Prompts** | Natural language question templates |
+        | **Resources** | Schema DDL, ground truth SQL queries |
+        | **Tools** | API endpoints for validation |
         """)
         
-        with gr.Tab("🔍 Query Generator"):
+        def build_copilot_context(question: str, include_schema: bool, include_queries: bool, selected_category: str) -> str:
+            """Build MCP context package for Copilot"""
+            context_parts = []
+            
+            context_parts.append("# MCP Context for Manufacturing SQL Generation\n")
+            
+            if question.strip():
+                context_parts.append("## Prompt")
+                context_parts.append(f"User Question: {question}\n")
+            
+            if include_schema:
+                context_parts.append("## Resources: Database Schema")
+                tables = get_all_tables()
+                if tables:
+                    for table in sorted(tables)[:10]:
+                        ddl = get_table_create_sql(table)
+                        context_parts.append(f"```sql\n-- {table}\n{ddl}\n```")
+                context_parts.append("")
+            
+            if include_queries and selected_category:
+                context_parts.append("## Resources: Ground Truth SQL Examples")
+                queries = get_saved_queries(selected_category)
+                for q in queries[:5]:
+                    context_parts.append(f"### {q['name']}")
+                    context_parts.append(f"*{q['description']}*")
+                    context_parts.append(f"```sql\n{q['sql']}```\n")
+            
+            context_parts.append("## Tools Available")
+            context_parts.append("- `generate_sql`: Convert natural language to SQL")
+            context_parts.append("- `get_table_ddl`: Get schema for specific table")
+            context_parts.append("- `validate_sql`: Check SQL syntax against schema")
+            
+            return "\n".join(context_parts)
+        
+        def get_category_choices():
+            index = get_query_categories()
+            return [(f"{c['name']} ({c['query_count']} queries)", c['id']) 
+                    for c in index.get("categories", [])]
+        
+        with gr.Tab("🚀 Copilot Context"):
+            gr.Markdown("### Build MCP Context Package")
+            
             with gr.Row():
                 with gr.Column():
-                    query_input = gr.Textbox(
-                        label="Your Question",
-                        placeholder="e.g., Show me all parts below reorder point",
+                    question_input = gr.Textbox(
+                        label="Your Question (Prompt)",
+                        placeholder="e.g., Show me supplier on-time delivery rates for Q4",
                         lines=2
                     )
-                    include_explanation = gr.Checkbox(label="Include Explanation", value=True)
-                    generate_btn = gr.Button("Generate SQL", variant="primary")
+                    
+                    gr.Markdown("#### Select Resources")
+                    include_schema = gr.Checkbox(label="Include Database Schema (top 10 tables)", value=True)
+                    include_queries = gr.Checkbox(label="Include Ground Truth SQL Examples", value=True)
+                    query_category = gr.Dropdown(
+                        choices=get_category_choices(),
+                        label="Query Category",
+                        interactive=True
+                    )
+                    
+                    copy_btn = gr.Button("📋 Copy to Copilot", variant="primary", size="lg")
                 
                 with gr.Column():
-                    sql_output = gr.Code(label="Generated SQL", language="sql")
-                    explanation_output = gr.Textbox(label="Explanation", lines=3)
-                    with gr.Row():
-                        tables_output = gr.Textbox(label="Tables Used")
-                        complexity_output = gr.Textbox(label="Complexity")
+                    context_output = gr.Textbox(
+                        label="MCP Context (copy this to Copilot Chat)",
+                        lines=20,
+                        max_lines=40
+                    )
             
-            generate_btn.click(
-                fn=process_query,
-                inputs=[query_input, include_explanation],
-                outputs=[sql_output, explanation_output, tables_output, complexity_output]
+            copy_btn.click(
+                fn=build_copilot_context,
+                inputs=[question_input, include_schema, include_queries, query_category],
+                outputs=context_output
             )
-        
-        with gr.Tab("📋 SQL Templates"):
-            gr.Markdown("### Pre-built SQL templates for common inventory queries")
-            template_dropdown = gr.Dropdown(
-                choices=list(SQL_TEMPLATES.keys()),
-                label="Select Template"
-            )
-            template_output = gr.Code(label="SQL Template", language="sql")
-            template_dropdown.change(fn=get_template, inputs=template_dropdown, outputs=template_output)
         
         with gr.Tab("📊 Schema"):
-            gr.Markdown("### Schema for Inventory Management (Static)")
-            schema_btn = gr.Button("Show Schema")
-            schema_output = gr.Code(label="Schema Definition", language="json")
-            schema_btn.click(fn=show_schema, outputs=schema_output)
-        
-        with gr.Tab("🗄️ Live Database"):
-            gr.Markdown("""
-            ### PostgreSQL Database Schema
-            
-            Pull CREATE TABLE statements directly from the connected PostgreSQL database.
-            This shows the actual table structures for your manufacturing analytics system.
-            """)
+            gr.Markdown("### Database Schema Resources")
             
             with gr.Row():
                 with gr.Column():
@@ -895,8 +925,8 @@ def create_gradio_interface():
                         label="Select Table",
                         interactive=True
                     )
-                    get_ddl_btn = gr.Button("Get Table DDL", variant="primary")
-                    get_all_ddl_btn = gr.Button("Get All Tables DDL", variant="secondary")
+                    get_ddl_btn = gr.Button("View DDL", variant="primary")
+                    get_all_ddl_btn = gr.Button("View All Tables", variant="secondary")
                 
                 with gr.Column():
                     ddl_output = gr.Code(label="CREATE TABLE SQL", language="sql", lines=20)
@@ -909,65 +939,13 @@ def create_gradio_interface():
             get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
             get_all_ddl_btn.click(fn=get_all_ddl_gradio, outputs=ddl_output)
         
-        with gr.Tab("⚡ SQL Workbench"):
+        with gr.Tab("📁 Ground Truth SQL"):
             gr.Markdown("""
-            ### Execute SQL Queries
+            ### Validated SQL Query Resources
             
-            Enter and execute SELECT queries against the live PostgreSQL database.
-            
-            **Safety Features:**
-            - Only SELECT queries are allowed
-            - Results limited to 100 rows
-            - Dangerous keywords (DROP, DELETE, UPDATE, etc.) are blocked
+            Browse ground truth SQL queries organized by category.
+            These serve as few-shot examples for Copilot context.
             """)
-            
-            with gr.Row():
-                with gr.Column():
-                    sql_input = gr.Code(
-                        label="Enter SQL Query",
-                        language="sql",
-                        lines=8,
-                        value="SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name LIMIT 10;"
-                    )
-                    with gr.Row():
-                        execute_btn = gr.Button("Execute Query", variant="primary")
-                        clear_btn = gr.Button("Clear", variant="secondary")
-                    
-                    gr.Markdown("#### Quick Queries")
-                    with gr.Row():
-                        gr.Button("List Tables").click(
-                            fn=lambda: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;",
-                            outputs=sql_input
-                        )
-                        gr.Button("Schema Nodes").click(
-                            fn=lambda: "SELECT * FROM schema_nodes LIMIT 20;",
-                            outputs=sql_input
-                        )
-                        gr.Button("Schema Edges").click(
-                            fn=lambda: "SELECT * FROM schema_edges LIMIT 20;",
-                            outputs=sql_input
-                        )
-                
-                with gr.Column():
-                    results_output = gr.Textbox(label="Query Results", lines=15, max_lines=30)
-                    stats_output = gr.Textbox(label="Statistics")
-            
-            execute_btn.click(fn=execute_sql_gradio, inputs=sql_input, outputs=[results_output, stats_output])
-            clear_btn.click(fn=lambda: ("", ""), outputs=[results_output, stats_output])
-        
-        with gr.Tab("📁 Saved Queries"):
-            gr.Markdown("""
-            ### Ground Truth SQL Queries
-            
-            Browse and execute validated SQL queries from the Flask manufacturing app.
-            These queries are organized by category and serve as the source of truth
-            for your manufacturing analytics.
-            """)
-            
-            def get_category_choices():
-                index = get_query_categories()
-                return [(f"{c['name']} ({c['query_count']} queries)", c['id']) 
-                        for c in index.get("categories", [])]
             
             def load_queries_for_category(category_id: str):
                 if not category_id:
@@ -998,11 +976,9 @@ def create_gradio_interface():
                         interactive=True
                     )
                     saved_description = gr.Textbox(label="Description", interactive=False)
-                    
-                    load_to_workbench_btn = gr.Button("Load to Workbench", variant="primary")
                 
                 with gr.Column():
-                    saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15)
+                    saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True)
             
             saved_category.change(
                 fn=load_queries_for_category,
@@ -1016,40 +992,27 @@ def create_gradio_interface():
                 outputs=[saved_sql_output, saved_description]
             )
         
-        with gr.Tab("🔌 MCP Integration"):
+        with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""
-            ### Model Context Protocol (MCP) Integration
+            ### Model Context Protocol API
             
-            This Space exposes MCP-compliant endpoints for AI agent integration:
+            These endpoints enable AI agent integration:
             
-            | Endpoint | Description |
-            |----------|-------------|
-            | `GET /mcp/discover` | Discovery endpoint - lists all available tools |
-            | `POST /mcp/tools/generate_sql` | Convert natural language to SQL |
-            | `GET /mcp/tools/get_schema` | Get sample database schema |
-            | `GET /mcp/tools/get_sql_templates` | Get SQL templates |
-            | `POST /mcp/tools/analyze_csv` | Analyze CSV for schema suggestions |
-            | `GET /mcp/tools/get_db_tables` | **NEW** - List all PostgreSQL tables |
-            | `GET /mcp/tools/get_table_ddl?table_name=X` | **NEW** - Get CREATE TABLE for specific table |
-            | `GET /mcp/tools/get_all_ddl` | **NEW** - Get CREATE TABLE for all tables |
-            | `POST /mcp/tools/execute_sql` | **NEW** - Execute read-only SQL query |
-            | `GET /mcp/tools/get_saved_categories` | **NEW** - List ground truth query categories |
-            | `GET /mcp/tools/get_saved_queries?category_id=X` | **NEW** - Get queries for category |
-            | `POST /mcp/tools/save_query` | **NEW** - Save validated SQL from Flask app |
+            | Endpoint | MCP Component | Description |
+            |----------|---------------|-------------|
+            | `GET /mcp/discover` | Discovery | Lists all available tools |
+            | `GET /mcp/tools/get_schema` | Resource | Sample schema definition |
+            | `GET /mcp/tools/get_all_ddl` | Resource | Full database DDL |
+            | `GET /mcp/tools/get_saved_categories` | Resource | Query category index |
+            | `GET /mcp/tools/get_saved_queries?category_id=X` | Resource | Ground truth SQL |
+            | `POST /mcp/tools/generate_sql` | Tool | NL to SQL conversion |
+            | `GET /mcp/tools/get_table_ddl?table_name=X` | Tool | Single table DDL |
             
-            ### Database Connection
+            ### Usage with VS Code + Copilot
             
-            The app connects to PostgreSQL via `DATABASE_URL` environment variable.
-            This enables live schema introspection and query execution against your
-            manufacturing analytics database with 24 tables including:
-            - `schema_nodes` and `schema_edges` for graph-based SQL generation
-            - `production_quality`, `suppliers`, `equipment_metrics`
-            - `corrective_actions`, `non_conformant_materials`, and more
-            
-            ### Example: Get All Table DDL
-            ```bash
-            curl http://localhost:8000/mcp/tools/get_all_ddl
-            ```
+            1. Use **Copy to Copilot** tab to build context
+            2. Paste context into Copilot Chat
+            3. Ask follow-up questions about your manufacturing data
             """)
     
     return demo
