@@ -14,7 +14,7 @@ import json
 import csv
 import io
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -23,6 +23,9 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
+SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema")
+QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
+QUERY_API_KEY = os.environ.get("QUERY_API_KEY", "")
 db_engine = None
 
 def get_db_engine():
@@ -113,10 +116,96 @@ def execute_readonly_sql(sql: str) -> Dict[str, Any]:
         with engine.connect() as conn:
             result = conn.execute(text(sql))
             columns = list(result.keys())
-            rows = [list(row) for row in result.fetchall()]
-            return {"error": None, "columns": columns, "rows": rows[:100]}
+            rows = [list(row) for row in result.fetchmany(100)]
+            return {"error": None, "columns": columns, "rows": rows}
     except SQLAlchemyError as e:
         return {"error": str(e), "rows": [], "columns": []}
+
+def count_queries_in_file(sql_file_path: str) -> int:
+    """Count the number of queries in a SQL file by counting '-- Query:' markers"""
+    if not os.path.exists(sql_file_path):
+        return 0
+    try:
+        with open(sql_file_path, 'r') as f:
+            content = f.read()
+        return content.count('-- Query:')
+    except Exception:
+        return 0
+
+def get_query_categories() -> Dict[str, Any]:
+    """Load query index from schema/queries/index.json with dynamic query counts"""
+    index_path = os.path.join(QUERIES_DIR, "index.json")
+    if not os.path.exists(index_path):
+        return {"categories": [], "error": "Query index not found"}
+    
+    try:
+        with open(index_path, 'r') as f:
+            index = json.load(f)
+        
+        for category in index.get("categories", []):
+            sql_file = os.path.join(QUERIES_DIR, category["file"])
+            category["query_count"] = count_queries_in_file(sql_file)
+        
+        return index
+    except Exception as e:
+        return {"categories": [], "error": str(e)}
+
+def get_saved_queries(category_id: str) -> List[Dict[str, str]]:
+    """Parse SQL file and extract individual queries with their comments"""
+    index = get_query_categories()
+    
+    category = next((c for c in index.get("categories", []) if c["id"] == category_id), None)
+    if not category:
+        return []
+    
+    sql_file = os.path.join(QUERIES_DIR, category["file"])
+    if not os.path.exists(sql_file):
+        return []
+    
+    try:
+        with open(sql_file, 'r') as f:
+            content = f.read()
+        
+        queries = []
+        current_query = {"name": "", "description": "", "sql": ""}
+        lines = content.split('\n')
+        
+        for line in lines:
+            if line.startswith('-- Query:'):
+                if current_query["sql"].strip():
+                    queries.append(current_query)
+                current_query = {"name": line.replace('-- Query:', '').strip(), "description": "", "sql": ""}
+            elif line.startswith('-- Description:'):
+                current_query["description"] = line.replace('-- Description:', '').strip()
+            elif not line.startswith('-- ') and line.strip():
+                current_query["sql"] += line + "\n"
+        
+        if current_query["sql"].strip():
+            queries.append(current_query)
+        
+        return queries
+    except Exception:
+        return []
+
+def save_query_to_file(category_id: str, query_name: str, description: str, sql: str) -> Dict[str, Any]:
+    """Append a new query to the appropriate category file"""
+    index = get_query_categories()
+    
+    category = next((c for c in index.get("categories", []) if c["id"] == category_id), None)
+    if not category:
+        return {"success": False, "error": f"Category '{category_id}' not found"}
+    
+    sql_file = os.path.join(QUERIES_DIR, category["file"])
+    
+    try:
+        new_query = f"\n-- Query: {query_name}\n-- Description: {description}\n{sql.strip()}\n"
+        
+        with open(sql_file, 'a') as f:
+            f.write(new_query)
+        
+        return {"success": True, "message": f"Query '{query_name}' saved to {category['name']}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 app = FastAPI(
     title="Manufacturing Inventory SQL Generator",
@@ -621,6 +710,58 @@ async def execute_sql_endpoint(sql: str = Form(...)):
     return result
 
 
+@app.get("/mcp/tools/get_saved_categories")
+async def get_saved_categories():
+    """Get list of saved query categories"""
+    return get_query_categories()
+
+
+@app.get("/mcp/tools/get_saved_queries")
+async def get_saved_queries_endpoint(category_id: str):
+    """Get saved queries for a specific category"""
+    queries = get_saved_queries(category_id)
+    return {"category_id": category_id, "queries": queries, "count": len(queries)}
+
+
+class SaveQueryRequest(BaseModel):
+    category_id: str = Field(..., description="Category to save the query to")
+    query_name: str = Field(..., description="Name of the query")
+    description: str = Field(..., description="Description of what the query does")
+    sql: str = Field(..., description="The SQL query")
+
+
+@app.post("/mcp/tools/save_query")
+async def save_query_endpoint(
+    request: SaveQueryRequest,
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+):
+    """Save a validated SQL query from the Flask app (ground truth).
+    
+    Requires X-API-Key header for authentication. Set QUERY_API_KEY env var.
+    """
+    if not QUERY_API_KEY:
+        raise HTTPException(
+            status_code=503, 
+            detail="Query save endpoint not configured. Set QUERY_API_KEY environment variable."
+        )
+    
+    if not x_api_key or x_api_key != QUERY_API_KEY:
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid or missing API key. Include X-API-Key header."
+        )
+    
+    result = save_query_to_file(
+        request.category_id,
+        request.query_name,
+        request.description,
+        request.sql
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
@@ -814,6 +955,84 @@ def create_gradio_interface():
             execute_btn.click(fn=execute_sql_gradio, inputs=sql_input, outputs=[results_output, stats_output])
             clear_btn.click(fn=lambda: ("", ""), outputs=[results_output, stats_output])
         
+        with gr.Tab("📁 Saved Queries"):
+            gr.Markdown("""
+            ### Ground Truth SQL Queries
+            
+            Browse and execute validated SQL queries from the Flask manufacturing app.
+            These queries are organized by category and serve as the source of truth
+            for your manufacturing analytics.
+            """)
+            
+            def get_category_choices():
+                index = get_query_categories()
+                return [(f"{c['name']} ({c['query_count']} queries)", c['id']) 
+                        for c in index.get("categories", [])]
+            
+            def load_queries_for_category(category_id: str):
+                if not category_id:
+                    return [], ""
+                queries = get_saved_queries(category_id)
+                choices = [(q['name'], i) for i, q in enumerate(queries)]
+                return gr.Dropdown(choices=choices, value=None), ""
+            
+            def load_query_sql(category_id: str, query_idx):
+                if category_id is None or query_idx is None:
+                    return "", ""
+                queries = get_saved_queries(category_id)
+                if query_idx < len(queries):
+                    q = queries[query_idx]
+                    return q['sql'], q['description']
+                return "", ""
+            
+            with gr.Row():
+                with gr.Column():
+                    saved_category = gr.Dropdown(
+                        choices=get_category_choices(),
+                        label="Query Category",
+                        interactive=True
+                    )
+                    saved_query_dropdown = gr.Dropdown(
+                        choices=[],
+                        label="Select Query",
+                        interactive=True
+                    )
+                    saved_description = gr.Textbox(label="Description", interactive=False)
+                    
+                    with gr.Row():
+                        load_to_workbench_btn = gr.Button("Load to Workbench", variant="primary")
+                        execute_saved_btn = gr.Button("Execute Now", variant="secondary")
+                
+                with gr.Column():
+                    saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15)
+                    saved_results = gr.Textbox(label="Execution Results", lines=10)
+            
+            saved_category.change(
+                fn=load_queries_for_category,
+                inputs=saved_category,
+                outputs=[saved_query_dropdown, saved_sql_output]
+            )
+            
+            saved_query_dropdown.change(
+                fn=load_query_sql,
+                inputs=[saved_category, saved_query_dropdown],
+                outputs=[saved_sql_output, saved_description]
+            )
+            
+            def execute_saved_query(sql):
+                if not sql.strip():
+                    return "-- No query selected"
+                result = execute_readonly_sql(sql)
+                if result["error"]:
+                    return f"Error: {result['error']}"
+                if not result["rows"]:
+                    return "Query executed. No rows returned."
+                header = " | ".join(str(c) for c in result["columns"])
+                rows = "\n".join(" | ".join(str(v) for v in row) for row in result["rows"][:50])
+                return f"{header}\n{'-' * len(header)}\n{rows}"
+            
+            execute_saved_btn.click(fn=execute_saved_query, inputs=saved_sql_output, outputs=saved_results)
+        
         with gr.Tab("🔌 MCP Integration"):
             gr.Markdown("""
             ### Model Context Protocol (MCP) Integration
@@ -831,6 +1050,9 @@ def create_gradio_interface():
             | `GET /mcp/tools/get_table_ddl?table_name=X` | **NEW** - Get CREATE TABLE for specific table |
             | `GET /mcp/tools/get_all_ddl` | **NEW** - Get CREATE TABLE for all tables |
             | `POST /mcp/tools/execute_sql` | **NEW** - Execute read-only SQL query |
+            | `GET /mcp/tools/get_saved_categories` | **NEW** - List ground truth query categories |
+            | `GET /mcp/tools/get_saved_queries?category_id=X` | **NEW** - Get queries for category |
+            | `POST /mcp/tools/save_query` | **NEW** - Save validated SQL from Flask app |
             
             ### Database Connection
             

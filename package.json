@@ -13,7 +13,7 @@
     "astro:install": "cd astro-sample && npm install",
     "hf-space": "cd hf-space-inventory-sqlgen && python app.py",
     "hf-space:test": "cd hf-space-inventory-sqlgen && python test_client.py --base-url http://localhost:8000",
-    "mcp-fs": "mcp-server-filesystem --project-dir . --reference-project schemas=./sample_data --reference-project hf-space=./hf-space-inventory-sqlgen --console-only",
+    "mcp-fs": "mcp-server-filesystem --project-dir . --reference-project schema=./schema --reference-project hf-space=./hf-space-inventory-sqlgen --console-only",
     "setup": "npm run setup:node && npm run setup:python",
     "setup:node": "npm install && npm run astro:install",
     "setup:python": "pip install -r requirements.txt",
@@ -24,7 +24,7 @@
     "db:create": "createdb manufacturing_analytics",
     "db:drop": "dropdb manufacturing_analytics",
     "db:reset": "npm run db:drop; npm run db:create; npm run db:schema",
-    "db:schema": "psql manufacturing_analytics < schema.sql",
+    "db:schema": "psql manufacturing_analytics < schema/schema.sql",
     "db:test": "python -c \"from sqlalchemy import create_engine; import os; from dotenv import load_dotenv; load_dotenv(); e=create_engine(os.getenv('DATABASE_URL')); c=e.connect(); print('Connected!')\"",
     "db:migrate": "flask db upgrade"
   },
