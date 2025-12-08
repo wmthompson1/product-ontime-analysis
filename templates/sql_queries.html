@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Ground Truth SQL Queries{% endblock %}
+
+{% block content %}
+<style>
+    .query-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    .category-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .category-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    .category-card.active {
+        box-shadow: 0 0 0 4px #28a745;
+    }
+    .category-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.2em;
+    }
+    .category-card p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.9em;
+    }
+    .category-card .count {
+        background: rgba(255,255,255,0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        margin-top: 10px;
+        display: inline-block;
+    }
+    .queries-panel {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    .query-item {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        overflow: hidden;
+    }
+    .query-header {
+        background: #f1f3f5;
+        padding: 15px 20px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .query-header:hover {
+        background: #e9ecef;
+    }
+    .query-header h4 {
+        margin: 0;
+        color: #495057;
+    }
+    .query-header .description {
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+    .query-body {
+        display: none;
+        padding: 20px;
+        border-top: 1px solid #e9ecef;
+    }
+    .query-body.show {
+        display: block;
+    }
+    .sql-code {
+        background: #2d2d2d;
+        color: #f8f8f2;
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .btn-execute {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-top: 15px;
+    }
+    .btn-execute:hover {
+        background: #218838;
+    }
+    .btn-copy {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-top: 15px;
+        margin-left: 10px;
+    }
+    .results-panel {
+        margin-top: 20px;
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .results-header {
+        background: #f1f3f5;
+        padding: 10px 15px;
+        font-weight: bold;
+    }
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+    }
+    .results-table th, .results-table td {
+        padding: 10px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .results-table th {
+        background: #f8f9fa;
+    }
+    .error-message {
+        color: #dc3545;
+        padding: 15px;
+    }
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+</style>
+
+<div class="query-container">
+    <h1>Ground Truth SQL Queries</h1>
+    <p>Validated SQL patterns from the LangChain Semantic Layer for manufacturing analytics.</p>
+    
+    <div id="categories" class="category-grid">
+        <div class="loading">Loading categories...</div>
+    </div>
+    
+    <div id="queries-panel" class="queries-panel" style="display: none;">
+        <h2 id="selected-category-name">Select a Category</h2>
+        <div id="queries-list"></div>
+    </div>
+    
+    <div id="results-panel" class="results-panel" style="display: none;">
+        <div class="results-header">Query Results</div>
+        <div id="results-content"></div>
+    </div>
+</div>
+
+<script>
+const HF_SPACE_URL = 'http://localhost:8000';
+let currentQueries = [];
+
+async function loadCategories() {
+    try {
+        const response = await fetch(`${HF_SPACE_URL}/mcp/tools/get_saved_categories`);
+        const data = await response.json();
+        
+        if (data.error) {
+            document.getElementById('categories').innerHTML = `<p class="error-message">Error: ${data.error}</p>`;
+            return;
+        }
+        
+        const categoriesHtml = data.categories.map(cat => `
+            <div class="category-card" onclick="selectCategory('${cat.id}', '${cat.name}')">
+                <h3>${cat.name}</h3>
+                <p>${cat.description}</p>
+                <span class="count">${cat.query_count} queries</span>
+            </div>
+        `).join('');
+        
+        document.getElementById('categories').innerHTML = categoriesHtml;
+    } catch (error) {
+        document.getElementById('categories').innerHTML = `<p class="error-message">Failed to load categories. Make sure the HF Space is running on port 8000.</p>`;
+    }
+}
+
+async function selectCategory(categoryId, categoryName) {
+    document.querySelectorAll('.category-card').forEach(card => card.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    
+    document.getElementById('selected-category-name').textContent = categoryName;
+    document.getElementById('queries-panel').style.display = 'block';
+    document.getElementById('queries-list').innerHTML = '<div class="loading">Loading queries...</div>';
+    
+    try {
+        const response = await fetch(`${HF_SPACE_URL}/mcp/tools/get_saved_queries?category_id=${categoryId}`);
+        const data = await response.json();
+        currentQueries = data.queries;
+        
+        const queriesHtml = data.queries.map((query, index) => `
+            <div class="query-item">
+                <div class="query-header" onclick="toggleQuery(${index})">
+                    <div>
+                        <h4>${query.name}</h4>
+                        <p class="description">${query.description}</p>
+                    </div>
+                    <span>▼</span>
+                </div>
+                <div class="query-body" id="query-body-${index}">
+                    <pre class="sql-code">${escapeHtml(query.sql)}</pre>
+                    <button class="btn-execute" onclick="executeQuery(${index})">Execute Query</button>
+                    <button class="btn-copy" onclick="copyQuery(${index})">Copy SQL</button>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('queries-list').innerHTML = queriesHtml || '<p>No queries found in this category.</p>';
+    } catch (error) {
+        document.getElementById('queries-list').innerHTML = `<p class="error-message">Failed to load queries: ${error.message}</p>`;
+    }
+}
+
+function toggleQuery(index) {
+    const body = document.getElementById(`query-body-${index}`);
+    body.classList.toggle('show');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function executeQuery(index) {
+    const query = currentQueries[index];
+    const resultsPanel = document.getElementById('results-panel');
+    const resultsContent = document.getElementById('results-content');
+    
+    resultsPanel.style.display = 'block';
+    resultsContent.innerHTML = '<div class="loading">Executing query...</div>';
+    
+    try {
+        const formData = new FormData();
+        formData.append('sql', query.sql);
+        
+        const response = await fetch(`${HF_SPACE_URL}/mcp/tools/execute_sql`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        
+        if (data.error) {
+            resultsContent.innerHTML = `<p class="error-message">${data.error}</p>`;
+            return;
+        }
+        
+        if (data.rows.length === 0) {
+            resultsContent.innerHTML = '<p style="padding: 15px;">No results returned.</p>';
+            return;
+        }
+        
+        const tableHtml = `
+            <table class="results-table">
+                <thead>
+                    <tr>${data.columns.map(col => `<th>${col}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                    ${data.rows.map(row => `<tr>${row.map(cell => `<td>${cell !== null ? cell : 'NULL'}</td>`).join('')}</tr>`).join('')}
+                </tbody>
+            </table>
+            <p style="padding: 10px 15px; color: #6c757d; font-size: 0.9em;">${data.rows.length} rows returned</p>
+        `;
+        resultsContent.innerHTML = tableHtml;
+    } catch (error) {
+        resultsContent.innerHTML = `<p class="error-message">Failed to execute: ${error.message}</p>`;
+    }
+}
+
+function copyQuery(index) {
+    const query = currentQueries[index];
+    navigator.clipboard.writeText(query.sql).then(() => {
+        alert('SQL copied to clipboard!');
+    });
+}
+
+loadCategories();
+</script>
+{% endblock %}
