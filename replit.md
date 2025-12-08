@@ -65,8 +65,13 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **MCP-Compliant API**: Full discovery, tool definitions, and resource endpoints for AI agent integration
     - **Manufacturing Schema**: Pre-built schema for inventory, suppliers, and transactions tables
     - **Gradio Interface**: Interactive web UI with query generator, SQL templates, and schema viewer
+    - **Live Database Tab**: Connect to PostgreSQL database with DDL retrieval for individual or all 24 tables
+    - **SQL Workbench Tab**: Execute read-only SELECT queries with 100-row limit and dangerous keyword blocking
+    - **Saved Queries Tab**: Browse and execute ground truth SQL from Flask app's LangChain semantic layer
+    - **Ground Truth SQL Storage** (`schema/queries/`): Organized SQL files by category (quality_control, supplier_performance, equipment_reliability, production_analytics) with API-key protected save endpoint
     - **Test Client**: Python test client for validating all MCP endpoints
     - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
+- **Schema Export** (`schema/schema.sql`): Complete PostgreSQL schema (24 tables, 1496 lines) for local development setup with VS Code and GitHub Copilot
 
 ### Frontend
 - **Framework**: Astro with React integration
