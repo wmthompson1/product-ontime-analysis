@@ -873,9 +873,9 @@ def create_gradio_interface():
             template_output = gr.Code(label="SQL Template", language="sql")
             template_dropdown.change(fn=get_template, inputs=template_dropdown, outputs=template_output)
         
-        with gr.Tab("📊 Sample Schema"):
-            gr.Markdown("### Sample Schema for Inventory Management (Static)")
-            schema_btn = gr.Button("Show Sample Schema")
+        with gr.Tab("📊 Schema"):
+            gr.Markdown("### Schema for Inventory Management (Static)")
+            schema_btn = gr.Button("Show Schema")
             schema_output = gr.Code(label="Schema Definition", language="json")
             schema_btn.click(fn=show_schema, outputs=schema_output)
         
@@ -999,13 +999,10 @@ def create_gradio_interface():
                     )
                     saved_description = gr.Textbox(label="Description", interactive=False)
                     
-                    with gr.Row():
-                        load_to_workbench_btn = gr.Button("Load to Workbench", variant="primary")
-                        execute_saved_btn = gr.Button("Execute Now", variant="secondary")
+                    load_to_workbench_btn = gr.Button("Load to Workbench", variant="primary")
                 
                 with gr.Column():
                     saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15)
-                    saved_results = gr.Textbox(label="Execution Results", lines=10)
             
             saved_category.change(
                 fn=load_queries_for_category,
@@ -1018,20 +1015,6 @@ def create_gradio_interface():
                 inputs=[saved_category, saved_query_dropdown],
                 outputs=[saved_sql_output, saved_description]
             )
-            
-            def execute_saved_query(sql):
-                if not sql.strip():
-                    return "-- No query selected"
-                result = execute_readonly_sql(sql)
-                if result["error"]:
-                    return f"Error: {result['error']}"
-                if not result["rows"]:
-                    return "Query executed. No rows returned."
-                header = " | ".join(str(c) for c in result["columns"])
-                rows = "\n".join(" | ".join(str(v) for v in row) for row in result["rows"][:50])
-                return f"{header}\n{'-' * len(header)}\n{rows}"
-            
-            execute_saved_btn.click(fn=execute_saved_query, inputs=saved_sql_output, outputs=saved_results)
         
         with gr.Tab("🔌 MCP Integration"):
             gr.Markdown("""
