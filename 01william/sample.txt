@@ -1,6 +1,6 @@
 # Sanitized sample DB connection info
 # Replaced with placeholders to avoid leaking credentials in repository history.
-# Configure a local  (not committed) with real values when running locally.
+# Configure a local .env (not committed) with real values when running locally.
 
 # Example local .env entries:
 # DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:5432/<DB_NAME>?sslmode=require
@@ -11,6 +11,6 @@
 # PGUSER=<DB_USER>
 # PGPASSWORD=<DB_PASSWORD>
 
-Note: This file was sanitized on branch  to remove a live Neon
+Note: This file was sanitized on branch recovered-before-merge to remove a live Neon
 connection string. If you need to recreate the original for debugging, use a private
 copy or set environment variables on your machine. Never commit real credentials.
