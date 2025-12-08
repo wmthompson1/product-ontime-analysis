@@ -1,13 +1,13 @@
-This is my db
-DATAASE_URL
-postgresql://neondb_owner:npg_YXlh7Qe9qopC@ep-restless-mode-a550obx6.us-east-2.aws.neon.tech/neondb?sslmode=require
+This is my db (sanitized)
+DATABASE_URL
+postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>/<DB_NAME>?sslmode=require
 PGDATABASE
-neondb
+<DB_NAME>
 PGHOST
-ep-restless-mode-a550obx6.us-east-2.aws.neon.tech
+<DB_HOST>
 PGPORT
 5432
 PGUSER
-neondb_owner
+<DB_USER>
 PGPASSWORD
-npg_YXlh7Qe9qopC
+<DB_PASSWORD>
