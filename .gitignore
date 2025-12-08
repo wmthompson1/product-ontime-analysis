@@ -9,3 +9,4 @@ node_modules
 
 # Local env file with secrets
 .env
+.env.example
