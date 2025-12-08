@@ -20,7 +20,13 @@
     "setup:python:hf": "pip install -r hf-space-inventory-sqlgen/requirements.txt",
     "test:api": "curl -s http://localhost:5000/api/health | python -m json.tool",
     "test:mcp": "curl -s http://localhost:8000/mcp/discover | python -m json.tool",
-    "clean": "rm -rf node_modules astro-sample/node_modules __pycache__ .pytest_cache"
+    "clean": "rm -rf node_modules astro-sample/node_modules __pycache__ .pytest_cache",
+    "db:create": "createdb manufacturing_analytics",
+    "db:drop": "dropdb manufacturing_analytics",
+    "db:reset": "npm run db:drop; npm run db:create; npm run db:schema",
+    "db:schema": "psql manufacturing_analytics < schema.sql",
+    "db:test": "python -c \"from sqlalchemy import create_engine; import os; from dotenv import load_dotenv; load_dotenv(); e=create_engine(os.getenv('DATABASE_URL')); c=e.connect(); print('Connected!')\"",
+    "db:migrate": "flask db upgrade"
   },
   "keywords": [
     "manufacturing",
