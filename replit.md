@@ -60,15 +60,16 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **Quick Actions**: Pre-configured searches for text-to-SQL, manufacturing, SQLCoder, and tabular data models
     - **MCP Tools**: Exposes structured tool definitions following Model Context Protocol conventions
     - **Authentication**: Uses HUGGINGFACE_TOKEN secret for API access
-- **Manufacturing Inventory SQL Generator (HF Space)**: Standalone Hugging Face Space project (`hf-space-inventory-sqlgen/`) ready for deployment:
+- **Manufacturing Inventory SQL Generator (HF Space)**: Standalone Hugging Face Space project (`hf-space-inventory-sqlgen/`) now serving as main interface on port 5000:
     - **Natural Language to SQL**: Convert plain English inventory queries to optimized SQL
     - **MCP-Compliant API**: Full discovery, tool definitions, and resource endpoints for AI agent integration
     - **Manufacturing Schema**: Pre-built schema for inventory, suppliers, and transactions tables
-    - **Gradio Interface**: Interactive web UI with query generator, SQL templates, and schema viewer
+    - **Gradio Interface** (7 tabs): Query Generator, SQL Templates, Sample Schema, Live Database, SQL Workbench, Saved Queries, MCP Integration
     - **Live Database Tab**: Connect to PostgreSQL database with DDL retrieval for individual or all 24 tables
     - **SQL Workbench Tab**: Execute read-only SELECT queries with 100-row limit and dangerous keyword blocking
     - **Saved Queries Tab**: Browse and execute ground truth SQL from Flask app's LangChain semantic layer
     - **Ground Truth SQL Storage** (`schema/queries/`): Organized SQL files by category (quality_control, supplier_performance, equipment_reliability, production_analytics) with API-key protected save endpoint
+    - **Port Configuration**: HF Space runs on port 5000 (public), Flask runs on port 8080 (internal)
     - **Test Client**: Python test client for validating all MCP endpoints
     - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
 - **Schema Export** (`schema/schema.sql`): Complete PostgreSQL schema (24 tables, 1496 lines) for local development setup with VS Code and GitHub Copilot
