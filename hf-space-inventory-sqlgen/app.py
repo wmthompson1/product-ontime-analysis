@@ -19,6 +19,104 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 import gradio as gr
+from sqlalchemy import create_engine, text, inspect
+from sqlalchemy.exc import SQLAlchemyError
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+db_engine = None
+
+def get_db_engine():
+    """Get or create database engine"""
+    global db_engine
+    if db_engine is None and DATABASE_URL:
+        db_engine = create_engine(DATABASE_URL)
+    return db_engine
+
+def get_table_create_sql(table_name: str) -> str:
+    """Generate CREATE TABLE SQL for a given table"""
+    engine = get_db_engine()
+    if not engine:
+        return "-- Database not connected"
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT column_name, data_type, character_maximum_length, 
+                       is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_schema = 'public' AND table_name = :table_name
+                ORDER BY ordinal_position
+            """), {"table_name": table_name})
+            columns = result.fetchall()
+            
+            if not columns:
+                return f"-- Table '{table_name}' not found"
+            
+            col_defs = []
+            for col in columns:
+                col_name, data_type, max_len, nullable, default = col
+                type_str = data_type.upper()
+                if max_len:
+                    type_str = f"{type_str}({max_len})"
+                null_str = "" if nullable == "YES" else " NOT NULL"
+                default_str = f" DEFAULT {default}" if default else ""
+                col_defs.append(f"    {col_name} {type_str}{null_str}{default_str}")
+            
+            pk_result = conn.execute(text("""
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu 
+                    ON tc.constraint_name = kcu.constraint_name 
+                    AND tc.table_schema = kcu.table_schema
+                WHERE tc.constraint_type = 'PRIMARY KEY' 
+                    AND tc.table_schema = 'public'
+                    AND tc.table_name = :table_name
+                ORDER BY kcu.ordinal_position
+            """), {"table_name": table_name})
+            pk_cols = [row[0] for row in pk_result.fetchall()]
+            
+            if pk_cols:
+                col_defs.append(f"    PRIMARY KEY ({', '.join(pk_cols)})")
+            
+            return f"CREATE TABLE {table_name} (\n" + ",\n".join(col_defs) + "\n);"
+    except Exception as e:
+        return f"-- Error: {str(e)}"
+
+def get_all_tables() -> List[str]:
+    """Get list of all tables in the database"""
+    engine = get_db_engine()
+    if not engine:
+        return []
+    
+    try:
+        inspector = inspect(engine)
+        return inspector.get_table_names(schema='public')
+    except Exception:
+        return []
+
+def execute_readonly_sql(sql: str) -> Dict[str, Any]:
+    """Execute read-only SQL query (SELECT only)"""
+    engine = get_db_engine()
+    if not engine:
+        return {"error": "Database not connected", "rows": [], "columns": []}
+    
+    sql_stripped = sql.strip().upper()
+    if not sql_stripped.startswith("SELECT"):
+        return {"error": "Only SELECT queries are allowed for safety", "rows": [], "columns": []}
+    
+    dangerous_keywords = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "TRUNCATE", "CREATE"]
+    for keyword in dangerous_keywords:
+        if keyword in sql_stripped:
+            return {"error": f"Query contains forbidden keyword: {keyword}", "rows": [], "columns": []}
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(sql))
+            columns = list(result.keys())
+            rows = [list(row) for row in result.fetchall()]
+            return {"error": None, "columns": columns, "rows": rows[:100]}
+    except SQLAlchemyError as e:
+        return {"error": str(e), "rows": [], "columns": []}
 
 app = FastAPI(
     title="Manufacturing Inventory SQL Generator",
@@ -349,6 +447,52 @@ async def mcp_discover():
                     },
                     "required": ["csv_content"]
                 }
+            ),
+            MCPToolDefinition(
+                name="get_db_tables",
+                description="Get list of all tables from connected PostgreSQL database",
+                input_schema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            MCPToolDefinition(
+                name="get_table_ddl",
+                description="Get CREATE TABLE SQL for a specific table",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "table_name": {
+                            "type": "string",
+                            "description": "Name of the table to get DDL for"
+                        }
+                    },
+                    "required": ["table_name"]
+                }
+            ),
+            MCPToolDefinition(
+                name="get_all_ddl",
+                description="Get CREATE TABLE SQL for all tables in the database",
+                input_schema={
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            ),
+            MCPToolDefinition(
+                name="execute_sql",
+                description="Execute read-only SQL query (SELECT only) against the database",
+                input_schema={
+                    "type": "object",
+                    "properties": {
+                        "sql": {
+                            "type": "string",
+                            "description": "SQL SELECT query to execute"
+                        }
+                    },
+                    "required": ["sql"]
+                }
             )
         ],
         resources=[
@@ -440,6 +584,43 @@ async def analyze_csv(csv_content: str = Form(...)):
         raise HTTPException(status_code=400, detail=f"Error parsing CSV: {str(e)}")
 
 
+@app.get("/mcp/tools/get_db_tables")
+async def get_db_tables():
+    """Get list of all tables from connected PostgreSQL database"""
+    tables = get_all_tables()
+    if not tables:
+        return {"error": "Database not connected or no tables found", "tables": []}
+    return {"tables": tables, "count": len(tables)}
+
+
+@app.get("/mcp/tools/get_table_ddl")
+async def get_table_ddl(table_name: str):
+    """Get CREATE TABLE SQL for a specific table"""
+    sql = get_table_create_sql(table_name)
+    return {"table_name": table_name, "ddl": sql}
+
+
+@app.get("/mcp/tools/get_all_ddl")
+async def get_all_ddl():
+    """Get CREATE TABLE SQL for all tables in the database"""
+    tables = get_all_tables()
+    if not tables:
+        return {"error": "Database not connected or no tables found", "ddl": {}}
+    
+    ddl_statements = {}
+    for table in tables:
+        ddl_statements[table] = get_table_create_sql(table)
+    
+    return {"tables": tables, "ddl": ddl_statements}
+
+
+@app.post("/mcp/tools/execute_sql")
+async def execute_sql_endpoint(sql: str = Form(...)):
+    """Execute read-only SQL query against the database"""
+    result = execute_readonly_sql(sql)
+    return result
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
@@ -457,6 +638,52 @@ def create_gradio_interface():
     
     def show_schema() -> str:
         return json.dumps(SAMPLE_SCHEMA, indent=2)
+    
+    def get_live_tables() -> List[str]:
+        """Get list of tables from live database"""
+        return get_all_tables()
+    
+    def get_table_ddl_gradio(table_name: str) -> str:
+        """Get CREATE TABLE SQL for selected table"""
+        if not table_name:
+            return "-- Select a table to view its schema"
+        return get_table_create_sql(table_name)
+    
+    def get_all_ddl_gradio() -> str:
+        """Get all CREATE TABLE statements"""
+        tables = get_all_tables()
+        if not tables:
+            return "-- Database not connected or no tables found"
+        
+        all_ddl = []
+        for table in sorted(tables):
+            all_ddl.append(f"-- Table: {table}")
+            all_ddl.append(get_table_create_sql(table))
+            all_ddl.append("")
+        
+        return "\n".join(all_ddl)
+    
+    def execute_sql_gradio(sql: str) -> tuple:
+        """Execute SQL and return results as formatted output"""
+        if not sql.strip():
+            return "-- Enter a SQL query", ""
+        
+        result = execute_readonly_sql(sql)
+        
+        if result["error"]:
+            return f"-- Error: {result['error']}", ""
+        
+        if not result["rows"]:
+            return "-- Query executed successfully. No rows returned.", ""
+        
+        header = " | ".join(str(c) for c in result["columns"])
+        separator = "-" * len(header)
+        rows_str = "\n".join(" | ".join(str(v) for v in row) for row in result["rows"])
+        
+        table_output = f"{header}\n{separator}\n{rows_str}"
+        stats = f"Returned {len(result['rows'])} rows, {len(result['columns'])} columns"
+        
+        return table_output, stats
     
     with gr.Blocks() as demo:
         gr.Markdown("""
@@ -505,11 +732,87 @@ def create_gradio_interface():
             template_output = gr.Code(label="SQL Template", language="sql")
             template_dropdown.change(fn=get_template, inputs=template_dropdown, outputs=template_output)
         
-        with gr.Tab("📊 Schema"):
-            gr.Markdown("### Database Schema for Inventory Management")
-            schema_btn = gr.Button("Show Schema")
+        with gr.Tab("📊 Sample Schema"):
+            gr.Markdown("### Sample Schema for Inventory Management (Static)")
+            schema_btn = gr.Button("Show Sample Schema")
             schema_output = gr.Code(label="Schema Definition", language="json")
             schema_btn.click(fn=show_schema, outputs=schema_output)
+        
+        with gr.Tab("🗄️ Live Database"):
+            gr.Markdown("""
+            ### PostgreSQL Database Schema
+            
+            Pull CREATE TABLE statements directly from the connected PostgreSQL database.
+            This shows the actual table structures for your manufacturing analytics system.
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    refresh_tables_btn = gr.Button("Refresh Table List", variant="secondary")
+                    table_dropdown = gr.Dropdown(
+                        choices=get_all_tables(),
+                        label="Select Table",
+                        interactive=True
+                    )
+                    get_ddl_btn = gr.Button("Get Table DDL", variant="primary")
+                    get_all_ddl_btn = gr.Button("Get All Tables DDL", variant="secondary")
+                
+                with gr.Column():
+                    ddl_output = gr.Code(label="CREATE TABLE SQL", language="sql", lines=20)
+            
+            def refresh_table_list():
+                tables = get_all_tables()
+                return gr.Dropdown(choices=tables, value=None)
+            
+            refresh_tables_btn.click(fn=refresh_table_list, outputs=table_dropdown)
+            get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
+            get_all_ddl_btn.click(fn=get_all_ddl_gradio, outputs=ddl_output)
+        
+        with gr.Tab("⚡ SQL Workbench"):
+            gr.Markdown("""
+            ### Execute SQL Queries
+            
+            Enter and execute SELECT queries against the live PostgreSQL database.
+            
+            **Safety Features:**
+            - Only SELECT queries are allowed
+            - Results limited to 100 rows
+            - Dangerous keywords (DROP, DELETE, UPDATE, etc.) are blocked
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    sql_input = gr.Code(
+                        label="Enter SQL Query",
+                        language="sql",
+                        lines=8,
+                        value="SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name LIMIT 10;"
+                    )
+                    with gr.Row():
+                        execute_btn = gr.Button("Execute Query", variant="primary")
+                        clear_btn = gr.Button("Clear", variant="secondary")
+                    
+                    gr.Markdown("#### Quick Queries")
+                    with gr.Row():
+                        gr.Button("List Tables").click(
+                            fn=lambda: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;",
+                            outputs=sql_input
+                        )
+                        gr.Button("Schema Nodes").click(
+                            fn=lambda: "SELECT * FROM schema_nodes LIMIT 20;",
+                            outputs=sql_input
+                        )
+                        gr.Button("Schema Edges").click(
+                            fn=lambda: "SELECT * FROM schema_edges LIMIT 20;",
+                            outputs=sql_input
+                        )
+                
+                with gr.Column():
+                    results_output = gr.Textbox(label="Query Results", lines=15, max_lines=30)
+                    stats_output = gr.Textbox(label="Statistics")
+            
+            execute_btn.click(fn=execute_sql_gradio, inputs=sql_input, outputs=[results_output, stats_output])
+            clear_btn.click(fn=lambda: ("", ""), outputs=[results_output, stats_output])
         
         with gr.Tab("🔌 MCP Integration"):
             gr.Markdown("""
@@ -521,21 +824,26 @@ def create_gradio_interface():
             |----------|-------------|
             | `GET /mcp/discover` | Discovery endpoint - lists all available tools |
             | `POST /mcp/tools/generate_sql` | Convert natural language to SQL |
-            | `GET /mcp/tools/get_schema` | Get database schema |
+            | `GET /mcp/tools/get_schema` | Get sample database schema |
             | `GET /mcp/tools/get_sql_templates` | Get SQL templates |
             | `POST /mcp/tools/analyze_csv` | Analyze CSV for schema suggestions |
+            | `GET /mcp/tools/get_db_tables` | **NEW** - List all PostgreSQL tables |
+            | `GET /mcp/tools/get_table_ddl?table_name=X` | **NEW** - Get CREATE TABLE for specific table |
+            | `GET /mcp/tools/get_all_ddl` | **NEW** - Get CREATE TABLE for all tables |
+            | `POST /mcp/tools/execute_sql` | **NEW** - Execute read-only SQL query |
             
-            ### Example Discovery Response:
-            ```json
-            {
-              "name": "manufacturing-inventory-sqlgen",
-              "version": "1.0.0",
-              "tools": [
-                {"name": "generate_sql", "description": "Convert natural language to SQL"},
-                {"name": "get_schema", "description": "Get database schema"},
-                ...
-              ]
-            }
+            ### Database Connection
+            
+            The app connects to PostgreSQL via `DATABASE_URL` environment variable.
+            This enables live schema introspection and query execution against your
+            manufacturing analytics database with 24 tables including:
+            - `schema_nodes` and `schema_edges` for graph-based SQL generation
+            - `production_quality`, `suppliers`, `equipment_metrics`
+            - `corrective_actions`, `non_conformant_materials`, and more
+            
+            ### Example: Get All Table DDL
+            ```bash
+            curl http://localhost:8000/mcp/tools/get_all_ddl
             ```
             """)
     
