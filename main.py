@@ -1670,6 +1670,12 @@ def huggingface_mcp_page():
     return render_template('huggingface_mcp.html')
 
 
+@app.route('/sql-queries')
+def sql_queries_page():
+    """Ground Truth SQL Queries - Browse and execute validated manufacturing analytics SQL"""
+    return render_template('sql_queries.html')
+
+
 @app.route('/huggingface-mcp/search')
 def huggingface_mcp_search():
     """Search Hugging Face Hub via MCP interface"""
