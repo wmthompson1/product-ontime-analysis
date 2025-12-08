@@ -1,13 +1,16 @@
-This is my db
-DATAASE_URL
-postgresql://neondb_owner:npg_YXlh7Qe9qopC@ep-restless-mode-a550obx6.us-east-2.aws.neon.tech/neondb?sslmode=require
-PGDATABASE
-neondb
-PGHOST
-ep-restless-mode-a550obx6.us-east-2.aws.neon.tech
-PGPORT
-5432
-PGUSER
-neondb_owner
-PGPASSWORD
-npg_YXlh7Qe9qopC
+# Sanitized sample DB connection info
+# Replaced with placeholders to avoid leaking credentials in repository history.
+# Configure a local  (not committed) with real values when running locally.
+
+# Example local .env entries:
+# DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:5432/<DB_NAME>?sslmode=require
+# Or individual PG_* vars:
+# PGDATABASE=<DB_NAME>
+# PGHOST=<DB_HOST>
+# PGPORT=5432
+# PGUSER=<DB_USER>
+# PGPASSWORD=<DB_PASSWORD>
+
+Note: This file was sanitized on branch  to remove a live Neon
+connection string. If you need to recreate the original for debugging, use a private
+copy or set environment variables on your machine. Never commit real credentials.
