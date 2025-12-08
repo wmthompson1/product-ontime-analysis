@@ -1,0 +1,4 @@
+# Standardized .env.example placeholders
+OPENAI_API_KEY=<OPENAI_API_KEY_PLACEHOLDER>
+HUGGINGFACE_TOKEN=<HUGGINGFACE_TOKEN_PLACEHOLDER>
+# Add other env variables as needed
