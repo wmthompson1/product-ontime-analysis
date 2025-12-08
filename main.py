@@ -1676,6 +1676,41 @@ def sql_queries_page():
     return render_template('sql_queries.html')
 
 
+@app.route('/api/sql-queries/categories')
+def sql_queries_categories():
+    """Proxy to HF Space - Get saved query categories"""
+    import requests as req
+    try:
+        response = req.get('http://localhost:8000/mcp/tools/get_saved_categories', timeout=5)
+        return jsonify(response.json())
+    except Exception as e:
+        return jsonify({"error": str(e), "categories": []})
+
+
+@app.route('/api/sql-queries/queries')
+def sql_queries_list():
+    """Proxy to HF Space - Get queries for a category"""
+    import requests as req
+    category_id = request.args.get('category_id', '')
+    try:
+        response = req.get(f'http://localhost:8000/mcp/tools/get_saved_queries?category_id={category_id}', timeout=5)
+        return jsonify(response.json())
+    except Exception as e:
+        return jsonify({"error": str(e), "queries": []})
+
+
+@app.route('/api/sql-queries/execute', methods=['POST'])
+def sql_queries_execute():
+    """Proxy to HF Space - Execute a SQL query"""
+    import requests as req
+    sql = request.form.get('sql', '')
+    try:
+        response = req.post('http://localhost:8000/mcp/tools/execute_sql', data={'sql': sql}, timeout=30)
+        return jsonify(response.json())
+    except Exception as e:
+        return jsonify({"error": str(e), "rows": [], "columns": []})
+
+
 @app.route('/huggingface-mcp/search')
 def huggingface_mcp_search():
     """Search Hugging Face Hub via MCP interface"""
