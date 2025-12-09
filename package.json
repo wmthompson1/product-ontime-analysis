@@ -1,87 +1,8 @@
 {
   "name": "product-ontime-analysis",
-  "version": "1.0.0",
-  "description": "Manufacturing Quality Control Analytics - Berkeley Haas AI Strategy Capstone",
+  "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "list": "ls -la",
-
-    "venv:create": "python3 -m venv .venv",
-    "venv:install": ". .venv/bin/activate && pip install -r requirements.txt || true",
-
-    "start:python": "python3 ./001_Entry_Point_Kane_Ragas.py",
-
-    "dev:astro": "bash -lc \"cd astro-sample && npm install && npm run dev\"",
-    "dev:flask": "bash -lc \"npm run venv:install && set -o allexport && [ -f .env ] && . .env && set +o allexport && ./.venv/bin/python main.py\"",
-    "dev:hf": "bash -lc \"cd hf-space-inventory-sqlgen && python3 -m venv .venv || true && . .venv/bin/activate && pip install -r requirements.txt && set -o allexport && [ -f ../.env ] && . ../.env && set +o allexport && python app.py\"",
-
-    "dev": "concurrently -n flask,astro -c blue,magenta \"npm run flask\" \"npm run astro\"",
-    "dev:all": "concurrently -n flask,astro,hf -c blue,magenta,green \"npm run flask\" \"npm run astro\" \"npm run hf-space\"",
-    "flask": "npm run dev:flask",
-    "astro": "npm run dev:astro",
-    "hf-space": "npm run dev:hf",
-
-    "astro:build": "cd astro-sample && npm run build",
-    "astro:install": "cd astro-sample && npm install",
-    "hf-space": "cd hf-space-inventory-sqlgen && python app.py",
-    "hf-space:test": "cd hf-space-inventory-sqlgen && python test_client.py --base-url http://localhost:8000",
-    "mcp-fs": "mcp-server-filesystem --project-dir . --reference-project schema=./schema --reference-project hf-space=./hf-space-inventory-sqlgen --console-only",
-    "setup": "npm run setup:node && npm run setup:python",
-    "setup:node": "npm install && npm run astro:install",
-    "setup:python": "pip install -r requirements.txt",
-    "setup:python:hf": "pip install -r hf-space-inventory-sqlgen/requirements.txt",
-
-    "clean": "bash -lc \"rm -rf node_modules astro-sample/node_modules .venv __pycache__ .pytest_cache package-lock.json && echo 'cleaned'\"",
-
-    "test:api": "bash -lc 'if [ -f test_api.py ]; then python3 test_api.py; else echo \"test_api.py not found\"; fi'",
-    "hf-space:test": "bash -lc 'cd hf-space-inventory-sqlgen && if [ -f test_mcp.py ]; then python3 test_mcp.py; else echo \"no hf-space tests found\"; fi'",
-    "test:mcp": "npm run hf-space:test",
-
-    "check:node": "node -v && npm -v",
-    "check:python": "python3 --version",
-
-    "db:create": "createdb manufacturing_analytics",
-    "db:drop": "dropdb manufacturing_analytics",
-    "db:reset": "npm run db:drop; npm run db:create; npm run db:schema",
-    "db:schema": "psql manufacturing_analytics < schema/schema.sql",
-    "db:test": "python -c \"from sqlalchemy import create_engine; import os; from dotenv import load_dotenv; load_dotenv(); e=create_engine(os.getenv('DATABASE_URL')); c=e.connect(); print('Connected!')\"",
-    "db:migrate": "flask db upgrade"
-  },
-  "keywords": [
-    "manufacturing",
-    "quality-control",
-    "text-to-sql",
-    "semantic-layer",
-    "langchain",
-    "flask",
-    "astro",
-    "mcp",
-    "berkeley-haas"
-  ],
-  "author": "wmthompson1",
-  "license": "MIT",
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "dependencies": {
-    "@astrojs/check": "^0.9.4",
-    "@astrojs/react": "^4.3.0",
-    "@astrojs/tailwind": "^5.1.5",
-    "@llmindset/hf-mcp-server": "^0.2.55",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
-    "astro": "^5.12.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/wmthompson1/product-ontime-analysis.git"
+    "smoke": "bash ./scripts/smoke_test.sh"
   }
 }

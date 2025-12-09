@@ -7,11 +7,5 @@ __pycache__/
 venv/
 node_modules
 
-# Local env file with secrets
-.env
-# Other local env variants (do not commit real secrets)
-.env.local
-.env.secret
-.env.development
-.env.test
-
+# devcontainer
+.devcontainer/

@@ -5,8 +5,19 @@
 		}
 	],
 	"settings": {
-		// other settings...
-		// remove or clear the mcp block
-		"mcp": {}
+		"github.codespaces.defaultExtensions": [
+			"GitHub.codespaces",
+			"GitHub.vscode-pull-request-github",
+			"Github.copilot"
+		],
+		"mcp": {
+			"servers": {
+				"io.github.github/github-mcp-server": {
+					"url": "https://api.githubcopilot.com/mcp",
+					"type": "http"
+				}
+			},
+			"inputs": []
+		}
 	}
 }
