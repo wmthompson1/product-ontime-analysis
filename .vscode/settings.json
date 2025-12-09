@@ -1,5 +1,9 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.pythonPath": "${workspaceFolder}/.venv/bin/python"
+}
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.venvPath": "${workspaceFolder}",
   "terminal.integrated.defaultProfile.osx": "bash",
   "terminal.integrated.profiles.osx": {
