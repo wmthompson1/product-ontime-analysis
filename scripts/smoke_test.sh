@@ -27,8 +27,23 @@ check "/" "Home page"
 
 # Optional sanity endpoints
 check "/health" "Health endpoint"
-check "/mcp" "MCP discovery"
-check "/schema" "Schema endpoint"
+
+# MCP: use the implemented POST endpoints instead of non-existent GETs
+echo "Checking MCP handshake (POST /mcp/handshake)"
+if curl -s --max-time $TIMEOUT -f -X POST -H 'Content-Type: application/json' -d '{"client":"smoke_test"}' "$BASE_URL/mcp/handshake" -o /dev/null; then
+  echo "[OK] MCP handshake (POST /mcp/handshake)"
+else
+  echo "[FAIL] MCP handshake (POST /mcp/handshake)"
+  FAILED=$((FAILED+1))
+fi
+
+echo "Checking MCP resource (POST /mcp/resource)"
+if curl -s --max-time $TIMEOUT -f -X POST -H 'Content-Type: application/json' -d '{"resource":{"type":"git:repo_path","path":"mcp_server"}}' "$BASE_URL/mcp/resource" -o /dev/null; then
+  echo "[OK] MCP resource (POST /mcp/resource)"
+else
+  echo "[FAIL] MCP resource (POST /mcp/resource)"
+  FAILED=$((FAILED+1))
+fi
 
 # Finish
 if [ "$FAILED" -eq 0 ]; then
