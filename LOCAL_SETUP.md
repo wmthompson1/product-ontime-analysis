@@ -1,23 +1,29 @@
 # Local Development Setup (No Docker)
 
 ## Prerequisites
-- Homebrew PostgreSQL (not Docker)
+- PostgreSQL (via apt or Homebrew)
 - Node.js / npm
+- Python with gradio, sqlalchemy
 
 ## Database Setup
 
-### 1. Start PostgreSQL (Homebrew)
+### Option A: Linux / Codespaces (apt)
+```bash
+sudo apt-get update
+sudo apt-get install -y postgresql postgresql-contrib
+
+sudo service postgresql start
+
+sudo -u postgres createuser -s $(whoami)
+createdb manufacturing_analytics
+
+psql manufacturing_analytics < schema/schema.sql
+```
+
+### Option B: macOS (Homebrew)
 ```bash
 brew services start postgresql@14
-```
-
-### 2. Create Database
-```bash
 createdb manufacturing_analytics
-```
-
-### 3. Load Schema
-```bash
 psql manufacturing_analytics < schema/schema.sql
 ```
 
@@ -27,7 +33,12 @@ This creates all 24 tables from the Replit production schema.
 
 Create `.env` file:
 ```
-DATABASE_URL=postgresql://your_username@localhost:5432/manufacturing_analytics
+DATABASE_URL=postgresql://$(whoami)@localhost:5432/manufacturing_analytics
+```
+
+Or for Codespaces with default postgres user:
+```
+DATABASE_URL=postgresql://postgres@localhost:5432/manufacturing_analytics
 ```
 
 ## Ground Truth SQL
