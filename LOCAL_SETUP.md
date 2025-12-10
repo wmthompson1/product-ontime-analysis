@@ -17,17 +17,19 @@ sudo service postgresql start
 sudo -u postgres createuser -s $(whoami)
 createdb manufacturing_analytics
 
-psql manufacturing_analytics < schema/schema.sql
+psql manufacturing_analytics < schema/schema_local.sql
 ```
 
 ### Option B: macOS (Homebrew)
 ```bash
 brew services start postgresql@14
 createdb manufacturing_analytics
-psql manufacturing_analytics < schema/schema.sql
+psql manufacturing_analytics < schema/schema_local.sql
 ```
 
 This creates all 24 tables from the Replit production schema.
+
+**Note:** Use `schema_local.sql` (not `schema.sql`) - it removes the pgvector extension which isn't available on standard PostgreSQL.
 
 ## Environment Variables
 
