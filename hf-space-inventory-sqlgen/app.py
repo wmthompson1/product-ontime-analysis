@@ -1019,6 +1019,10 @@ def create_gradio_interface():
     return demo
 
 
+get_db_engine()
+initial_tables = get_all_tables()
+print(f"Database initialized with {len(initial_tables)} tables")
+
 gradio_app = create_gradio_interface()
 app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
 
