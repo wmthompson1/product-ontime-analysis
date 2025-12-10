@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# This RC file is used by the integrated terminal profile `bash-venv`.
+# It sources the repository venv (if present) and then sources the user's bashrc.
+
+# Source the workspace venv if it exists
+if [ -f "${PWD}/.venv/bin/activate" ]; then
+  # shellcheck disable=SC1090
+  . "${PWD}/.venv/bin/activate"
+fi
+
+# Source user's ~/.bashrc so normal interactive settings still apply
+if [ -f "$HOME/.bashrc" ]; then
+  # shellcheck disable=SC1090
+  . "$HOME/.bashrc"
+fi
+
+# Make prompt obvious
+PS1="(venv) $PS1"
