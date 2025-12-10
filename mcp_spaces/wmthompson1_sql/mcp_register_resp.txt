@@ -1,5 +1,0 @@
-Attempting to register space at https://api.githubcopilot.com/mcp/ (this may fail if the server does not accept direct registrations)
-HTTP status: 400
-Response:
-bad request: Authorization header is badly formatted
-Registration request failed or not supported by the server. Check response and server capabilities.
