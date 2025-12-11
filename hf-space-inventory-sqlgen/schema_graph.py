@@ -114,5 +114,78 @@ def main():
             print("  No path found between test nodes")
 
 
+def import_graphml_to_schema_edges(graphml_path: str, db_path: str = None):
+    """
+    Import edges from GraphML file into schema_edges table
+    
+    This is the reverse of build_graph - reads NetworkX graph and 
+    populates the SQLite schema_edges table.
+    """
+    if db_path is None:
+        db_path = get_db_path()
+    
+    print(f"Reading graph from: {graphml_path}")
+    G = nx.read_graphml(graphml_path)
+    
+    print(f"Graph loaded: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS schema_edges (
+            edge_id INTEGER PRIMARY KEY,
+            from_table TEXT,
+            to_table TEXT,
+            relationship_type TEXT,
+            join_column TEXT,
+            weight INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            join_column_description TEXT,
+            natural_language_alias TEXT,
+            few_shot_example TEXT,
+            context TEXT
+        )
+    """)
+    
+    cursor.execute("DELETE FROM schema_edges")
+    
+    edge_id = 1
+    for from_node, to_node, data in G.edges(data=True):
+        cursor.execute("""
+            INSERT INTO schema_edges 
+            (edge_id, from_table, to_table, relationship_type, join_column, weight,
+             join_column_description, natural_language_alias, few_shot_example, context)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            edge_id,
+            from_node,
+            to_node,
+            data.get('relationship', 'RELATED_TO'),
+            data.get('join_column', ''),
+            int(data.get('weight', 1)),
+            data.get('join_column_description', ''),
+            data.get('natural_language_alias', ''),
+            data.get('few_shot_example', ''),
+            data.get('context', '')
+        ))
+        edge_id += 1
+    
+    conn.commit()
+    print(f"Imported {edge_id - 1} edges into schema_edges table")
+    
+    cursor.execute("SELECT COUNT(*) FROM schema_edges")
+    count = cursor.fetchone()[0]
+    print(f"Verified: {count} edges in database")
+    
+    conn.close()
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--import":
+        graphml_path = sys.argv[2] if len(sys.argv) > 2 else "data/schema.graphml"
+        import_graphml_to_schema_edges(graphml_path)
+    else:
+        main()
