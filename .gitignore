@@ -9,3 +9,6 @@ node_modules
 
 # devcontainer
 .devcontainer/
+
+# Environment secrets - ensure .env is never committed
+.env
