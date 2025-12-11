@@ -29,3 +29,7 @@ dev_test.db
 
 # Direnv
 .envrc
+
+# MCP client config (server URL + auth token)
+.mcp.json
+mcp.json
