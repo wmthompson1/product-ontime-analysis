@@ -114,7 +114,7 @@ def main():
             print("  No path found between test nodes")
 
 
-def import_graphml_to_schema_edges(graphml_path: str, db_path: str = None):
+def import_graphml_to_schema_edges(graphml_path: str, db_path: str | None = None):
     """
     Import edges from GraphML file into schema_edges table
     
