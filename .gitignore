@@ -1,12 +1,31 @@
-.DS_Store
+# Environment secrets - ensure .env is never committed
+.env
+.env.*
+.env.example
+
 # Python artifacts
 __pycache__/
 *.py[cod]
+*.pyc
+
 # Virtualenvs
 .venv/
 venv/
-node_modules
 
-# Local env file with secrets
-.env
-.env.example
+# Node
+node_modules/
+
+# Databases
+*.sqlite3
+dev_test.db
+
+# Editor / IDE
+.idea/
+.vscode/
+*.local
+
+# OS files
+.DS_Store
+
+# Direnv
+.envrc
