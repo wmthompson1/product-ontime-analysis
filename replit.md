@@ -64,13 +64,17 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **MCP Context Builder**: Single "Copy to Copilot" button bundles Prompts + Resources + Tools
     - **Gradio Interface** (4 tabs): Copilot Context, Schema, Ground Truth SQL, MCP Endpoints
     - **Copilot Context Tab**: Build MCP context package with question prompt, schema DDL (top 10 tables), and ground truth SQL examples
-    - **Schema Tab**: Browse PostgreSQL DDL for all 24 tables
+    - **Schema Tab**: Browse SQLite DDL for manufacturing tables
     - **Ground Truth SQL Tab**: View validated queries by category (quality_control, supplier_performance, equipment_reliability, production_analytics)
     - **MCP Endpoints Tab**: API documentation for AI agent integration
     - **Ground Truth SQL Storage** (`schema/queries/`): Organized SQL files by category with API-key protected save endpoint
     - **Port Configuration**: HF Space runs on port 5000 (public), Flask runs on port 8080 (internal)
+    - **Database**: SQLite (`schema/manufacturing.db`) - no external database required for local development
     - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
-- **Schema Export** (`schema/schema.sql`): Complete PostgreSQL schema (24 tables, 1496 lines) for local development setup with VS Code and GitHub Copilot
+- **Schema Files**:
+    - `schema/schema_sqlite.sql`: SQLite-compatible schema (20 tables) for local development
+    - `schema/schema.sql`: Original PostgreSQL schema (24 tables) for Replit production
+    - `LOCAL_SETUP.md`: Quick start guide for local development with SQLite
 
 ### Frontend
 - **Framework**: Astro with React integration
