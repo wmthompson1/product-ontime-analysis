@@ -1,47 +1,49 @@
-# Local Development Setup (No Docker)
+# Local Development Setup (SQLite - No External Database)
 
 ## Prerequisites
-- PostgreSQL (via apt or Homebrew)
+- Python 3.10+
 - Node.js / npm
-- Python with gradio, sqlalchemy
+- Git
 
-## Database Setup
+## Quick Start
 
-### Option A: Linux / Codespaces (apt)
+### 1. Clone and Setup Python
 ```bash
-sudo apt-get update
-sudo apt-get install -y postgresql postgresql-contrib
+git clone <your-repo>
+cd 20241019-Python
 
-sudo service postgresql start
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# or .venv\Scripts\activate  # Windows
 
-sudo -u postgres createuser -s $(whoami)
-createdb manufacturing_analytics
-
-psql manufacturing_analytics < schema/schema_local.sql
+pip install gradio sqlalchemy
 ```
 
-### Option B: macOS (Homebrew)
+### 2. Database is Automatic
+The app uses SQLite - no database installation needed!
+
+Schema is automatically loaded from `schema/schema_sqlite.sql` on first run.
+
+Database file: `schema/manufacturing.db`
+
+### 3. Run the HF Space
 ```bash
-brew services start postgresql@14
-createdb manufacturing_analytics
-psql manufacturing_analytics < schema/schema_local.sql
+cd hf-space-inventory-sqlgen
+python app.py
 ```
 
-This creates all 24 tables from the Replit production schema.
+Open: http://localhost:5000/gradio
 
-**Note:** Use `schema_local.sql` (not `schema.sql`) - it removes the pgvector extension which isn't available on standard PostgreSQL.
+## Verify Tables
+```bash
+python -c "
+from hf_space_inventory_sqlgen.app import get_all_tables
+print(f'Tables: {len(get_all_tables())}')
+print(get_all_tables()[:5])
+"
+```
 
-## Environment Variables
-
-Create `.env` file:
-```
-DATABASE_URL=postgresql://$(whoami)@localhost:5432/manufacturing_analytics
-```
-
-Or for Codespaces with default postgres user:
-```
-DATABASE_URL=postgresql://postgres@localhost:5432/manufacturing_analytics
-```
+Expected: 24 tables including corrective_actions, daily_deliveries, etc.
 
 ## Ground Truth SQL
 
@@ -51,17 +53,17 @@ Validated queries are in `schema/queries/` organized by category:
 - `equipment_reliability/` - MTBF, maintenance
 - `production_analytics/` - Throughput, scheduling
 
-## Testing the Schema
+## Environment Variables (Optional)
 
-```bash
-psql manufacturing_analytics -c "\dt"
+Create `.env` file only if needed for API keys:
+```
+OPENAI_API_KEY=sk-...
+TAVILY_API_KEY=tvly-...
 ```
 
-Expected: 24 tables including users, products, suppliers, daily_deliveries, etc.
-
-## No Docker Required
+## No External Database Required
 
 This project uses:
-- Homebrew PostgreSQL for local database
-- npm for package management
-- schema/schema.sql as the ground truth DDL
+- SQLite for local database (no installation)
+- schema/schema_sqlite.sql as the DDL source
+- npm for package management (frontend only)

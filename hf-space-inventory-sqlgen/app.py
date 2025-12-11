@@ -22,21 +22,58 @@ import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
 SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
 QUERY_API_KEY = os.environ.get("QUERY_API_KEY", "")
+SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
 db_engine = None
 
 def get_db_engine():
-    """Get or create database engine"""
+    """Get or create SQLite database engine"""
     global db_engine
-    if db_engine is None and DATABASE_URL:
-        db_engine = create_engine(DATABASE_URL)
+    if db_engine is None:
+        db_engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
+        init_sqlite_db()
     return db_engine
 
+def init_sqlite_db():
+    """Initialize SQLite database from schema file"""
+    schema_file = os.path.join(SCHEMA_DIR, "schema_sqlite.sql")
+    if not os.path.exists(schema_file):
+        return
+    
+    with open(schema_file, 'r') as f:
+        schema_sql = f.read()
+    
+    engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
+    with engine.connect() as conn:
+        for statement in schema_sql.split(';'):
+            statement = statement.strip()
+            if statement and statement.startswith('CREATE TABLE'):
+                try:
+                    conn.execute(text(statement))
+                    conn.commit()
+                except Exception:
+                    pass  # Table already exists
+
 def get_table_create_sql(table_name: str) -> str:
-    """Generate CREATE TABLE SQL for a given table"""
+    """Generate CREATE TABLE SQL for a given table (SQLite version)"""
+    engine = get_db_engine()
+    if not engine:
+        return "-- Database not connected"
+    
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT sql FROM sqlite_master WHERE type='table' AND name=:table_name"), {"table_name": table_name})
+            row = result.fetchone()
+            if row and row[0]:
+                return row[0]
+            return f"-- Table '{table_name}' not found"
+    except Exception as e:
+        return f"-- Error: {str(e)}"
+
+def get_table_create_sql_legacy(table_name: str) -> str:
+    """Generate CREATE TABLE SQL for a given table (PostgreSQL version - deprecated)"""
     engine = get_db_engine()
     if not engine:
         return "-- Database not connected"
@@ -86,14 +123,14 @@ def get_table_create_sql(table_name: str) -> str:
         return f"-- Error: {str(e)}"
 
 def get_all_tables() -> List[str]:
-    """Get list of all tables in the database"""
+    """Get list of all tables in the SQLite database"""
     engine = get_db_engine()
     if not engine:
         return []
     
     try:
         inspector = inspect(engine)
-        return inspector.get_table_names(schema='public')
+        return inspector.get_table_names()
     except Exception:
         return []
 
@@ -1021,7 +1058,7 @@ def create_gradio_interface():
 
 get_db_engine()
 initial_tables = get_all_tables()
-print(f"Database initialized with {len(initial_tables)} tables")
+print(f"SQLite database initialized with {len(initial_tables)} tables")
 
 gradio_app = create_gradio_interface()
 app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
