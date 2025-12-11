@@ -1,0 +1,4 @@
+nx-arangodb
+python-arango
+python-dotenv
+networkx

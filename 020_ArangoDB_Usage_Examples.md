@@ -23,15 +23,30 @@ sudo apt-get install arangodb3
 
 **Default Access**: http://localhost:8529
 
-### 2. Set Environment Variables
+### 2. Install Dependencies
 
 ```bash
-# Add to .env file (local development)
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements-arango.txt
+```
+
+### 3. Set Environment Variables
+
+Create `.env` file in project root:
+```bash
 DATABASE_HOST=http://localhost:8529
 DATABASE_USERNAME=root
 DATABASE_PASSWORD=your_local_password
 DATABASE_NAME=manufacturing_graphs
 ```
+
+### 4. Run Persistence Script
+
+```bash
+./.venv/bin/python scripts/persist_to_arango.py
+```
+
+The script uses `python-dotenv` to safely load credentials from `.env`.
 
 ## Usage Patterns
 
