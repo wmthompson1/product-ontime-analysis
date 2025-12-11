@@ -40,8 +40,18 @@ def get_table_create_sql(table_name: str) -> str:
     engine = get_db_engine()
     if not engine:
         return "-- Database not connected"
-    
     try:
+        dialect = engine.dialect.name
+        # SQLite fallback: read CREATE statement from sqlite_master
+        if dialect == 'sqlite':
+            with engine.connect() as conn:
+                res = conn.execute(text("SELECT sql FROM sqlite_master WHERE type='table' AND name = :t"), {"t": table_name})
+                row = res.fetchone()
+                if not row or not row[0]:
+                    return f"-- Table '{table_name}' not found"
+                return row[0]
+
+        # Default: Postgres-style introspection (information_schema)
         with engine.connect() as conn:
             result = conn.execute(text("""
                 SELECT column_name, data_type, character_maximum_length, 
@@ -51,10 +61,10 @@ def get_table_create_sql(table_name: str) -> str:
                 ORDER BY ordinal_position
             """), {"table_name": table_name})
             columns = result.fetchall()
-            
+
             if not columns:
                 return f"-- Table '{table_name}' not found"
-            
+
             col_defs = []
             for col in columns:
                 col_name, data_type, max_len, nullable, default = col
@@ -64,7 +74,7 @@ def get_table_create_sql(table_name: str) -> str:
                 null_str = "" if nullable == "YES" else " NOT NULL"
                 default_str = f" DEFAULT {default}" if default else ""
                 col_defs.append(f"    {col_name} {type_str}{null_str}{default_str}")
-            
+
             pk_result = conn.execute(text("""
                 SELECT kcu.column_name
                 FROM information_schema.table_constraints tc
@@ -77,10 +87,10 @@ def get_table_create_sql(table_name: str) -> str:
                 ORDER BY kcu.ordinal_position
             """), {"table_name": table_name})
             pk_cols = [row[0] for row in pk_result.fetchall()]
-            
+
             if pk_cols:
                 col_defs.append(f"    PRIMARY KEY ({', '.join(pk_cols)})")
-            
+
             return f"CREATE TABLE {table_name} (\n" + ",\n".join(col_defs) + "\n);"
     except Exception as e:
         return f"-- Error: {str(e)}"
@@ -93,6 +103,9 @@ def get_all_tables() -> List[str]:
     
     try:
         inspector = inspect(engine)
+        dialect = engine.dialect.name
+        if dialect == 'sqlite':
+            return inspector.get_table_names()
         return inspector.get_table_names(schema='public')
     except Exception:
         return []
@@ -932,8 +945,10 @@ def create_gradio_interface():
                     ddl_output = gr.Code(label="CREATE TABLE SQL", language="sql", lines=20)
             
             def refresh_table_list():
-                tables = get_all_tables()
-                return gr.Dropdown(choices=tables, value=None)
+                        tables = get_all_tables()
+                        # Return an update for the existing Dropdown component instead of
+                        # creating a new Dropdown object (which breaks dynamic updates).
+                        return gr.update(choices=tables, value=None)
             
             refresh_tables_btn.click(fn=refresh_table_list, outputs=table_dropdown)
             get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
@@ -949,10 +964,10 @@ def create_gradio_interface():
             
             def load_queries_for_category(category_id: str):
                 if not category_id:
-                    return [], ""
+                    return gr.update(choices=[], value=None), ""
                 queries = get_saved_queries(category_id)
                 choices = [(q['name'], i) for i, q in enumerate(queries)]
-                return gr.Dropdown(choices=choices, value=None), ""
+                return gr.update(choices=choices, value=None), ""
             
             def load_query_sql(category_id: str, query_idx):
                 if category_id is None or query_idx is None:

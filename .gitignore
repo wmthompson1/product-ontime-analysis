@@ -25,3 +25,6 @@ __pycache__/
 .vscode/
 *.sqlite3
 dev_test.db
+# MCP client config (server URL + auth token)
+.mcp.json
+mcp.json
