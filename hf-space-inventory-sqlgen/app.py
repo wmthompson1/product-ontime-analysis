@@ -954,11 +954,15 @@ def create_gradio_interface():
         with gr.Tab("📊 Schema"):
             gr.Markdown("### Database Schema Resources")
             
+            initial_table_list = get_all_tables()
+            gr.Markdown(f"**{len(initial_table_list)} tables available**")
+            
             with gr.Row():
                 with gr.Column():
                     refresh_tables_btn = gr.Button("Refresh Table List", variant="secondary")
                     table_dropdown = gr.Dropdown(
-                        choices=get_all_tables(),
+                        choices=initial_table_list,
+                        value=initial_table_list[0] if initial_table_list else None,
                         label="Select Table",
                         interactive=True
                     )
@@ -970,7 +974,7 @@ def create_gradio_interface():
             
             def refresh_table_list():
                 tables = get_all_tables()
-                return gr.Dropdown(choices=tables, value=None)
+                return gr.update(choices=tables, value=tables[0] if tables else None)
             
             refresh_tables_btn.click(fn=refresh_table_list, outputs=table_dropdown)
             get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
