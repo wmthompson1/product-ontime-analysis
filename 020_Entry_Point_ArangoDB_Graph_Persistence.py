@@ -139,19 +139,40 @@ class ArangoDBGraphPersistence:
         
         try:
             # Choose appropriate ArangoDB graph type
+            # Ensure nodes carry a persistent key/name attribute so Arango documents
+            # retain human-readable table names instead of numeric keys. Build a
+            # shallow copy of the graph where each node has an explicit '_key' and
+            # 'name' attribute derived from the original node identifier.
+            G_persist = nx.DiGraph() if isinstance(graph, nx.DiGraph) else nx.Graph()
+            for n, attrs in graph.nodes(data=True):
+                # create a safe string key
+                key = str(n)
+                new_attrs = dict(attrs)
+                # prefer existing name-like attributes, but ensure '_key' exists
+                if '_key' not in new_attrs:
+                    new_attrs['_key'] = key
+                if 'name' not in new_attrs and 'label' not in new_attrs:
+                    new_attrs['name'] = key
+                G_persist.add_node(key, **new_attrs)
+            for u, v, attrs in graph.edges(data=True):
+                G_persist.add_edge(str(u), str(v), **dict(attrs))
+
             if isinstance(graph, nx.DiGraph):
                 adb_graph = nxadb.DiGraph(
                     name=name,
-                    incoming_graph_data=graph,
+                    incoming_graph_data=G_persist,
                     write_batch_size=write_batch_size,
-                    overwrite=overwrite
+                    overwrite=overwrite,
+                    # nx-arangodb accepts overwrite_graph to force clearing existing data
+                    overwrite_graph=overwrite
                 )
             else:
                 adb_graph = nxadb.Graph(
                     name=name,
-                    incoming_graph_data=graph,
+                    incoming_graph_data=G_persist,
                     write_batch_size=write_batch_size,
-                    overwrite=overwrite
+                    overwrite=overwrite,
+                    overwrite_graph=overwrite
                 )
             
             print(f"✅ Graph '{name}' successfully persisted to ArangoDB")
