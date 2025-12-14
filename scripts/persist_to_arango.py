@@ -13,6 +13,27 @@ import traceback
 GRAPHML_PATH = Path('data/schema_018.graphml')
 
 
+def _normalize_arango_env():
+    """Allow configuration via ARANGO_* env vars while keeping DATABASE_* fallbacks.
+
+    This makes the script work with either the old `DATABASE_` names or newer
+    `ARANGO_` names used in some hosts (Replit, etc.).
+    """
+    env = os.environ
+    # Map ARANGO_* -> DATABASE_* if DATABASE_* not set
+    if env.get('ARANGO_URL') and not env.get('DATABASE_HOST'):
+        env['DATABASE_HOST'] = env.get('ARANGO_URL')
+    if env.get('ARANGO_USER') and not env.get('DATABASE_USERNAME'):
+        env['DATABASE_USERNAME'] = env.get('ARANGO_USER')
+    if env.get('ARANGO_PASSWORD') and not env.get('DATABASE_PASSWORD'):
+        env['DATABASE_PASSWORD'] = env.get('ARANGO_PASSWORD')
+    if env.get('ARANGO_DB') and not env.get('DATABASE_NAME'):
+        env['DATABASE_NAME'] = env.get('ARANGO_DB')
+    # also support ARANGO_ROOT_PASSWORD as a source for DATABASE_PASSWORD
+    if env.get('ARANGO_ROOT_PASSWORD') and not env.get('DATABASE_PASSWORD'):
+        env['DATABASE_PASSWORD'] = env.get('ARANGO_ROOT_PASSWORD')
+
+
 def main():
     if not GRAPHML_PATH.exists():
         print(f'GraphML file not found: {GRAPHML_PATH}')
@@ -55,8 +76,39 @@ def main():
 
     print('Loaded graph:', G.number_of_nodes(), 'nodes,', G.number_of_edges(), 'edges')
 
-    # Build ArangoDB config from env
+    # Ensure each node contains a 'table' attribute (used as collection/name)
+    # GraphML nodes often use the node id as the table name; if attributes are empty,
+    # copy the node identifier into the 'table' attribute so Arango documents retain
+    # readable table names instead of numeric keys.
+    for n in G.nodes():
+        attrs = G.nodes[n]
+        if not attrs.get('table') and not attrs.get('name'):
+            attrs['table'] = str(n)
+        # also set a friendly `name` property for UI display
+        if not attrs.get('name'):
+            attrs['name'] = str(n)
+
+    # Ensure nodes have readable names/keys when persisted to ArangoDB.
+    # nx-arangodb will auto-generate document keys if none are provided; to keep
+    # table names visible in Arango we set a `_key` and `name` attribute for each node
+    # when it's missing. `_key` must be URL-safe and unique per node.
+    for n in list(G.nodes()):
+        attrs = G.nodes[n]
+        # set a human-friendly name if not present
+        if not attrs.get('name'):
+            attrs['name'] = str(n)
+        # set document key to the node id (sanitized) if no explicit key present
+        if not attrs.get('_key') and not attrs.get('key'):
+            # sanitize key: replace slashes/spaces with underscore
+            safe = str(n).replace('/', '_').replace(' ', '_')
+            attrs['_key'] = safe
+            # also set 'key' and 'label' to help nx-arangodb preserve names
+            attrs['key'] = safe
+            attrs['label'] = str(n)
+
+    # Normalize env vars (allow ARANGO_* names) and build ArangoDB config from env
     try:
+        _normalize_arango_env()
         cfg = arango_mod.ArangoDBConfig()
         info = cfg.get_connection_info()
         print('Arango config:', info)
@@ -132,6 +184,7 @@ def main():
     print(f'Graph loaded: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges')
 
     # Use env vars set in the shell (or .env loaded prior to running)
+    _normalize_arango_env()
     config = ArangoDBConfig()
     info = config.get_connection_info()
     print('Using Arango config:', info)
