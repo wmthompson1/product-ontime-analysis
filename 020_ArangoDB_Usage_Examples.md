@@ -20,7 +20,7 @@ Based on NVIDIA Developer Blog: [Accelerated, Production-Ready Graph Analytics f
 ### 2. Set Environment Variables
 
 ```bash
-# Add to Replit Secrets or .env file
+# Add to Secrets or .env file
 DATABASE_HOST=https://your-instance.arangodb.cloud:8529
 DATABASE_USERNAME=root
 DATABASE_PASSWORD=your_password

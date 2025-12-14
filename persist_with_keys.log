@@ -1,0 +1,87 @@
+[07:54:50 +0000] [INFO]: NetworkX-cuGraph is unavailable: No module named 'cupy'.
+INFO:nx_arangodb:NetworkX-cuGraph is unavailable: No module named 'cupy'.
+Loading GraphML: data/schema_018.graphml
+Loaded graph: 6 nodes, 7 edges
+Arango config: {'host': 'http://host.docker.internal:8529', 'username': 'root', 'database_name': 'manufacturing_graphs', 'password': '***'}
+📤 Persisting graph 'manufacturing_schema_v1' to ArangoDB...
+   Graph type: DiGraph
+   Nodes: 6
+   Edges: 7
+   Write batch size: 10000
+DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): host.docker.internal:8529
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/collection HTTP/1.1" 200 1117
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+[07:54:50 +0000] [INFO]: Overwriting graph 'manufacturing_schema_v1'
+INFO:nx_arangodb:Overwriting graph 'manufacturing_schema_v1'
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "DELETE /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1?dropCollections=1 HTTP/1.1" 202 41
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/gharial HTTP/1.1" 202 362
+[07:54:50 +0000] [INFO]: Graph 'manufacturing_schema_v1' exists.
+INFO:nx_arangodb:Graph 'manufacturing_schema_v1' exists.
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1/vertex HTTP/1.1" 200 73
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+[07:54:50 +0000] [INFO]: Default node type set to 'manufacturing_schema_v1_node'
+INFO:nx_arangodb:Default node type set to 'manufacturing_schema_v1_node'
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1/vertex HTTP/1.1" 200 73
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/cursor HTTP/1.1" 201 383
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/cursor HTTP/1.1" 201 382
+[2025/12/14 07:54:50 +0000] [10678] [INFO] - adbnx_adapter: Instantiated ADBNX_Adapter with database 'manufacturing_graphs'
+INFO:adbnx_adapter:Instantiated ADBNX_Adapter with database 'manufacturing_graphs'
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1/vertex HTTP/1.1" 200 73
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/import?type=array&collection=manufacturing_schema_v1_node&complete=1&details=1 HTTP/1.1" 201 85
+(NX → ADB): Nodes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% (6/6) 0:00:00DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/import?type=array&collection=manufacturing_schema_v1_node_to_manufacturing_schema_v1_node&complete=1&details=1 HTTP/1.1" 201 85
+(NX → ADB): Edges ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% (7/7) 0:00:00[2025/12/14 07:54:50 +0000] [10678] [INFO] - adbnx_adapter: Created ArangoDB 'manufacturing_schema_v1' Graph
+INFO:adbnx_adapter:Created ArangoDB 'manufacturing_schema_v1' Graph
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/collection HTTP/1.1" 200 1117
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "HEAD /_db/manufacturing_graphs/_api/document/_graphs/manufacturing_schema_v1 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/document/_graphs/manufacturing_schema_v1 HTTP/1.1" 200 294
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "PATCH /_db/manufacturing_graphs/_api/document/_graphs/manufacturing_schema_v1?keepNull=0&mergeObjects=1&returnNew=0&returnOld=0&ignoreRevs=0&silent=1 HTTP/1.1" 202 2
+✅ Graph 'manufacturing_schema_v1' successfully persisted to ArangoDB
+Persisted graph to ArangoDB: manufacturing_schema_v1
+Done
+Loading graphml... /workspaces/20241019 Python/data/schema_018.graphml
+Graph loaded: 6 nodes, 7 edges
+Using Arango config: {'host': 'http://host.docker.internal:8529', 'username': 'root', 'database_name': 'manufacturing_graphs', 'password': '***'}
+📤 Persisting graph 'manufacturing_schema_v1' to ArangoDB...
+   Graph type: DiGraph
+   Nodes: 6
+   Edges: 7
+   Write batch size: 10000
+DEBUG:urllib3.connectionpool:Starting new HTTP connection (1): host.docker.internal:8529
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/collection HTTP/1.1" 200 1117
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+[07:54:50 +0000] [INFO]: Overwriting graph 'manufacturing_schema_v1'
+INFO:nx_arangodb:Overwriting graph 'manufacturing_schema_v1'
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "DELETE /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1?dropCollections=1 HTTP/1.1" 202 41
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/gharial HTTP/1.1" 202 362
+[07:54:50 +0000] [INFO]: Graph 'manufacturing_schema_v1' exists.
+INFO:nx_arangodb:Graph 'manufacturing_schema_v1' exists.
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1/vertex HTTP/1.1" 200 73
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+[07:54:50 +0000] [INFO]: Default node type set to 'manufacturing_schema_v1_node'
+INFO:nx_arangodb:Default node type set to 'manufacturing_schema_v1_node'
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1/vertex HTTP/1.1" 200 73
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/cursor HTTP/1.1" 201 383
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/cursor HTTP/1.1" 201 382
+[2025/12/14 07:54:50 +0000] [10678] [INFO] - adbnx_adapter: Instantiated ADBNX_Adapter with database 'manufacturing_graphs'
+INFO:adbnx_adapter:Instantiated ADBNX_Adapter with database 'manufacturing_graphs'
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1/vertex HTTP/1.1" 200 73
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/gharial/manufacturing_schema_v1 HTTP/1.1" 200 362
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/import?type=array&collection=manufacturing_schema_v1_node&complete=1&details=1 HTTP/1.1" 201 85
+(NX → ADB): Nodes ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% (6/6) 0:00:00DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "POST /_db/manufacturing_graphs/_api/import?type=array&collection=manufacturing_schema_v1_node_to_manufacturing_schema_v1_node&complete=1&details=1 HTTP/1.1" 201 85
+(NX → ADB): Edges ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% (7/7) 0:00:00[2025/12/14 07:54:50 +0000] [10678] [INFO] - adbnx_adapter: Created ArangoDB 'manufacturing_schema_v1' Graph
+INFO:adbnx_adapter:Created ArangoDB 'manufacturing_schema_v1' Graph
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/collection HTTP/1.1" 200 1117
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "HEAD /_db/manufacturing_graphs/_api/document/_graphs/manufacturing_schema_v1 HTTP/1.1" 200 0
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "GET /_db/manufacturing_graphs/_api/document/_graphs/manufacturing_schema_v1 HTTP/1.1" 200 294
+DEBUG:urllib3.connectionpool:http://host.docker.internal:8529 "PATCH /_db/manufacturing_graphs/_api/document/_graphs/manufacturing_schema_v1?keepNull=0&mergeObjects=1&returnNew=0&returnOld=0&ignoreRevs=0&silent=1 HTTP/1.1" 202 2
+✅ Graph 'manufacturing_schema_v1' successfully persisted to ArangoDB
+Persist returned: <class 'nx_arangodb.classes.digraph.DiGraph'>
