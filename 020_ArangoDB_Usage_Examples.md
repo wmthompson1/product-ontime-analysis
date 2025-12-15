@@ -21,10 +21,12 @@ Based on NVIDIA Developer Blog: [Accelerated, Production-Ready Graph Analytics f
 
 ```bash
 # Add to Secrets or .env file
-DATABASE_HOST=https://your-instance.arangodb.cloud:8529
-DATABASE_USERNAME=root
-DATABASE_PASSWORD=your_password
-DATABASE_NAME=manufacturing_graphs
+# Preferred: ARANGO_* variables
+ARANGO_URL=https://your-instance.arangodb.cloud:8529
+ARANGO_USER=root
+ARANGO_PASSWORD=your_password
+ARANGO_DB=manufacturing_graphs
+# (DATABASE_* env names are still supported as fallbacks)
 ```
 
 ## Usage Patterns

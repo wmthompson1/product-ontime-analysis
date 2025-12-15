@@ -1,0 +1,75 @@
+{
+  "table": "schema_edges",
+  "columns": [
+    {
+      "name": "edge_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "from_table",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "to_table",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "relationship_type",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "join_column",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "weight",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": "1"
+    },
+    {
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    },
+    {
+      "name": "join_column_description",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "natural_language_alias",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "few_shot_example",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "context",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "edge_id"
+  ]
+}

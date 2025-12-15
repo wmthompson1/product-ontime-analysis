@@ -70,7 +70,7 @@ so we can persist graphs (Entry Point 020) from this Codespaces environment.
 ## Recommended remediation steps (priority order)
 
 1. If you can run Docker locally (outside Codespace), start Arango with `-p 8529:8529` and verify `curl http://localhost:8529/_admin/version` from your host.
-2. If Docker in Codespace fails, run Arango on a reachable VM or ArangoDB Cloud and update `.env` (`DATABASE_HOST`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`).
+2. If Docker in Codespace fails, run Arango on a reachable VM or ArangoDB Cloud and update `.env` (prefer `ARANGO_*`, `ARANGO_URL`, `ARANGO_USER`, `ARANGO_PASSWORD`, `ARANGO_DB`; `DATABASE_*` names are supported as fallbacks).
 3. For quick testing, persist graph from your host machine where Arango is running (copy `data/schema_018.graphml`).
 4. If you want us to attempt more debugging here, provide permission to start system services or share `docker logs` output from your environment.
 

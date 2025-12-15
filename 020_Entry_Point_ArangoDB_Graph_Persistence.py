@@ -57,17 +57,24 @@ class ArangoDBConfig:
             password: Database password (default: env DATABASE_PASSWORD)
             database_name: Database name (default: env DATABASE_NAME or 'networkx_graphs')
         """
-        self.host = host or os.getenv("DATABASE_HOST", "http://localhost:8529")
-        self.username = username or os.getenv("DATABASE_USERNAME", "root")
-        self.password = password or os.getenv("DATABASE_PASSWORD", "")
-        self.database_name = database_name or os.getenv("DATABASE_NAME", "networkx_graphs")
-    
+        # Prefer ARANGO_* variables if present, fall back to older DATABASE_* names
+        self.host = host or os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST") or os.getenv("DATABASE_HOST", "http://localhost:8529")
+        self.username = username or os.getenv("ARANGO_USER") or os.getenv("ARANGO_USERNAME") or os.getenv("DATABASE_USERNAME", "root")
+        self.password = password or os.getenv("ARANGO_PASSWORD") or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
+        self.database_name = database_name or os.getenv("ARANGO_DB") or os.getenv("ARANGO_DATABASE") or os.getenv("DATABASE_NAME", "networkx_graphs")
+
     def set_environment_variables(self):
-        """Set environment variables for nx-arangodb"""
+        """Set environment variables for nx-arangodb and provide compatibility aliases"""
+        # Maintain DATABASE_* envs for backward compatibility
         os.environ["DATABASE_HOST"] = self.host
         os.environ["DATABASE_USERNAME"] = self.username
         os.environ["DATABASE_PASSWORD"] = self.password
         os.environ["DATABASE_NAME"] = self.database_name
+        # Ensure ARANGO_* are set if callers prefer the new names
+        os.environ.setdefault("ARANGO_URL", self.host)
+        os.environ.setdefault("ARANGO_USER", self.username)
+        os.environ.setdefault("ARANGO_PASSWORD", self.password)
+        os.environ.setdefault("ARANGO_DB", self.database_name)
     
     def get_connection_info(self) -> Dict[str, str]:
         """Get connection information (safe for logging)"""

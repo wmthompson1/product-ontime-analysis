@@ -46,21 +46,26 @@ def persist_graph(G,
 
     # Create vertex collections
     for node, attrs in G.nodes(data=True):
-        table = attrs.get(node_table_attr, "default")
+        # if the node doesn't have a `table` attribute, use the node id as the
+        # table name so persisted collections/documents carry human-readable
+        # table names (e.g. 'product', 'equipment').
+        table = attrs.get(node_table_attr, str(node))
         coll_name = f"{table}{vertex_collection_suffix}"
         if table not in vertex_collections:
             vertex_collections[table] = ensure_vertex_collection(coll_name)
 
     # Create edge collections
     for u, v, attrs in G.edges(data=True):
-        table = attrs.get("table", "edge")
+        # prefer a relationship/type attribute for edge collection naming; fall
+        # back to 'edge' if none exists.
+        table = attrs.get("relationship", attrs.get("table", "edge"))
         coll_name = f"{table}{edge_collection_suffix}"
         if table not in edge_collections:
             edge_collections[table] = ensure_edge_collection(coll_name)
 
     # Upsert nodes
     for node, attrs in G.nodes(data=True):
-        table = attrs.get(node_table_attr, "default")
+        table = attrs.get(node_table_attr, str(node))
         coll = vertex_collections[table]
         key = str(node)
         doc = {k: v for k, v in attrs.items() if k != node_table_attr}
@@ -72,12 +77,12 @@ def persist_graph(G,
 
     # Insert edges
     for u, v, attrs in G.edges(data=True):
-        table = attrs.get("table", "edge")
+        table = attrs.get("relationship", attrs.get("table", "edge"))
         coll = edge_collections[table]
         u_attrs = G.nodes[u]
         v_attrs = G.nodes[v]
-        u_table = u_attrs.get(node_table_attr, "default")
-        v_table = v_attrs.get(node_table_attr, "default")
+        u_table = u_attrs.get(node_table_attr, str(u))
+        v_table = v_attrs.get(node_table_attr, str(v))
         from_id = f"{u_table}{vertex_collection_suffix}/{u}"
         to_id   = f"{v_table}{vertex_collection_suffix}/{v}"
         edge_doc = {"_from": from_id, "_to": to_id}

@@ -4,8 +4,13 @@ Dynamically loads enhanced metadata from schema_edges table for production-ready
 """
 
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+except Exception:
+    psycopg2 = None
+    RealDictCursor = None
 from typing import Dict, List, Optional
 from functools import lru_cache
 
@@ -16,18 +21,62 @@ class DatabaseHintsLoader:
         self.database_url = database_url or os.getenv("DATABASE_URL")
         if not self.database_url:
             raise ValueError("DATABASE_URL not found in environment")
+        # detect sqlite vs postgres
+        self._is_sqlite = self.database_url.startswith("sqlite:") or self.database_url.endswith(".sqlite3")
     
     @lru_cache(maxsize=1)
     def load_schema_graph(self) -> Dict:
         """Load complete schema graph with enhanced metadata from database"""
+        if self._is_sqlite:
+            # SQLite path extraction
+            if self.database_url.startswith("sqlite:"):
+                # handle sqlite:////absolute/path or sqlite:///relative
+                path = self.database_url.split("sqlite:", 1)[1]
+                path = path.lstrip('/')
+                db_path = '/' + path if not os.path.isabs('/' + path) else '/' + path
+            else:
+                db_path = self.database_url
+
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            try:
+                cur.execute("SELECT * FROM schema_nodes ORDER BY table_name")
+                nodes = [dict(r) for r in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT 
+                        edge_id,
+                        from_table,
+                        to_table,
+                        relationship_type,
+                        join_column,
+                        weight,
+                        join_column_description,
+                        natural_language_alias,
+                        few_shot_example,
+                        context
+                    FROM schema_edges
+                    ORDER BY edge_id
+                """)
+                edges = [dict(r) for r in cur.fetchall()]
+
+                return {'nodes': nodes, 'edges': edges}
+            finally:
+                cur.close()
+                conn.close()
+
+        # fallback: postgres
+        if not psycopg2:
+            raise RuntimeError("psycopg2 not available to connect to Postgres database")
+
         conn = psycopg2.connect(self.database_url)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
         try:
             # Load nodes
             cursor.execute("SELECT * FROM schema_nodes ORDER BY table_name")
             nodes = cursor.fetchall()
-            
+
             # Load edges with enhanced metadata
             cursor.execute("""
                 SELECT 
@@ -45,7 +94,7 @@ class DatabaseHintsLoader:
                 ORDER BY edge_id
             """)
             edges = cursor.fetchall()
-            
+
             return {
                 'nodes': [dict(node) for node in nodes],
                 'edges': [dict(edge) for edge in edges]
@@ -92,33 +141,49 @@ class DatabaseHintsLoader:
         """Build acronym mappings from database metadata and user-defined acronyms"""
         schema = self.load_schema_graph()
         acronyms = {}
-        
         # Load user-defined acronyms from manufacturing_acronyms table
-        conn = psycopg2.connect(self.database_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        try:
-            cursor.execute("""
-                SELECT acronym, definition, table_name, category
-                FROM manufacturing_acronyms
-                ORDER BY acronym
-            """)
-            user_acronyms = cursor.fetchall()
-            
-            # Add user-defined acronyms first (they take priority)
-            for record in user_acronyms:
-                acronym_key = record['acronym'].upper()
-                acronyms[acronym_key] = {
-                    'full_name': record['definition'],
-                    'related_fields': [],
-                    'related_tables': [record['table_name']] if record['table_name'] else [],
-                    'context': f"User-defined acronym for {record['table_name'] or 'general use'}",
-                    'example_sql': '',
-                    'source': 'user_defined'
-                }
-        finally:
-            cursor.close()
-            conn.close()
+        if self._is_sqlite:
+            # sqlite
+            if self.database_url.startswith("sqlite:"):
+                path = self.database_url.split("sqlite:", 1)[1].lstrip('/')
+                db_path = '/' + path if not os.path.isabs('/' + path) else '/' + path
+            else:
+                db_path = self.database_url
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            try:
+                cur.execute("SELECT acronym, definition, table_name, category FROM manufacturing_acronyms ORDER BY acronym")
+                rows = [dict(r) for r in cur.fetchall()]
+            finally:
+                cur.close()
+                conn.close()
+        else:
+            if not psycopg2:
+                rows = []
+            else:
+                conn = psycopg2.connect(self.database_url)
+                cursor = conn.cursor(cursor_factory=RealDictCursor)
+                try:
+                    cursor.execute("SELECT acronym, definition, table_name, category FROM manufacturing_acronyms ORDER BY acronym")
+                    rows = cursor.fetchall()
+                finally:
+                    cursor.close()
+                    conn.close()
+
+        user_acronyms = rows or []
+
+        # Add user-defined acronyms first (they take priority)
+        for record in user_acronyms:
+            acronym_key = record['acronym'].upper()
+            acronyms[acronym_key] = {
+                'full_name': record['definition'],
+                'related_fields': [],
+                'related_tables': [record['table_name']] if record.get('table_name') else [],
+                'context': f"User-defined acronym for {record.get('table_name') or 'general use'}",
+                'example_sql': '',
+                'source': 'user_defined'
+            }
         
         # Extract acronyms from edge metadata (fallback if not user-defined)
         for edge in schema['edges']:
