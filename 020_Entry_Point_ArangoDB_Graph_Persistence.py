@@ -58,18 +58,18 @@ class ArangoDBConfig:
             ARANGO_name: Database name (default: env ARANGO_DB or 'networkx_graphs')
         """
         # Prefer ARANGO_* variables if present, fall back to older DATABASE_* names
-        self.host = host or os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST") or os.getenv("DATABASE_HOST", "http://localhost:8529")
-        self.username = username or os.getenv("ARANGO_USER") or os.getenv("ARANGO_USERNAME") or os.getenv("DATABASE_USERNAME", "root")
-        self.password = password or os.getenv("ARANGO_PASSWORD") or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
-        self.ARANGO_name = ARANGO_name or os.getenv("ARANGO_DB") or os.getenv("ARANGO_DATABASE") or os.getenv("DATABASE_NAME", "networkx_graphs")
+        self.host = host or os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST") or os.getenv("ARANGO_HOST", "http://localhost:8529")
+        self.username = username or os.getenv("ARANGO_USER") or os.getenv("ARANGO_USERNAME") or os.getenv("ARANGO_USER", "root")
+        self.password = password or os.getenv("ARANGO_PASSWORD") or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("ARANGO_PASSWORD", "")
+        self.ARANGO_name = ARANGO_name or os.getenv("ARANGO_DB") or os.getenv("ARANGO_DATABASE") or os.getenv("ARANGO_DB", "networkx_graphs")
 
     def set_environment_variables(self):
         """Set environment variables for nx-arangodb and provide compatibility aliases"""
         # Maintain DATABASE_* envs for backward compatibility
-        os.environ["DATABASE_HOST"] = self.host
-        os.environ["DATABASE_USERNAME"] = self.username
-        os.environ["DATABASE_PASSWORD"] = self.password
-        os.environ["DATABASE_NAME"] = self.ARANGO_name
+        os.environ["ARANGO_HOST"] = self.host
+        os.environ["ARANGO_USER"] = self.username
+        os.environ["ARANGO_PASSWORD"] = self.password
+        os.environ["ARANGO_DB"] = self.ARANGO_name
         # Ensure ARANGO_* are set if callers prefer the new names
         os.environ.setdefault("ARANGO_URL", self.host)
         os.environ.setdefault("ARANGO_USER", self.username)

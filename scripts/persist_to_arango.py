@@ -22,17 +22,17 @@ def _normalize_arango_env():
     """
     env = os.environ
     # Map ARANGO_* -> DATABASE_* if DATABASE_* not set
-    if env.get('ARANGO_URL') and not env.get('DATABASE_HOST'):
-        env['DATABASE_HOST'] = env.get('ARANGO_URL')
-    if env.get('ARANGO_USER') and not env.get('DATABASE_USERNAME'):
-        env['DATABASE_USERNAME'] = env.get('ARANGO_USER')
-    if env.get('ARANGO_PASSWORD') and not env.get('DATABASE_PASSWORD'):
-        env['DATABASE_PASSWORD'] = env.get('ARANGO_PASSWORD')
-    if env.get('ARANGO_DB') and not env.get('DATABASE_NAME'):
-        env['DATABASE_NAME'] = env.get('ARANGO_DB')
-    # also support ARANGO_ROOT_PASSWORD as a source for DATABASE_PASSWORD
-    if env.get('ARANGO_ROOT_PASSWORD') and not env.get('DATABASE_PASSWORD'):
-        env['DATABASE_PASSWORD'] = env.get('ARANGO_ROOT_PASSWORD')
+    if env.get('ARANGO_URL') and not env.get('ARANGO_HOST'):
+        env['ARANGO_HOST'] = env.get('ARANGO_URL')
+    if env.get('ARANGO_USER') and not env.get('ARANGO_USER'):
+        env['ARANGO_USER'] = env.get('ARANGO_USER')
+    if env.get('ARANGO_PASSWORD') and not env.get('ARANGO_PASSWORD'):
+        env['ARANGO_PASSWORD'] = env.get('ARANGO_PASSWORD')
+    if env.get('ARANGO_DB') and not env.get('ARANGO_DB'):
+        env['ARANGO_DB'] = env.get('ARANGO_DB')
+    # also support ARANGO_ROOT_PASSWORD as a source for ARANGO_PASSWORD
+    if env.get('ARANGO_ROOT_PASSWORD') and not env.get('ARANGO_PASSWORD'):
+        env['ARANGO_PASSWORD'] = env.get('ARANGO_ROOT_PASSWORD')
 
 
 def main():

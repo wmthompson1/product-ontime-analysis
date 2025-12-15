@@ -41,13 +41,13 @@ def load_arango_config(env: Dict[str, str] = None) -> Dict[str, Optional[str]]:
     env = env or os.environ
 
     # Prefer ARANGO_* then fall back to DATABASE_*
-    url = env.get('ARANGO_URL') or env.get('DATABASE_URL') or env.get('DATABASE_HOST')
+    url = env.get('ARANGO_URL') or env.get('DATABASE_URL') or env.get('ARANGO_HOST')
 
-    host = env.get('ARANGO_HOST') or env.get('DATABASE_HOST')
+    host = env.get('ARANGO_HOST') or env.get('ARANGO_HOST')
     port = env.get('ARANGO_PORT') or env.get('DATABASE_PORT')
-    user = env.get('ARANGO_USER') or env.get('DATABASE_USERNAME') or env.get('DATABASE_USER')
-    password = env.get('ARANGO_ROOT_PASSWORD') or env.get('ARANGO_PASSWORD') or env.get('DATABASE_PASSWORD')
-    db = env.get('ARANGO_DB') or env.get('DATABASE_NAME')
+    user = env.get('ARANGO_USER') or env.get('ARANGO_USER') or env.get('DATABASE_USER')
+    password = env.get('ARANGO_ROOT_PASSWORD') or env.get('ARANGO_PASSWORD') or env.get('ARANGO_PASSWORD')
+    db = env.get('ARANGO_DB') or env.get('ARANGO_DB')
 
     # normalize host:port if url provided in various formats
     if url and (not host or not port):

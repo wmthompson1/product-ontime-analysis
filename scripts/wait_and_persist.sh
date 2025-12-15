@@ -3,10 +3,10 @@ set -euo pipefail
 # Usage: scripts/wait_and_persist.sh [graphml-path]
 GRAPHML_PATH="${1:-data/schema.graphml}"
 # Prefer ARANGO_* envs, fall back to older DATABASE_* names for compatibility
-ARANGO_HOST="${ARANGO_URL:-${ARANGO_HOST:-${DATABASE_HOST:-http://localhost:8529}}}"
-ARANGO_USER="${ARANGO_USER:-${ARANGO_USERNAME:-${DATABASE_USERNAME:-root}}}"
-ARANGO_PASS="${ARANGO_PASSWORD:-${ARANGO_ROOT_PASSWORD:-${DATABASE_PASSWORD:-example}}}"
-ARANGO_DB="${ARANGO_DB:-${ARANGO_DATABASE:-${DATABASE_NAME:-manufacturing_graph}}}"
+ARANGO_HOST="${ARANGO_URL:-${ARANGO_HOST:-${ARANGO_HOST:-http://localhost:8529}}}"
+ARANGO_USER="${ARANGO_USER:-${ARANGO_USERNAME:-${ARANGO_USER:-root}}}"
+ARANGO_PASS="${ARANGO_PASSWORD:-${ARANGO_ROOT_PASSWORD:-${ARANGO_PASSWORD:-example}}}"
+ARANGO_DB="${ARANGO_DB:-${ARANGO_DATABASE:-${ARANGO_DB:-manufacturing_graph}}}"
 CONTAINER_NAME="${ARANGO_CONTAINER_NAME:-arangodb}"
 IMAGE="${DOCKER_IMAGE:-arangodb/arangodb:latest}"
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-60}
