@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Persist the generated GraphML to ArangoDB using Entry Point 020 helper.
 
-Reads env vars (DATABASE_HOST, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_NAME)
-so make sure to `source .env` (or export) before running.
+Prefers ARANGO_* env vars (ARANGO_URL, ARANGO_USER, ARANGO_PASSWORD, ARANGO_DB)
+but will accept older DATABASE_* names as fallbacks during migration.
+Make sure to `source .env` (or export) before running.
 """
 import os
 import sys
@@ -141,8 +142,8 @@ if __name__ == '__main__':
 #!/usr/bin/env python3
 """Load data/schema_018.graphml and persist to ArangoDB using Entry Point 020 classes.
 
-Requires environment variables for ArangoDB (DATABASE_HOST, DATABASE_USERNAME,
-DATABASE_PASSWORD, DATABASE_NAME) to be set. Expects `data/schema_018.graphml` to exist.
+Requires environment variables for ArangoDB (prefer ARANGO_URL/ARANGO_USER/ARANGO_PASSWORD/ARANGO_DB)
+to be set. DATABASE_* names are supported as fallbacks. Expects `data/schema_018.graphml` to exist.
 """
 import os
 import sys

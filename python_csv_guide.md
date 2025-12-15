@@ -723,7 +723,7 @@ def csv_to_database(csv_file, db_file, table_name):
     conn.close()
     print(f"Data imported to {db_file}")
 
-def database_to_csv(db_file, table_name, csv_file):
+def ARANGO_to_csv(db_file, table_name, csv_file):
     """Export database table to CSV"""
     
     conn = sqlite3.connect(db_file)
@@ -748,7 +748,7 @@ def database_to_csv(db_file, table_name, csv_file):
 
 # Usage
 csv_to_database('employees.csv', 'company.db', 'employees')
-database_to_csv('company.db', 'employees', 'exported_employees.csv')
+ARANGO_to_csv('company.db', 'employees', 'exported_employees.csv')
 ```
 
 ### Web API Integration

@@ -208,10 +208,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get connection string
-database_url = os.getenv('DATABASE_URL')
+ARANGO_url = os.getenv('DATABASE_URL')
 
 # Create engine
-engine = create_engine(database_url)
+engine = create_engine(ARANGO_url)
 
 # Test connection
 with engine.connect() as conn:

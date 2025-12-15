@@ -17,25 +17,25 @@ from functools import lru_cache
 class DatabaseHintsLoader:
     """Load contextual hints from database schema metadata"""
     
-    def __init__(self, database_url: str = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL")
-        if not self.database_url:
+    def __init__(self, ARANGO_url: str = None):
+        self.ARANGO_url = ARANGO_url or os.getenv("DATABASE_URL")
+        if not self.ARANGO_url:
             raise ValueError("DATABASE_URL not found in environment")
         # detect sqlite vs postgres
-        self._is_sqlite = self.database_url.startswith("sqlite:") or self.database_url.endswith(".sqlite3")
+        self._is_sqlite = self.ARANGO_url.startswith("sqlite:") or self.ARANGO_url.endswith(".sqlite3")
     
     @lru_cache(maxsize=1)
     def load_schema_graph(self) -> Dict:
         """Load complete schema graph with enhanced metadata from database"""
         if self._is_sqlite:
             # SQLite path extraction
-            if self.database_url.startswith("sqlite:"):
+            if self.ARANGO_url.startswith("sqlite:"):
                 # handle sqlite:////absolute/path or sqlite:///relative
-                path = self.database_url.split("sqlite:", 1)[1]
+                path = self.ARANGO_url.split("sqlite:", 1)[1]
                 path = path.lstrip('/')
                 db_path = '/' + path if not os.path.isabs('/' + path) else '/' + path
             else:
-                db_path = self.database_url
+                db_path = self.ARANGO_url
 
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
@@ -70,7 +70,7 @@ class DatabaseHintsLoader:
         if not psycopg2:
             raise RuntimeError("psycopg2 not available to connect to Postgres database")
 
-        conn = psycopg2.connect(self.database_url)
+        conn = psycopg2.connect(self.ARANGO_url)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         try:
             # Load nodes
@@ -144,11 +144,11 @@ class DatabaseHintsLoader:
         # Load user-defined acronyms from manufacturing_acronyms table
         if self._is_sqlite:
             # sqlite
-            if self.database_url.startswith("sqlite:"):
-                path = self.database_url.split("sqlite:", 1)[1].lstrip('/')
+            if self.ARANGO_url.startswith("sqlite:"):
+                path = self.ARANGO_url.split("sqlite:", 1)[1].lstrip('/')
                 db_path = '/' + path if not os.path.isabs('/' + path) else '/' + path
             else:
-                db_path = self.database_url
+                db_path = self.ARANGO_url
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             cur = conn.cursor()
@@ -162,7 +162,7 @@ class DatabaseHintsLoader:
             if not psycopg2:
                 rows = []
             else:
-                conn = psycopg2.connect(self.database_url)
+                conn = psycopg2.connect(self.ARANGO_url)
                 cursor = conn.cursor(cursor_factory=RealDictCursor)
                 try:
                     cursor.execute("SELECT acronym, definition, table_name, category FROM manufacturing_acronyms ORDER BY acronym")
@@ -275,7 +275,7 @@ class DatabaseHintsLoader:
 # Global instance
 _loader = None
 
-def get_database_hints_loader() -> DatabaseHintsLoader:
+def get_ARANGO_hints_loader() -> DatabaseHintsLoader:
     """Get or create global database hints loader instance"""
     global _loader
     if _loader is None:

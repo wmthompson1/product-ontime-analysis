@@ -49,7 +49,7 @@ Priority plan (next 3 tasks)
 
 References
 - `scripts/generate_schema_metadata.py` — metadata generator (produces `schema/tables/*.json`).
-- `app/database_hints_loader.py` — loader that now supports SQLite and extracts nodes/edges/acronyms for hints.
+- `app/ARANGO_hints_loader.py` — loader that now supports SQLite and extracts nodes/edges/acronyms for hints.
 - `000index.md` — Arango reminder and notes about accessing Arango from devcontainer.
 
 If you want, I can implement items 1–2 in the priority plan now (generator heuristics + auto-populate script) and run them against the local DB.

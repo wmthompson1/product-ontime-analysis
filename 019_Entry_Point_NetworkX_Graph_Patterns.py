@@ -149,7 +149,7 @@ class ManufacturingNetworkBuilder:
         
         return G
     
-    def load_from_database_metadata(self, database_url: Optional[str] = None) -> nx.DiGraph:
+    def load_from_ARANGO_metadata(self, ARANGO_url: Optional[str] = None) -> nx.DiGraph:
         """
         Pattern 4: Loading Graph from Database
         Integration with Entry Point 018 schema metadata
@@ -158,7 +158,7 @@ class ManufacturingNetworkBuilder:
         """
         print("\n📊 Pattern 4: Load from Database (Schema Metadata)")
         
-        db_url = database_url or os.getenv("DATABASE_URL")
+        db_url = ARANGO_url or os.getenv("DATABASE_URL")
         if not db_url:
             raise ValueError("DATABASE_URL must be provided or set in environment")
         conn = psycopg2.connect(db_url)
@@ -388,7 +388,7 @@ def demo_networkx_patterns():
     
     # Pattern 4: Load from Database (Entry Point 018 integration)
     try:
-        db_graph = builder.load_from_database_metadata()
+        db_graph = builder.load_from_ARANGO_metadata()
         analyzer.measure_graph_properties(db_graph)
         analyzer.analyze_centrality(db_graph, "Database Schema")
         

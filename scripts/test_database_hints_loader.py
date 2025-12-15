@@ -2,7 +2,7 @@
 """Quick test for DatabaseHintsLoader using current DATABASE_URL or default sqlite."""
 import os
 import json
-from app.database_hints_loader import DatabaseHintsLoader
+from app.ARANGO_hints_loader import DatabaseHintsLoader
 
 def main():
     url = os.environ.get('DATABASE_URL')

@@ -2,7 +2,7 @@
 INFO:nx_arangodb:NetworkX-cuGraph is unavailable: No module named 'cupy'.
 Loading GraphML: data/schema_018.graphml
 Loaded graph: 6 nodes, 7 edges
-Arango config: {'host': 'http://localhost:8529', 'username': 'root', 'database_name': 'manufacturing_graphs', 'password': '***'}
+Arango config: {'host': 'http://localhost:8529', 'username': 'root', 'ARANGO_name': 'manufacturing_graphs', 'password': '***'}
 📤 Persisting graph 'manufacturing_schema_v1' to ArangoDB...
    Graph type: DiGraph
    Nodes: 6

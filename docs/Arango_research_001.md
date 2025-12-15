@@ -56,7 +56,7 @@ so we can persist graphs (Entry Point 020) from this Codespaces environment.
 
 6. If Docker cannot be used due to permissions, options:
 
-   - Run Arango on a remote host/VM and set `DATABASE_HOST` to that URL.
+   - Run Arango on a remote host/VM and set `ARANGO_URL` (or `ARANGO_HOST`) to that URL.
    - Use ArangoDB Cloud (managed) and provide credentials.
    - Use the export GraphML (`data/schema_018.graphml`) and persist from a machine that can reach Arango.
 

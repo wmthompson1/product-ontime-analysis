@@ -95,7 +95,7 @@ print("-" * 75)
 config = ArangoDBConfig()
 persistence = ArangoDBGraphPersistence(config)
 
-print(f"   Database: {config.database_name}")
+print(f"   Database: {config.ARANGO_name}")
 print(f"   Host: {config.host}")
 
 graph_name = "manufacturing_schema"

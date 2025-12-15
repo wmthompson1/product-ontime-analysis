@@ -46,22 +46,22 @@ class ArangoDBConfig:
         host: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        database_name: Optional[str] = None
+        ARANGO_name: Optional[str] = None
     ):
         """
         Initialize ArangoDB configuration
         
         Args:
-            host: ArangoDB host URL (default: env DATABASE_HOST)
-            username: Database username (default: env DATABASE_USERNAME)
-            password: Database password (default: env DATABASE_PASSWORD)
-            database_name: Database name (default: env DATABASE_NAME or 'networkx_graphs')
+            host: ArangoDB host URL (default: env ARANGO_URL or ARANGO_HOST)
+            username: Database username (default: env ARANGO_USER)
+            password: Database password (default: env ARANGO_PASSWORD or ARANGO_ROOT_PASSWORD)
+            ARANGO_name: Database name (default: env ARANGO_DB or 'networkx_graphs')
         """
         # Prefer ARANGO_* variables if present, fall back to older DATABASE_* names
         self.host = host or os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST") or os.getenv("DATABASE_HOST", "http://localhost:8529")
         self.username = username or os.getenv("ARANGO_USER") or os.getenv("ARANGO_USERNAME") or os.getenv("DATABASE_USERNAME", "root")
         self.password = password or os.getenv("ARANGO_PASSWORD") or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
-        self.database_name = database_name or os.getenv("ARANGO_DB") or os.getenv("ARANGO_DATABASE") or os.getenv("DATABASE_NAME", "networkx_graphs")
+        self.ARANGO_name = ARANGO_name or os.getenv("ARANGO_DB") or os.getenv("ARANGO_DATABASE") or os.getenv("DATABASE_NAME", "networkx_graphs")
 
     def set_environment_variables(self):
         """Set environment variables for nx-arangodb and provide compatibility aliases"""
@@ -69,19 +69,19 @@ class ArangoDBConfig:
         os.environ["DATABASE_HOST"] = self.host
         os.environ["DATABASE_USERNAME"] = self.username
         os.environ["DATABASE_PASSWORD"] = self.password
-        os.environ["DATABASE_NAME"] = self.database_name
+        os.environ["DATABASE_NAME"] = self.ARANGO_name
         # Ensure ARANGO_* are set if callers prefer the new names
         os.environ.setdefault("ARANGO_URL", self.host)
         os.environ.setdefault("ARANGO_USER", self.username)
         os.environ.setdefault("ARANGO_PASSWORD", self.password)
-        os.environ.setdefault("ARANGO_DB", self.database_name)
+        os.environ.setdefault("ARANGO_DB", self.ARANGO_name)
     
     def get_connection_info(self) -> Dict[str, str]:
         """Get connection information (safe for logging)"""
         return {
             "host": self.host,
             "username": self.username,
-            "database_name": self.database_name,
+            "ARANGO_name": self.ARANGO_name,
             "password": "***" if self.password else "Not set"
         }
 
@@ -287,11 +287,12 @@ def demo_arangodb_persistence_local():
     print("\n📋 SETUP INSTRUCTIONS:")
     print("To use ArangoDB persistence, you need:")
     print("1. ArangoDB instance (ArangoGraph Cloud or self-hosted)")
-    print("2. Set environment variables:")
-    print("   - DATABASE_HOST (e.g., https://your-instance.arangodb.cloud:8529)")
-    print("   - DATABASE_USERNAME (e.g., root)")
-    print("   - DATABASE_PASSWORD (your password)")
-    print("   - DATABASE_NAME (e.g., manufacturing_graphs)")
+    print("2. Set environment variables (preferred names):")
+    print("   - ARANGO_URL (e.g., https://your-instance.arangodb.cloud:8529)")
+    print("   - ARANGO_USER (e.g., root)")
+    print("   - ARANGO_PASSWORD (your password) or ARANGO_ROOT_PASSWORD")
+    print("   - ARANGO_DB (e.g., manufacturing_graphs)")
+    print("   (DATABASE_* names are still accepted as fallbacks during migration)")
     print("3. Install: pip install nx-arangodb")
     
     if not NXADB_AVAILABLE:
@@ -309,7 +310,7 @@ config = ArangoDBConfig(
     host="https://your-instance.arangodb.cloud:8529",
     username="root",
     password="your-password",
-    database_name="manufacturing_graphs"
+    ARANGO_name="manufacturing_graphs"
 )
 
 persistence = ArangoDBGraphPersistence(config)
@@ -383,8 +384,8 @@ for node, score in result.items():
     else:
         print("\n✅ nx-arangodb is installed!")
         print("⚠️  No ArangoDB connection configured.")
-        print("Set DATABASE_HOST, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_NAME")
-        print("to enable persistence features.")
+        print("Set ARANGO_URL/ARANGO_HOST, ARANGO_USER, ARANGO_PASSWORD (or ARANGO_ROOT_PASSWORD), and ARANGO_DB")
+        print("to enable persistence features. DATABASE_* names are supported as fallbacks.")
     
     print(f"\n{'=' * 75}")
     print("📖 Reference: NVIDIA Developer Blog")

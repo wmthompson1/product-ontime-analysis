@@ -19,7 +19,7 @@ DEFAULT_DB = os.path.join(WORKDIR, "data", "manufacturing_analytics.sqlite3")
 OUT_DIR = os.path.join(WORKDIR, "schema", "tables")
 
 
-def get_sqlite_path_from_database_url(url: str) -> str:
+def get_sqlite_path_from_ARANGO_url(url: str) -> str:
     if not url:
         return DEFAULT_DB
     # Accept formats: sqlite:///path or sqlite:////absolute/path
@@ -53,7 +53,7 @@ def get_columns(conn, table):
 
 def main():
     db_url = os.environ.get('DATABASE_URL')
-    db_path = get_sqlite_path_from_database_url(db_url)
+    db_path = get_sqlite_path_from_ARANGO_url(db_url)
     if not os.path.exists(db_path):
         print(f"Database file not found: {db_path}")
         return 1
