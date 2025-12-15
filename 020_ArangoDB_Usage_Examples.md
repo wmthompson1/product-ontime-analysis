@@ -34,10 +34,10 @@ python3 -m venv .venv
 
 Create `.env` file in project root:
 ```bash
-DATABASE_HOST=http://localhost:8529
-DATABASE_USERNAME=root
-DATABASE_PASSWORD=your_local_password
-DATABASE_NAME=manufacturing_graphs
+ARANGO_HOST=http://localhost:8529
+ARANGO_USERNAME=root
+ARANGO_PASSWORD=your_local_password
+ARANGO_DATABASE=manufacturing_graphs
 ```
 
 ### 4. Run Persistence Script

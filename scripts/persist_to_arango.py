@@ -9,10 +9,10 @@ Usage:
     ./.venv/bin/python scripts/persist_to_arango.py
     
 Environment variables (in .env):
-    DATABASE_HOST      - ArangoDB host (default: http://localhost:8529)
-    DATABASE_USERNAME  - ArangoDB username (default: root)
-    DATABASE_PASSWORD  - ArangoDB password
-    DATABASE_NAME      - Target database name (default: manufacturing_graphs)
+    ARANGO_HOST      - ArangoDB host (default: http://localhost:8529)
+    ARANGO_USERNAME  - ArangoDB username (default: root)
+    ARANGO_PASSWORD  - ArangoDB password
+    ARANGO_DATABASE  - Target database name (default: manufacturing_graphs)
 """
 
 import os
@@ -47,14 +47,14 @@ except ImportError:
 def get_config():
     """Load configuration from environment"""
     config = {
-        'host': os.getenv('DATABASE_HOST', 'http://localhost:8529'),
-        'username': os.getenv('DATABASE_USERNAME', 'root'),
-        'password': os.getenv('DATABASE_PASSWORD', ''),
-        'database': os.getenv('DATABASE_NAME', 'manufacturing_graphs'),
+        'host': os.getenv('ARANGO_HOST', 'http://localhost:8529'),
+        'username': os.getenv('ARANGO_USERNAME', 'root'),
+        'password': os.getenv('ARANGO_PASSWORD', ''),
+        'database': os.getenv('ARANGO_DATABASE', 'manufacturing_graphs'),
     }
     
     if not config['password']:
-        print("Warning: DATABASE_PASSWORD not set in .env")
+        print("Warning: ARANGO_PASSWORD not set in .env")
     
     return config
 
