@@ -6,10 +6,10 @@ import os
 load_dotenv(dotenv_path="/Users/williamthompson/bbb/20241019 Python/Learn Python Quickly Source Code_v2/code3/pgvector-python-starter/.env")
 
 # Access environment variables
-ARANGO_host = os.getenv("DATABASE_HOST")
-ARANGO_username = os.getenv("DATABASE_USERNAME")
-ARANGO_password = os.getenv("DATABASE_PASSWORD")
-ARANGO_name = os.getenv("DATABASE_NAME")
+ARANGO_host = os.getenv("ARANGO_HOST")
+ARANGO_username = os.getenv("ARANGO_USER")
+ARANGO_password = os.getenv("ARANGO_PASSWORD")
+ARANGO_name = os.getenv("ARANGO_DB")
 
 print("Database Host:", ARANGO_host)
 print("Database Username:", ARANGO_username)

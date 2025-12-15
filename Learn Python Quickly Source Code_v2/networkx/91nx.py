@@ -7,10 +7,10 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="/Users/williamthompson/bbb/20241019 Python/Learn Python Quickly Source Code_v2/code3/pgvector-python-starter/.env")
 
 # Retrieve environment variables
-ARANGO_host = os.environ["DATABASE_HOST"]
-ARANGO_username = os.environ["DATABASE_USERNAME"]
-ARANGO_password = os.environ["DATABASE_PASSWORD"]
-ARANGO_name = os.environ["DATABASE_NAME"]
+ARANGO_host = os.environ["ARANGO_HOST"]
+ARANGO_username = os.environ["ARANGO_USER"]
+ARANGO_password = os.environ["ARANGO_PASSWORD"]
+ARANGO_name = os.environ["ARANGO_DB"]
 
 # Initialize the ArangoDB client
 client = ArangoClient(hosts=ARANGO_host)
