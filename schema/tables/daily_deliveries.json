@@ -1,0 +1,58 @@
+{
+  "table": "daily_deliveries",
+  "columns": [
+    {
+      "name": "delivery_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "supplier_id",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "delivery_date",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "planned_quantity",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "actual_quantity",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "ontime_rate",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "quality_score",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_date",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "delivery_id",
+    "supplier_id"
+  ]
+}

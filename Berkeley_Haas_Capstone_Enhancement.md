@@ -32,7 +32,7 @@ Your existing `app/semantic_layer.py` demonstrates:
 - **Cost Tracking**: Monitors OpenAI API usage for budget optimization
 
 ### Enterprise Security Features ✅
-Your `app/database_executor.py` provides:
+Your `app/ARANGO_executor.py` provides:
 - **SQL Injection Prevention**: Whitelist-based operation validation
 - **Query Limits**: Automatic timeout and row limits for resource protection
 - **Execution Monitoring**: Comprehensive statistics and performance tracking

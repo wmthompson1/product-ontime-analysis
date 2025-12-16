@@ -1,0 +1,19 @@
+{
+  "table": "products",
+  "columns": [
+    {
+      "name": "id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "description",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": []
+}

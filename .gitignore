@@ -9,3 +9,22 @@ node_modules
 
 # devcontainer
 .devcontainer/
+
+# Environment secrets - ensure .env is never committed
+.env
+
+# Common environment / virtualenv / editor ignores
+.env.*           # optional: other env variants
+.venv/
+venv/
+__pycache__/
+*.pyc
+.envrc
+*.local
+.idea/
+.vscode/
+*.sqlite3
+dev_test.db
+# MCP client config (server URL + auth token)
+.mcp.json
+mcp.json

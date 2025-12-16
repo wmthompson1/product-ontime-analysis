@@ -264,9 +264,9 @@ Security constraints:
 class SchemaInspector:
     """Dynamically inspect database schema for enhanced context"""
     
-    def __init__(self, database_url: str = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL")
-        self.engine = create_engine(self.database_url) if self.database_url else None
+    def __init__(self, ARANGO_url: str = None):
+        self.ARANGO_url = ARANGO_url or os.getenv("DATABASE_URL")
+        self.engine = create_engine(self.ARANGO_url) if self.ARANGO_url else None
         self._schema_cache = {}
     
     def get_table_schema(self, table_name: str) -> Dict[str, Any]:

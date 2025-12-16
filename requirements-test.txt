@@ -1,0 +1,5 @@
+nbformat
+langchain
+nbconvert
+pytest
+httpx

@@ -39,4 +39,6 @@ Notes
 - Keep `.venv/` out of version control (it's included in `.gitignore`).
 - CI runs the same tests in an isolated environment via GitHub Actions.
 
+Note: Space registration instructions and related files have been removed/archived — the previously-registered GitHub Space was deleted and any registration artifacts were moved to `archive/`.
+
 If you encounter issues, please open an issue or contact the maintainers with logs and platform details.
