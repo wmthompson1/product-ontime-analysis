@@ -5,6 +5,17 @@ cd bbb/20241019\ Python/
 cd /workspaces/20241019 Python/000index.md
 
 /workspaces/20241019 Python/.env
+
+---------------
+the repo venv setup which does:
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+Or 
+----------------
+the repo helper script: run venv_setup.sh 
 ```
 
 ## ArangoDB Reminder
