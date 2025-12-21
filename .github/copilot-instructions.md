@@ -23,10 +23,11 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 - Requires Python >= 3.11
 
 ### Key Dependencies
-- LangChain and related AI libraries (OpenAI, NLTK, etc.)
-- Data analysis: pandas, numpy, openpyxl, xlrd
+- AI/ML: openai, nltk
+- LangChain ecosystem for RAG and agent workflows
+- Data analysis: pandas, openpyxl, xlrd, numpy
 - Web frameworks: Flask, Flask-SQLAlchemy, Flask-Migrate
-- Database: PostgreSQL (psycopg2-binary), ArangoDB (nx-arangodb)
+- Database: PostgreSQL (psycopg2-binary), ArangoDB (nx-arangodb), NetworkX
 - Web scraping: requests, beautifulsoup4, trafilatura, lxml
 - Utilities: python-dotenv for environment variables
 
@@ -85,8 +86,14 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 ## Deployment and Configuration
 
 ### Replit Deployment
-- The project includes Replit configuration files
-- Follow deployment guides in markdown documentation files
+- The project includes Replit configuration files (`.replit`, `replit.md`)
+- See `Replit_Deployment_Guide_for_Business.md` for deployment instructions
+- See `Git_Setup_Guide_Replit.md` for Git integration setup
+
+### Local Setup
+- See `LOCAL_SETUP.md` and `Local_Installation_Guide.md` for local development setup
+- See `README_Local_Setup.md` for additional setup instructions
+- Use `LangChain_Academy_Setup_Guide.md` for LangChain-specific setup
 
 ### Flask Applications
 - Use Flask best practices for web applications
