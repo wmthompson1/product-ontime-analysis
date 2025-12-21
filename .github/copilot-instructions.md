@@ -112,7 +112,7 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 ### Data Analysis Scripts
 - Use pandas for data manipulation
 - Include clear statistical methods documentation
-- Provide sample data generation when appropriate
+- When creating demo/test scripts, provide sample data generation functions with realistic parameters and clear documentation
 
 ## File Patterns to Note
 - `.py` files: Python source code
