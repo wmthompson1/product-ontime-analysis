@@ -22,14 +22,16 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 ### Python Version
 - Requires Python >= 3.11
 
-### Key Dependencies
+### Key Dependencies (from requirements.txt)
 - AI/ML: openai, nltk
-- LangChain packages used in code (langchain_core, langchain_openai, langchain_community, langchain_experimental) - may need to be added to requirements.txt
-- Data analysis: pandas, openpyxl, xlrd, numpy
+- Data analysis: pandas, openpyxl, xlrd
 - Web frameworks: Flask, Flask-SQLAlchemy, Flask-Migrate
-- Database: PostgreSQL (psycopg2-binary), ArangoDB (nx-arangodb), NetworkX
+- Database: PostgreSQL (psycopg2-binary), SQLAlchemy, ArangoDB (nx-arangodb), NetworkX
 - Web scraping: requests, beautifulsoup4, trafilatura, lxml
 - Utilities: python-dotenv for environment variables
+- MCP: mcp_server_filesystem (from GitHub)
+
+**Note:** The codebase uses LangChain packages (langchain_core, langchain_openai, langchain_community, langchain_experimental) that are not listed in requirements.txt. These should be added to ensure proper dependency management.
 
 ### Installing Dependencies
 - Use `pip install -r requirements.txt` to install dependencies
