@@ -25,7 +25,7 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 ### Key Dependencies
 - LangChain and related AI libraries (OpenAI, NLTK, etc.)
 - Data analysis: pandas, numpy, openpyxl, xlrd
-- Web frameworks: Flask, Flask-SQLAlchemy
+- Web frameworks: Flask, Flask-SQLAlchemy, Flask-Migrate
 - Database: PostgreSQL (psycopg2-binary), ArangoDB (nx-arangodb)
 - Web scraping: requests, beautifulsoup4, trafilatura, lxml
 - Utilities: python-dotenv for environment variables
