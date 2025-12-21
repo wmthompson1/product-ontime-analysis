@@ -24,7 +24,7 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 
 ### Key Dependencies
 - AI/ML: openai, nltk
-- LangChain ecosystem for RAG and agent workflows
+- LangChain packages used in code (langchain_core, langchain_openai, langchain_community, langchain_experimental) - may need to be added to requirements.txt
 - Data analysis: pandas, openpyxl, xlrd, numpy
 - Web frameworks: Flask, Flask-SQLAlchemy, Flask-Migrate
 - Database: PostgreSQL (psycopg2-binary), ArangoDB (nx-arangodb), NetworkX
