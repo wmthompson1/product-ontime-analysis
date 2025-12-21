@@ -113,9 +113,10 @@ This is a Python-based project focused on data analysis, AI/LangChain applicatio
 - `.md` files: Documentation (markdown)
 
 ## Naming Conventions
-- Use snake_case for Python variables, functions, and file names
+- Use snake_case for Python module files, variables, and functions
 - Use PascalCase for class names
 - Use UPPERCASE for constants
+- Configuration files and scripts may follow their respective conventions (e.g., `.md` for markdown, `.json` for JSON)
 
 ## Error Handling
 - Use try-except blocks for operations that may fail
