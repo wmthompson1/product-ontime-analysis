@@ -1,41 +1,67 @@
 {
   "name": "product-ontime-analysis",
   "version": "1.0.0",
-  "main": "teachable_machine_ver1.js",
-  "description": "Product on-time delivery analysis with NPM-first embedded Postgres setup",
+  "description": "Manufacturing Quality Control Analytics - Berkeley Haas AI Strategy Capstone",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "db:init": "node scripts/init_db.js",
-    "db:init:sample": "node scripts/init_db.js --sample-data",
-    "db:reset": "node scripts/init_db.js --drop-existing --sample-data",
-    "graph:build": "node scripts/build_graph_node.js --analyze",
-    "graph:build:python": "python scripts/networkx_build.py --analyze",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently -n flask,astro -c blue,magenta \"npm run flask\" \"npm run astro\"",
+    "dev:all": "concurrently -n flask,astro,hf -c blue,magenta,green \"npm run flask\" \"npm run astro\" \"npm run hf-space\"",
+    "flask": "python main.py",
+    "astro": "cd astro-sample && npm run dev",
+    "astro:build": "cd astro-sample && npm run build",
+    "astro:install": "cd astro-sample && npm install",
+    "hf-space": "cd hf-space-inventory-sqlgen && python app.py",
+    "hf-space:test": "cd hf-space-inventory-sqlgen && python test_client.py --base-url http://localhost:8000",
+    "mcp-fs": "mcp-server-filesystem --project-dir . --reference-project schema=./schema --reference-project hf-space=./hf-space-inventory-sqlgen --console-only",
+    "setup": "npm run setup:node && npm run setup:python",
+    "setup:node": "npm install && npm run astro:install",
+    "setup:python": "pip install -r requirements.txt",
+    "setup:python:hf": "pip install -r hf-space-inventory-sqlgen/requirements.txt",
+    "test:api": "curl -s http://localhost:5000/api/health | python -m json.tool",
+    "test:mcp": "curl -s http://localhost:8000/mcp/discover | python -m json.tool",
+    "clean": "rm -rf node_modules astro-sample/node_modules __pycache__ .pytest_cache",
+    "db:create": "createdb manufacturing_analytics",
+    "db:drop": "dropdb manufacturing_analytics",
+    "db:reset": "npm run db:drop; npm run db:create; npm run db:schema",
+    "db:schema": "psql manufacturing_analytics < schema/schema.sql",
+    "db:test": "python -c \"from sqlalchemy import create_engine; import os; from dotenv import load_dotenv; load_dotenv(); e=create_engine(os.getenv('DATABASE_URL')); c=e.connect(); print('Connected!')\"",
+    "db:migrate": "flask db upgrade"
   },
   "keywords": [
     "manufacturing",
-    "supply-chain",
-    "analytics",
-    "postgres",
-    "graph-analysis"
+    "quality-control",
+    "text-to-sql",
+    "semantic-layer",
+    "langchain",
+    "flask",
+    "astro",
+    "mcp",
+    "berkeley-haas"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "wmthompson1",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
     "@astrojs/react": "^4.3.0",
     "@astrojs/tailwind": "^5.1.5",
+    "@llmindset/hf-mcp-server": "^0.2.55",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "astro": "^5.12.3",
-    "graphology": "^0.25.4",
-    "graphology-metrics": "^2.2.0",
-    "pg": "^8.11.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5"
+    "concurrently": "^8.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wmthompson1/product-ontime-analysis.git"
   }
 }

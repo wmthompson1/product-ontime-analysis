@@ -1,0 +1,67 @@
+{
+    "mcp_version": "1.0",
+    "tools": [
+        {
+            "id": "profile_data",
+            "name": "Profile dataset (CSV)",
+            "description": "Return basic profile information and sample rows for a provided CSV dataset.",
+            "inputs": {
+                "csv_text": {
+                    "type": "string",
+                    "description": "CSV content as text"
+                },
+                "max_rows": {
+                    "type": "integer",
+                    "default": 20
+                }
+            },
+            "invoke_url": "/profile_data"
+        },
+        {
+            "id": "generate_sql",
+            "name": "Generate Postgres UPSERT SQL (inventory)",
+            "description": "Produce Postgres UPSERT SQL for inventory staging -> target flows, respecting simple business intent flags.",
+            "inputs": {
+                "options": {
+                    "type": "object",
+                    "properties": {
+                        "dialect": {
+                            "type": "string"
+                        },
+                        "target_table": {
+                            "type": "string"
+                        },
+                        "staging_table": {
+                            "type": "string"
+                        },
+                        "key_columns": {
+                            "type": "array"
+                        },
+                        "update_columns": {
+                            "type": "array"
+                        },
+                        "business_intent": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "context": {
+                    "type": "object",
+                    "description": "Optional small context"
+                }
+            },
+            "invoke_url": "/generate_sql"
+        },
+        {
+            "id": "validate_sql",
+            "name": "Validate SQL",
+            "description": "Validate SQL syntax using sqlglot (Postgres dialect).",
+            "inputs": {
+                "sql": {
+                    "type": "string"
+                }
+            },
+            "invoke_url": "/validate_sql"
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+	"inputs": [
+		{
+			"id": "Authorization",
+			"type": "promptString",
+			"description": "Authentication token (PAT or App token)",
+			"password": true
+		}
+	],
+	"servers": {
+		"io.github.github/github-mcp-server": {
+			"url": "http://127.0.0.1:3001/",
+			"type": "http",
+			"headers": {
+				"Authorization": "${input:Authorization}"
+			}
+		}
+	}
+}

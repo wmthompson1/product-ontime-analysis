@@ -1,4 +1,4 @@
-modules = ["python-3.11", "postgresql-16", "nodejs-20", "python3"]
+modules = ["python-3.11", "nodejs-20", "python3", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
@@ -37,10 +37,13 @@ args = "HF Space Inventory SQL"
 name = "Flask App"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python main.py"
-waitForPort = 5000
+waitForPort = 8080
 
 [[workflows.workflow]]
 name = "Astro Dev Server"
@@ -73,13 +76,13 @@ args = "cd hello-astro && npm run dev -- --host 0.0.0.0 --port 3000"
 name = "HF Space Inventory SQL"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd hf-space-inventory-sqlgen && python app.py"
-waitForPort = 8000
-
-[workflows.workflow.metadata]
-outputType = "console"
+waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "python3 helloWorld.py"]
@@ -97,12 +100,12 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 7860
-externalPort = 3002
-
-[[ports]]
 localPort = 8000
 externalPort = 8000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
 
 [agent]
 expertMode = true
