@@ -60,13 +60,21 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **Quick Actions**: Pre-configured searches for text-to-SQL, manufacturing, SQLCoder, and tabular data models
     - **MCP Tools**: Exposes structured tool definitions following Model Context Protocol conventions
     - **Authentication**: Uses HUGGINGFACE_TOKEN secret for API access
-- **Manufacturing Inventory SQL Generator (HF Space)**: Standalone Hugging Face Space project (`hf-space-inventory-sqlgen/`) ready for deployment:
-    - **Natural Language to SQL**: Convert plain English inventory queries to optimized SQL
-    - **MCP-Compliant API**: Full discovery, tool definitions, and resource endpoints for AI agent integration
-    - **Manufacturing Schema**: Pre-built schema for inventory, suppliers, and transactions tables
-    - **Gradio Interface**: Interactive web UI with query generator, SQL templates, and schema viewer
-    - **Test Client**: Python test client for validating all MCP endpoints
+- **Manufacturing SQL Semantic Layer (HF Space)**: MCP Context Builder for GitHub Copilot (`hf-space-inventory-sqlgen/`) on port 5000:
+    - **MCP Context Builder**: Single "Copy to Copilot" button bundles Prompts + Resources + Tools
+    - **Gradio Interface** (4 tabs): Copilot Context, Schema, Ground Truth SQL, MCP Endpoints
+    - **Copilot Context Tab**: Build MCP context package with question prompt, schema DDL (top 10 tables), and ground truth SQL examples
+    - **Schema Tab**: Browse SQLite DDL for manufacturing tables
+    - **Ground Truth SQL Tab**: View validated queries by category (quality_control, supplier_performance, equipment_reliability, production_analytics)
+    - **MCP Endpoints Tab**: API documentation for AI agent integration
+    - **Ground Truth SQL Storage** (`schema/queries/`): Organized SQL files by category with API-key protected save endpoint
+    - **Port Configuration**: HF Space runs on port 5000 (public), Flask runs on port 8080 (internal)
+    - **Database**: SQLite (`schema/manufacturing.db`) - no external database required for local development
     - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
+- **Schema Files**:
+    - `schema/schema_sqlite.sql`: SQLite-compatible schema (20 tables) for local development
+    - `schema/schema.sql`: Original PostgreSQL schema (24 tables) for Replit production
+    - `LOCAL_SETUP.md`: Quick start guide for local development with SQLite
 
 ### Frontend
 - **Framework**: Astro with React integration

@@ -1,31 +1,52 @@
 # Entry Point 020: ArangoDB Graph Persistence - Usage Examples
 
-Based on NVIDIA Developer Blog: [Accelerated, Production-Ready Graph Analytics for NetworkX Users](https://developer.nvidia.com/blog/accelerated-production-ready-graph-analytics-for-networkx-users/)
+Persist NetworkX graphs to local ArangoDB for faster session loading and team collaboration.
 
 ## Setup
 
-### 1. Get ArangoDB Instance
+### 1. Install ArangoDB Locally
 
-**Option A: ArangoGraph Cloud (Recommended)**
-- Visit [ArangoGraph](https://arangodb.com/arangograph-managedgraphdb/)
-- Create free account
-- Provision database instance
-- Note your connection details
+**macOS (Homebrew)**
+```bash
+brew install arangodb
+brew services start arangodb
+```
 
-**Option B: Self-Hosted**
-- Download from [ArangoDB Downloads](https://www.arangodb.com/download/)
-- Install and start local instance
-- Default: http://localhost:8529
+**Linux (apt)**
+```bash
+curl -OL https://download.arangodb.com/arangodb311/DEBIAN/Release.key
+sudo apt-key add - < Release.key
+echo 'deb https://download.arangodb.com/arangodb311/DEBIAN/ /' | sudo tee /etc/apt/sources.list.d/arangodb.list
+sudo apt-get update
+sudo apt-get install arangodb3
+```
 
-### 2. Set Environment Variables
+**Default Access**: http://localhost:8529
+
+### 2. Install Dependencies
 
 ```bash
-# Add to Replit Secrets or .env file
-DATABASE_HOST=https://your-instance.arangodb.cloud:8529
-DATABASE_USERNAME=root
-DATABASE_PASSWORD=your_password
-DATABASE_NAME=manufacturing_graphs
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements-arango.txt
 ```
+
+### 3. Set Environment Variables
+
+Create `.env` file in project root:
+```bash
+ARANGO_HOST=http://localhost:8529
+ARANGO_USERNAME=root
+ARANGO_PASSWORD=your_local_password
+ARANGO_DATABASE=manufacturing_graphs
+```
+
+### 4. Run Persistence Script
+
+```bash
+./.venv/bin/python scripts/persist_to_arango.py
+```
+
+The script uses `python-dotenv` to safely load credentials from `.env`.
 
 ## Usage Patterns
 
@@ -100,27 +121,21 @@ most_connected = max(centrality.items(), key=lambda x: x[1])
 print(f"Most connected node: {most_connected[0]} (score: {most_connected[1]:.3f})")
 ```
 
-### Pattern 3: GPU-Accelerated Analytics (NVIDIA cuGraph)
+### Pattern 3: Centrality Analysis on Persisted Graph
 
 ```python
 import networkx as nx
 from 020_Entry_Point_ArangoDB_Graph_Persistence import ArangoDBGraphPersistence
 
-# Load large graph from ArangoDB
+# Load graph from local ArangoDB
 persistence = ArangoDBGraphPersistence()
 adb_graph = persistence.load_graph(
-    name="large_manufacturing_network",
-    read_batch_size=100000,
-    read_parallelism=10
+    name="manufacturing_schema_v1",
+    directed=True
 )
 
-# Run GPU-accelerated algorithm (if NVIDIA GPU available)
-# NVIDIA blog reports 11-600x speedup for betweenness centrality
-result = nx.betweenness_centrality(
-    adb_graph,
-    k=100,
-    backend="cugraph"  # Automatically uses GPU if available
-)
+# Run centrality analysis
+result = nx.betweenness_centrality(adb_graph.to_undirected())
 
 # Find critical bridge nodes
 top_bridges = sorted(result.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -128,10 +143,6 @@ top_bridges = sorted(result.items(), key=lambda x: x[1], reverse=True)[:5]
 print("Top 5 critical bridge nodes:")
 for node, score in top_bridges:
     print(f"  {node}: {score:.3f}")
-
-# Save results back to graph
-for node, score in result.items():
-    adb_graph.nodes[node]['betweenness'] = score
 ```
 
 ### Pattern 4: Convert Between ArangoDB and NetworkX
@@ -164,22 +175,19 @@ updated_adb_graph = persistence.persist_graph(
 )
 ```
 
-## Key Benefits from NVIDIA Blog
+## Key Benefits
 
 ### Performance Improvements
-- **3x faster session loading** - Graphs persisted in ArangoDB load much faster than rebuilding from source
-- **11-600x speedup** - GPU-accelerated betweenness centrality with cuGraph
+- **Faster session loading** - Graphs persisted in ArangoDB load faster than rebuilding from SQLite
 - **Batch optimization** - Configurable read/write batch sizes for optimal throughput
 
 ### Production Features
-- **Scalability** - Horizontal scaling across multiple ArangoDB nodes
-- **Collaboration** - Share graphs across team members and sessions
+- **Team Collaboration** - Share graphs across team members and sessions
 - **Persistence** - No need to rebuild graphs from source data every time
 - **Flexibility** - Support for multiple data models (graph, document, key/value)
 
 ### Zero Code Changes
 - NetworkX algorithms work on ArangoDB-backed graphs
-- GPU acceleration with `backend="cugraph"` parameter
 - Seamless integration with existing NetworkX workflows
 
 ## Integration Architecture
@@ -211,8 +219,7 @@ updated_adb_graph = persistence.persist_graph(
 
 ## References
 
-- **NVIDIA Blog**: [Accelerated, Production-Ready Graph Analytics for NetworkX Users](https://developer.nvidia.com/blog/accelerated-production-ready-graph-analytics-for-networkx-users/)
 - **nx-arangodb GitHub**: [ArangoDB-Community/nx-arangodb](https://github.com/ArangoDB-Community/nx-arangodb)
-- **ArangoGraph**: [ArangoDB Managed Service](https://arangodb.com/arangograph-managedgraphdb/)
+- **ArangoDB Downloads**: [arangodb.com/download](https://www.arangodb.com/download/)
 - **Entry Point 018**: Structured RAG with Graph-Theoretic Determinism
-- **Entry Point 019**: NetworkX Graph Patterns (Edward L. Platt)
+- **Entry Point 019**: NetworkX Graph Patterns

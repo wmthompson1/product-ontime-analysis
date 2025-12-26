@@ -1,0 +1,49 @@
+{
+  "version": "1.0.0",
+  "description": "Ground Truth SQL Queries for Manufacturing Analytics",
+  "source": "Flask Manufacturing App - LangChain Semantic Layer",
+  "categories": [
+    {
+      "id": "quality_control",
+      "name": "Quality Control",
+      "file": "quality_control.sql",
+      "query_count": 3,
+      "description": "Defect tracking, NCM management, quality incidents"
+    },
+    {
+      "id": "supplier_performance",
+      "name": "Supplier Performance",
+      "file": "supplier_performance.sql",
+      "query_count": 2,
+      "description": "On-time delivery, quality scorecards, supplier metrics"
+    },
+    {
+      "id": "equipment_reliability",
+      "name": "Equipment Reliability",
+      "file": "equipment_reliability.sql",
+      "query_count": 3,
+      "description": "OEE metrics, downtime analysis, MTBF tracking"
+    },
+    {
+      "id": "production_analytics",
+      "name": "Production Analytics",
+      "file": "production_analytics.sql",
+      "query_count": 3,
+      "description": "Schedule adherence, line performance, quality costs"
+    }
+  ],
+  "tables_referenced": [
+    "product_defects",
+    "non_conformant_materials",
+    "corrective_actions",
+    "quality_incidents",
+    "suppliers",
+    "daily_deliveries",
+    "equipment_metrics",
+    "downtime_events",
+    "failure_events",
+    "production_schedule",
+    "production_lines",
+    "quality_costs"
+  ]
+}

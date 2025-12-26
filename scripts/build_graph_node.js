@@ -1,184 +1,285 @@
 #!/usr/bin/env node
-
 /**
- * build_graph_node.js: Build a supply chain graph using graphology (Node.js)
- * Reads from Postgres and creates a graph with suppliers -> parts -> assemblies -> products
+ * Graph Builder using Graphology (Node.js)
+ * 
+ * This script builds a supply chain graph from the product on-time analysis database.
+ * It creates nodes for suppliers, parts, and products, with edges representing relationships.
+ * 
+ * Usage:
+ *   node scripts/build_graph_node.js [options]
+ * 
+ * Options:
+ *   --output <file>    Output file path (default: graph_output.json)
+ *   --format <type>    Output format: json, gexf, graphml (default: json)
+ *   --analyze          Run graph analytics (centrality, communities, etc.)
  */
 
 const { Client } = require('pg');
-const Graph = require('graphology');
-const { createObjectCsvWriter } = require('csv-writer');
+const fs = require('fs').promises;
 const path = require('path');
-require('dotenv').config();
 
-const DB_NAME = process.env.DB_NAME || 'pta_dev';
-const DB_USER = process.env.DB_USER || 'postgres';
-const DB_PASSWORD = process.env.DB_PASSWORD || 'postgres';
-const DB_HOST = process.env.DB_HOST || 'localhost';
-const DB_PORT = process.env.DB_PORT || 5432;
-
-async function buildGraph() {
-  console.log('🔨 Building supply chain graph with graphology...');
-
-  const client = new Client({
-    user: DB_USER,
-    password: DB_PASSWORD,
-    host: DB_HOST,
-    port: DB_PORT,
-    database: DB_NAME,
-  });
-
-  await client.connect();
-
-  const graph = new Graph({ multi: false, type: 'directed' });
-
-  // Fetch suppliers
-  console.log('📦 Adding suppliers...');
-  const suppliers = await client.query('SELECT * FROM pta.suppliers');
-  for (const row of suppliers.rows) {
-    graph.addNode(`supplier_${row.supplier_id}`, {
-      type: 'supplier',
-      name: row.name,
-      country: row.country,
-    });
-  }
-
-  // Fetch parts and link to suppliers
-  console.log('🔩 Adding parts...');
-  const parts = await client.query('SELECT * FROM pta.parts');
-  for (const row of parts.rows) {
-    const unitCost = row.unit_cost !== null ? parseFloat(row.unit_cost) : null;
-    if (unitCost === null) {
-      console.warn(`Warning: Part ${row.part_id} has null unit_cost`);
-    }
-    graph.addNode(`part_${row.part_id}`, {
-      type: 'part',
-      part_number: row.part_number,
-      description: row.description,
-      unit_cost: unitCost || 0,
-    });
-    if (row.supplier_id) {
-      graph.addEdge(
-        `supplier_${row.supplier_id}`,
-        `part_${row.part_id}`,
-        { relationship: 'supplies' }
-      );
-    }
-  }
-
-  // Fetch assemblies
-  console.log('🔧 Adding assemblies...');
-  const assemblies = await client.query('SELECT * FROM pta.assemblies');
-  for (const row of assemblies.rows) {
-    graph.addNode(`assembly_${row.assembly_id}`, {
-      type: 'assembly',
-      assembly_code: row.assembly_code,
-      description: row.description,
-    });
-  }
-
-  // Link parts to assemblies
-  console.log('🔗 Linking parts to assemblies...');
-  const assemblyParts = await client.query('SELECT * FROM pta.assembly_parts');
-  for (const row of assemblyParts.rows) {
-    graph.addEdge(
-      `part_${row.part_id}`,
-      `assembly_${row.assembly_id}`,
-      { relationship: 'used_in', qty: row.qty }
-    );
-  }
-
-  // Fetch products
-  console.log('📦 Adding products...');
-  const products = await client.query('SELECT * FROM pta.products');
-  for (const row of products.rows) {
-    const listPrice = row.list_price !== null ? parseFloat(row.list_price) : null;
-    if (listPrice === null) {
-      console.warn(`Warning: Product ${row.product_id} has null list_price`);
-    }
-    graph.addNode(`product_${row.product_id}`, {
-      type: 'product',
-      sku: row.sku,
-      name: row.name,
-      list_price: listPrice || 0,
-    });
-    if (row.assembly_id) {
-      graph.addEdge(
-        `assembly_${row.assembly_id}`,
-        `product_${row.product_id}`,
-        { relationship: 'assembled_into' }
-      );
-    }
-  }
-
-  await client.end();
-
-  // Display graph stats
-  console.log('');
-  console.log('📊 Graph Statistics:');
-  console.log(`  Nodes: ${graph.order}`);
-  console.log(`  Edges: ${graph.size}`);
-  console.log('');
-
-  // Export nodes to CSV
-  const nodesOutputPath = path.join(__dirname, '..', 'graph_nodes.csv');
-  const nodesCsvWriter = createObjectCsvWriter({
-    path: nodesOutputPath,
-    header: [
-      { id: 'id', title: 'NODE_ID' },
-      { id: 'type', title: 'TYPE' },
-      { id: 'label', title: 'LABEL' },
-      { id: 'data', title: 'DATA_JSON' },
-    ],
-  });
-
-  const nodeRecords = [];
-  graph.forEachNode((node, attributes) => {
-    nodeRecords.push({
-      id: node,
-      type: attributes.type || 'unknown',
-      label: attributes.name || attributes.part_number || attributes.assembly_code || attributes.sku || node,
-      data: JSON.stringify(attributes),
-    });
-  });
-
-  await nodesCsvWriter.writeRecords(nodeRecords);
-  console.log(`✅ Nodes exported to ${nodesOutputPath}`);
-
-  // Export edges to CSV
-  const edgesOutputPath = path.join(__dirname, '..', 'graph_edges.csv');
-  const edgesCsvWriter = createObjectCsvWriter({
-    path: edgesOutputPath,
-    header: [
-      { id: 'source', title: 'SOURCE' },
-      { id: 'target', title: 'TARGET' },
-      { id: 'relationship', title: 'RELATIONSHIP' },
-      { id: 'data', title: 'DATA_JSON' },
-    ],
-  });
-
-  const edgeRecords = [];
-  graph.forEachEdge((edge, attributes, source, target) => {
-    edgeRecords.push({
-      source,
-      target,
-      relationship: attributes.relationship || 'related',
-      data: JSON.stringify(attributes),
-    });
-  });
-
-  await edgesCsvWriter.writeRecords(edgeRecords);
-  console.log(`✅ Edges exported to ${edgesOutputPath}`);
-
-  console.log('');
-  console.log('🎉 Graph built successfully!');
-  console.log('');
-  console.log('To visualize or analyze further, you can:');
-  console.log('  - Import the CSV files into a graph tool');
-  console.log('  - Use the optional Python NetworkX exporter: python scripts/networkx_build.py');
+// Check if graphology is available
+let Graph, centrality;
+try {
+  Graph = require('graphology');
+  centrality = require('graphology-metrics/centrality');
+  console.log('✅ Graphology library loaded');
+} catch (error) {
+  console.error('❌ Graphology not found. Install with: npm install graphology graphology-metrics');
+  process.exit(1);
 }
 
-buildGraph().catch((err) => {
-  console.error('❌ Error building graph:', err);
+// Configuration
+const DB_CONFIG = {
+  host: process.env.PGHOST || 'localhost',
+  port: process.env.PGPORT || 5432,
+  database: process.env.PGDATABASE || 'product_ontime',
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || 'postgres',
+};
+
+// Parse command line arguments
+const args = process.argv.slice(2);
+let outputFile = 'graph_output.json';
+let outputFormat = 'json';
+let shouldAnalyze = false;
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--output' && i + 1 < args.length) {
+    outputFile = args[i + 1];
+    i++;
+  } else if (args[i] === '--format' && i + 1 < args.length) {
+    outputFormat = args[i + 1];
+    i++;
+  } else if (args[i] === '--analyze') {
+    shouldAnalyze = true;
+  }
+}
+
+/**
+ * Build supply chain graph from database
+ */
+async function buildSupplyChainGraph(client) {
+  console.log('\n🔨 Building supply chain graph...');
+  
+  const graph = new Graph({ type: 'directed', multi: false });
+
+  // Add supplier nodes
+  console.log('  📦 Adding supplier nodes...');
+  const suppliersResult = await client.query(`
+    SELECT supplier_id, supplier_name, supplier_code, country
+    FROM suppliers
+    ORDER BY supplier_id
+  `);
+  
+  suppliersResult.rows.forEach(supplier => {
+    graph.addNode(`supplier_${supplier.supplier_id}`, {
+      type: 'supplier',
+      name: supplier.supplier_name,
+      code: supplier.supplier_code,
+      country: supplier.country,
+      label: supplier.supplier_name
+    });
+  });
+  console.log(`  ✅ Added ${suppliersResult.rows.length} supplier nodes`);
+
+  // Add part nodes
+  console.log('  🔩 Adding part nodes...');
+  const partsResult = await client.query(`
+    SELECT p.part_id, p.part_number, p.part_name, p.supplier_id, p.unit_cost, p.lead_time_days
+    FROM parts p
+    ORDER BY p.part_id
+  `);
+  
+  partsResult.rows.forEach(part => {
+    graph.addNode(`part_${part.part_id}`, {
+      type: 'part',
+      number: part.part_number,
+      name: part.part_name,
+      cost: part.unit_cost,
+      lead_time: part.lead_time_days,
+      label: part.part_name
+    });
+    
+    // Add edge from supplier to part
+    if (part.supplier_id) {
+      graph.addEdge(
+        `supplier_${part.supplier_id}`,
+        `part_${part.part_id}`,
+        {
+          type: 'supplies',
+          cost: part.unit_cost,
+          lead_time: part.lead_time_days
+        }
+      );
+    }
+  });
+  console.log(`  ✅ Added ${partsResult.rows.length} part nodes`);
+
+  // Add product nodes
+  console.log('  📦 Adding product nodes...');
+  const productsResult = await client.query(`
+    SELECT product_id, product_code, product_name, product_family, target_cycle_time_hours
+    FROM products
+    ORDER BY product_id
+  `);
+  
+  productsResult.rows.forEach(product => {
+    graph.addNode(`product_${product.product_id}`, {
+      type: 'product',
+      code: product.product_code,
+      name: product.product_name,
+      family: product.product_family,
+      cycle_time: product.target_cycle_time_hours,
+      label: product.product_name
+    });
+  });
+  console.log(`  ✅ Added ${productsResult.rows.length} product nodes`);
+
+  // Add assembly edges (part -> product)
+  console.log('  🔗 Adding assembly relationships...');
+  const assembliesResult = await client.query(`
+    SELECT product_id, part_id, quantity_required
+    FROM assemblies
+    ORDER BY product_id, part_id
+  `);
+  
+  assembliesResult.rows.forEach(assembly => {
+    graph.addEdge(
+      `part_${assembly.part_id}`,
+      `product_${assembly.product_id}`,
+      {
+        type: 'used_in',
+        quantity: assembly.quantity_required
+      }
+    );
+  });
+  console.log(`  ✅ Added ${assembliesResult.rows.length} assembly relationships`);
+
+  return graph;
+}
+
+/**
+ * Analyze graph metrics
+ */
+function analyzeGraph(graph) {
+  console.log('\n📊 Graph Analysis:');
+  console.log(`  Nodes: ${graph.order}`);
+  console.log(`  Edges: ${graph.size}`);
+  
+  // Calculate density for directed graph: edges / (nodes * (nodes - 1))
+  // Note: This assumes no self-loops, which is enforced by our graph configuration (multi: false)
+  // Handling edge case where graph has fewer than 2 nodes
+  const density = graph.order >= 2 
+    ? (graph.size / (graph.order * (graph.order - 1))).toFixed(4)
+    : '0.0000';
+  console.log(`  Density: ${density}`);
+  
+  // Count by node type
+  const nodeTypes = {};
+  graph.forEachNode((node, attrs) => {
+    nodeTypes[attrs.type] = (nodeTypes[attrs.type] || 0) + 1;
+  });
+  console.log('\n  Node types:');
+  Object.entries(nodeTypes).forEach(([type, count]) => {
+    console.log(`    ${type}: ${count}`);
+  });
+
+  // Calculate degree centrality
+  console.log('\n  🎯 Calculating centrality metrics...');
+  try {
+    const degreeCentrality = centrality.degree(graph);
+    
+    // Find top nodes by degree
+    const topNodes = Object.entries(degreeCentrality)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    
+    console.log('  Top 5 most connected nodes:');
+    topNodes.forEach(([nodeId, degree]) => {
+      const attrs = graph.getNodeAttributes(nodeId);
+      console.log(`    ${attrs.label} (${attrs.type}): ${degree} connections`);
+    });
+  } catch (error) {
+    console.log('  ⚠️  Centrality calculation skipped:', error.message);
+  }
+}
+
+/**
+ * Export graph to JSON
+ */
+function exportToJson(graph) {
+  const data = {
+    nodes: [],
+    edges: []
+  };
+
+  graph.forEachNode((node, attrs) => {
+    data.nodes.push({
+      id: node,
+      ...attrs
+    });
+  });
+
+  graph.forEachEdge((edge, attrs, source, target) => {
+    data.edges.push({
+      id: edge,
+      source,
+      target,
+      ...attrs
+    });
+  });
+
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * Main function
+ */
+async function main() {
+  console.log('🚀 Supply Chain Graph Builder (Graphology)\n');
+  console.log('Database configuration:');
+  console.log(`   Host: ${DB_CONFIG.host}`);
+  console.log(`   Port: ${DB_CONFIG.port}`);
+  console.log(`   Database: ${DB_CONFIG.database}`);
+
+  const client = new Client(DB_CONFIG);
+
+  try {
+    // Connect to database
+    console.log('\n🔌 Connecting to database...');
+    await client.connect();
+    console.log('✅ Connected to database');
+
+    // Build graph
+    const graph = await buildSupplyChainGraph(client);
+
+    // Analyze if requested
+    if (shouldAnalyze) {
+      analyzeGraph(graph);
+    }
+
+    // Export graph
+    console.log(`\n💾 Exporting graph to ${outputFile}...`);
+    const graphData = exportToJson(graph);
+    await fs.writeFile(outputFile, graphData, 'utf-8');
+    console.log(`✅ Graph exported successfully`);
+    console.log(`   File: ${path.resolve(outputFile)}`);
+    console.log(`   Size: ${(graphData.length / 1024).toFixed(2)} KB`);
+
+    console.log('\n✨ Graph building completed successfully!');
+
+  } catch (error) {
+    console.error('\n❌ Error:', error.message);
+    process.exit(1);
+  } finally {
+    await client.end();
+    console.log('🔌 Database connection closed');
+  }
+}
+
+// Run the script
+main().catch(error => {
+  console.error('Unhandled error:', error);
   process.exit(1);
 });

@@ -1,110 +1,35 @@
+# Environment secrets - ensure .env is never committed
+.env
+.env.*
+.env.example
 
-# Python
+# Python artifacts
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+*.pyc
 
-# Virtual environments
+# Virtualenvs
+.venv/
 venv/
-env/
-ENV/
-.venv
 
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Flask
-instance/
-.webassets-cache
-
-# Environment variables
-.env
-.env.local
-.env.production
-
-# Node.js
+# Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
-.yarn-integrity
 
-# Astro
-.astro/
-dist/
-
-# Logs
-*.log
-logs/
-
-# Database
-*.db
+# Databases
 *.sqlite3
-.pgdata/
+dev_test.db
 
-# Generated graph files
-graph_nodes.csv
-graph_edges.csv
-supply_chain_graph.png
+# Editor / IDE
+.idea/
+.vscode/
+*.local
 
-# Temporary files
-*.tmp
-*.temp
-temp/
-tmp/
+# OS files
+.DS_Store
 
-# User uploaded files (for your analysis tool)
-uploaded_*.csv
-user_data/
-uploads/
+# Direnv
+.envrc
 
-# Output files
-test_output/
-*.jsonl
-
-# Model files (if large)
-*.bin
-weights.bin
-
-# Local configuration
-local_config.py
-config_local.py
-
-# Backup files
-*.bak
-*.backup
-
-# Replit specific (optional - you may want to track .replit)
-# .replit
+# MCP client config (server URL + auth token)
+.mcp.json
+mcp.json
