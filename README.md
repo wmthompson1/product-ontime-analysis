@@ -1,31 +1,28 @@
+```markdown
+# Clean start baseline
 
+This branch is a minimal baseline intended to be used as a "clean start" for the repository.
+It intentionally excludes ephemeral `.env` files.
 
-<!-- Space registration removed: the GitHub Space was deleted and related registration instructions were archived. -->
+Quick steps to create & open a PR from this baseline:
 
----
+1. Ensure you're on the branch you want to use as the baseline:
+   git checkout main
+   git pull origin main
+   git checkout -b clean-start
 
-## Local MCP Server smoke & tests
+2. Save the baseline files into the repo root (the files under `.github/`, `scripts/`, `docker-compose.yml`, `config.py`, `README.md`, and `scripts/recreate_from_graph.py`).
 
-You can run the small FastAPI-based MCP server smoke tests locally using the provided helper script.
+3. Commit and push:
+   git add .
+   git commit -m "clean start: baseline files (CI, docker, arango scripts, config shim)"
+   git push -u origin clean-start
 
-1. Make the helper executable:
+4. Open a Pull Request from `clean-start` → `main` in GitHub. Review the "Files changed" tab carefully; this PR may remove files that are not present here.
 
-```bash
-chmod +x scripts/run_smoke_locally.sh
+Notes:
+- No `.env` files are included; keep sensitive and local configuration in your local `.env` or secret manager.
+- CI includes a check to fail if legacy `database_` env prefix occurrences are found (see `.github/workflows/check-arango-env.yml`).
+- `scripts/arangobackup.sh` and `scripts/arangorecreate.sh` are safe by default (dry-run). Use `--apply` and `ALLOW_COLLECTION_DROP=true` explicitly to perform destructive actions.
+- `scripts/recreate_from_graph.py` can rebuild the Arango collections from a normalized NetworkX pickle. Use `--dry-run` first.
 ```
-
-2. Run the helper (default port 8000):
-
-```bash
-./scripts/run_smoke_locally.sh 8000
-```
-
-This will create a `.venv`, install `mcp_server` dependencies, start the server, run the smoke checks, print logs on failure, and stop the server.
-
-3. To run the unit tests for the MCP server (from an activated `.venv`):
-
-```bash
-.venv/bin/python -m pytest -q mcp_server/tests
-```
-
-If you'd like, I can add these commands to a CONTRIBUTING.md or move them closer to the top of this README.
