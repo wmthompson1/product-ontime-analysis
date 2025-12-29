@@ -31,33 +31,26 @@ class ArangoDBConfig:
         host: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
-        ARANGO_name: Optional[str] = None
+        database_name: Optional[str] = None
     ):
-        # Prefer ARANGO_* variables if present, fall back to older DATABASE_* names
-        self.host = host or os.getenv("ARANGO_URL") or os.getenv("ARANGO_HOST") or os.getenv("ARANGO_HOST", "http://localhost:8529")
-        self.username = username or os.getenv("ARANGO_USER") or os.getenv("ARANGO_USERNAME") or os.getenv("ARANGO_USER", "root")
-        self.password = password or os.getenv("ARANGO_PASSWORD") or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("ARANGO_PASSWORD", "")
-        self.ARANGO_name = ARANGO_name or os.getenv("ARANGO_DB") or os.getenv("ARANGO_DATABASE") or os.getenv("ARANGO_DB", "networkx_graphs")
-
+        self.host = host or os.getenv("DATABASE_HOST", "http://localhost:8529")
+        self.username = username or os.getenv("DATABASE_USERNAME", "root")
+        self.password = password or os.getenv("DATABASE_PASSWORD", "")
+        self.database_name = database_name or os.getenv("DATABASE_NAME", "networkx_graphs")
+    
     def set_environment_variables(self):
-        """Set environment variables for nx-arangodb and provide compatibility aliases"""
-        # Maintain DATABASE_* envs for backward compatibility
-        os.environ["ARANGO_HOST"] = self.host
-        os.environ["ARANGO_USER"] = self.username
-        os.environ["ARANGO_PASSWORD"] = self.password
-        os.environ["ARANGO_DB"] = self.ARANGO_name
-        # Ensure ARANGO_* are set if callers prefer the new names
-        os.environ.setdefault("ARANGO_URL", self.host)
-        os.environ.setdefault("ARANGO_USER", self.username)
-        os.environ.setdefault("ARANGO_PASSWORD", self.password)
-        os.environ.setdefault("ARANGO_DB", self.ARANGO_name)
+        """Set environment variables for nx-arangodb"""
+        os.environ["DATABASE_HOST"] = self.host
+        os.environ["DATABASE_USERNAME"] = self.username
+        os.environ["DATABASE_PASSWORD"] = self.password
+        os.environ["DATABASE_NAME"] = self.database_name
     
     def get_connection_info(self) -> Dict[str, str]:
         """Get connection information (safe for logging)"""
         return {
             "host": self.host,
             "username": self.username,
-            "ARANGO_name": self.ARANGO_name,
+            "database_name": self.database_name,
             "password": "***" if self.password else "Not set"
         }
 

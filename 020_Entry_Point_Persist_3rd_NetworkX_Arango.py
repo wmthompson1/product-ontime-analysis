@@ -26,7 +26,7 @@ config = ArangoDBConfig()
 persistence = ArangoDBGraphPersistence(config)
 
 print(f"✅ Connected to ArangoDB:")
-print(f"   Database: {config.ARANGO_name}")
+print(f"   Database: {config.database_name}")
 print(f"   Host: {config.host}")
 
 # Step 2: Load persisted graph

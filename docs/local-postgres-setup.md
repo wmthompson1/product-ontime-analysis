@@ -75,11 +75,10 @@ DB_SSLMODE=disable
 # For Replit/Neon (SSL required) - DO NOT USE LOCALLY
 # DATABASE_URL=postgresql+psycopg2://user:pass@host.neon.tech:5432/dbname?sslmode=require
 
-# API Keys (placeholders)
-# Set these locally in a private `.env` file or CI/repo secrets; do NOT commit real keys.
-OPENAI_API_KEY=<OPENAI_API_KEY_PLACEHOLDER>
-TAVILY_API_KEY=<TAVILY_API_KEY_PLACEHOLDER>
-HUGGINGFACE_TOKEN=<HUGGINGFACE_TOKEN_PLACEHOLDER>
+# API Keys
+OPENAI_API_KEY=sk-...
+TAVILY_API_KEY=tvly-...
+HUGGINGFACE_TOKEN=hf_...
 ```
 
 ### Connection String Formats
@@ -208,10 +207,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get connection string
-ARANGO_url = os.getenv('DATABASE_URL')
+database_url = os.getenv('DATABASE_URL')
 
 # Create engine
-engine = create_engine(ARANGO_url)
+engine = create_engine(database_url)
 
 # Test connection
 with engine.connect() as conn:

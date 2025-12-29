@@ -18,7 +18,7 @@ def test_architecture_review():
     components = {
         "app/schema_context.py": "Database schema introspection and context generation",
         "app/semantic_layer.py": "LangChain-based natural language to SQL conversion", 
-        "app/ARANGO_executor.py": "Safe query execution with monitoring",
+        "app/database_executor.py": "Safe query execution with monitoring",
         "app/main.py": "FastAPI REST API endpoints",
         "semantic_layer_ver1.py": "Enhanced integration and backward compatibility",
         "semantic_layer_demo.py": "Working demonstration without dependencies"
@@ -77,7 +77,7 @@ def test_debugging_capabilities():
     print("=" * 50)
     
     try:
-        from app.ARANGO_executor import DatabaseExecutor, ExecutionLimits
+        from app.database_executor import DatabaseExecutor, ExecutionLimits
         
         print("Debugging Features:")
         print("   ✅ Comprehensive execution statistics tracking")

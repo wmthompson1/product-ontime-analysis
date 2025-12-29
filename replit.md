@@ -48,7 +48,7 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
         - **With schemas**: Same invoice with schema_1 and schema_2 filters to `identity.csv` (3 columns) and `Data.csv` (3 columns, col_3/col_4 dropped)
     - **Production ETL Use Case**: Perfect for invoice processing workflows requiring separate metadata and tabular data outputs for downstream systems, with automatic column filtering for data quality control
     - **Architect Reviewed**: Pass - cleanly reuses `cleanse_dataframe` across entry points, correct free-form transpose logic, comprehensive statistics tracking with proper warning merge, production-ready for stated ETL use case
-- **Contextual UI Hints System**: Database-backed intelligent hint system (`app/ARANGO_hints_loader.py`) for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata from `schema_edges` table, table-aware hints, and user-defined acronyms.
+- **Contextual UI Hints System**: Database-backed intelligent hint system (`app/database_hints_loader.py`) for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata from `schema_edges` table, table-aware hints, and user-defined acronyms.
 - **LangGraph 101 Implementation**: Entry Point series (010-017) demonstrating LangGraph base class patterns for custom manufacturing tools, workflow orchestration, and agent patterns, including a Manufacturing Queue Router and Plant Log Ingestion system.
 - **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation (Entry Point 018) separating deterministic logic (NetworkX for join pathfinding via shortest path algorithms) from LLM inference, using graph metadata stored in a relational database (`schema_nodes`, `schema_edges`).
 - **NetworkX Graph Patterns**: Comprehensive demonstration (Entry Point 019) of network science patterns (graph construction, centrality analysis, shortest path, community detection) applied to manufacturing contexts, integrated with database schema metadata.
@@ -64,13 +64,17 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **MCP Context Builder**: Single "Copy to Copilot" button bundles Prompts + Resources + Tools
     - **Gradio Interface** (4 tabs): Copilot Context, Schema, Ground Truth SQL, MCP Endpoints
     - **Copilot Context Tab**: Build MCP context package with question prompt, schema DDL (top 10 tables), and ground truth SQL examples
-    - **Schema Tab**: Browse PostgreSQL DDL for all 24 tables
+    - **Schema Tab**: Browse SQLite DDL for manufacturing tables
     - **Ground Truth SQL Tab**: View validated queries by category (quality_control, supplier_performance, equipment_reliability, production_analytics)
     - **MCP Endpoints Tab**: API documentation for AI agent integration
     - **Ground Truth SQL Storage** (`schema/queries/`): Organized SQL files by category with API-key protected save endpoint
     - **Port Configuration**: HF Space runs on port 5000 (public), Flask runs on port 8080 (internal)
+    - **Database**: SQLite (`schema/manufacturing.db`) - no external database required for local development
     - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
-- **Schema Export** (`schema/schema.sql`): Complete PostgreSQL schema (24 tables, 1496 lines) for local development setup with VS Code and GitHub Copilot
+- **Schema Files**:
+    - `schema/schema_sqlite.sql`: SQLite-compatible schema (20 tables) for local development
+    - `schema/schema.sql`: Original PostgreSQL schema (24 tables) for Replit production
+    - `LOCAL_SETUP.md`: Quick start guide for local development with SQLite
 
 ### Frontend
 - **Framework**: Astro with React integration

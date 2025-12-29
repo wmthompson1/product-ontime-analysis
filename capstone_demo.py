@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
 
 try:
     from semantic_layer import SemanticLayer, QueryRequest
-    from ARANGO_executor import DatabaseExecutor
+    from database_executor import DatabaseExecutor
     from schema_context import SchemaInspector
     SEMANTIC_LAYER_AVAILABLE = True
     print("✅ Semantic layer components loaded successfully")

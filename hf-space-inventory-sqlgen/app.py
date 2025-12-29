@@ -22,36 +22,63 @@ import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
 SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
 QUERY_API_KEY = os.environ.get("QUERY_API_KEY", "")
+SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
 db_engine = None
 
 def get_db_engine():
-    """Get or create database engine"""
+    """Get or create SQLite database engine"""
     global db_engine
-    if db_engine is None and DATABASE_URL:
-        db_engine = create_engine(DATABASE_URL)
+    if db_engine is None:
+        db_engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
+        init_sqlite_db()
     return db_engine
 
+def init_sqlite_db():
+    """Initialize SQLite database from schema file"""
+    schema_file = os.path.join(SCHEMA_DIR, "schema_sqlite.sql")
+    if not os.path.exists(schema_file):
+        return
+    
+    with open(schema_file, 'r') as f:
+        schema_sql = f.read()
+    
+    engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
+    with engine.connect() as conn:
+        for statement in schema_sql.split(';'):
+            statement = statement.strip()
+            if statement and statement.startswith('CREATE TABLE'):
+                try:
+                    conn.execute(text(statement))
+                    conn.commit()
+                except Exception:
+                    pass  # Table already exists
+
 def get_table_create_sql(table_name: str) -> str:
-    """Generate CREATE TABLE SQL for a given table"""
+    """Generate CREATE TABLE SQL for a given table (SQLite version)"""
     engine = get_db_engine()
     if not engine:
         return "-- Database not connected"
+    
     try:
-        dialect = engine.dialect.name
-        # SQLite fallback: read CREATE statement from sqlite_master
-        if dialect == 'sqlite':
-            with engine.connect() as conn:
-                res = conn.execute(text("SELECT sql FROM sqlite_master WHERE type='table' AND name = :t"), {"t": table_name})
-                row = res.fetchone()
-                if not row or not row[0]:
-                    return f"-- Table '{table_name}' not found"
+        with engine.connect() as conn:
+            result = conn.execute(text(f"SELECT sql FROM sqlite_master WHERE type='table' AND name=:table_name"), {"table_name": table_name})
+            row = result.fetchone()
+            if row and row[0]:
                 return row[0]
+            return f"-- Table '{table_name}' not found"
+    except Exception as e:
+        return f"-- Error: {str(e)}"
 
-        # Default: Postgres-style introspection (information_schema)
+def get_table_create_sql_legacy(table_name: str) -> str:
+    """Generate CREATE TABLE SQL for a given table (PostgreSQL version - deprecated)"""
+    engine = get_db_engine()
+    if not engine:
+        return "-- Database not connected"
+    
+    try:
         with engine.connect() as conn:
             result = conn.execute(text("""
                 SELECT column_name, data_type, character_maximum_length, 
@@ -61,10 +88,10 @@ def get_table_create_sql(table_name: str) -> str:
                 ORDER BY ordinal_position
             """), {"table_name": table_name})
             columns = result.fetchall()
-
+            
             if not columns:
                 return f"-- Table '{table_name}' not found"
-
+            
             col_defs = []
             for col in columns:
                 col_name, data_type, max_len, nullable, default = col
@@ -74,7 +101,7 @@ def get_table_create_sql(table_name: str) -> str:
                 null_str = "" if nullable == "YES" else " NOT NULL"
                 default_str = f" DEFAULT {default}" if default else ""
                 col_defs.append(f"    {col_name} {type_str}{null_str}{default_str}")
-
+            
             pk_result = conn.execute(text("""
                 SELECT kcu.column_name
                 FROM information_schema.table_constraints tc
@@ -87,26 +114,23 @@ def get_table_create_sql(table_name: str) -> str:
                 ORDER BY kcu.ordinal_position
             """), {"table_name": table_name})
             pk_cols = [row[0] for row in pk_result.fetchall()]
-
+            
             if pk_cols:
                 col_defs.append(f"    PRIMARY KEY ({', '.join(pk_cols)})")
-
+            
             return f"CREATE TABLE {table_name} (\n" + ",\n".join(col_defs) + "\n);"
     except Exception as e:
         return f"-- Error: {str(e)}"
 
 def get_all_tables() -> List[str]:
-    """Get list of all tables in the database"""
+    """Get list of all tables in the SQLite database"""
     engine = get_db_engine()
     if not engine:
         return []
     
     try:
         inspector = inspect(engine)
-        dialect = engine.dialect.name
-        if dialect == 'sqlite':
-            return inspector.get_table_names()
-        return inspector.get_table_names(schema='public')
+        return inspector.get_table_names()
     except Exception:
         return []
 
@@ -930,11 +954,15 @@ def create_gradio_interface():
         with gr.Tab("📊 Schema"):
             gr.Markdown("### Database Schema Resources")
             
+            initial_table_list = get_all_tables()
+            gr.Markdown(f"**{len(initial_table_list)} tables available**")
+            
             with gr.Row():
                 with gr.Column():
                     refresh_tables_btn = gr.Button("Refresh Table List", variant="secondary")
                     table_dropdown = gr.Dropdown(
-                        choices=get_all_tables(),
+                        choices=initial_table_list,
+                        value=initial_table_list[0] if initial_table_list else None,
                         label="Select Table",
                         interactive=True
                     )
@@ -945,10 +973,8 @@ def create_gradio_interface():
                     ddl_output = gr.Code(label="CREATE TABLE SQL", language="sql", lines=20)
             
             def refresh_table_list():
-                        tables = get_all_tables()
-                        # Return an update for the existing Dropdown component instead of
-                        # creating a new Dropdown object (which breaks dynamic updates).
-                        return gr.update(choices=tables, value=None)
+                tables = get_all_tables()
+                return gr.update(choices=tables, value=tables[0] if tables else None)
             
             refresh_tables_btn.click(fn=refresh_table_list, outputs=table_dropdown)
             get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
@@ -964,10 +990,10 @@ def create_gradio_interface():
             
             def load_queries_for_category(category_id: str):
                 if not category_id:
-                    return gr.update(choices=[], value=None), ""
+                    return [], ""
                 queries = get_saved_queries(category_id)
                 choices = [(q['name'], i) for i, q in enumerate(queries)]
-                return gr.update(choices=choices, value=None), ""
+                return gr.Dropdown(choices=choices, value=None), ""
             
             def load_query_sql(category_id: str, query_idx):
                 if category_id is None or query_idx is None:
@@ -1033,6 +1059,10 @@ def create_gradio_interface():
     
     return demo
 
+
+get_db_engine()
+initial_tables = get_all_tables()
+print(f"SQLite database initialized with {len(initial_tables)} tables")
 
 gradio_app = create_gradio_interface()
 app = gr.mount_gradio_app(app, gradio_app, path="/gradio")

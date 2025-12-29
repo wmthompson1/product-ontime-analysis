@@ -1,207 +1,210 @@
 #!/usr/bin/env python3
-"""Persist the generated GraphML to ArangoDB using Entry Point 020 helper.
-
-Prefers ARANGO_* env vars (ARANGO_URL, ARANGO_USER, ARANGO_PASSWORD, ARANGO_DB)
-but will accept older DATABASE_* names as fallbacks during migration.
-Make sure to `source .env` (or export) before running.
 """
+persist_to_arango.py - Persist NetworkX schema graph to local ArangoDB
+
+Uses python-dotenv for safe credential loading.
+Requires: nx-arangodb, python-arango, python-dotenv, networkx
+
+Usage:
+    ./.venv/bin/python scripts/persist_to_arango.py
+    
+Environment variables (in .env):
+    ARANGO_HOST      - ArangoDB host (default: http://localhost:8529)
+    ARANGO_USERNAME  - ArangoDB username (default: root)
+    ARANGO_PASSWORD  - ArangoDB password
+    ARANGO_DATABASE  - Target database name (default: manufacturing_graphs)
+"""
+
 import os
 import sys
 from pathlib import Path
-import logging
-import traceback
 
-GRAPHML_PATH = Path('data/schema_018.graphml')
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    print("Error: python-dotenv not installed")
+    print("Run: pip install python-dotenv")
+    sys.exit(1)
 
-
-def _normalize_arango_env():
-    """Allow configuration via ARANGO_* env vars while keeping DATABASE_* fallbacks.
-
-    This makes the script work with either the old `DATABASE_` names or newer
-    `ARANGO_` names used in some hosts (Replit, etc.).
-    """
-    env = os.environ
-    # Map ARANGO_* -> DATABASE_* if DATABASE_* not set
-    if env.get('ARANGO_URL') and not env.get('ARANGO_HOST'):
-        env['ARANGO_HOST'] = env.get('ARANGO_URL')
-    if env.get('ARANGO_USER') and not env.get('ARANGO_USER'):
-        env['ARANGO_USER'] = env.get('ARANGO_USER')
-    if env.get('ARANGO_PASSWORD') and not env.get('ARANGO_PASSWORD'):
-        env['ARANGO_PASSWORD'] = env.get('ARANGO_PASSWORD')
-    if env.get('ARANGO_DB') and not env.get('ARANGO_DB'):
-        env['ARANGO_DB'] = env.get('ARANGO_DB')
-    # also support ARANGO_ROOT_PASSWORD as a source for ARANGO_PASSWORD
-    if env.get('ARANGO_ROOT_PASSWORD') and not env.get('ARANGO_PASSWORD'):
-        env['ARANGO_PASSWORD'] = env.get('ARANGO_ROOT_PASSWORD')
-
-
-def main():
-    if not GRAPHML_PATH.exists():
-        print(f'GraphML file not found: {GRAPHML_PATH}')
-        sys.exit(2)
-
-    # enable verbose logging for HTTP/requests and python-arango
-    logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger('urllib3').setLevel(logging.DEBUG)
-    logging.getLogger('requests').setLevel(logging.DEBUG)
-
-    # import nx_arangodb helper module (Entry Point 020)
-    import importlib.util
-    spec = importlib.util.spec_from_file_location('arango_entrypoint', '020_Entry_Point_ArangoDB_Graph_Persistence.py')
-    arango_mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(arango_mod)
-    except Exception:
-        print('Failed to load Arango entry point module:')
-        traceback.print_exc()
-        sys.exit(3)
-
-    try:
-        # Ensure nx-arangodb is available
-        import nx_arangodb  # noqa: F401
-    except Exception:
-        print('nx-arangodb not installed or import failed:')
-        traceback.print_exc()
-        print("Install it into the venv: ./.venv/bin/pip install nx-arangodb")
-        sys.exit(4)
-
-    import networkx as nx
-
-    print('Loading GraphML:', GRAPHML_PATH)
-    try:
-        G = nx.read_graphml(str(GRAPHML_PATH))
-    except Exception:
-        print('Failed to read GraphML:')
-        traceback.print_exc()
-        sys.exit(5)
-
-    print('Loaded graph:', G.number_of_nodes(), 'nodes,', G.number_of_edges(), 'edges')
-
-    # Ensure each node contains a 'table' attribute (used as collection/name)
-    # GraphML nodes often use the node id as the table name; if attributes are empty,
-    # copy the node identifier into the 'table' attribute so Arango documents retain
-    # readable table names instead of numeric keys.
-    for n in G.nodes():
-        attrs = G.nodes[n]
-        if not attrs.get('table') and not attrs.get('name'):
-            attrs['table'] = str(n)
-        # also set a friendly `name` property for UI display
-        if not attrs.get('name'):
-            attrs['name'] = str(n)
-
-    # Ensure nodes have readable names/keys when persisted to ArangoDB.
-    # nx-arangodb will auto-generate document keys if none are provided; to keep
-    # table names visible in Arango we set a `_key` and `name` attribute for each node
-    # when it's missing. `_key` must be URL-safe and unique per node.
-    for n in list(G.nodes()):
-        attrs = G.nodes[n]
-        # set a human-friendly name if not present
-        if not attrs.get('name'):
-            attrs['name'] = str(n)
-        # set document key to the node id (sanitized) if no explicit key present
-        if not attrs.get('_key') and not attrs.get('key'):
-            # sanitize key: replace slashes/spaces with underscore
-            safe = str(n).replace('/', '_').replace(' ', '_')
-            attrs['_key'] = safe
-            # also set 'key' and 'label' to help nx-arangodb preserve names
-            attrs['key'] = safe
-            attrs['label'] = str(n)
-
-    # Normalize env vars (allow ARANGO_* names) and build ArangoDB config from env
-    try:
-        _normalize_arango_env()
-        cfg = arango_mod.ArangoDBConfig()
-        info = cfg.get_connection_info()
-        print('Arango config:', info)
-    except Exception:
-        print('Failed to build ArangoDBConfig:')
-        traceback.print_exc()
-        sys.exit(6)
-
-    try:
-        persistence = arango_mod.ArangoDBGraphPersistence(cfg)
-    except Exception:
-        print('Failed to initialize ArangoDBGraphPersistence:')
-        traceback.print_exc()
-        sys.exit(7)
-
-    name = os.environ.get('ARANGO_GRAPH_NAME', 'manufacturing_schema_v1')
-    try:
-        adb_graph = persistence.persist_graph(G, name=name, write_batch_size=10000, overwrite=True)
-        print('Persisted graph to ArangoDB:', name)
-    except Exception:
-        print('Persist failed with exception:')
-        traceback.print_exc()
-        sys.exit(8)
-
-    print('Done')
-
-
-if __name__ == '__main__':
-    main()
-#!/usr/bin/env python3
-"""Load data/schema_018.graphml and persist to ArangoDB using Entry Point 020 classes.
-
-Requires environment variables for ArangoDB (prefer ARANGO_URL/ARANGO_USER/ARANGO_PASSWORD/ARANGO_DB)
-to be set. DATABASE_* names are supported as fallbacks. Expects `data/schema_018.graphml` to exist.
-"""
-import os
-import sys
-from pathlib import Path
-import importlib.util
+load_dotenv()
 
 try:
     import networkx as nx
-except Exception as e:
-    print('networkx not installed:', e)
-    sys.exit(2)
+    from arango.client import ArangoClient
+except ImportError as e:
+    print(f"Error: Missing dependency - {e}")
+    print("Run: pip install -r requirements-arango.txt")
+    sys.exit(1)
 
-ROOT = Path.cwd()
-graphml = ROOT / 'data' / 'schema_018.graphml'
-if not graphml.exists():
-    print('GraphML not found:', graphml)
-    sys.exit(2)
+HAS_NX_ARANGO = False
+try:
+    import nx_arangodb
+    HAS_NX_ARANGO = True
+except ImportError:
+    pass
 
-# Load the Arango persistence module by path
-module_path = ROOT / '020_Entry_Point_ArangoDB_Graph_Persistence.py'
-if not module_path.exists():
-    print('Arango persistence module not found:', module_path)
-    sys.exit(2)
 
-spec = importlib.util.spec_from_file_location('arango_persist', str(module_path))
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
+def get_config():
+    """Load configuration from environment"""
+    config = {
+        'host': os.getenv('ARANGO_HOST', 'http://localhost:8529'),
+        'username': os.getenv('ARANGO_USERNAME', 'root'),
+        'password': os.getenv('ARANGO_PASSWORD', ''),
+        'database': os.getenv('ARANGO_DATABASE', 'manufacturing_graphs'),
+    }
+    
+    if not config['password']:
+        print("Warning: ARANGO_PASSWORD not set in .env")
+    
+    return config
 
-if not getattr(mod, 'NXADB_AVAILABLE', False):
-    print('nx-arangodb is not available. Please install: pip install nx-arangodb')
-    sys.exit(2)
 
-ArangoDBConfig = getattr(mod, 'ArangoDBConfig')
-ArangoDBGraphPersistence = getattr(mod, 'ArangoDBGraphPersistence')
+def load_schema_graph_from_sqlite(db_path: str | None = None) -> nx.DiGraph:
+    """Load schema graph from SQLite schema_edges table"""
+    import sqlite3
+    
+    if db_path is None:
+        db_path = os.getenv('SQLITE_DATABASE', 'schema/manufacturing.db')
+    
+    print(f"Loading graph from SQLite: {db_path}")
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    G = nx.DiGraph()
+    
+    cursor.execute("""
+        SELECT from_table, to_table, relationship_type, join_column, weight,
+               join_column_description, natural_language_alias, few_shot_example, context
+        FROM schema_edges
+        ORDER BY edge_id
+    """)
+    edges = cursor.fetchall()
+    
+    for edge in edges:
+        from_t, to_t, rel_type, join_col, weight = edge[:5]
+        G.add_edge(
+            from_t, to_t,
+            relationship=rel_type,
+            join_column=join_col,
+            weight=weight or 1,
+            join_column_description=edge[5] if len(edge) > 5 else '',
+            natural_language_alias=edge[6] if len(edge) > 6 else '',
+            few_shot_example=edge[7] if len(edge) > 7 else '',
+            context=edge[8] if len(edge) > 8 else ''
+        )
+    
+    conn.close()
+    
+    print(f"Loaded graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    return G
+
+
+def persist_with_nx_arangodb(G: nx.DiGraph, config: dict, graph_name: str):
+    """Persist using nx-arangodb library"""
+    if not HAS_NX_ARANGO:
+        raise ImportError("nx-arangodb not installed")
+    
+    from nx_arangodb import ArangoDBConfig, ArangoDBGraphPersistence  # type: ignore
+    
+    arango_config = ArangoDBConfig(
+        host=config['host'],
+        username=config['username'],
+        password=config['password'],
+        database=config['database']
+    )
+    
+    persistence = ArangoDBGraphPersistence(arango_config)
+    
+    adb_graph = persistence.persist_graph(
+        graph=G,
+        name=graph_name,
+        write_batch_size=10000,
+        overwrite=True
+    )
+    
+    return adb_graph
+
+
+def persist_manual(G: nx.DiGraph, config: dict, graph_name: str):
+    """Manual persistence using python-arango directly"""
+    client = ArangoClient(hosts=config['host'])
+    
+    sys_db = client.db('_system', username=config['username'], password=config['password'])
+    
+    if not sys_db.has_database(config['database']):
+        sys_db.create_database(config['database'])
+        print(f"Created database: {config['database']}")
+    
+    db = client.db(config['database'], username=config['username'], password=config['password'])
+    
+    nodes_collection = f"{graph_name}_nodes"
+    edges_collection = f"{graph_name}_edges"
+    
+    if db.has_collection(nodes_collection):
+        db.delete_collection(nodes_collection)
+    if db.has_collection(edges_collection):
+        db.delete_collection(edges_collection)
+    
+    nodes_col = db.create_collection(nodes_collection)
+    edges_col = db.create_collection(edges_collection, edge=True)
+    
+    for node, data in G.nodes(data=True):
+        doc = {'_key': str(node), 'name': str(node)}
+        doc.update({k: v for k, v in data.items() if v is not None})
+        nodes_col.insert(doc)
+    
+    for from_node, to_node, data in G.edges(data=True):
+        doc = {
+            '_from': f"{nodes_collection}/{from_node}",
+            '_to': f"{nodes_collection}/{to_node}",
+        }
+        doc.update({k: v for k, v in data.items() if v is not None})
+        edges_col.insert(doc)
+    
+    print(f"Persisted to collections: {nodes_collection}, {edges_collection}")
+    return True
+
 
 def main():
-    print('Loading graphml...', graphml)
-    G = nx.read_graphml(str(graphml))
-    print(f'Graph loaded: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges')
-
-    # Use env vars set in the shell (or .env loaded prior to running)
-    _normalize_arango_env()
-    config = ArangoDBConfig()
-    info = config.get_connection_info()
-    print('Using Arango config:', info)
-
+    print("=" * 60)
+    print("Persist NetworkX Schema Graph to ArangoDB")
+    print("=" * 60)
+    
+    config = get_config()
+    print(f"\nArangoDB Host: {config['host']}")
+    print(f"Database: {config['database']}")
+    print(f"Username: {config['username']}")
+    
+    G = load_schema_graph_from_sqlite()
+    
+    if G.number_of_edges() == 0:
+        print("\nError: No edges found in schema_edges table")
+        print("Run schema_graph.py first to populate the table")
+        sys.exit(1)
+    
+    graph_name = "manufacturing_schema_v1"
+    
+    print(f"\nPersisting graph as: {graph_name}")
+    
     try:
-        persistence = ArangoDBGraphPersistence(config)
+        if HAS_NX_ARANGO:
+            persist_with_nx_arangodb(G, config, graph_name)
+        else:
+            persist_manual(G, config, graph_name)
+        
+        print("\n" + "=" * 60)
+        print("Graph persisted successfully to ArangoDB!")
+        print("=" * 60)
+        
     except Exception as e:
-        print('Failed to initialize ArangoDBGraphPersistence:', e)
-        sys.exit(2)
+        print(f"\nError persisting graph: {e}")
+        print("\nTroubleshooting:")
+        print("1. Is ArangoDB running? Check: http://localhost:8529")
+        print("2. Are credentials correct in .env?")
+        print("3. Is network accessible?")
+        sys.exit(1)
 
-    try:
-        adb = persistence.persist_graph(G, name='manufacturing_schema_v1', write_batch_size=10000, overwrite=True)
-        print('Persist returned:', type(adb))
-    except Exception as e:
-        print('Persist failed:', e)
-        sys.exit(2)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

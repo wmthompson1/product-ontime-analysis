@@ -17,7 +17,7 @@ from app.semantic_layer import (
     SemanticLayer, QueryRequest, QueryResult, QueryComplexity,
     generate_sql_from_nl, semantic_layer
 )
-from app.ARANGO_executor import (
+from app.database_executor import (
     DatabaseExecutor, ExecutionResult, execute_safe_query, db_executor
 )
 from app.schema_context import (
@@ -240,7 +240,7 @@ async def validate_sql_query(sql_query: SQLQuery):
         raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
 
 @app.get("/api/v1/schema", tags=["Schema Information"])
-async def get_ARANGO_schema(
+async def get_database_schema(
     table_names: Optional[List[str]] = Query(None, description="Specific tables to inspect"),
     include_samples: bool = Query(False, description="Include sample data"),
 ):
@@ -306,11 +306,11 @@ async def get_system_stats(db: DatabaseExecutor = Depends(get_db_executor)):
         db_stats = db.get_execution_stats()
         
         return {
-            "ARANGO_stats": db_stats,
+            "database_stats": db_stats,
             "system_info": {
                 "available_tables": len(schema_inspector.get_all_tables()),
                 "openai_api_configured": bool(os.getenv("OPENAI_API_KEY")),
-                "ARANGO_connected": db.test_connection()
+                "database_connected": db.test_connection()
             },
             "timestamp": datetime.now().isoformat()
         }

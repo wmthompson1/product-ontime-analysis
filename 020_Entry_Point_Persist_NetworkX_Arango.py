@@ -13,8 +13,8 @@ G.add_edges_from([
 ])
 
 # Step 2: Set up ArangoDB connection
-# Make sure you have these environment variables set (prefer ARANGO_* names):
-# ARANGO_URL (or ARANGO_HOST/ARANGO_PORT), ARANGO_USER, ARANGO_PASSWORD (or ARANGO_ROOT_PASSWORD), ARANGO_DB
+# Make sure you have these environment variables set:
+# DATABASE_HOST, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_NAME
 
 config = ArangoDBConfig()  # Uses environment variables
 persistence = ArangoDBGraphPersistence(config)

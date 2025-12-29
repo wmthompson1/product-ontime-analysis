@@ -42,13 +42,13 @@ class ExecutionLimits:
 class DatabaseExecutor:
     """Safe database executor with monitoring and limits"""
     
-    def __init__(self, ARANGO_url: str = None):
-        self.ARANGO_url = ARANGO_url or os.getenv("DATABASE_URL")
+    def __init__(self, database_url: str = None):
+        self.database_url = database_url or os.getenv("DATABASE_URL")
         self.limits = ExecutionLimits()
         
         # Initialize connection pool
         self.engine = create_engine(
-            self.ARANGO_url,
+            self.database_url,
             poolclass=StaticPool,
             pool_pre_ping=True,
             pool_recycle=300,

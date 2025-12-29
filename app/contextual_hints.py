@@ -8,7 +8,7 @@ import re
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
-from app.ARANGO_hints_loader import get_ARANGO_hints_loader
+from app.database_hints_loader import get_database_hints_loader
 
 class HintType(Enum):
     ACRONYM = "acronym"
@@ -163,7 +163,7 @@ class ContextualHintEngine:
         # Initialize database loader if enabled
         if self.use_database:
             try:
-                self.db_loader = get_ARANGO_hints_loader()
+                self.db_loader = get_database_hints_loader()
             except Exception as e:
                 print(f"Warning: Could not initialize database hints loader: {e}")
                 self.use_database = False
@@ -184,7 +184,7 @@ class ContextualHintEngine:
         # 1. Try database-backed hints first (production-ready)
         if self.use_database and self.db_loader:
             try:
-                db_hints = self._get_ARANGO_hints(partial_query, table_name)
+                db_hints = self._get_database_hints(partial_query, table_name)
                 hints.extend(db_hints)
             except Exception as e:
                 print(f"Error loading database hints: {e}")
@@ -210,7 +210,7 @@ class ContextualHintEngine:
         hints.sort(key=lambda x: x.confidence, reverse=True)
         return hints[:8]  # Return top 8 hints
     
-    def _get_ARANGO_hints(self, query: str, table_name: str = None) -> List[ContextualHint]:
+    def _get_database_hints(self, query: str, table_name: str = None) -> List[ContextualHint]:
         """Get hints from database-backed schema metadata"""
         hints = []
         

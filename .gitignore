@@ -1,30 +1,35 @@
-.DS_Store
+# Environment secrets - ensure .env is never committed
+.env
+.env.*
+.env.example
+
 # Python artifacts
 __pycache__/
 *.py[cod]
+*.pyc
+
 # Virtualenvs
 .venv/
 venv/
-node_modules
 
-# devcontainer
-.devcontainer/
+# Node
+node_modules/
 
-# Environment secrets - ensure .env is never committed
-.env
-
-# Common environment / virtualenv / editor ignores
-.env.*           # optional: other env variants
-.venv/
-venv/
-__pycache__/
-*.pyc
-.envrc
-*.local
-.idea/
-.vscode/
+# Databases
 *.sqlite3
 dev_test.db
+
+# Editor / IDE
+.idea/
+.vscode/
+*.local
+
+# OS files
+.DS_Store
+
+# Direnv
+.envrc
+
 # MCP client config (server URL + auth token)
 .mcp.json
 mcp.json

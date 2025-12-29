@@ -1,101 +1,191 @@
 #!/usr/bin/env python3
-"""Load tables and foreign-key edges from SQLite into a NetworkX graph.
-
-Usage:
-  DATABASE_URL="sqlite:///data/manufacturing_analytics.sqlite3" \
-    ./.venv/bin/python hf-space-inventory-sqlgen/schema_graph.py
-
-The script prints a summary and writes `data/schema.graphml` if NetworkX is available.
 """
+schema_graph.py - Build NetworkX graph from schema_edges table
+
+Uses pre-defined table relationships from schema_edges rather than 
+auto-discovering foreign keys (which SQLite doesn't enforce).
+"""
+
 import os
 import sqlite3
-import sys
-
-DB_ENV = os.environ.get("DATABASE_URL", "sqlite:///data/manufacturing_analytics.sqlite3")
-
-def sqlite_path_from_url(url: str) -> str:
-    # support sqlite:///path/to/db
-    if url.startswith("sqlite:///"):
-        return url[len("sqlite:///"):]
-    if url.startswith("sqlite://"):
-        return url[len("sqlite://"):]
-    return url
+import networkx as nx
+from pathlib import Path
 
 
-def build_graph(conn):
-    try:
-        import networkx as nx
-    except Exception:
-        nx = None
+def get_db_path():
+    """Get database path from DATABASE_URL or default"""
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url.startswith("sqlite:///"):
+        return db_url.replace("sqlite:///", "")
+    return "schema/manufacturing.db"
 
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT name FROM sqlite_master
+
+def load_tables(cursor):
+    """Load all table names"""
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
         ORDER BY name
     """)
-    tables = [r[0] for r in cur.fetchall()]
+    return [row[0] for row in cursor.fetchall()]
 
-    edges = []
-    for tbl in tables:
-        try:
-            cur.execute(f"PRAGMA foreign_key_list('{tbl}')")
-            fks = cur.fetchall()
-            # pragma returns: id, seq, table, from, to, on_update, on_delete, match
-            for fk in fks:
-                ref_table = fk[2]
-                from_col = fk[3]
-                to_col = fk[4]
-                edges.append((tbl, ref_table, from_col, to_col))
-        except sqlite3.OperationalError:
-            continue
 
-    # Print summary
-    print("Found tables:")
-    for t in tables:
-        print(" -", t)
-    print(f"Total tables: {len(tables)}")
-
-    if edges:
-        print("\nForeign key edges:")
-        for src, dst, fcol, tcol in edges:
-            print(f" - {src} -> {dst}    ({fcol} -> {tcol})")
-    else:
-        print("\nNo foreign key edges discovered.")
-
-    if nx is None:
-        print("\nNetworkX not available. Install it with: '.venv/bin/pip install networkx' to save graph files.")
-        return
-
-    G = nx.DiGraph()
-    for t in tables:
-        G.add_node(t)
-    for src, dst, fcol, tcol in edges:
-        G.add_edge(src, dst, from_col=fcol, to_col=tcol)
-
-    out_path = os.path.join("data", "schema.graphml")
+def load_edges_from_schema_edges(cursor):
+    """Load edges from schema_edges table (pre-defined relationships)"""
     try:
-        nx.write_graphml(G, out_path)
-        print(f"\nWrote graph to: {out_path}")
-    except Exception as e:
-        print(f"Failed to write graph file: {e}")
+        cursor.execute("""
+            SELECT from_table, to_table, relationship_type, join_column, weight,
+                   join_column_description, natural_language_alias, few_shot_example, context
+            FROM schema_edges
+            ORDER BY edge_id
+        """)
+        return cursor.fetchall()
+    except sqlite3.OperationalError:
+        print("Warning: schema_edges table not found")
+        return []
+
+
+def build_graph(tables, edges):
+    """Build NetworkX DiGraph from tables and edges"""
+    G = nx.DiGraph()
+    
+    for table in tables:
+        G.add_node(table, type='table')
+    
+    for edge in edges:
+        from_t, to_t, rel_type, join_col, weight = edge[:5]
+        join_desc = edge[5] if len(edge) > 5 else None
+        nl_alias = edge[6] if len(edge) > 6 else None
+        few_shot = edge[7] if len(edge) > 7 else None
+        context = edge[8] if len(edge) > 8 else None
+        
+        G.add_edge(
+            from_t, to_t,
+            relationship=rel_type,
+            join_column=join_col,
+            weight=weight or 1,
+            join_column_description=join_desc,
+            natural_language_alias=nl_alias,
+            few_shot_example=few_shot,
+            context=context
+        )
+    
+    return G
 
 
 def main():
-    db_path = sqlite_path_from_url(DB_ENV)
-    if not os.path.isabs(db_path):
-        db_path = os.path.join(os.getcwd(), db_path)
-
-    if not os.path.exists(db_path):
-        print(f"Database file not found: {db_path}")
-        sys.exit(2)
-
+    db_path = get_db_path()
+    print(f"Database: {db_path}")
+    
     conn = sqlite3.connect(db_path)
-    try:
-        build_graph(conn)
-    finally:
-        conn.close()
+    cursor = conn.cursor()
+    
+    tables = load_tables(cursor)
+    print(f"\nFound tables:")
+    for t in tables:
+        print(f" - {t}")
+    print(f"Total tables: {len(tables)}")
+    
+    edges = load_edges_from_schema_edges(cursor)
+    print(f"\nLoaded {len(edges)} edges from schema_edges table:")
+    for edge in edges:
+        print(f" - {edge[0]} --[{edge[2]}]--> {edge[1]} (on {edge[3]})")
+    
+    conn.close()
+    
+    G = build_graph(tables, edges)
+    print(f"\nGraph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    
+    output_dir = Path("data")
+    output_dir.mkdir(exist_ok=True)
+    output_path = output_dir / "schema.graphml"
+    nx.write_graphml(G, output_path)
+    print(f"\nWrote graph to: {output_path}")
+    
+    if G.number_of_edges() > 0:
+        print("\nSample path test:")
+        try:
+            undirected = G.to_undirected()
+            nodes = list(G.nodes())
+            if len(nodes) >= 2:
+                path = nx.shortest_path(undirected, nodes[0], nodes[-1])
+                print(f"  {nodes[0]} → {nodes[-1]}: {' → '.join(path)}")
+        except nx.NetworkXNoPath:
+            print("  No path found between test nodes")
+
+
+def import_graphml_to_schema_edges(graphml_path: str, db_path: str | None = None):
+    """
+    Import edges from GraphML file into schema_edges table
+    
+    This is the reverse of build_graph - reads NetworkX graph and 
+    populates the SQLite schema_edges table.
+    """
+    if db_path is None:
+        db_path = get_db_path()
+    
+    print(f"Reading graph from: {graphml_path}")
+    G = nx.read_graphml(graphml_path)
+    
+    print(f"Graph loaded: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS schema_edges (
+            edge_id INTEGER PRIMARY KEY,
+            from_table TEXT,
+            to_table TEXT,
+            relationship_type TEXT,
+            join_column TEXT,
+            weight INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            join_column_description TEXT,
+            natural_language_alias TEXT,
+            few_shot_example TEXT,
+            context TEXT
+        )
+    """)
+    
+    cursor.execute("DELETE FROM schema_edges")
+    
+    edge_id = 1
+    for from_node, to_node, data in G.edges(data=True):
+        cursor.execute("""
+            INSERT INTO schema_edges 
+            (edge_id, from_table, to_table, relationship_type, join_column, weight,
+             join_column_description, natural_language_alias, few_shot_example, context)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            edge_id,
+            from_node,
+            to_node,
+            data.get('relationship', 'RELATED_TO'),
+            data.get('join_column', ''),
+            int(data.get('weight', 1)),
+            data.get('join_column_description', ''),
+            data.get('natural_language_alias', ''),
+            data.get('few_shot_example', ''),
+            data.get('context', '')
+        ))
+        edge_id += 1
+    
+    conn.commit()
+    print(f"Imported {edge_id - 1} edges into schema_edges table")
+    
+    cursor.execute("SELECT COUNT(*) FROM schema_edges")
+    count = cursor.fetchone()[0]
+    print(f"Verified: {count} edges in database")
+    
+    conn.close()
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "--import":
+        graphml_path = sys.argv[2] if len(sys.argv) > 2 else "data/schema.graphml"
+        import_graphml_to_schema_edges(graphml_path)
+    else:
+        main()

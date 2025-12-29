@@ -9,7 +9,7 @@
 	],
 	"servers": {
 		"io.github.github/github-mcp-server": {
-			"url": "http://127.0.0.1:8081/",
+			"url": "http://127.0.0.1:3001/",
 			"type": "http",
 			"headers": {
 				"Authorization": "${input:Authorization}"

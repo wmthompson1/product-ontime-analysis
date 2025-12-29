@@ -1258,8 +1258,8 @@ def add_acronym():
         conn.close()
         
         # Clear cache so new acronyms are immediately available
-        from app.ARANGO_hints_loader import get_ARANGO_hints_loader
-        loader = get_ARANGO_hints_loader()
+        from app.database_hints_loader import get_database_hints_loader
+        loader = get_database_hints_loader()
         loader.clear_cache()
         
         return jsonify({
@@ -1386,8 +1386,8 @@ def add_edge_metadata():
         conn.close()
         
         # Clear cache so new metadata is immediately available
-        from app.ARANGO_hints_loader import get_ARANGO_hints_loader
-        loader = get_ARANGO_hints_loader()
+        from app.database_hints_loader import get_database_hints_loader
+        loader = get_database_hints_loader()
         loader.clear_cache()
         
         return jsonify({

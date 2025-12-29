@@ -18,9 +18,9 @@ class SchemaGraphManager:
     Enables deterministic join pathfinding for RAG applications
     """
     
-    def __init__(self, ARANGO_url: Optional[str] = None):
-        self.ARANGO_url = ARANGO_url or os.getenv("DATABASE_URL")
-        if not self.ARANGO_url:
+    def __init__(self, database_url: Optional[str] = None):
+        self.database_url = database_url or os.getenv("DATABASE_URL")
+        if not self.database_url:
             raise ValueError("DATABASE_URL must be provided or set in environment")
     
     def build_graph_from_database(self) -> nx.DiGraph:
@@ -32,7 +32,7 @@ class SchemaGraphManager:
         """
         print("🔨 Building schema graph from database...")
         
-        conn = psycopg2.connect(self.ARANGO_url)
+        conn = psycopg2.connect(self.database_url)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         G = nx.DiGraph()
