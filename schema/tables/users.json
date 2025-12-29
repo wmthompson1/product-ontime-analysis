@@ -1,0 +1,25 @@
+{
+  "table": "users",
+  "columns": [
+    {
+      "name": "id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "name",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "email",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": []
+}

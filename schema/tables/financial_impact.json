@@ -1,0 +1,93 @@
+{
+  "table": "financial_impact",
+  "columns": [
+    {
+      "name": "impact_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "event_date",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "impact_type",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "impact_category",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "gross_impact",
+      "type": "NUMERIC",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "recovery_amount",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": "0"
+    },
+    {
+      "name": "net_impact",
+      "type": "NUMERIC",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "affected_product_lines",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "root_cause_category",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "business_unit",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "impact_duration_days",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "mitigation_cost",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "lessons_learned",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "impact_id"
+  ]
+}

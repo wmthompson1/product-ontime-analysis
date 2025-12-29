@@ -1,0 +1,17 @@
+{"level":30,"time":"2025-11-29T04:25:14.863Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Starting Streamable HTTP server..."}
+{"level":30,"time":"2025-11-29T04:25:14.867Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Using internal API client with user config API: http://localhost:3001}"}
+{"level":30,"time":"2025-11-29T04:25:14.878Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Server running at http://localhost:3001"}
+{"level":30,"time":"2025-11-29T04:25:14.878Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","transportType":"streamableHttp","mode":"production","msg":"Server configuration"}
+{"level":30,"time":"2025-11-29T04:25:14.879Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","heartbeatInterval":30000,"staleCheckInterval":90000,"staleTimeout":600000,"pingEnabled":true,"pingInterval":30000,"msg":"StreamableHTTP transport initialized"}
+{"level":30,"time":"2025-11-29T04:25:14.880Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Starting API polling with interval 5000ms"}
+{"level":50,"time":"2025-12-01T20:31:49.255Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","error":{},"msg":"Error fetching settings from local API"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool duplicate_space state changed: true -> false"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool space_info state changed: true -> false"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool space_files state changed: true -> false"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool hf_doc_fetch state changed: true -> false"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool use_space state changed: true -> false"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool hf_jobs state changed: true -> false"}
+{"level":30,"time":"2025-12-01T20:31:49.264Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","msg":"Tool dynamic_space state changed: true -> false"}
+{"level":50,"time":"2025-12-01T20:31:53.735Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","error":{},"msg":"Error fetching settings from local API"}
+{"level":50,"time":"2025-12-01T20:31:58.737Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","error":{},"msg":"Error fetching settings from local API"}
+{"level":50,"time":"2025-12-01T20:32:03.741Z","pid":87839,"hostname":"Williams-MacBook-Pro.local","error":{},"msg":"Error fetching settings from local API"}

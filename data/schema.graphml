@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><graph edgedefault="directed"><node id="corrective_actions"/>
+<node id="daily_deliveries"/>
+<node id="downtime_events"/>
+<node id="effectiveness_metrics"/>
+<node id="equipment_metrics"/>
+<node id="equipment_reliability"/>
+<node id="failure_events"/>
+<node id="financial_impact"/>
+<node id="industry_benchmarks"/>
+<node id="maintenance_targets"/>
+<node id="manufacturing_acronyms"/>
+<node id="non_conformant_materials"/>
+<node id="product_defects"/>
+<node id="product_lines"/>
+<node id="production_lines"/>
+<node id="production_quality"/>
+<node id="production_schedule"/>
+<node id="products"/>
+<node id="quality_costs"/>
+<node id="quality_incidents"/>
+<node id="schema_edges"/>
+<node id="schema_nodes"/>
+<node id="suppliers"/>
+<node id="users"/>
+</graph></graphml>

@@ -1,0 +1,144 @@
+{
+  "timestamp": "2025-08-29T01:46:40.042949",
+  "test_cases": 6,
+  "standard_layer_results": [
+    {
+      "test_id": "supply_chain_001",
+      "query": "Show suppliers with delivery performance issues affecting production",
+      "generated_sql": "```sql SELECT s.supplier_id, s.supplier_name, AVG(d.ontime_rate) AS average_ontime_rate FROM suppliers s JOIN daily_deliveries d ON s.supplier_id = d.supplier_id GROUP BY s.supplier_id, s.supplier_name HAVING AVG(d.ontime_rate) < %s ORDER BY average_ontime_rate ASC LIMIT %s; ```",
+      "confidence": 0.85,
+      "safety_check": true,
+      "explanation": " This query joins the suppliers and daily_deliveries tables on the supplier_id field. It then groups the results by supplier_id and supplier_name, and calculates the average ontime_rate for each supplier. The HAVING clause filters out suppliers with an average ontime_rate of 95% or higher, as per the industry standard for On-Time Delivery (OTD). The results are ordered by average_ontime_rate in ascending order, so suppliers with the worst delivery performance are shown first. The LIMIT clause is used to prevent resource exhaustion by limiting the results to the top 100 suppliers with delivery performance issues. 1.0",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "quality_001",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "```sql WITH ncm_defects AS ( SELECT product_line, AVG(defect_rate) AS avg_defect_rate, DATE_TRUNC('month', production_date) AS month FROM product_defects WHERE defect_type = 'NCM' GROUP BY product_line, month ), ncm_trends AS ( SELECT product_line, month, avg_defect_rate, LAG(avg_defect_rate) OVER (PARTITION BY product_line ORDER BY month) AS prev_month_defect_rate FROM ncm_defects ) SELECT n.product_line, p.description, n.month, n.avg_defect_rate, n.prev_month_defect_rate FROM ncm_trends n JOIN products p ON n.product_line = p.description WHERE n.avg_defect_rate > n.prev_month_defect_rate AND n.avg_defect_rate > %s ORDER BY n.avg_defect_rate DESC LIMIT %s; ```",
+      "confidence": 0.9,
+      "safety_check": true,
+      "explanation": " This query first creates a CTE (Common Table Expression) named 'ncm_defects' that calculates the average defect rate for each product line per month where the defect type is 'NCM'. Then, another CTE 'ncm_trends' is created that calculates the previous month's defect rate for each product line. Finally, the main query joins the 'ncm_trends' CTE with the 'products' table on the product line and filters for product lines where the current month's defect rate is greater than the previous month's and also above the industry standard. The results are ordered by the defect rate in descending order.",
+      "complexity": "QueryComplexity.COMPLEX"
+    },
+    {
+      "test_id": "production_001",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "```sql WITH critical_equipment AS ( SELECT equipment_id, measurement_date, availability_rate * performance_rate * quality_rate AS oee, downtime_hours FROM equipment_metrics WHERE equipment_type = %s ) SELECT equipment_id, measurement_date, oee, downtime_hours, LAG(downtime_hours) OVER (PARTITION BY equipment_id ORDER BY measurement_date) AS previous_downtime, downtime_hours - LAG(downtime_hours) OVER (PARTITION BY equipment_id ORDER BY measurement_date) AS downtime_change FROM critical_equipment ORDER BY equipment_id, measurement_date; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query first creates a temporary table (critical_equipment) that calculates the OEE for each piece of critical equipment on each measurement date. It then selects from this table, calculating the change in downtime from the previous measurement date for each piece of equipment. The LAG function is used to get the previous row's downtime_hours value within each partition of equipment_id. The result is ordered by equipment_id and measurement_date to show the progression of OEE and downtime patterns for each piece of critical equipment over time.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "financial_001",
+      "query": "Show cost impact of quality issues by product line",
+      "generated_sql": "```sql SELECT product_line, SUM(cost_impact) AS total_cost_impact FROM non_conformant_materials GROUP BY product_line ORDER BY total_cost_impact DESC; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query calculates the total cost impact of quality issues for each product line. It does this by summing the cost impact for each product line in the non_conformant_materials table. The results are then ordered in descending order by the total cost impact.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "maintenance_001",
+      "query": "Find equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "```sql SELECT er.equipment_id, er.mtbf_hours, er.target_mtbf FROM equipment_reliability er WHERE er.mtbf_hours < er.target_mtbf; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "This query selects the equipment_id, mtbf_hours, and target_mtbf from the equipment_reliability table where the mtbf_hours (Mean Time Between Failures) is less than the target_mtbf. This will return the equipment that has a MTBF below the target, indicating that these equipment require immediate attention.",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "compliance_001",
+      "query": "Show CAPA effectiveness for recurring quality issues",
+      "generated_sql": "```sql WITH recurring_issues AS ( SELECT ncm_id, COUNT(*) AS recurrence_count FROM non_conformant_materials GROUP BY ncm_id HAVING COUNT(*) > 1 ), capa_effectiveness AS ( SELECT ca.ncm_id, AVG(ca.effectiveness_score) AS avg_effectiveness FROM corrective_actions ca JOIN recurring_issues ri ON ca.ncm_id = ri.ncm_id GROUP BY ca.ncm_id ) SELECT ri.ncm_id, ri.recurrence_count, ce.avg_effectiveness FROM recurring_issues ri JOIN capa_effectiveness ce ON ri.ncm_id = ce.ncm_id ORDER BY ri.recurrence_count DESC, ce.avg_effectiveness ASC; ```",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": " This query first identifies the recurring quality issues by counting the number of times each NCM incident occurs in the non_conformant_materials table. It then calculates the average effectiveness score of the corrective actions associated with each recurring issue. The final result is a list of recurring issues (identified by their NCM IDs), the number of times each issue has recurred, and the average effectiveness of the corrective actions taken to address each issue. The results are ordered by the recurrence count in descending order and then by the average effectiveness score in ascending order.",
+      "complexity": "QueryComplexity.SIMPLE"
+    }
+  ],
+  "advanced_layer_results": [
+    {
+      "test_id": "supply_chain_001",
+      "query": "Show suppliers with delivery performance issues affecting production",
+      "generated_sql": "SELECT \n    s.supplier_name,\n    COUNT(d.delivery_id) as total_deliveries,\n    AVG(d.ontime_rate) as avg_delivery_performance,\n    COUNT(ps.schedule_id) as affected_production_schedules\nFROM suppliers s\nJOIN daily_deliveries d ON s.supplier_id = d.supplier_id\nJOIN production_schedule ps ON ps.line_id = d.supplier_id\nWHERE d.delivery_date >= CURRENT_DATE - INTERVAL '90 days'\n    AND d.ontime_rate < 0.95\n    AND ps.planned_start >= d.date\n    AND ps.actual_start IS NULL\nGROUP BY s.supplier_id, s.supplier_name\nORDER BY affected_production_schedules DESC, avg_delivery_performance ASC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "quality_001",
+      "query": "Find products with NCM rates trending above industry standards",
+      "generated_sql": "SELECT \n        product_line,\n        DATE_TRUNC('month', production_date) as month,\n        AVG(defect_rate) as monthly_ncm_rate\n    FROM product_defects\n    WHERE defect_type = 'NCM' AND production_date >= CURRENT_DATE - INTERVAL '6 months'\n    GROUP BY product_line, DATE_TRUNC('month', production_date)\n),\ntrend_analysis AS (\n    SELECT \n        product_line,\n        month,\n        monthly_ncm_rate,\n        LAG(monthly_ncm_rate) OVER (PARTITION BY product_line ORDER BY month) as prev_month_rate\n    FROM monthly_ncm\n)\nSELECT \n    product_line,\n    COUNT(*) as months_analyzed,\n    AVG(monthly_ncm_rate) as avg_ncm_rate,\n    (monthly_ncm_rate - prev_month_rate) as trend_change\nFROM trend_analysis\nWHERE prev_month_rate IS NOT NULL\n    AND monthly_ncm_rate > prev_month_rate\n    AND monthly_ncm_rate > 0.025\nGROUP BY product_line, monthly_ncm_rate, prev_month_rate\nHAVING COUNT(*) >= 2\nORDER BY trend_change DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "production_001",
+      "query": "Calculate OEE for critical equipment showing downtime patterns",
+      "generated_sql": "SELECT \n    em.equipment_name,\n    em.equipment_type,\n    AVG(em.availability_rate) as availability,\n    AVG(em.performance_rate) as performance,\n    AVG(em.quality_rate) as quality,\n    (AVG(em.availability_rate) * AVG(em.performance_rate) * AVG(em.quality_rate)) as oee_score,\n    SUM(em.downtime_hours) as total_downtime_hours,\n    COUNT(fe.failure_id) as failure_count\nFROM equipment_metrics em\nLEFT JOIN failure_events fe ON em.equipment_id = fe.equipment_id\nWHERE em.equipment_type = 'Critical'\n    AND em.measurement_date >= CURRENT_DATE - INTERVAL '30 days'\nGROUP BY em.equipment_id, em.equipment_name, em.equipment_type\nHAVING COUNT(fe.failure_id) > 0\nORDER BY oee_score ASC, total_downtime_hours DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "financial_001",
+      "query": "Show cost impact of quality issues by product line",
+      "generated_sql": "SELECT \n    pd.product_line,\n    COUNT(ncm.ncm_id) as total_ncm_incidents,\n    SUM(ncm.cost_impact) as total_cost_impact\nFROM product_defects pd\nJOIN non_conformant_materials ncm ON pd.product_line = ncm.product_line\nWHERE pd.production_date >= CURRENT_DATE - INTERVAL '1 year'\nGROUP BY pd.product_line\nORDER BY total_cost_impact DESC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.SIMPLE"
+    },
+    {
+      "test_id": "maintenance_001",
+      "query": "Find equipment with MTBF below target requiring immediate attention",
+      "generated_sql": "SELECT \n    er.equipment_id,\n    em.equipment_type,\n    AVG(er.mtbf_hours) as avg_mtbf,\n    AVG(er.target_mtbf) as target_mtbf,\n    COUNT(er.failure_count) as total_failures,\n    SUM(er.operating_hours) as total_operating_hours,\n    AVG(er.reliability_score) as avg_reliability_score\nFROM equipment_reliability er\nJOIN equipment_metrics em ON er.equipment_id = em.equipment_id\nWHERE er.measurement_period >= CURRENT_DATE - INTERVAL '90 days'\nGROUP BY er.equipment_id, em.equipment_type\nHAVING AVG(er.mtbf_hours) < AVG(er.target_mtbf)\nORDER BY avg_mtbf ASC",
+      "confidence": 1.0,
+      "safety_check": true,
+      "explanation": "Extracted SQL from LLM response",
+      "complexity": "QueryComplexity.MEDIUM"
+    },
+    {
+      "test_id": "compliance_001",
+      "query": "Show CAPA effectiveness for recurring quality issues",
+      "generated_sql": "SELECT 'Query generation failed' as status, %s as error_message",
+      "confidence": 0.0,
+      "safety_check": false,
+      "explanation": "Could not generate SQL: OpenAI API error: Error code: 429 - {'error': {'message': 'Rate limit reached for gpt-4 in organization org-b425UEwcupCx9XWqacorsBi9 on tokens per min (TPM): Limit 10000, Used 8653, Requested 3072. Please try again in 10.35s. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 'tokens', 'param': None, 'code': 'rate_limit_exceeded'}}",
+      "complexity": "QueryComplexity.SIMPLE"
+    }
+  ],
+  "performance_comparison": {
+    "success_rates": {
+      "standard": 1.0,
+      "advanced": 0.8333333333333334
+    },
+    "average_confidence": {
+      "standard": 0.9583333333333334,
+      "advanced": 1.0
+    },
+    "complexity_distribution": {
+      "standard": {
+        "QueryComplexity.SIMPLE": 5,
+        "QueryComplexity.COMPLEX": 1
+      },
+      "advanced": {
+        "QueryComplexity.MEDIUM": 4,
+        "QueryComplexity.SIMPLE": 1
+      }
+    },
+    "safety_compliance": {
+      "standard": 1.0,
+      "advanced": 0.8333333333333334
+    },
+    "improvement_metrics": {
+      "success_rate_improvement": -0.16666666666666663,
+      "confidence_improvement": 0.043478260869565175
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "table": "production_schedule",
+  "columns": [
+    {
+      "name": "schedule_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "line_id",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "product_line",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "planned_start",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "planned_end",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "actual_start",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "actual_end",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "target_quantity",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "actual_quantity",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "efficiency_score",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_date",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "schedule_id",
+    "line_id"
+  ]
+}
