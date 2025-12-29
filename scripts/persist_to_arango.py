@@ -18,6 +18,7 @@ Environment variables (in .env):
 import os
 import sys
 from pathlib import Path
+import argparse
 
 try:
     from dotenv import load_dotenv
@@ -216,6 +217,11 @@ def persist_manual(G: nx.DiGraph, config: dict, graph_name: str):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Persist NetworkX schema graph to ArangoDB")
+    parser.add_argument("--no-register", dest="no_register", action="store_true",
+                        help="Persist collections but do not register the gharial graph")
+    args = parser.parse_args()
+
     print("=" * 60)
     print("Persist NetworkX Schema Graph to ArangoDB")
     print("=" * 60)
@@ -237,10 +243,16 @@ def main():
     print(f"\nPersisting graph as: {graph_name}")
     
     try:
-        if HAS_NX_ARANGO:
-            persist_with_nx_arangodb(G, config, graph_name)
-        else:
+        # Respect the --no-register flag: if set, always use manual persistence
+        # which writes collections but will not register via nx_arangodb's graph helper.
+        if getattr(args, 'no_register', False):
+            print("--no-register specified: skipping automatic gharial registration")
             persist_manual(G, config, graph_name)
+        else:
+            if HAS_NX_ARANGO:
+                persist_with_nx_arangodb(G, config, graph_name)
+            else:
+                persist_manual(G, config, graph_name)
         
         print("\n" + "=" * 60)
         print("Graph persisted successfully to ArangoDB!")
