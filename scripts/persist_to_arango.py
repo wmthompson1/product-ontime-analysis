@@ -39,23 +39,45 @@ except ImportError as e:
 HAS_NX_ARANGO = False
 try:
     import nx_arangodb
-    HAS_NX_ARANGO = True
+    # verify the expected API exists in this nx_arangodb version
+    try:
+        from nx_arangodb import ArangoDBConfig, ArangoDBGraphPersistence  # type: ignore
+        HAS_NX_ARANGO = True
+    except Exception:
+        # older/newer nx_arangodb may have a different API; fall back to manual persist
+        HAS_NX_ARANGO = False
 except ImportError:
-    pass
+    HAS_NX_ARANGO = False
 
 
 def get_config():
     """Load configuration from environment"""
     config = {
-        'host': os.getenv('ARANGO_HOST', 'http://localhost:8529'),
-        'username': os.getenv('ARANGO_USERNAME', 'root'),
-        'password': os.getenv('ARANGO_PASSWORD', ''),
-        'database': os.getenv('ARANGO_DATABASE', 'manufacturing_graphs'),
+        # prefer explicit ARANGO_* but fall back to DATABASE_* entries for compatibility
+        'host': os.getenv('ARANGO_HOST', os.getenv('DATABASE_HOST', 'http://localhost:8529')),
+        'username': os.getenv('ARANGO_USERNAME', os.getenv('DATABASE_USERNAME', 'root')),
+        'password': os.getenv('ARANGO_PASSWORD', os.getenv('DATABASE_PASSWORD', '')),
+        'database': os.getenv('ARANGO_DATABASE', os.getenv('DATABASE_NAME', 'manufacturing_graphs')),
     }
     
     if not config['password']:
         print("Warning: ARANGO_PASSWORD not set in .env")
     
+    # If running inside a container, localhost refers to the container, not the host
+    # Try to prefer host.docker.internal when the host is set to localhost
+    try:
+        in_container = os.path.exists('/.dockerenv') or os.path.exists('/.containerenv')
+    except Exception:
+        in_container = False
+
+    if in_container:
+        host_lower = config['host'].lower()
+        if host_lower.startswith('http://localhost') or host_lower.startswith('http://127.0.0.1') or host_lower.startswith('localhost'):
+            # switch to host.docker.internal which Docker Desktop maps to the host
+            old = config['host']
+            config['host'] = 'http://host.docker.internal:8529'
+            print(f"Detected container environment: rewriting host {old} -> {config['host']}")
+
     return config
 
 
@@ -102,28 +124,34 @@ def load_schema_graph_from_sqlite(db_path: str | None = None) -> nx.DiGraph:
 
 def persist_with_nx_arangodb(G: nx.DiGraph, config: dict, graph_name: str):
     """Persist using nx-arangodb library"""
+    # Attempt to use nx_arangodb if it exposes the expected API; otherwise fall back
     if not HAS_NX_ARANGO:
-        raise ImportError("nx-arangodb not installed")
-    
-    from nx_arangodb import ArangoDBConfig, ArangoDBGraphPersistence  # type: ignore
-    
-    arango_config = ArangoDBConfig(
-        host=config['host'],
-        username=config['username'],
-        password=config['password'],
-        database=config['database']
-    )
-    
-    persistence = ArangoDBGraphPersistence(arango_config)
-    
-    adb_graph = persistence.persist_graph(
-        graph=G,
-        name=graph_name,
-        write_batch_size=10000,
-        overwrite=True
-    )
-    
-    return adb_graph
+        print("nx_arangodb not available or incompatible; falling back to manual persistence")
+        return persist_manual(G, config, graph_name)
+
+    try:
+        from nx_arangodb import ArangoDBConfig, ArangoDBGraphPersistence  # type: ignore
+
+        arango_config = ArangoDBConfig(
+            host=config['host'],
+            username=config['username'],
+            password=config['password'],
+            database=config['database']
+        )
+
+        persistence = ArangoDBGraphPersistence(arango_config)
+
+        adb_graph = persistence.persist_graph(
+            graph=G,
+            name=graph_name,
+            write_batch_size=10000,
+            overwrite=True
+        )
+
+        return adb_graph
+    except Exception as e:
+        print(f"nx_arangodb persistence failed ({e}), falling back to manual persistence")
+        return persist_manual(G, config, graph_name)
 
 
 def persist_manual(G: nx.DiGraph, config: dict, graph_name: str):
@@ -161,7 +189,28 @@ def persist_manual(G: nx.DiGraph, config: dict, graph_name: str):
         }
         doc.update({k: v for k, v in data.items() if v is not None})
         edges_col.insert(doc)
-    
+
+    # Attempt to register a gharial graph wiring the edge collection to the node collection
+    try:
+        edge_def = {
+            "collection": edges_collection,
+            "from": [nodes_collection],
+            "to": [nodes_collection],
+        }
+        try:
+            # python-arango: create_graph will raise if graph exists
+            db.create_graph(graph_name, edge_definitions=[edge_def])
+            print(f"Registered gharial graph: {graph_name}")
+        except Exception as e:
+            # graph may already exist or api differs; try to fetch existing graph
+            try:
+                existing = db.graph(graph_name)
+                print(f"Graph '{graph_name}' already exists (skipping create).")
+            except Exception:
+                print(f"Warning: failed to create or fetch graph '{graph_name}': {e}")
+    except Exception as e:
+        print(f"Warning: error while attempting to register gharial graph: {e}")
+
     print(f"Persisted to collections: {nodes_collection}, {edges_collection}")
     return True
 

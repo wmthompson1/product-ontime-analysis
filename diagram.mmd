@@ -1,0 +1,30 @@
+flowchart TB
+  %% Ingestion subgraph
+  subgraph Ingestion
+    direction TB
+    docs["Example Documents"]
+    q["Example Questions"]
+    docs --> schema["Schema Prediction"]
+    q --> schema
+    schema --> classBox[["class HotelPage\nhotel_name: str\ncity: str\ncountry: str\nguest_rating: float"]]
+    classBox --> records["Records Prediction"]
+    records --> corpus["Full Corpus"]
+  end
+
+  %% Inference subgraph
+  subgraph Inference
+    direction LR
+    userQ["Which non‑American hotel has the highest guest rating?"]
+    userQ --> text2sql["Text → SQL\nSELECT hotel_name\nFROM hotels\nWHERE country != 'USA'\nORDER BY guest_rating DESC\nLIMIT 1;"]
+    text2sql --> queryDB["Query DB"]
+    queryDB --> resultTable[["Hotel Name | City | Country | Guest Rating\nOceanView | Hong Kong | China | 7.4\nHilton NYC | New York | USA | 9.55\nThe Modernist | Copenhagen | Denmark | 8.87"]]
+    resultTable --> answer["Answer: The Modernist"]
+  end
+
+  %% Connections between ingestion and inference (corpus -> query)
+  corpus -.-> queryDB
+
+  %% Styling hints (optional)
+  classDef boxed fill:#f8f9fa,stroke:#333,stroke-width:1px;
+  class classBox boxed;
+  class resultTable boxed;
