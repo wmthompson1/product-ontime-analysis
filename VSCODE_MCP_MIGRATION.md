@@ -132,10 +132,11 @@ curl -X POST "http://localhost:5000/mcp/tools/analyze_csv" \
    hf-space-inventory-sqlgen/
    ├── app.py              # Main Gradio + FastAPI app
    ├── requirements.txt    # Python dependencies
-   └── schema/
+   └── app_schema/
        ├── manufacturing.db        # SQLite database
        ├── schema_sqlite.sql       # Schema DDL
        └── queries/                # Ground truth SQL files
+           ├── index.json
            ├── quality_control.sql
            ├── supplier_performance.sql
            ├── equipment_reliability.sql

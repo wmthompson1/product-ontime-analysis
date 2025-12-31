@@ -22,7 +22,7 @@ import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
-SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema")
+SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
 QUERY_API_KEY = os.environ.get("QUERY_API_KEY", "")
 SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
