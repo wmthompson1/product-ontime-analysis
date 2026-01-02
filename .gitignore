@@ -33,3 +33,6 @@ dev_test.db
 # MCP client config (server URL + auth token)
 .mcp.json
 mcp.json
+
+# notes unnumbered only
+000index.md

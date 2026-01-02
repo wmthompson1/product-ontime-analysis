@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+EV#!/usr/bin/env bash
 set -euo pipefail
 
 # Prevent being sourced: if BASH_SOURCE != $0 then script is sourced
