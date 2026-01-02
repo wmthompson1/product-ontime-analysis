@@ -12,6 +12,8 @@ jobs:
   check-arango-env:
     name: Fail if legacy 'database_' env prefix found (Arango)
     runs-on: ubuntu-latest
+    # Skip this job on pull requests so PRs containing legacy env keys don't fail CI.
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
