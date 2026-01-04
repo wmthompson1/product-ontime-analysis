@@ -1837,19 +1837,24 @@ Check that perspective-concept and intent-concept relationships are seeded.
             """)
             
             def load_queries_for_category(category_id: str):
+                print(f"[DEBUG] load_queries_for_category called with: {repr(category_id)}")
                 if not category_id:
-                    return gr.update(choices=[], value=None), ""
+                    print("[DEBUG] category_id is empty, returning empty choices")
+                    return gr.Dropdown(choices=[], value=None), ""
                 queries = get_saved_queries(category_id)
-                choices = [(q['name'], i) for i, q in enumerate(queries)]
-                return gr.update(choices=choices, value=None), ""
+                print(f"[DEBUG] Found {len(queries)} queries")
+                choices = [q['name'] for q in queries]
+                print(f"[DEBUG] Returning choices: {choices}")
+                return gr.Dropdown(choices=choices, value=None), ""
             
-            def load_query_sql(category_id: str, query_idx):
-                if category_id is None or query_idx is None:
+            def load_query_sql(category_id: str, query_name: str):
+                print(f"[DEBUG] load_query_sql called with category={repr(category_id)}, query={repr(query_name)}")
+                if category_id is None or query_name is None:
                     return "", ""
                 queries = get_saved_queries(category_id)
-                if query_idx < len(queries):
-                    q = queries[query_idx]
-                    return q['sql'], q['description']
+                for q in queries:
+                    if q['name'] == query_name:
+                        return q['sql'], q['description']
                 return "", ""
             
             with gr.Row():
@@ -1859,6 +1864,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         label="Query Category",
                         interactive=True
                     )
+                    load_queries_btn = gr.Button("Load Queries", variant="secondary")
                     saved_query_dropdown = gr.Dropdown(
                         choices=[],
                         label="Select Query",
@@ -1869,7 +1875,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 with gr.Column():
                     saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True)
             
-            saved_category.change(
+            load_queries_btn.click(
                 fn=load_queries_for_category,
                 inputs=saved_category,
                 outputs=[saved_query_dropdown, saved_sql_output]
