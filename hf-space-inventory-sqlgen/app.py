@@ -37,7 +37,14 @@ def get_db_engine():
     return db_engine
 
 def init_sqlite_db():
-    """Initialize SQLite database from schema file"""
+    """Initialize SQLite database from schema file.
+    
+    Executes both CREATE TABLE and INSERT statements to ensure
+    seed data (concepts, perspectives, etc.) is loaded on first run.
+    Uses sqlite3 module directly for proper multi-statement handling.
+    """
+    import sqlite3
+    
     schema_file = os.path.join(SCHEMA_DIR, "schema_sqlite.sql")
     if not os.path.exists(schema_file):
         return
@@ -45,16 +52,19 @@ def init_sqlite_db():
     with open(schema_file, 'r') as f:
         schema_sql = f.read()
     
-    engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
-    with engine.connect() as conn:
-        for statement in schema_sql.split(';'):
-            statement = statement.strip()
-            if statement and statement.startswith('CREATE TABLE'):
-                try:
-                    conn.execute(text(statement))
-                    conn.commit()
-                except Exception:
-                    pass  # Table already exists
+    # Replace INSERT with INSERT OR IGNORE for idempotent seeding
+    schema_sql = schema_sql.replace('INSERT INTO', 'INSERT OR IGNORE INTO')
+    
+    # Use sqlite3 directly for executescript (handles multi-line statements)
+    conn = sqlite3.connect(SQLITE_DB_PATH)
+    try:
+        conn.executescript(schema_sql)
+        conn.commit()
+    except Exception as e:
+        # Log but don't fail - some statements may already exist
+        print(f"Database init warning: {e}")
+    finally:
+        conn.close()
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
@@ -797,6 +807,115 @@ async def save_query_endpoint(
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+
+# =============================================================================
+# SEMANTIC LAYER: Concept, Perspective, and Intent Endpoints
+# =============================================================================
+
+@app.get("/mcp/tools/get_concepts")
+async def get_concepts(domain: Optional[str] = None, concept_type: Optional[str] = None):
+    """Get all schema concepts, optionally filtered by domain or type.
+    
+    Concepts represent multiple possible interpretations of ambiguous fields.
+    Domains: quality, finance, operations, compliance, customer
+    Types: state, metric, classification, outcome
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = "SELECT concept_id, concept_name, concept_type, description, domain FROM schema_concepts WHERE 1=1"
+            params = {}
+            if domain:
+                query += " AND domain = :domain"
+                params["domain"] = domain
+            if concept_type:
+                query += " AND concept_type = :concept_type"
+                params["concept_type"] = concept_type
+            query += " ORDER BY domain, concept_name"
+            
+            result = conn.execute(text(query), params)
+            concepts = [
+                {"concept_id": r[0], "concept_name": r[1], "concept_type": r[2], 
+                 "description": r[3], "domain": r[4]}
+                for r in result.fetchall()
+            ]
+            return {"concepts": concepts, "count": len(concepts)}
+    except Exception as e:
+        return {"error": str(e), "concepts": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_field_concepts")
+async def get_field_concepts(table_name: Optional[str] = None, field_name: Optional[str] = None):
+    """Get concept mappings for ambiguous fields (CAN_MEAN relationships).
+    
+    Shows how the same field can have multiple interpretations based on context.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT cf.table_name, cf.field_name, cf.is_primary_meaning, cf.context_hint,
+                       c.concept_id, c.concept_name, c.concept_type, c.description, c.domain
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                WHERE 1=1
+            """
+            params = {}
+            if table_name:
+                query += " AND cf.table_name = :table_name"
+                params["table_name"] = table_name
+            if field_name:
+                query += " AND cf.field_name = :field_name"
+                params["field_name"] = field_name
+            query += " ORDER BY cf.table_name, cf.field_name, cf.is_primary_meaning DESC"
+            
+            result = conn.execute(text(query), params)
+            mappings = [
+                {
+                    "table_name": r[0], "field_name": r[1], 
+                    "is_primary": bool(r[2]), "context_hint": r[3],
+                    "concept": {
+                        "concept_id": r[4], "concept_name": r[5],
+                        "concept_type": r[6], "description": r[7], "domain": r[8]
+                    }
+                }
+                for r in result.fetchall()
+            ]
+            return {"field_concepts": mappings, "count": len(mappings)}
+    except Exception as e:
+        return {"error": str(e), "field_concepts": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_ambiguous_fields")
+async def get_ambiguous_fields():
+    """Get list of fields that have multiple concept interpretations.
+    
+    These are the fields where perspective/intent matters for correct interpretation.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT cf.table_name, cf.field_name, COUNT(*) as concept_count,
+                       GROUP_CONCAT(c.concept_name, ', ') as concepts,
+                       GROUP_CONCAT(c.domain, ', ') as domains
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                GROUP BY cf.table_name, cf.field_name
+                HAVING COUNT(*) > 1
+                ORDER BY COUNT(*) DESC
+            """))
+            fields = [
+                {
+                    "table_name": r[0], "field_name": r[1], 
+                    "concept_count": r[2], "concepts": r[3], "domains": r[4]
+                }
+                for r in result.fetchall()
+            ]
+            return {"ambiguous_fields": fields, "count": len(fields)}
+    except Exception as e:
+        return {"error": str(e), "ambiguous_fields": [], "count": 0}
 
 
 def create_gradio_interface():

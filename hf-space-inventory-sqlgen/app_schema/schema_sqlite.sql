@@ -204,7 +204,7 @@ CREATE TABLE production_lines (
     efficiency_rating REAL,
     installation_date DATE,
     last_maintenance_date DATE,
-    status TEXT DEFAULT 'Active'::character varying,
+    status TEXT DEFAULT 'Active',
     supervisor TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -237,7 +237,7 @@ CREATE TABLE production_schedule (
 
 CREATE TABLE products (
     id INTEGER NOT NULL,
-    description text NOT NULL,
+    description text NOT NULL
 );
 
 CREATE TABLE quality_costs (
@@ -264,7 +264,7 @@ CREATE TABLE quality_incidents (
     affected_units INTEGER,
     cost_impact REAL,
     detection_method TEXT,
-    status TEXT DEFAULT 'Open'::character varying,
+    status TEXT DEFAULT 'Open',
     assigned_to TEXT,
     resolution_date DATE,
     root_cause text,
@@ -308,4 +308,91 @@ CREATE TABLE users (
     name TEXT NOT NULL,
     email TEXT NOT NULL
 );
+
+-- =============================================================================
+-- SEMANTIC LAYER: Perspective & Intent Graph Constructs
+-- Based on treating perspective and intent as first-class graph constructs
+-- =============================================================================
+
+-- Schema Concepts: Multiple interpretations of ambiguous fields
+CREATE TABLE schema_concepts (
+    concept_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    concept_name TEXT NOT NULL UNIQUE,
+    concept_type TEXT NOT NULL,  -- 'state', 'metric', 'classification', 'outcome'
+    description TEXT,
+    domain TEXT,  -- 'quality', 'finance', 'operations', 'compliance', 'customer'
+    parent_concept_id INTEGER,  -- for REFINES relationship
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_concept_id) REFERENCES schema_concepts(concept_id)
+);
+
+-- Links fields to concepts (CAN_MEAN relationship)
+CREATE TABLE schema_concept_fields (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    table_name TEXT NOT NULL,
+    field_name TEXT NOT NULL,
+    concept_id INTEGER NOT NULL,
+    is_primary_meaning INTEGER DEFAULT 0,  -- 1 = default interpretation
+    context_hint TEXT,  -- when this meaning applies
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (concept_id) REFERENCES schema_concepts(concept_id),
+    UNIQUE(table_name, field_name, concept_id)
+);
+
+-- Seed data: Manufacturing domain concepts
+INSERT INTO schema_concepts (concept_name, concept_type, description, domain) VALUES
+-- Quality domain concepts
+('DefectSeverityQuality', 'classification', 'Defect severity from quality control perspective - focuses on product conformance', 'quality'),
+('DefectSeverityCost', 'classification', 'Defect severity from cost impact perspective - focuses on financial exposure', 'finance'),
+('DefectSeverityCustomer', 'classification', 'Defect severity from customer visibility perspective - focuses on brand risk', 'customer'),
+
+-- Status concepts (multi-meaning)
+('OrderLifecycleState', 'state', 'Order status representing lifecycle stage in fulfillment', 'operations'),
+('OrderAccountingState', 'state', 'Order status from revenue recognition perspective', 'finance'),
+('OrderCustomerState', 'state', 'Order status as visible to customer', 'customer'),
+
+-- Delivery concepts
+('DeliveryPerformanceOps', 'metric', 'Delivery metrics for operational planning', 'operations'),
+('DeliveryPerformanceSupplier', 'metric', 'Delivery metrics for supplier scorecard', 'quality'),
+('DeliveryPerformanceFinance', 'metric', 'Delivery metrics for cost/penalty calculation', 'finance'),
+
+-- Equipment concepts
+('EquipmentStateProduction', 'state', 'Equipment status for production scheduling', 'operations'),
+('EquipmentStateMaintenance', 'state', 'Equipment status for maintenance planning', 'operations'),
+('EquipmentStateCompliance', 'state', 'Equipment status for regulatory compliance', 'compliance'),
+
+-- Failure concepts
+('FailureSeverityProduction', 'classification', 'Failure severity based on production impact', 'operations'),
+('FailureSeveritySafety', 'classification', 'Failure severity based on safety implications', 'compliance'),
+('FailureSeverityCost', 'classification', 'Failure severity based on repair/replacement cost', 'finance'),
+
+-- NCM concepts
+('NCMDispositionQuality', 'outcome', 'NCM disposition from quality standpoint', 'quality'),
+('NCMDispositionFinance', 'outcome', 'NCM disposition from cost recovery standpoint', 'finance'),
+
+-- OEE concepts
+('OEEOperational', 'metric', 'OEE for shift/line performance tracking', 'operations'),
+('OEEStrategic', 'metric', 'OEE for capital investment decisions', 'finance');
+
+-- Seed data: Link ambiguous fields to concepts
+INSERT INTO schema_concept_fields (table_name, field_name, concept_id, is_primary_meaning, context_hint) VALUES
+-- product_defects.severity mappings
+('product_defects', 'severity', 1, 1, 'Default: quality control classification'),
+('product_defects', 'severity', 2, 0, 'When analyzing cost impact or warranty exposure'),
+('product_defects', 'severity', 3, 0, 'When assessing customer-facing risk'),
+
+-- failure_events.severity_level mappings
+('failure_events', 'severity_level', 13, 1, 'Default: production impact assessment'),
+('failure_events', 'severity_level', 14, 0, 'When safety review is required'),
+('failure_events', 'severity_level', 15, 0, 'When estimating repair budget'),
+
+-- equipment_metrics.oee_score mappings
+('equipment_metrics', 'oee_score', 19, 1, 'Default: daily/shift performance'),
+('equipment_metrics', 'oee_score', 20, 0, 'When planning capital expenditure'),
+
+-- daily_deliveries metrics mappings
+('daily_deliveries', 'ontime_rate', 7, 1, 'Default: operational planning'),
+('daily_deliveries', 'ontime_rate', 8, 0, 'When evaluating supplier performance'),
+('daily_deliveries', 'ontime_rate', 9, 0, 'When calculating penalties or credits'),
+('daily_deliveries', 'quality_score', 8, 1, 'Default: supplier scorecard');
 
