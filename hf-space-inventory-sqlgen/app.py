@@ -1464,15 +1464,38 @@ Domain: {row[9]}
 **Explanation:** {row[14]}
 """
                 else:
-                    return f"""## No Valid Path Found
+                    valid_intents_result = conn.execute(text("""
+                        SELECT DISTINCT i.intent_name, c.concept_name
+                        FROM schema_intents i
+                        JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id AND ip.intent_factor_weight = 1.0
+                        JOIN schema_perspective_concepts pc ON ip.perspective_id = pc.perspective_id
+                        JOIN schema_concepts c ON pc.concept_id = c.concept_id
+                        JOIN schema_concept_fields cf ON c.concept_id = cf.concept_id
+                        JOIN schema_intent_concepts ic ON i.intent_id = ic.intent_id AND c.concept_id = ic.concept_id AND ic.intent_factor_weight = 1.0
+                        WHERE cf.table_name = :table_name AND cf.field_name = :field_name
+                    """), {"table_name": table_name, "field_name": field_name})
+                    valid_rows = valid_intents_result.fetchall()
+                    
+                    if valid_rows:
+                        suggestions = "\n".join([f"- **{r[0]}** → resolves to `{r[1]}`" for r in valid_rows])
+                        return f"""## No Valid Path Found
 
 Field: `{table_name}.{field_name}`
 Intent: `{intent_choice}`
 
-Check that:
-1. Intent operates within a Perspective
-2. Perspective uses a Concept definition
-3. Field can mean that Concept
+The selected intent does not have a valid semantic path to this field.
+
+### Try these intents instead:
+{suggestions}
+"""
+                    else:
+                        return f"""## No Valid Path Found
+
+Field: `{table_name}.{field_name}`
+Intent: `{intent_choice}`
+
+No intents currently have complete semantic paths to this field.
+Check that perspective-concept and intent-concept relationships are seeded.
 """
         except Exception as e:
             return f"Error: {str(e)}"
