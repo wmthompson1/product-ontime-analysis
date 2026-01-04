@@ -918,6 +918,127 @@ async def get_ambiguous_fields():
         return {"error": str(e), "ambiguous_fields": [], "count": 0}
 
 
+@app.get("/mcp/tools/get_perspectives")
+async def get_perspectives():
+    """Get all organizational perspectives.
+    
+    Perspectives are viewpoints that constrain which concept interpretations are valid.
+    Each perspective represents a stakeholder group with specific priorities.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT perspective_id, perspective_name, description, 
+                       stakeholder_role, priority_focus
+                FROM schema_perspectives
+                ORDER BY perspective_name
+            """))
+            perspectives = [
+                {
+                    "perspective_id": r[0], "perspective_name": r[1],
+                    "description": r[2], "stakeholder_role": r[3],
+                    "priority_focus": r[4]
+                }
+                for r in result.fetchall()
+            ]
+            return {"perspectives": perspectives, "count": len(perspectives)}
+    except Exception as e:
+        return {"error": str(e), "perspectives": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_perspective_concepts")
+async def get_perspective_concepts(perspective_name: Optional[str] = None):
+    """Get concepts used by each perspective (USES_DEFINITION relationships).
+    
+    Shows which concept interpretations are valid for each organizational perspective.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT p.perspective_name, p.description, p.stakeholder_role,
+                       pc.relationship_type, pc.priority_weight,
+                       c.concept_id, c.concept_name, c.concept_type, c.description as concept_desc, c.domain
+                FROM schema_perspectives p
+                JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id
+                JOIN schema_concepts c ON pc.concept_id = c.concept_id
+                WHERE 1=1
+            """
+            params = {}
+            if perspective_name:
+                query += " AND p.perspective_name = :perspective_name"
+                params["perspective_name"] = perspective_name
+            query += " ORDER BY p.perspective_name, pc.priority_weight DESC"
+            
+            result = conn.execute(text(query), params)
+            mappings = [
+                {
+                    "perspective": r[0], "perspective_desc": r[1], 
+                    "stakeholder_role": r[2], "relationship_type": r[3],
+                    "priority_weight": r[4],
+                    "concept": {
+                        "concept_id": r[5], "concept_name": r[6],
+                        "concept_type": r[7], "description": r[8], "domain": r[9]
+                    }
+                }
+                for r in result.fetchall()
+            ]
+            return {"perspective_concepts": mappings, "count": len(mappings)}
+    except Exception as e:
+        return {"error": str(e), "perspective_concepts": [], "count": 0}
+
+
+@app.get("/mcp/tools/resolve_field_for_perspective")
+async def resolve_field_for_perspective(table_name: str, field_name: str, perspective_name: str):
+    """Resolve which concept interpretation applies for a field given a perspective.
+    
+    This is the semantic disambiguation endpoint - given a perspective, it returns
+    the correct interpretation of an ambiguous field.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                       cf.context_hint, pc.priority_weight
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                JOIN schema_perspective_concepts pc ON c.concept_id = pc.concept_id
+                JOIN schema_perspectives p ON pc.perspective_id = p.perspective_id
+                WHERE cf.table_name = :table_name 
+                  AND cf.field_name = :field_name
+                  AND p.perspective_name = :perspective_name
+                ORDER BY pc.priority_weight DESC
+                LIMIT 1
+            """), {"table_name": table_name, "field_name": field_name, "perspective_name": perspective_name})
+            
+            row = result.fetchone()
+            if row:
+                return {
+                    "resolved": True,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "perspective": perspective_name,
+                    "concept": {
+                        "concept_id": row[0], "concept_name": row[1],
+                        "concept_type": row[2], "description": row[3], 
+                        "domain": row[4], "context_hint": row[5],
+                        "priority_weight": row[6]
+                    }
+                }
+            else:
+                return {
+                    "resolved": False,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "perspective": perspective_name,
+                    "message": "No concept mapping found for this field/perspective combination"
+                }
+    except Exception as e:
+        return {"error": str(e), "resolved": False}
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     

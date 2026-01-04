@@ -396,3 +396,66 @@ INSERT INTO schema_concept_fields (table_name, field_name, concept_id, is_primar
 ('daily_deliveries', 'ontime_rate', 9, 0, 'When calculating penalties or credits'),
 ('daily_deliveries', 'quality_score', 8, 1, 'Default: supplier scorecard');
 
+-- Schema Perspectives: Organizational viewpoints that constrain valid meanings
+CREATE TABLE schema_perspectives (
+    perspective_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    perspective_name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    stakeholder_role TEXT,  -- typical role using this perspective
+    priority_focus TEXT,    -- what this perspective prioritizes
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Junction table: Which concepts each perspective uses or suppresses
+CREATE TABLE schema_perspective_concepts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    perspective_id INTEGER NOT NULL,
+    concept_id INTEGER NOT NULL,
+    relationship_type TEXT NOT NULL DEFAULT 'USES_DEFINITION',  -- 'USES_DEFINITION', 'SUPPRESSES', 'EMPHASIZES'
+    priority_weight INTEGER DEFAULT 1,  -- higher = more important to this perspective
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (perspective_id) REFERENCES schema_perspectives(perspective_id),
+    FOREIGN KEY (concept_id) REFERENCES schema_concepts(concept_id),
+    UNIQUE(perspective_id, concept_id)
+);
+
+-- Seed data: 5 Organizational Perspectives
+INSERT INTO schema_perspectives (perspective_name, description, stakeholder_role, priority_focus) VALUES
+('Quality', 'Product conformance, defect prevention, and continuous improvement', 'Quality Engineer, QA Manager', 'Defect rates, NCM resolution, process capability'),
+('Finance', 'Cost impact, revenue recognition, and financial exposure', 'Controller, Financial Analyst', 'Cost of quality, warranty reserves, revenue timing'),
+('Operations', 'Production efficiency, schedule adherence, and throughput', 'Production Manager, Plant Supervisor', 'OEE, cycle time, schedule variance'),
+('Compliance', 'Regulatory requirements, safety standards, and audit readiness', 'Compliance Officer, Safety Manager', 'Regulatory adherence, safety incidents, audit findings'),
+('Customer', 'Customer experience, brand perception, and delivery performance', 'Customer Success, Sales', 'On-time delivery, customer escapes, satisfaction scores');
+
+-- Seed data: Perspective-Concept relationships (USES_DEFINITION)
+-- Quality perspective uses quality-focused concepts
+INSERT INTO schema_perspective_concepts (perspective_id, concept_id, relationship_type, priority_weight) VALUES
+(1, 1, 'USES_DEFINITION', 3),   -- Quality uses DefectSeverityQuality (primary)
+(1, 8, 'USES_DEFINITION', 2),   -- Quality uses DeliveryPerformanceSupplier
+(1, 16, 'USES_DEFINITION', 3),  -- Quality uses NCMDispositionQuality
+
+-- Finance perspective uses cost-focused concepts
+(2, 2, 'USES_DEFINITION', 3),   -- Finance uses DefectSeverityCost
+(2, 5, 'USES_DEFINITION', 2),   -- Finance uses OrderAccountingState
+(2, 9, 'USES_DEFINITION', 2),   -- Finance uses DeliveryPerformanceFinance
+(2, 15, 'USES_DEFINITION', 2),  -- Finance uses FailureSeverityCost
+(2, 17, 'USES_DEFINITION', 3),  -- Finance uses NCMDispositionFinance
+(2, 19, 'USES_DEFINITION', 2),  -- Finance uses OEEStrategic
+
+-- Operations perspective uses operational concepts
+(3, 4, 'USES_DEFINITION', 2),   -- Operations uses OrderLifecycleState
+(3, 7, 'USES_DEFINITION', 3),   -- Operations uses DeliveryPerformanceOps
+(3, 10, 'USES_DEFINITION', 2),  -- Operations uses EquipmentStateProduction
+(3, 11, 'USES_DEFINITION', 2),  -- Operations uses EquipmentStateMaintenance
+(3, 13, 'USES_DEFINITION', 3),  -- Operations uses FailureSeverityProduction
+(3, 18, 'USES_DEFINITION', 3),  -- Operations uses OEEOperational
+
+-- Compliance perspective uses safety/regulatory concepts
+(4, 12, 'USES_DEFINITION', 3),  -- Compliance uses EquipmentStateCompliance
+(4, 14, 'USES_DEFINITION', 3),  -- Compliance uses FailureSeveritySafety
+
+-- Customer perspective uses customer-facing concepts
+(5, 3, 'USES_DEFINITION', 3),   -- Customer uses DefectSeverityCustomer
+(5, 6, 'USES_DEFINITION', 3),   -- Customer uses OrderCustomerState
+(5, 8, 'USES_DEFINITION', 2);   -- Customer uses DeliveryPerformanceSupplier (for visibility)
+
