@@ -1368,6 +1368,141 @@ def create_gradio_interface():
         """Get list of tables from live database"""
         return get_all_tables()
     
+    def get_perspectives_list() -> List[str]:
+        """Get list of perspectives for dropdown"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT perspective_name FROM schema_perspectives ORDER BY perspective_name"))
+                return [r[0] for r in result.fetchall()]
+        except:
+            return []
+    
+    def get_intents_list() -> List[tuple]:
+        """Get list of intents for dropdown"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT intent_name, intent_category, typical_question 
+                    FROM schema_intents ORDER BY intent_category, intent_name
+                """))
+                return [(f"{r[0]} ({r[1]})", r[0]) for r in result.fetchall()]
+        except:
+            return []
+    
+    def get_ambiguous_fields_list() -> List[tuple]:
+        """Get list of ambiguous fields for dropdown"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT DISTINCT cf.table_name, cf.field_name
+                    FROM schema_concept_fields cf
+                    GROUP BY cf.table_name, cf.field_name
+                    HAVING COUNT(*) > 1
+                    ORDER BY cf.table_name, cf.field_name
+                """))
+                return [(f"{r[0]}.{r[1]}", f"{r[0]}|{r[1]}") for r in result.fetchall()]
+        except:
+            return []
+    
+    def resolve_field_gradio(field_choice: str, intent_choice: str) -> str:
+        """Resolve a field using the full graph traversal"""
+        if not field_choice or not intent_choice:
+            return "Select both a field and an intent to resolve."
+        
+        table_name, field_name = field_choice.split("|")
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT 
+                        i.intent_name, i.intent_category, i.typical_question,
+                        p.perspective_name, p.stakeholder_role,
+                        c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                        ip.intent_factor_weight, pc.priority_weight, cf.context_hint,
+                        ic.intent_factor_weight, ic.explanation
+                    FROM schema_concept_fields cf
+                    JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                    JOIN schema_intent_concepts ic ON c.concept_id = ic.concept_id
+                    JOIN schema_intents i ON ic.intent_id = i.intent_id
+                    JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                    JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                    JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id 
+                        AND c.concept_id = pc.concept_id
+                    WHERE cf.table_name = :table_name 
+                      AND cf.field_name = :field_name
+                      AND i.intent_name = :intent_name
+                      AND ip.intent_factor_weight = 1.0
+                      AND ic.intent_factor_weight = 1.0
+                    LIMIT 1
+                """), {"table_name": table_name, "field_name": field_name, "intent_name": intent_choice})
+                
+                row = result.fetchone()
+                if row:
+                    return f"""## Graph Traversal Result
+
+### Field
+`{table_name}.{field_name}`
+
+### Intent
+**{row[0]}** ({row[1]})
+*"{row[2]}"*
+
+### OPERATES_WITHIN → Perspective
+**{row[3]}**
+Stakeholder: {row[4]}
+
+### USES_DEFINITION → Concept
+**{row[6]}** (type: {row[7]})
+Domain: {row[9]}
+
+### Resolution
+> {row[8]}
+
+**Explanation:** {row[14]}
+"""
+                else:
+                    return f"""## No Valid Path Found
+
+Field: `{table_name}.{field_name}`
+Intent: `{intent_choice}`
+
+Check that:
+1. Intent operates within a Perspective
+2. Perspective uses a Concept definition
+3. Field can mean that Concept
+"""
+        except Exception as e:
+            return f"Error: {str(e)}"
+    
+    def get_graph_visualization() -> str:
+        """Generate text-based graph visualization"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT i.intent_name, p.perspective_name
+                    FROM schema_intent_perspectives ip
+                    JOIN schema_intents i ON ip.intent_id = i.intent_id
+                    JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                    WHERE ip.intent_factor_weight = 1.0
+                    ORDER BY p.perspective_name, i.intent_name
+                """))
+                
+                graph = "## Intent → Perspective Graph\n\n"
+                current_perspective = None
+                for row in result.fetchall():
+                    if row[1] != current_perspective:
+                        current_perspective = row[1]
+                        graph += f"\n### {row[1]}\n"
+                    graph += f"  - {row[0]} → **{row[1]}**\n"
+                
+                return graph
+        except Exception as e:
+            return f"Error loading graph: {str(e)}"
+    
     def get_table_ddl_gradio(table_name: str) -> str:
         """Get CREATE TABLE SQL for selected table"""
         if not table_name:
@@ -1424,7 +1559,8 @@ def create_gradio_interface():
         | **Tools** | API endpoints for validation |
         """)
         
-        def build_copilot_context(question: str, include_schema: bool, include_queries: bool, selected_category: str) -> str:
+        def build_copilot_context(question: str, include_schema: bool, include_queries: bool, 
+                                   selected_category: str, include_semantic: bool, selected_intent: str) -> str:
             """Build MCP context package for Copilot"""
             context_parts = []
             
@@ -1433,6 +1569,42 @@ def create_gradio_interface():
             if question.strip():
                 context_parts.append("## Prompt")
                 context_parts.append(f"User Question: {question}\n")
+            
+            if include_semantic and selected_intent:
+                context_parts.append("## Semantic Context")
+                context_parts.append(f"**Intent:** {selected_intent}")
+                engine = get_db_engine()
+                try:
+                    with engine.connect() as conn:
+                        result = conn.execute(text("""
+                            SELECT i.intent_name, i.description, i.typical_question,
+                                   p.perspective_name, p.stakeholder_role
+                            FROM schema_intents i
+                            JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                            JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                            WHERE i.intent_name = :intent_name AND ip.intent_factor_weight = 1.0
+                        """), {"intent_name": selected_intent})
+                        row = result.fetchone()
+                        if row:
+                            context_parts.append(f"*{row[1]}*")
+                            context_parts.append(f"\n**Perspective:** {row[3]} ({row[4]})")
+                            context_parts.append(f"**Typical Question:** {row[2]}\n")
+                        
+                        result2 = conn.execute(text("""
+                            SELECT c.concept_name, c.description, ic.explanation
+                            FROM schema_intent_concepts ic
+                            JOIN schema_concepts c ON ic.concept_id = c.concept_id
+                            WHERE ic.intent_id = (SELECT intent_id FROM schema_intents WHERE intent_name = :intent_name)
+                              AND ic.intent_factor_weight = 1.0
+                        """), {"intent_name": selected_intent})
+                        elevated = result2.fetchall()
+                        if elevated:
+                            context_parts.append("**Elevated Concepts:**")
+                            for c in elevated:
+                                context_parts.append(f"- {c[0]}: {c[1]}")
+                            context_parts.append("")
+                except:
+                    pass
             
             if include_schema:
                 context_parts.append("## Resources: Database Schema")
@@ -1455,6 +1627,7 @@ def create_gradio_interface():
             context_parts.append("- `generate_sql`: Convert natural language to SQL")
             context_parts.append("- `get_table_ddl`: Get schema for specific table")
             context_parts.append("- `validate_sql`: Check SQL syntax against schema")
+            context_parts.append("- `resolve_semantic_path`: Disambiguate field meanings via graph traversal")
             
             return "\n".join(context_parts)
         
@@ -1483,6 +1656,15 @@ def create_gradio_interface():
                         interactive=True
                     )
                     
+                    gr.Markdown("#### Semantic Context")
+                    include_semantic = gr.Checkbox(label="Include Semantic Layer Context", value=True)
+                    semantic_intent = gr.Dropdown(
+                        choices=get_intents_list(),
+                        label="Analytical Intent",
+                        info="Intent constrains field interpretations via graph traversal",
+                        interactive=True
+                    )
+                    
                     copy_btn = gr.Button("📋 Copy to Copilot", variant="primary", size="lg")
                 
                 with gr.Column():
@@ -1494,7 +1676,7 @@ def create_gradio_interface():
             
             copy_btn.click(
                 fn=build_copilot_context,
-                inputs=[question_input, include_schema, include_queries, query_category],
+                inputs=[question_input, include_schema, include_queries, query_category, include_semantic, semantic_intent],
                 outputs=context_output
             )
         
@@ -1579,6 +1761,67 @@ def create_gradio_interface():
                 inputs=[saved_category, saved_query_dropdown],
                 outputs=[saved_sql_output, saved_description]
             )
+        
+        with gr.Tab("🔗 Semantic Graph"):
+            gr.Markdown("""
+            ### Semantic Disambiguation via Graph Traversal
+            
+            Resolve ambiguous field meanings using the graph path:
+            
+            ```
+            (:Intent) -[:OPERATES_WITHIN]-> (:Perspective) -[:USES_DEFINITION]-> (:Concept) <-[:CAN_MEAN]- (:Field)
+            ```
+            
+            Select an **Intent** (analytical goal) and an **Ambiguous Field** to see how the graph resolves the field's meaning.
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("#### 1. Select Intent")
+                    intent_dropdown = gr.Dropdown(
+                        choices=get_intents_list(),
+                        label="Analytical Intent",
+                        info="Intent determines which perspective and concept to use",
+                        interactive=True
+                    )
+                    
+                    gr.Markdown("#### 2. Select Ambiguous Field")
+                    field_dropdown = gr.Dropdown(
+                        choices=get_ambiguous_fields_list(),
+                        label="Field (table.column)",
+                        info="Fields with multiple possible interpretations",
+                        interactive=True
+                    )
+                    
+                    resolve_btn = gr.Button("🔍 Resolve Field Meaning", variant="primary", size="lg")
+                
+                with gr.Column():
+                    resolution_output = gr.Markdown(
+                        value="Select an intent and field, then click **Resolve Field Meaning**.",
+                        label="Graph Traversal Result"
+                    )
+            
+            resolve_btn.click(
+                fn=resolve_field_gradio,
+                inputs=[field_dropdown, intent_dropdown],
+                outputs=resolution_output
+            )
+            
+            gr.Markdown("---")
+            
+            with gr.Accordion("View Intent → Perspective Graph", open=False):
+                graph_output = gr.Markdown(value=get_graph_visualization())
+            
+            gr.Markdown("""
+            #### Semantic MCP Endpoints
+            
+            | Endpoint | Purpose |
+            |----------|---------|
+            | `GET /mcp/tools/get_perspectives` | List organizational perspectives |
+            | `GET /mcp/tools/get_intents` | List analytical intents |
+            | `GET /mcp/tools/get_intent_perspectives` | View OPERATES_WITHIN edges |
+            | `GET /mcp/tools/resolve_semantic_path` | Full graph traversal |
+            """)
         
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""
