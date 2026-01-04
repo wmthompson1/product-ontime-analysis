@@ -64,6 +64,19 @@ class ArangoDBGraphPersistence:
         
         self.config = config or ArangoDBConfig()
         self.config.set_environment_variables()
+        self._ensure_database_exists()
+    
+    def _ensure_database_exists(self):
+        """Create the database if it doesn't exist"""
+        from arango import ArangoClient
+        
+        client = ArangoClient(hosts=self.config.host)
+        sys_db = client.db("_system", username=self.config.username, password=self.config.password)
+        
+        if not sys_db.has_database(self.config.database_name):
+            print(f"📦 Creating database '{self.config.database_name}'...")
+            sys_db.create_database(self.config.database_name)
+            print(f"✅ Database created")
     
     def persist_graph(
         self,
