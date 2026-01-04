@@ -471,11 +471,15 @@ CREATE TABLE schema_intents (
 );
 
 -- Junction table: Intent-Concept weight mappings (the binary switch)
+-- Weight semantics per treatise: Binary activation, NOT prioritization
+--   1 = Explicitly elevated / active (use this interpretation)
+--   0 = Neutral / not selected
+--  -1 = Explicitly suppressed (never use this interpretation)
 CREATE TABLE schema_intent_concepts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     intent_id INTEGER NOT NULL,
     concept_id INTEGER NOT NULL,
-    intent_factor_weight REAL NOT NULL DEFAULT 0.0,  -- 1.0 = elevated (use this), 0.0 = suppressed
+    intent_factor_weight INTEGER NOT NULL DEFAULT 0 CHECK (intent_factor_weight IN (-1, 0, 1)),
     explanation TEXT,  -- why this concept is elevated/suppressed for this intent
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id),
@@ -497,11 +501,15 @@ CREATE TABLE schema_intent_queries (
 
 -- OPERATES_WITHIN: Intent → Perspective relationship
 -- Intent operates within a perspective, constraining the graph traversal path
+-- Weight semantics per treatise: Binary activation, NOT prioritization
+--   1 = Active path (this perspective is used)
+--   0 = Neutral / not selected
+--  -1 = Explicitly suppressed path
 CREATE TABLE schema_intent_perspectives (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     intent_id INTEGER NOT NULL,
     perspective_id INTEGER NOT NULL,
-    intent_factor_weight REAL NOT NULL DEFAULT 1.0,  -- 1.0 = active path, 0.0 = suppressed path
+    intent_factor_weight INTEGER NOT NULL DEFAULT 1 CHECK (intent_factor_weight IN (-1, 0, 1)),
     explanation TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id),
@@ -531,59 +539,60 @@ INSERT INTO schema_intents (intent_name, intent_category, description, typical_q
 ('quality_cost_allocation', 'production_analytics', 'Allocate quality costs to products/lines', 'What are the quality costs per product line?');
 
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
+-- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed
 -- For defect analysis, each intent elevates ONE severity interpretation
 INSERT INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation) VALUES
 -- defect_cost_analysis (intent 1) elevates DefectSeverityCost, suppresses others
-(1, 1, 0.0, 'Quality classification not relevant for cost analysis'),
-(1, 2, 1.0, 'ELEVATED: Cost impact interpretation for financial analysis'),
-(1, 3, 0.0, 'Customer impact not primary for cost analysis'),
+(1, 1, 0, 'Quality classification not relevant for cost analysis'),
+(1, 2, 1, 'ELEVATED: Cost impact interpretation for financial analysis'),
+(1, 3, 0, 'Customer impact not primary for cost analysis'),
 
 -- defect_quality_trending (intent 2) elevates DefectSeverityQuality
-(2, 1, 1.0, 'ELEVATED: Quality classification for trending'),
-(2, 2, 0.0, 'Cost perspective not primary for quality trending'),
-(2, 3, 0.0, 'Customer perspective not primary for quality trending'),
+(2, 1, 1, 'ELEVATED: Quality classification for trending'),
+(2, 2, 0, 'Cost perspective not primary for quality trending'),
+(2, 3, 0, 'Customer perspective not primary for quality trending'),
 
 -- defect_customer_impact (intent 3) elevates DefectSeverityCustomer
-(3, 1, 0.0, 'Internal quality classification not customer-facing'),
-(3, 2, 0.0, 'Cost impact not customer-facing'),
-(3, 3, 1.0, 'ELEVATED: Customer experience interpretation'),
+(3, 1, 0, 'Internal quality classification not customer-facing'),
+(3, 2, 0, 'Cost impact not customer-facing'),
+(3, 3, 1, 'ELEVATED: Customer experience interpretation'),
 
 -- supplier_scorecard (intent 4) elevates DeliveryPerformanceSupplier
-(4, 7, 0.0, 'Operational view not for supplier scoring'),
-(4, 8, 1.0, 'ELEVATED: Supplier scorecard metrics'),
-(4, 9, 0.0, 'Financial penalties separate from scorecard'),
+(4, 7, 0, 'Operational view not for supplier scoring'),
+(4, 8, 1, 'ELEVATED: Supplier scorecard metrics'),
+(4, 9, 0, 'Financial penalties separate from scorecard'),
 
 -- supplier_cost_penalties (intent 5) elevates DeliveryPerformanceFinance
-(5, 7, 0.0, 'Operational planning not for penalty calc'),
-(5, 8, 0.0, 'Scorecard metrics not for penalty calc'),
-(5, 9, 1.0, 'ELEVATED: Financial penalty calculations'),
+(5, 7, 0, 'Operational planning not for penalty calc'),
+(5, 8, 0, 'Scorecard metrics not for penalty calc'),
+(5, 9, 1, 'ELEVATED: Financial penalty calculations'),
 
 -- oee_operational (intent 6) elevates OEEOperational
-(6, 18, 1.0, 'ELEVATED: Daily/shift OEE for operations'),
-(6, 19, 0.0, 'Strategic OEE not for daily operations'),
+(6, 18, 1, 'ELEVATED: Daily/shift OEE for operations'),
+(6, 19, 0, 'Strategic OEE not for daily operations'),
 
 -- oee_capital_planning (intent 7) elevates OEEStrategic
-(7, 18, 0.0, 'Operational OEE not for capital planning'),
-(7, 19, 1.0, 'ELEVATED: Strategic OEE for investment decisions'),
+(7, 18, 0, 'Operational OEE not for capital planning'),
+(7, 19, 1, 'ELEVATED: Strategic OEE for investment decisions'),
 
 -- maintenance_scheduling (intent 8) elevates EquipmentStateMaintenance
-(8, 10, 0.0, 'Production state not for maintenance scheduling'),
-(8, 11, 1.0, 'ELEVATED: Maintenance planning state'),
-(8, 12, 0.0, 'Compliance state not for maintenance scheduling'),
+(8, 10, 0, 'Production state not for maintenance scheduling'),
+(8, 11, 1, 'ELEVATED: Maintenance planning state'),
+(8, 12, 0, 'Compliance state not for maintenance scheduling'),
 
 -- schedule_adherence (intent 9) elevates OrderLifecycleState
-(9, 4, 1.0, 'ELEVATED: Order lifecycle for schedule tracking'),
-(9, 5, 0.0, 'Accounting state not for schedule adherence'),
-(9, 6, 0.0, 'Customer visibility not for schedule adherence'),
+(9, 4, 1, 'ELEVATED: Order lifecycle for schedule tracking'),
+(9, 5, 0, 'Accounting state not for schedule adherence'),
+(9, 6, 0, 'Customer visibility not for schedule adherence'),
 
 -- line_efficiency (intent 10) elevates OEEOperational
-(10, 18, 1.0, 'ELEVATED: Operational OEE for line efficiency'),
-(10, 19, 0.0, 'Strategic OEE not for line efficiency analysis'),
+(10, 18, 1, 'ELEVATED: Operational OEE for line efficiency'),
+(10, 19, 0, 'Strategic OEE not for line efficiency analysis'),
 
 -- quality_cost_allocation (intent 11) elevates DefectSeverityCost
-(11, 1, 0.0, 'Quality classification not for cost allocation'),
-(11, 2, 1.0, 'ELEVATED: Cost impact for quality cost allocation'),
-(11, 3, 0.0, 'Customer perspective not for cost allocation');
+(11, 1, 0, 'Quality classification not for cost allocation'),
+(11, 2, 1, 'ELEVATED: Cost impact for quality cost allocation'),
+(11, 3, 0, 'Customer perspective not for cost allocation');
 
 -- Seed data: Link intents to ground truth queries
 INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name) VALUES
@@ -608,24 +617,25 @@ INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_
 
 -- Seed data: OPERATES_WITHIN relationships (Intent → Perspective)
 -- Maps each intent to its constraining perspective(s)
+-- Weight semantics: 1 = active path, 0 = neutral, -1 = suppressed
 -- Perspective IDs: 1=Quality, 2=Finance, 3=Operations, 4=Compliance, 5=Customer
 INSERT INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation) VALUES
 -- Quality Control intents
-(1, 2, 1.0, 'defect_cost_analysis operates within Finance perspective'),
-(2, 1, 1.0, 'defect_quality_trending operates within Quality perspective'),
-(3, 5, 1.0, 'defect_customer_impact operates within Customer perspective'),
+(1, 2, 1, 'defect_cost_analysis operates within Finance perspective'),
+(2, 1, 1, 'defect_quality_trending operates within Quality perspective'),
+(3, 5, 1, 'defect_customer_impact operates within Customer perspective'),
 
 -- Supplier Performance intents
-(4, 1, 1.0, 'supplier_scorecard operates within Quality perspective'),
-(5, 2, 1.0, 'supplier_cost_penalties operates within Finance perspective'),
+(4, 1, 1, 'supplier_scorecard operates within Quality perspective'),
+(5, 2, 1, 'supplier_cost_penalties operates within Finance perspective'),
 
 -- Equipment Reliability intents
-(6, 3, 1.0, 'oee_operational operates within Operations perspective'),
-(7, 2, 1.0, 'oee_capital_planning operates within Finance perspective'),
-(8, 3, 1.0, 'maintenance_scheduling operates within Operations perspective'),
+(6, 3, 1, 'oee_operational operates within Operations perspective'),
+(7, 2, 1, 'oee_capital_planning operates within Finance perspective'),
+(8, 3, 1, 'maintenance_scheduling operates within Operations perspective'),
 
 -- Production Analytics intents
-(9, 3, 1.0, 'schedule_adherence operates within Operations perspective'),
-(10, 3, 1.0, 'line_efficiency operates within Operations perspective'),
-(11, 2, 1.0, 'quality_cost_allocation operates within Finance perspective');
+(9, 3, 1, 'schedule_adherence operates within Operations perspective'),
+(10, 3, 1, 'line_efficiency operates within Operations perspective'),
+(11, 2, 1, 'quality_cost_allocation operates within Finance perspective');
 
