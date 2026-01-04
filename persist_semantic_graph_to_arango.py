@@ -20,13 +20,15 @@ def load_semantic_graph_from_sqlite():
     
     G = nx.DiGraph()
     
+    COLLECTION = "manufacturing_semantic_layer_node"
+    
     # Load Intents as nodes
     print("Loading intents...")
     cursor = conn.execute("SELECT intent_id, intent_name, description FROM schema_intents")
     for row in cursor:
         node_key = f"intent_{row['intent_name']}"
-        G.add_node(node_key, 
-                   _key=node_key,
+        node_id = f"{COLLECTION}/{node_key}"
+        G.add_node(node_id, 
                    type="Intent",
                    intent_id=row['intent_id'],
                    name=row['intent_name'],
@@ -37,8 +39,8 @@ def load_semantic_graph_from_sqlite():
     cursor = conn.execute("SELECT perspective_id, perspective_name, description FROM schema_perspectives")
     for row in cursor:
         node_key = f"perspective_{row['perspective_name']}"
-        G.add_node(node_key, 
-                   _key=node_key,
+        node_id = f"{COLLECTION}/{node_key}"
+        G.add_node(node_id, 
                    type="Perspective",
                    perspective_id=row['perspective_id'],
                    name=row['perspective_name'],
@@ -49,8 +51,8 @@ def load_semantic_graph_from_sqlite():
     cursor = conn.execute("SELECT concept_id, concept_name, description FROM schema_concepts")
     for row in cursor:
         node_key = f"concept_{row['concept_name']}"
-        G.add_node(node_key, 
-                   _key=node_key,
+        node_id = f"{COLLECTION}/{node_key}"
+        G.add_node(node_id, 
                    type="Concept",
                    concept_id=row['concept_id'],
                    name=row['concept_name'],
@@ -61,8 +63,8 @@ def load_semantic_graph_from_sqlite():
     cursor = conn.execute("SELECT DISTINCT table_name, field_name FROM schema_concept_fields")
     for row in cursor:
         node_key = f"field_{row['table_name']}_{row['field_name']}"
-        G.add_node(node_key, 
-                   _key=node_key,
+        node_id = f"{COLLECTION}/{node_key}"
+        G.add_node(node_id, 
                    type="Field",
                    table_name=row['table_name'],
                    field_name=row['field_name'],
@@ -77,8 +79,8 @@ def load_semantic_graph_from_sqlite():
         JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
     """)
     for row in cursor:
-        G.add_edge(f"intent_{row['intent_name']}", 
-                   f"perspective_{row['perspective_name']}",
+        G.add_edge(f"{COLLECTION}/intent_{row['intent_name']}", 
+                   f"{COLLECTION}/perspective_{row['perspective_name']}",
                    relationship="OPERATES_WITHIN",
                    weight=row['intent_factor_weight'])
     
@@ -91,8 +93,8 @@ def load_semantic_graph_from_sqlite():
         JOIN schema_concepts c ON pc.concept_id = c.concept_id
     """)
     for row in cursor:
-        G.add_edge(f"perspective_{row['perspective_name']}", 
-                   f"concept_{row['concept_name']}",
+        G.add_edge(f"{COLLECTION}/perspective_{row['perspective_name']}", 
+                   f"{COLLECTION}/concept_{row['concept_name']}",
                    relationship="USES_DEFINITION")
     
     # Load CAN_MEAN edges (Field -> Concept) - note: reverse direction for traversal
@@ -104,8 +106,8 @@ def load_semantic_graph_from_sqlite():
     """)
     for row in cursor:
         field_key = f"field_{row['table_name']}_{row['field_name']}"
-        G.add_edge(field_key, 
-                   f"concept_{row['concept_name']}",
+        G.add_edge(f"{COLLECTION}/{field_key}", 
+                   f"{COLLECTION}/concept_{row['concept_name']}",
                    relationship="CAN_MEAN")
     
     # Load ELEVATES/SUPPRESSES edges (Intent -> Concept)
@@ -124,8 +126,8 @@ def load_semantic_graph_from_sqlite():
             rel = "SUPPRESSES"
         else:
             rel = "NEUTRAL"
-        G.add_edge(f"intent_{row['intent_name']}", 
-                   f"concept_{row['concept_name']}",
+        G.add_edge(f"{COLLECTION}/intent_{row['intent_name']}", 
+                   f"{COLLECTION}/concept_{row['concept_name']}",
                    relationship=rel,
                    weight=weight)
     

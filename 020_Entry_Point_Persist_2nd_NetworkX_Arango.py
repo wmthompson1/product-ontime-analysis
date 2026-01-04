@@ -55,13 +55,14 @@ print("\n📊 Step 2: Build NetworkX graph with metadata")
 print("-" * 75)
 
 G = nx.DiGraph()
+COLLECTION = "manufacturing_schema_node"
 
 # Add nodes with metadata preservation
-# Use _key attribute to preserve table name as ArangoDB document key
+# Use collection/key format for ArangoDB document key
 for node in nodes:
+    node_id = f"{COLLECTION}/{node['table_name']}"
     G.add_node(
-        node['table_name'],
-        _key=node['table_name'],  # This becomes the ArangoDB _key
+        node_id,
         label=node['table_name'],
         table_type=node['table_type'],
         description=node['description'],
@@ -70,9 +71,11 @@ for node in nodes:
 
 # Add edges with enhanced metadata preservation
 for edge in edges:
+    from_id = f"{COLLECTION}/{edge['from_table']}"
+    to_id = f"{COLLECTION}/{edge['to_table']}"
     G.add_edge(
-        edge['from_table'],
-        edge['to_table'],
+        from_id,
+        to_id,
         relationship_type=edge['relationship_type'],
         join_column=edge['join_column'],
         weight=edge['weight'],
