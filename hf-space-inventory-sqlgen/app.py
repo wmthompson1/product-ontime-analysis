@@ -1838,10 +1838,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
             
             def load_queries_for_category(category_id: str):
                 if not category_id:
-                    return [], ""
+                    return gr.update(choices=[], value=None), ""
                 queries = get_saved_queries(category_id)
                 choices = [(q['name'], i) for i, q in enumerate(queries)]
-                return gr.Dropdown(choices=choices, value=None), ""
+                return gr.update(choices=choices, value=None), ""
             
             def load_query_sql(category_id: str, query_idx):
                 if category_id is None or query_idx is None:
