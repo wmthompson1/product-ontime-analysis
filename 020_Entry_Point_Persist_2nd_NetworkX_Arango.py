@@ -57,10 +57,12 @@ print("-" * 75)
 G = nx.DiGraph()
 
 # Add nodes with metadata preservation
+# Use _key attribute to preserve table name as ArangoDB document key
 for node in nodes:
     G.add_node(
         node['table_name'],
-        label=node['table_name'],  # Preserve original name as label
+        _key=node['table_name'],  # This becomes the ArangoDB _key
+        label=node['table_name'],
         table_type=node['table_type'],
         description=node['description'],
         node_type='schema_table'
