@@ -1346,6 +1346,48 @@ async def resolve_semantic_path(table_name: str, field_name: str, intent_name: s
         return {"error": str(e), "resolved": False}
 
 
+from semantic_reasoning import (
+    compare_query_plans, resolve_intent_probabilistic, 
+    infer_intent_from_sql, get_graph_syntax_examples
+)
+
+@app.get("/mcp/tools/compare_query_plans")
+async def api_compare_query_plans(table_name: str, field_name: str):
+    """Feature 1: Show how different intents produce different query plans for the same field"""
+    engine = get_db_engine()
+    plans = compare_query_plans(engine, table_name, field_name)
+    return {"field": f"{table_name}.{field_name}", "query_plans": plans, "count": len(plans)}
+
+
+class SQLInput(BaseModel):
+    sql: str
+
+@app.post("/mcp/tools/infer_intent")
+async def api_infer_intent(body: SQLInput):
+    """Feature 3: Automatically infer intent from SQL shape"""
+    engine = get_db_engine()
+    scores = infer_intent_from_sql(engine, body.sql)
+    return {
+        "sql_analyzed": body.sql[:200] + "..." if len(body.sql) > 200 else body.sql,
+        "inferred_intents": [
+            {
+                "intent": s.intent_name,
+                "confidence": s.confidence,
+                "matched_fields": s.matched_fields,
+                "matched_concepts": s.matched_concepts,
+                "explanation": s.explanation
+            } for s in scores[:5]
+        ]
+    }
+
+
+@app.get("/mcp/tools/graph_syntax")
+async def api_graph_syntax(intent_name: str, table_name: str, field_name: str):
+    """Feature 4: Get Cypher and AQL syntax for semantic path traversal"""
+    engine = get_db_engine()
+    return get_graph_syntax_examples(engine, intent_name, table_name, field_name)
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
@@ -1845,6 +1887,164 @@ Check that perspective-concept and intent-concept relationships are seeded.
             | `GET /mcp/tools/get_intent_perspectives` | View OPERATES_WITHIN edges |
             | `GET /mcp/tools/resolve_semantic_path` | Full graph traversal |
             """)
+        
+        with gr.Tab("🧠 Advanced Reasoning"):
+            gr.Markdown("""
+            ### Advanced Semantic Reasoning
+            
+            Demonstrates 4 advanced patterns for semantic graph traversal:
+            1. **Query Plan Comparison** - How different intents interpret the same field
+            2. **Probabilistic Intent Resolution** - Rank intents by confidence score
+            3. **SQL Intent Inference** - Automatically detect intent from SQL shape
+            4. **Graph Syntax Mapping** - Cypher and AQL traversal examples
+            """)
+            
+            with gr.Accordion("1. Intent Factor Weight → Query Plan Changes", open=True):
+                gr.Markdown("See how the same field resolves differently under different intents:")
+                
+                with gr.Row():
+                    qp_field = gr.Dropdown(
+                        choices=get_ambiguous_fields_list(),
+                        label="Select Ambiguous Field",
+                        interactive=True
+                    )
+                    qp_btn = gr.Button("Compare Query Plans", variant="primary")
+                
+                qp_output = gr.Markdown()
+                
+                def compare_plans_gradio(field_choice: str) -> str:
+                    if not field_choice:
+                        return "Select a field to compare query plans."
+                    table_name, field_name = field_choice.split("|")
+                    engine = get_db_engine()
+                    plans = compare_query_plans(engine, table_name, field_name)
+                    if not plans:
+                        return f"No query plans found for `{table_name}.{field_name}`"
+                    
+                    output = f"## Query Plans for `{table_name}.{field_name}`\n\n"
+                    for p in plans:
+                        output += f"### Intent: {p['intent']}\n"
+                        output += f"- **Perspective**: {p['perspective']}\n"
+                        output += f"- **Resolves to**: `{p['resolves_to']}`\n"
+                        output += f"- **Elevated concepts**: {', '.join(p['elevated']) or 'None'}\n"
+                        output += f"- **Suggested joins**: {', '.join(p['suggested_joins']) or 'None'}\n\n"
+                    return output
+                
+                qp_btn.click(fn=compare_plans_gradio, inputs=[qp_field], outputs=qp_output)
+            
+            with gr.Accordion("2. Probabilistic Intent Resolution", open=False):
+                gr.Markdown("Given multiple fields, compute confidence scores for each intent:")
+                
+                fields_input = gr.Textbox(
+                    label="Fields (comma-separated: table.field, table.field)",
+                    placeholder="daily_deliveries.ontime_rate, product_defects.severity",
+                    lines=1
+                )
+                prob_btn = gr.Button("Resolve Intents", variant="secondary")
+                prob_output = gr.Markdown()
+                
+                def probabilistic_resolve_gradio(fields_str: str) -> str:
+                    if not fields_str.strip():
+                        return "Enter fields to analyze."
+                    
+                    fields = []
+                    for f in fields_str.split(","):
+                        parts = f.strip().split(".")
+                        if len(parts) == 2:
+                            fields.append((parts[0], parts[1]))
+                    
+                    if not fields:
+                        return "Invalid field format. Use: table.field, table.field"
+                    
+                    engine = get_db_engine()
+                    scores = resolve_intent_probabilistic(engine, fields)
+                    
+                    if not scores:
+                        return "No intents found for the given fields."
+                    
+                    output = "## Intent Confidence Scores\n\n"
+                    output += "| Intent | Confidence | Matched Fields | Matched Concepts |\n"
+                    output += "|--------|------------|----------------|------------------|\n"
+                    for s in scores[:5]:
+                        output += f"| {s.intent_name} | {s.confidence:.1%} | {len(s.matched_fields)} | {', '.join(s.matched_concepts)} |\n"
+                    
+                    return output
+                
+                prob_btn.click(fn=probabilistic_resolve_gradio, inputs=[fields_input], outputs=prob_output)
+            
+            with gr.Accordion("3. Automatic Intent Inference from SQL Shape", open=False):
+                gr.Markdown("Parse SQL to detect likely intent based on tables, columns, and patterns:")
+                
+                sql_input = gr.Textbox(
+                    label="SQL Query",
+                    placeholder="SELECT supplier_id, AVG(ontime_rate) FROM daily_deliveries GROUP BY supplier_id",
+                    lines=3
+                )
+                infer_btn = gr.Button("Infer Intent", variant="secondary")
+                infer_output = gr.Markdown()
+                
+                def infer_intent_gradio(sql: str) -> str:
+                    if not sql.strip():
+                        return "Enter a SQL query to analyze."
+                    
+                    engine = get_db_engine()
+                    scores = infer_intent_from_sql(engine, sql)
+                    
+                    if not scores:
+                        return "Could not infer intent from SQL. Check that tables/columns exist in schema."
+                    
+                    output = "## Inferred Intents\n\n"
+                    for i, s in enumerate(scores[:3]):
+                        medal = ["🥇", "🥈", "🥉"][i] if i < 3 else ""
+                        output += f"### {medal} {s.intent_name} ({s.confidence:.1%})\n"
+                        output += f"- **Matched fields**: {', '.join(s.matched_fields)}\n"
+                        output += f"- **Concepts**: {', '.join(s.matched_concepts)}\n"
+                        output += f"- *{s.explanation}*\n\n"
+                    
+                    return output
+                
+                infer_btn.click(fn=infer_intent_gradio, inputs=[sql_input], outputs=infer_output)
+            
+            with gr.Accordion("4. ArangoDB / Neo4j Traversal Syntax", open=False):
+                gr.Markdown("Generate explicit graph database syntax for the semantic path:")
+                
+                with gr.Row():
+                    syntax_intent = gr.Dropdown(
+                        choices=get_intents_list(),
+                        label="Intent",
+                        interactive=True
+                    )
+                    syntax_field = gr.Dropdown(
+                        choices=get_ambiguous_fields_list(),
+                        label="Field",
+                        interactive=True
+                    )
+                
+                syntax_btn = gr.Button("Generate Graph Syntax", variant="secondary")
+                
+                with gr.Tabs():
+                    with gr.Tab("Cypher (Neo4j)"):
+                        cypher_output = gr.Code(language="sql", label="Cypher Query")
+                    with gr.Tab("AQL (ArangoDB)"):
+                        aql_output = gr.Code(language="sql", label="AQL Query")
+                    with gr.Tab("SQL Equivalent"):
+                        sql_equiv_output = gr.Code(language="sql", label="SQL Query")
+                
+                def generate_syntax_gradio(intent: str, field_choice: str):
+                    if not intent or not field_choice:
+                        return "-- Select intent and field", "-- Select intent and field", "-- Select intent and field"
+                    
+                    table_name, field_name = field_choice.split("|")
+                    engine = get_db_engine()
+                    syntax = get_graph_syntax_examples(engine, intent, table_name, field_name)
+                    
+                    return syntax["cypher"], syntax["aql"], syntax["sql_equivalent"]
+                
+                syntax_btn.click(
+                    fn=generate_syntax_gradio,
+                    inputs=[syntax_intent, syntax_field],
+                    outputs=[cypher_output, aql_output, sql_equiv_output]
+                )
         
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""
