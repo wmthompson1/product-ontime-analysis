@@ -459,3 +459,136 @@ INSERT INTO schema_perspective_concepts (perspective_id, concept_id, relationshi
 (5, 6, 'USES_DEFINITION', 3),   -- Customer uses OrderCustomerState
 (5, 8, 'USES_DEFINITION', 2);   -- Customer uses DeliveryPerformanceSupplier (for visibility)
 
+-- Schema Intents: Analytical goals that binary-switch concept weights
+-- Intent elevates one field interpretation to 1.0 while de-elevating alternatives to 0.0
+CREATE TABLE schema_intents (
+    intent_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_name TEXT NOT NULL UNIQUE,
+    intent_category TEXT NOT NULL,  -- maps to query categories (quality_control, supplier_performance, etc.)
+    description TEXT,
+    typical_question TEXT,  -- example natural language question for this intent
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Junction table: Intent-Concept weight mappings (the binary switch)
+CREATE TABLE schema_intent_concepts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_id INTEGER NOT NULL,
+    concept_id INTEGER NOT NULL,
+    intent_factor_weight REAL NOT NULL DEFAULT 0.0,  -- 1.0 = elevated (use this), 0.0 = suppressed
+    explanation TEXT,  -- why this concept is elevated/suppressed for this intent
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id),
+    FOREIGN KEY (concept_id) REFERENCES schema_concepts(concept_id),
+    UNIQUE(intent_id, concept_id)
+);
+
+-- Link intents to ground truth SQL queries
+CREATE TABLE schema_intent_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_id INTEGER NOT NULL,
+    query_category TEXT NOT NULL,  -- maps to index.json category id
+    query_file TEXT NOT NULL,      -- SQL file name
+    query_index INTEGER,           -- which query in the file (0-based)
+    query_name TEXT,               -- human-readable query name
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id)
+);
+
+-- Seed data: Analytical Intents aligned with ground truth query categories
+INSERT INTO schema_intents (intent_name, intent_category, description, typical_question) VALUES
+-- Quality Control intents
+('defect_cost_analysis', 'quality_control', 'Analyze defects from cost/financial impact perspective', 'What is the cost impact of defects by severity?'),
+('defect_quality_trending', 'quality_control', 'Track defect rates and quality trends over time', 'What is the defect rate trend by product line?'),
+('defect_customer_impact', 'quality_control', 'Assess defects from customer experience perspective', 'Which defects are most likely to reach customers?'),
+
+-- Supplier Performance intents  
+('supplier_scorecard', 'supplier_performance', 'Evaluate supplier delivery and quality metrics', 'Which suppliers have the best on-time delivery?'),
+('supplier_cost_penalties', 'supplier_performance', 'Analyze supplier performance for penalty/credit calculations', 'What penalties are owed for late deliveries?'),
+
+-- Equipment Reliability intents
+('oee_operational', 'equipment_reliability', 'Track OEE for shift/line performance management', 'What is the OEE trend for each production line?'),
+('oee_capital_planning', 'equipment_reliability', 'Use OEE for capital investment decisions', 'Which equipment needs replacement based on OEE?'),
+('maintenance_scheduling', 'equipment_reliability', 'Plan maintenance based on failure patterns', 'Which equipment is due for preventive maintenance?'),
+
+-- Production Analytics intents
+('schedule_adherence', 'production_analytics', 'Measure production schedule performance', 'How well are we meeting production schedules?'),
+('line_efficiency', 'production_analytics', 'Analyze production line throughput and efficiency', 'Which lines are underperforming on throughput?'),
+('quality_cost_allocation', 'production_analytics', 'Allocate quality costs to products/lines', 'What are the quality costs per product line?');
+
+-- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
+-- For defect analysis, each intent elevates ONE severity interpretation
+INSERT INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation) VALUES
+-- defect_cost_analysis (intent 1) elevates DefectSeverityCost, suppresses others
+(1, 1, 0.0, 'Quality classification not relevant for cost analysis'),
+(1, 2, 1.0, 'ELEVATED: Cost impact interpretation for financial analysis'),
+(1, 3, 0.0, 'Customer impact not primary for cost analysis'),
+
+-- defect_quality_trending (intent 2) elevates DefectSeverityQuality
+(2, 1, 1.0, 'ELEVATED: Quality classification for trending'),
+(2, 2, 0.0, 'Cost perspective not primary for quality trending'),
+(2, 3, 0.0, 'Customer perspective not primary for quality trending'),
+
+-- defect_customer_impact (intent 3) elevates DefectSeverityCustomer
+(3, 1, 0.0, 'Internal quality classification not customer-facing'),
+(3, 2, 0.0, 'Cost impact not customer-facing'),
+(3, 3, 1.0, 'ELEVATED: Customer experience interpretation'),
+
+-- supplier_scorecard (intent 4) elevates DeliveryPerformanceSupplier
+(4, 7, 0.0, 'Operational view not for supplier scoring'),
+(4, 8, 1.0, 'ELEVATED: Supplier scorecard metrics'),
+(4, 9, 0.0, 'Financial penalties separate from scorecard'),
+
+-- supplier_cost_penalties (intent 5) elevates DeliveryPerformanceFinance
+(5, 7, 0.0, 'Operational planning not for penalty calc'),
+(5, 8, 0.0, 'Scorecard metrics not for penalty calc'),
+(5, 9, 1.0, 'ELEVATED: Financial penalty calculations'),
+
+-- oee_operational (intent 6) elevates OEEOperational
+(6, 18, 1.0, 'ELEVATED: Daily/shift OEE for operations'),
+(6, 19, 0.0, 'Strategic OEE not for daily operations'),
+
+-- oee_capital_planning (intent 7) elevates OEEStrategic
+(7, 18, 0.0, 'Operational OEE not for capital planning'),
+(7, 19, 1.0, 'ELEVATED: Strategic OEE for investment decisions'),
+
+-- maintenance_scheduling (intent 8) elevates EquipmentStateMaintenance
+(8, 10, 0.0, 'Production state not for maintenance scheduling'),
+(8, 11, 1.0, 'ELEVATED: Maintenance planning state'),
+(8, 12, 0.0, 'Compliance state not for maintenance scheduling'),
+
+-- schedule_adherence (intent 9) elevates OrderLifecycleState
+(9, 4, 1.0, 'ELEVATED: Order lifecycle for schedule tracking'),
+(9, 5, 0.0, 'Accounting state not for schedule adherence'),
+(9, 6, 0.0, 'Customer visibility not for schedule adherence'),
+
+-- line_efficiency (intent 10) elevates OEEOperational
+(10, 18, 1.0, 'ELEVATED: Operational OEE for line efficiency'),
+(10, 19, 0.0, 'Strategic OEE not for line efficiency analysis'),
+
+-- quality_cost_allocation (intent 11) elevates DefectSeverityCost
+(11, 1, 0.0, 'Quality classification not for cost allocation'),
+(11, 2, 1.0, 'ELEVATED: Cost impact for quality cost allocation'),
+(11, 3, 0.0, 'Customer perspective not for cost allocation');
+
+-- Seed data: Link intents to ground truth queries
+INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name) VALUES
+-- Quality Control queries
+(1, 'quality_control', 'quality_control.sql', 0, 'Defects by severity with cost rollup'),
+(2, 'quality_control', 'quality_control.sql', 1, 'Weekly defect rate trend'),
+(3, 'quality_control', 'quality_control.sql', 2, 'Customer escape risk analysis'),
+
+-- Supplier Performance queries
+(4, 'supplier_performance', 'supplier_performance.sql', 0, 'Supplier delivery scorecard'),
+(5, 'supplier_performance', 'supplier_performance.sql', 1, 'Late delivery penalty calculation'),
+
+-- Equipment Reliability queries
+(6, 'equipment_reliability', 'equipment_reliability.sql', 0, 'Daily OEE by line'),
+(7, 'equipment_reliability', 'equipment_reliability.sql', 1, 'Equipment replacement candidates'),
+(8, 'equipment_reliability', 'equipment_reliability.sql', 2, 'Maintenance schedule gaps'),
+
+-- Production Analytics queries
+(9, 'production_analytics', 'production_analytics.sql', 0, 'Schedule adherence report'),
+(10, 'production_analytics', 'production_analytics.sql', 1, 'Line efficiency comparison'),
+(11, 'production_analytics', 'production_analytics.sql', 2, 'Quality cost by product');
+

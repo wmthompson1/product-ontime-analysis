@@ -1039,6 +1039,182 @@ async def resolve_field_for_perspective(table_name: str, field_name: str, perspe
         return {"error": str(e), "resolved": False}
 
 
+@app.get("/mcp/tools/get_intents")
+async def get_intents(category: Optional[str] = None):
+    """Get all analytical intents, optionally filtered by category.
+    
+    Intents are analytical goals that binary-switch concept weights.
+    Each intent elevates one field interpretation to 1.0 while suppressing alternatives to 0.0.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT intent_id, intent_name, intent_category, description, typical_question
+                FROM schema_intents
+                WHERE 1=1
+            """
+            params = {}
+            if category:
+                query += " AND intent_category = :category"
+                params["category"] = category
+            query += " ORDER BY intent_category, intent_name"
+            
+            result = conn.execute(text(query), params)
+            intents = [
+                {
+                    "intent_id": r[0], "intent_name": r[1],
+                    "intent_category": r[2], "description": r[3],
+                    "typical_question": r[4]
+                }
+                for r in result.fetchall()
+            ]
+            return {"intents": intents, "count": len(intents)}
+    except Exception as e:
+        return {"error": str(e), "intents": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_intent_weights")
+async def get_intent_weights(intent_name: str):
+    """Get concept weights for a specific intent (the binary elevation/suppression).
+    
+    Returns which concepts are elevated (1.0) vs suppressed (0.0) for this intent.
+    This is the core disambiguation mechanism - intent determines which interpretation wins.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT i.intent_name, i.description, i.typical_question,
+                       ic.intent_factor_weight, ic.explanation,
+                       c.concept_id, c.concept_name, c.concept_type, c.description as concept_desc, c.domain
+                FROM schema_intents i
+                JOIN schema_intent_concepts ic ON i.intent_id = ic.intent_id
+                JOIN schema_concepts c ON ic.concept_id = c.concept_id
+                WHERE i.intent_name = :intent_name
+                ORDER BY ic.intent_factor_weight DESC, c.concept_name
+            """), {"intent_name": intent_name})
+            
+            rows = result.fetchall()
+            if not rows:
+                return {"error": f"Intent '{intent_name}' not found", "weights": []}
+            
+            weights = [
+                {
+                    "intent_factor_weight": r[3],
+                    "status": "ELEVATED" if r[3] == 1.0 else "SUPPRESSED",
+                    "explanation": r[4],
+                    "concept": {
+                        "concept_id": r[5], "concept_name": r[6],
+                        "concept_type": r[7], "description": r[8], "domain": r[9]
+                    }
+                }
+                for r in rows
+            ]
+            
+            return {
+                "intent_name": rows[0][0],
+                "description": rows[0][1],
+                "typical_question": rows[0][2],
+                "weights": weights,
+                "elevated_count": sum(1 for w in weights if w["intent_factor_weight"] == 1.0),
+                "suppressed_count": sum(1 for w in weights if w["intent_factor_weight"] == 0.0)
+            }
+    except Exception as e:
+        return {"error": str(e), "weights": []}
+
+
+@app.get("/mcp/tools/get_intent_queries")
+async def get_intent_queries(intent_name: Optional[str] = None):
+    """Get ground truth SQL queries linked to intents.
+    
+    Maps intents to validated SQL examples that demonstrate the correct interpretation.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT i.intent_name, i.intent_category, i.description,
+                       iq.query_category, iq.query_file, iq.query_index, iq.query_name
+                FROM schema_intents i
+                JOIN schema_intent_queries iq ON i.intent_id = iq.intent_id
+                WHERE 1=1
+            """
+            params = {}
+            if intent_name:
+                query += " AND i.intent_name = :intent_name"
+                params["intent_name"] = intent_name
+            query += " ORDER BY i.intent_category, i.intent_name"
+            
+            result = conn.execute(text(query), params)
+            queries = [
+                {
+                    "intent_name": r[0], "intent_category": r[1], "intent_description": r[2],
+                    "query_category": r[3], "query_file": r[4], 
+                    "query_index": r[5], "query_name": r[6]
+                }
+                for r in result.fetchall()
+            ]
+            return {"intent_queries": queries, "count": len(queries)}
+    except Exception as e:
+        return {"error": str(e), "intent_queries": [], "count": 0}
+
+
+@app.get("/mcp/tools/resolve_field_for_intent")
+async def resolve_field_for_intent(table_name: str, field_name: str, intent_name: str):
+    """Resolve which concept interpretation applies for a field given an intent.
+    
+    This is the intent-based semantic disambiguation endpoint.
+    Unlike perspective (which uses priority weights), intent uses binary elevation:
+    - 1.0 = this interpretation is THE correct one for this intent
+    - 0.0 = this interpretation should be ignored for this intent
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                       cf.context_hint, ic.intent_factor_weight, ic.explanation,
+                       i.typical_question
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                JOIN schema_intent_concepts ic ON c.concept_id = ic.concept_id
+                JOIN schema_intents i ON ic.intent_id = i.intent_id
+                WHERE cf.table_name = :table_name 
+                  AND cf.field_name = :field_name
+                  AND i.intent_name = :intent_name
+                  AND ic.intent_factor_weight = 1.0
+                LIMIT 1
+            """), {"table_name": table_name, "field_name": field_name, "intent_name": intent_name})
+            
+            row = result.fetchone()
+            if row:
+                return {
+                    "resolved": True,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "intent": intent_name,
+                    "typical_question": row[8],
+                    "concept": {
+                        "concept_id": row[0], "concept_name": row[1],
+                        "concept_type": row[2], "description": row[3], 
+                        "domain": row[4], "context_hint": row[5],
+                        "intent_factor_weight": row[6], 
+                        "explanation": row[7]
+                    }
+                }
+            else:
+                return {
+                    "resolved": False,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "intent": intent_name,
+                    "message": "No elevated concept found for this field/intent combination"
+                }
+    except Exception as e:
+        return {"error": str(e), "resolved": False}
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
