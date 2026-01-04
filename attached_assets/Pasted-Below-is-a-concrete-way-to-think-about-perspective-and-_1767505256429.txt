@@ -1,0 +1,313 @@
+Below is a concrete way to think about **perspective** and **intent** as first-class graph constructs that *sit above* relational data, rather than trying to replace SQL or normalize ambiguity away.
+
+I will stay product-agnostic, but this maps cleanly to property graphs (Neo4j, ArangoDB, JanusGraph) and also to RDF with slight translation.
+
+---
+
+## Framing Assumption
+
+You are not trying to “fix” vague or overloaded relational fields (e.g., `status`, `type`, `category`, `code`, `role`).
+You are trying to **externalize meaning** so that:
+
+* SQL continues to retrieve facts efficiently
+* The graph provides **semantic disambiguation**
+* Queries can be re-interpreted based on *who is asking* and *why*
+
+This implies the graph is a **semantic control plane**, not a transactional store.
+
+---
+
+## Core Design Principle
+
+> **Perspective and intent are not data attributes.
+> They are *query lenses* encoded as graph paths.**
+
+That distinction matters.
+
+---
+
+# 1. Perspective as a Graph Construct
+
+### Definition
+
+**Perspective = a constrained subgraph that defines which meanings, relationships, and interpretations are considered valid in a given context.**
+
+Perspective answers:
+
+* “Which interpretation of this field do we mean?”
+* “Which relationships are visible or relevant?”
+* “What hierarchy or ontology applies?”
+
+### Node Types
+
+At minimum:
+
+```
+(:Perspective)
+(:Concept)
+(:Field)
+(:Value)
+(:Entity)
+```
+
+Optional but common:
+
+```
+(:Role)
+(:Domain)
+(:Regulation)
+(:BusinessProcess)
+```
+
+---
+
+### Key Relationships
+
+```
+(:Perspective)-[:EMPHASIZES]->(:Concept)
+(:Perspective)-[:SUPPRESSES]->(:Concept)
+(:Perspective)-[:USES_DEFINITION]->(:Concept)
+(:Concept)-[:REFINES]->(:Concept)
+(:Field)-[:CAN_MEAN]->(:Concept)
+(:Value)-[:INSTANCE_OF]->(:Concept)
+```
+
+---
+
+### Example: Multi-Meaning `status` Field
+
+Relational table:
+
+```
+orders.status
+```
+
+Values:
+
+```
+'OPEN', 'CLOSED', 'HOLD', 'CANCELLED'
+```
+
+#### Graph Layer
+
+```
+(:Field {name: "orders.status"})
+  -[:CAN_MEAN]->
+(:Concept {name: "OrderLifecycleState"})
+
+(:Concept {name: "AccountingCloseState"})
+(:Concept {name: "FulfillmentState"})
+(:Concept {name: "CustomerVisibilityState"})
+```
+
+Each concept has its own semantics.
+
+---
+
+### Perspectives
+
+```
+(:Perspective {name: "Finance"})
+  -[:USES_DEFINITION]->
+(:Concept {name: "AccountingCloseState"})
+
+(:Perspective {name: "Operations"})
+  -[:USES_DEFINITION]->
+(:Concept {name: "FulfillmentState"})
+```
+
+Now the same SQL result set can be **reinterpreted** differently without changing SQL.
+
+---
+
+### Perspective as a Traversal Constraint
+
+In practice:
+
+1. SQL retrieves rows
+2. For each ambiguous field:
+
+   * Graph traversal is constrained by `(:Perspective)`
+   * Only valid meanings are allowed
+
+This allows:
+
+* Same field
+* Same value
+* Different interpretation
+
+---
+
+# 2. Intent as a Graph Construct
+
+### Definition
+
+**Intent = a goal-oriented path pattern that expresses why the query exists, not what it selects.**
+
+Intent answers:
+
+* “What decision is being made?”
+* “What outcome is desired?”
+* “What kind of correctness matters?”
+
+---
+
+### Intent is NOT:
+
+* A user role
+* A permission
+* A filter
+
+Intent is **a semantic trajectory**.
+
+---
+
+### Node Types
+
+```
+(:Intent)
+(:Outcome)
+(:Metric)
+(:Constraint)
+(:Risk)
+(:Decision)
+```
+
+---
+
+### Relationships
+
+```
+(:Intent)-[:SEEKS]->(:Outcome)
+(:Intent)-[:PRIORITIZES]->(:Metric)
+(:Intent)-[:CONSTRAINED_BY]->(:Constraint)
+(:Intent)-[:AVOIDS]->(:Risk)
+(:Intent)-[:INFORMS]->(:Decision)
+```
+
+---
+
+### Example: Same Query, Different Intent
+
+SQL:
+
+```sql
+SELECT order_id, status
+FROM orders
+WHERE status = 'OPEN';
+```
+
+#### Intent A: “Revenue Forecasting”
+
+```
+(:Intent {name: "RevenueForecast"})
+  -[:PRIORITIZES]->(:Metric {name: "RecognizableRevenue"})
+  -[:USES_DEFINITION]->(:Concept {name: "AccountingOpen"})
+```
+
+#### Intent B: “Warehouse Planning”
+
+```
+(:Intent {name: "WarehouseLoad"})
+  -[:PRIORITIZES]->(:Metric {name: "PickVolume"})
+  -[:USES_DEFINITION]->(:Concept {name: "NotYetShipped"})
+```
+
+Same SQL.
+Different **graph path** determines meaning.
+
+---
+
+# 3. Perspective vs Intent (Critical Distinction)
+
+| Dimension    | Perspective               | Intent               |
+| ------------ | ------------------------- | -------------------- |
+| Scope        | “How do we see the data?” | “Why are we asking?” |
+| Stability    | Relatively stable         | Often transient      |
+| Ownership    | Organizational / domain   | User / workflow      |
+| Graph Role   | Subgraph constraint       | Path pattern         |
+| Time Horizon | Structural                | Event-driven         |
+
+**Perspective constrains meaning.
+Intent prioritizes meaning.**
+
+---
+
+# 4. How They Combine in Practice
+
+A full semantic evaluation path looks like:
+
+```
+(:Intent)
+  -[:OPERATES_WITHIN]->
+(:Perspective)
+  -[:USES_DEFINITION]->
+(:Concept)
+  <-[:CAN_MEAN]-
+(:Field)
+```
+
+This is the **semantic join** that SQL cannot express.
+
+---
+
+# 5. Elevating Vague Fields: Practical Pattern
+
+### Step 1: Do NOT explode columns
+
+Do **not** replace `status` with `status_accounting`, `status_ops`, etc.
+
+---
+
+### Step 2: Model Meanings as Concepts
+
+Every overloaded field maps to multiple `Concept` nodes.
+
+---
+
+### Step 3: Attach Perspectives
+
+Perspectives determine *which concept is active*.
+
+---
+
+### Step 4: Bind Intent at Query Time
+
+Intent selects:
+
+* Which perspective applies
+* Which metrics dominate
+* Which ambiguities must be resolved strictly vs loosely
+
+---
+
+# 6. Why a Graph Is Necessary
+
+Relational systems fail here because:
+
+* Meaning is **n-ary**, not tabular
+* Ambiguity is contextual, not exceptional
+* Interpretation is path-dependent
+
+Graphs excel because:
+
+* Paths encode reasoning
+* Multiple truths can coexist
+* You can traverse meaning, not just data
+
+---
+
+# 7. Litmus Test: You’re Doing It Right If
+
+* SQL queries remain mostly unchanged
+* Meaning changes without schema changes
+* Business debates move from “what does this column mean?” to “which perspective applies?”
+* You can explain a query result by pointing to a graph path
+
+---
+
+If you want, next we can:
+
+* Walk through a concrete schema (e.g., inventory, orders, or work orders)
+* Map this to ArangoDB vs Neo4j traversal mechanics
+* Show how intent could be inferred automatically from query shape or application endpoint
