@@ -495,6 +495,20 @@ CREATE TABLE schema_intent_queries (
     FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id)
 );
 
+-- OPERATES_WITHIN: Intent → Perspective relationship
+-- Intent operates within a perspective, constraining the graph traversal path
+CREATE TABLE schema_intent_perspectives (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_id INTEGER NOT NULL,
+    perspective_id INTEGER NOT NULL,
+    intent_factor_weight REAL NOT NULL DEFAULT 1.0,  -- 1.0 = active path, 0.0 = suppressed path
+    explanation TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id),
+    FOREIGN KEY (perspective_id) REFERENCES schema_perspectives(perspective_id),
+    UNIQUE(intent_id, perspective_id)
+);
+
 -- Seed data: Analytical Intents aligned with ground truth query categories
 INSERT INTO schema_intents (intent_name, intent_category, description, typical_question) VALUES
 -- Quality Control intents
@@ -591,4 +605,27 @@ INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_
 (9, 'production_analytics', 'production_analytics.sql', 0, 'Schedule adherence report'),
 (10, 'production_analytics', 'production_analytics.sql', 1, 'Line efficiency comparison'),
 (11, 'production_analytics', 'production_analytics.sql', 2, 'Quality cost by product');
+
+-- Seed data: OPERATES_WITHIN relationships (Intent → Perspective)
+-- Maps each intent to its constraining perspective(s)
+-- Perspective IDs: 1=Quality, 2=Finance, 3=Operations, 4=Compliance, 5=Customer
+INSERT INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation) VALUES
+-- Quality Control intents
+(1, 2, 1.0, 'defect_cost_analysis operates within Finance perspective'),
+(2, 1, 1.0, 'defect_quality_trending operates within Quality perspective'),
+(3, 5, 1.0, 'defect_customer_impact operates within Customer perspective'),
+
+-- Supplier Performance intents
+(4, 1, 1.0, 'supplier_scorecard operates within Quality perspective'),
+(5, 2, 1.0, 'supplier_cost_penalties operates within Finance perspective'),
+
+-- Equipment Reliability intents
+(6, 3, 1.0, 'oee_operational operates within Operations perspective'),
+(7, 2, 1.0, 'oee_capital_planning operates within Finance perspective'),
+(8, 3, 1.0, 'maintenance_scheduling operates within Operations perspective'),
+
+-- Production Analytics intents
+(9, 3, 1.0, 'schedule_adherence operates within Operations perspective'),
+(10, 3, 1.0, 'line_efficiency operates within Operations perspective'),
+(11, 2, 1.0, 'quality_cost_allocation operates within Finance perspective');
 

@@ -1215,6 +1215,137 @@ async def resolve_field_for_intent(table_name: str, field_name: str, intent_name
         return {"error": str(e), "resolved": False}
 
 
+@app.get("/mcp/tools/get_intent_perspectives")
+async def get_intent_perspectives(intent_name: Optional[str] = None):
+    """Get OPERATES_WITHIN relationships (Intent → Perspective).
+    
+    Shows which perspective(s) each intent operates within.
+    This is the intermediate constraint layer in the graph traversal:
+    Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT i.intent_name, i.intent_category, i.description as intent_desc,
+                       ip.intent_factor_weight, ip.explanation,
+                       p.perspective_id, p.perspective_name, p.description as perspective_desc,
+                       p.stakeholder_role
+                FROM schema_intents i
+                JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                WHERE ip.intent_factor_weight = 1.0
+            """
+            params = {}
+            if intent_name:
+                query += " AND i.intent_name = :intent_name"
+                params["intent_name"] = intent_name
+            query += " ORDER BY i.intent_category, i.intent_name"
+            
+            result = conn.execute(text(query), params)
+            mappings = [
+                {
+                    "intent_name": r[0], "intent_category": r[1], 
+                    "intent_description": r[2],
+                    "relationship": "OPERATES_WITHIN",
+                    "intent_factor_weight": r[3], "explanation": r[4],
+                    "perspective": {
+                        "perspective_id": r[5], "perspective_name": r[6],
+                        "description": r[7], "stakeholder_role": r[8]
+                    }
+                }
+                for r in result.fetchall()
+            ]
+            return {"intent_perspectives": mappings, "count": len(mappings)}
+    except Exception as e:
+        return {"error": str(e), "intent_perspectives": [], "count": 0}
+
+
+@app.get("/mcp/tools/resolve_semantic_path")
+async def resolve_semantic_path(table_name: str, field_name: str, intent_name: str):
+    """Full graph traversal: Intent → Perspective → Concept ← Field.
+    
+    This is the complete semantic disambiguation endpoint that follows the graph path:
+    1. Start from Intent
+    2. Traverse OPERATES_WITHIN to get constraining Perspective
+    3. Traverse USES_DEFINITION to get valid Concepts for that Perspective
+    4. Match against Field's CAN_MEAN concepts
+    5. Apply intent_factor_weight to select the elevated concept
+    
+    Returns the deterministically resolved concept for the field given the intent.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT 
+                    -- Intent info
+                    i.intent_name, i.intent_category, i.typical_question,
+                    -- Perspective info (via OPERATES_WITHIN)
+                    p.perspective_name, p.stakeholder_role,
+                    -- Concept info (via USES_DEFINITION and CAN_MEAN)
+                    c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                    -- Edge weights
+                    ip.intent_factor_weight as operates_within_weight,
+                    pc.priority_weight as uses_definition_weight,
+                    cf.context_hint,
+                    ic.intent_factor_weight as concept_elevation_weight,
+                    ic.explanation
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                JOIN schema_intent_concepts ic ON c.concept_id = ic.concept_id
+                JOIN schema_intents i ON ic.intent_id = i.intent_id
+                JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id 
+                    AND c.concept_id = pc.concept_id
+                WHERE cf.table_name = :table_name 
+                  AND cf.field_name = :field_name
+                  AND i.intent_name = :intent_name
+                  AND ip.intent_factor_weight = 1.0  -- Active OPERATES_WITHIN path
+                  AND ic.intent_factor_weight = 1.0  -- Elevated concept
+                LIMIT 1
+            """), {"table_name": table_name, "field_name": field_name, "intent_name": intent_name})
+            
+            row = result.fetchone()
+            if row:
+                return {
+                    "resolved": True,
+                    "field": {"table_name": table_name, "field_name": field_name},
+                    "traversal_path": {
+                        "intent": {
+                            "name": row[0], "category": row[1], 
+                            "typical_question": row[2]
+                        },
+                        "operates_within": {
+                            "perspective": row[3], "stakeholder_role": row[4],
+                            "weight": row[10]
+                        },
+                        "uses_definition": {
+                            "priority_weight": row[11]
+                        },
+                        "can_mean": {
+                            "context_hint": row[12]
+                        }
+                    },
+                    "resolved_concept": {
+                        "concept_id": row[5], "concept_name": row[6],
+                        "concept_type": row[7], "description": row[8], 
+                        "domain": row[9],
+                        "elevation_weight": row[13], "explanation": row[14]
+                    }
+                }
+            else:
+                return {
+                    "resolved": False,
+                    "field": {"table_name": table_name, "field_name": field_name},
+                    "intent": intent_name,
+                    "message": "No valid path found. Check that Intent operates within a Perspective that uses a Concept the Field can mean."
+                }
+    except Exception as e:
+        return {"error": str(e), "resolved": False}
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
