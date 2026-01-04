@@ -6,12 +6,225 @@ Demonstrates 4 advanced patterns for semantic graph traversal:
 2. Probabilistic intent resolution
 3. Automatic intent inference from SQL shape
 4. ArangoDB/Neo4j traversal syntax mapping
+
+RESOLUTION ALGORITHM (per treatise):
+=====================================
+Intent → Meaning Resolution for (Intent I, Field F):
+
+1. Identify all Perspective P where:
+   I -[:OPERATES_WITHIN]-> P AND weight ≠ -1
+
+2. For each P, identify all Concept C where:
+   P -[:USES_DEFINITION|EMPHASIZES]-> C
+
+3. Filter concepts where:
+   F -[:CAN_MEAN]-> C
+
+4. Apply intent overrides:
+   - Drop any C where I -[:SUPPRESSES]-> C (weight = -1)
+   - Keep any C where I -[:ELEVATES]-> C (weight = 1)
+
+5. Assert: COUNT(C) = 1
+   - If > 1: Modeling error (ambiguous resolution)
+   - If = 0: Incomplete perspective (no valid path)
+   Both are detectable and explainable.
+
+Weight Semantics (binary, not scalar):
+  1 = Explicitly elevated / active
+  0 = Neutral / not selected
+ -1 = Explicitly suppressed
 """
 
 import re
 from typing import Dict, List, Any, Optional, Tuple
 from sqlalchemy import text
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
+
+
+@dataclass
+class ResolutionResult:
+    """Result of Intent → Field → Concept resolution"""
+    intent: str
+    field_name: str
+    resolved_concept: Optional[str]
+    perspective: Optional[str]
+    status: str  # 'resolved', 'ambiguous', 'no_path'
+    candidate_concepts: List[str] = dataclass_field(default_factory=list)
+    explanation: str = ""
+    
+    @property
+    def is_valid(self) -> bool:
+        return self.status == 'resolved' and self.resolved_concept is not None
+
+
+def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name: str) -> ResolutionResult:
+    """
+    FORMAL RESOLUTION ALGORITHM
+    
+    For a given (Intent I, Field F), resolve to exactly one Concept C.
+    
+    Algorithm:
+    1. Find perspectives where Intent operates (weight ≠ -1)
+    2. Find concepts that perspectives use/emphasize
+    3. Filter to concepts the field CAN_MEAN
+    4. Apply intent elevation/suppression
+    5. Assert exactly one result
+    
+    Returns:
+        ResolutionResult with status 'resolved', 'ambiguous', or 'no_path'
+    """
+    with engine.connect() as conn:
+        # Step 1-3: Full graph traversal query
+        # Path: Intent → Perspective → Concept ← Field
+        result = conn.execute(text("""
+            SELECT DISTINCT
+                i.intent_name,
+                p.perspective_name,
+                c.concept_name,
+                c.concept_id,
+                ip.intent_factor_weight as perspective_weight,
+                COALESCE(ic.intent_factor_weight, 0) as concept_weight
+            FROM schema_intents i
+            -- Step 1: Intent OPERATES_WITHIN Perspective (weight ≠ -1)
+            JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                AND ip.intent_factor_weight != -1
+            JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+            -- Step 2: Perspective USES_DEFINITION Concept
+            JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id
+            JOIN schema_concepts c ON pc.concept_id = c.concept_id
+            -- Step 3: Field CAN_MEAN Concept
+            JOIN schema_concept_fields cf ON c.concept_id = cf.concept_id
+            -- Step 4: Get intent elevation/suppression (LEFT JOIN for optional)
+            LEFT JOIN schema_intent_concepts ic ON i.intent_id = ic.intent_id 
+                AND c.concept_id = ic.concept_id
+            WHERE i.intent_name = :intent_name
+              AND cf.table_name = :table_name
+              AND cf.field_name = :field_name
+              -- Filter suppressed concepts (weight = -1)
+              AND COALESCE(ic.intent_factor_weight, 0) != -1
+            ORDER BY concept_weight DESC, c.concept_name
+        """), {
+            "intent_name": intent_name,
+            "table_name": table_name,
+            "field_name": field_name
+        })
+        
+        rows = result.fetchall()
+        
+        if not rows:
+            return ResolutionResult(
+                intent=intent_name,
+                field_name=f"{table_name}.{field_name}",
+                resolved_concept=None,
+                perspective=None,
+                status='no_path',
+                candidate_concepts=[],
+                explanation=f"No valid path: Intent '{intent_name}' has no OPERATES_WITHIN "
+                           f"perspective that USES_DEFINITION a concept the field CAN_MEAN"
+            )
+        
+        # Step 4: Apply elevation filter - prefer elevated (weight=1) over neutral (weight=0)
+        elevated = [r for r in rows if r[5] == 1]  # concept_weight = 1
+        neutral = [r for r in rows if r[5] == 0]   # concept_weight = 0
+        
+        # Use elevated if available, otherwise neutral
+        candidates = elevated if elevated else neutral
+        
+        # Step 5: Assert COUNT(C) = 1
+        unique_concepts = list(set(r[2] for r in candidates))  # concept_name
+        perspective = candidates[0][1] if candidates else None
+        
+        if len(unique_concepts) == 1:
+            # SUCCESS: Exactly one concept resolved
+            return ResolutionResult(
+                intent=intent_name,
+                field_name=f"{table_name}.{field_name}",
+                resolved_concept=unique_concepts[0],
+                perspective=perspective,
+                status='resolved',
+                candidate_concepts=unique_concepts,
+                explanation=f"Resolved via path: {intent_name} → {perspective} → {unique_concepts[0]}"
+            )
+        elif len(unique_concepts) > 1:
+            # ERROR: Modeling error (too many)
+            return ResolutionResult(
+                intent=intent_name,
+                field_name=f"{table_name}.{field_name}",
+                resolved_concept=None,
+                perspective=perspective,
+                status='ambiguous',
+                candidate_concepts=unique_concepts,
+                explanation=f"MODELING ERROR: {len(unique_concepts)} concepts resolved. "
+                           f"Intent must elevate exactly one: {unique_concepts}"
+            )
+        else:
+            # ERROR: Should not happen if rows exist
+            return ResolutionResult(
+                intent=intent_name,
+                field_name=f"{table_name}.{field_name}",
+                resolved_concept=None,
+                perspective=None,
+                status='no_path',
+                candidate_concepts=[],
+                explanation="Unexpected: candidates empty after filtering"
+            )
+
+
+def validate_semantic_model(engine) -> Dict[str, Any]:
+    """
+    Validate entire semantic model for resolution completeness.
+    
+    Checks all (Intent, Field) combinations and reports:
+    - Resolved: Valid single-concept resolution
+    - Ambiguous: Multiple concepts (modeling error)
+    - No Path: Missing edges (incomplete model)
+    """
+    with engine.connect() as conn:
+        # Get all intents
+        intents = conn.execute(text("SELECT intent_name FROM schema_intents")).fetchall()
+        
+        # Get all ambiguous fields
+        fields = conn.execute(text("""
+            SELECT DISTINCT table_name, field_name 
+            FROM schema_concept_fields
+        """)).fetchall()
+        
+        results = {
+            'resolved': [],
+            'ambiguous': [],
+            'no_path': [],
+            'total_combinations': len(intents) * len(fields)
+        }
+        
+        for intent_row in intents:
+            intent_name = intent_row[0]
+            for field_row in fields:
+                table_name, field_name = field_row[0], field_row[1]
+                resolution = resolve_field_meaning(engine, intent_name, table_name, field_name)
+                
+                entry = {
+                    'intent': intent_name,
+                    'field': f"{table_name}.{field_name}",
+                    'concept': resolution.resolved_concept,
+                    'perspective': resolution.perspective
+                }
+                
+                if resolution.status == 'resolved':
+                    results['resolved'].append(entry)
+                elif resolution.status == 'ambiguous':
+                    entry['candidates'] = resolution.candidate_concepts
+                    results['ambiguous'].append(entry)
+                else:
+                    results['no_path'].append(entry)
+        
+        results['summary'] = {
+            'resolved_count': len(results['resolved']),
+            'ambiguous_count': len(results['ambiguous']),
+            'no_path_count': len(results['no_path']),
+            'resolution_rate': len(results['resolved']) / max(results['total_combinations'], 1)
+        }
+        
+        return results
 
 
 @dataclass

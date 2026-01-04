@@ -1348,7 +1348,8 @@ async def resolve_semantic_path(table_name: str, field_name: str, intent_name: s
 
 from semantic_reasoning import (
     compare_query_plans, resolve_intent_probabilistic, 
-    infer_intent_from_sql, get_graph_syntax_examples
+    infer_intent_from_sql, get_graph_syntax_examples,
+    resolve_field_meaning, validate_semantic_model, ResolutionResult
 )
 
 @app.get("/mcp/tools/compare_query_plans")
@@ -1386,6 +1387,59 @@ async def api_graph_syntax(intent_name: str, table_name: str, field_name: str):
     """Feature 4: Get Cypher and AQL syntax for semantic path traversal"""
     engine = get_db_engine()
     return get_graph_syntax_examples(engine, intent_name, table_name, field_name)
+
+
+@app.get("/mcp/tools/resolve_field")
+async def api_resolve_field(intent_name: str, table_name: str, field_name: str):
+    """
+    FORMAL RESOLUTION ALGORITHM
+    
+    For a given (Intent I, Field F), resolve to exactly one Concept C.
+    
+    Algorithm per treatise:
+    1. Find perspectives where Intent operates (weight ≠ -1)
+    2. Find concepts that perspectives use/emphasize
+    3. Filter to concepts the field CAN_MEAN
+    4. Apply intent elevation/suppression
+    5. Assert exactly one result
+    
+    Returns resolution status: 'resolved', 'ambiguous', or 'no_path'
+    """
+    engine = get_db_engine()
+    result = resolve_field_meaning(engine, intent_name, table_name, field_name)
+    return {
+        "intent": result.intent,
+        "field": result.field_name,
+        "status": result.status,
+        "is_valid": result.is_valid,
+        "resolved_concept": result.resolved_concept,
+        "perspective": result.perspective,
+        "candidate_concepts": result.candidate_concepts,
+        "explanation": result.explanation
+    }
+
+
+@app.get("/mcp/tools/validate_model")
+async def api_validate_model():
+    """
+    Validate entire semantic model for resolution completeness.
+    
+    Checks all (Intent, Field) combinations and reports:
+    - Resolved: Valid single-concept resolution
+    - Ambiguous: Multiple concepts (modeling error)
+    - No Path: Missing edges (incomplete model)
+    
+    Use this to detect modeling errors before deploying.
+    """
+    engine = get_db_engine()
+    validation = validate_semantic_model(engine)
+    return {
+        "summary": validation['summary'],
+        "ambiguous_combinations": validation['ambiguous'][:10],
+        "no_path_combinations": validation['no_path'][:10],
+        "total_resolved": validation['summary']['resolved_count'],
+        "total_errors": validation['summary']['ambiguous_count'] + validation['summary']['no_path_count']
+    }
 
 
 def create_gradio_interface():
