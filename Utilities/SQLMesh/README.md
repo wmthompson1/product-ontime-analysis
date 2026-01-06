@@ -8,7 +8,7 @@ The project is configured to use **DuckDB** as the database engine with persiste
 
 ### Files
 
-- `sqlmesh.toml` - Main configuration file with DuckDB gateway setup
+- `config.yaml` - Main configuration file with DuckDB gateway setup (single source of truth)
 - `models/` - Directory for SQLMesh model definitions
 - `requirements.txt` - Python dependencies for SQLMesh
 
@@ -27,13 +27,17 @@ To use SQLMesh in this project:
    pip install -r requirements.txt
    ```
 
-2. Initialize the project (if needed):
+2. Navigate to the SQLMesh directory:
    ```bash
    cd Utilities/SQLMesh
-   sqlmesh init
    ```
 
-3. Create and test models:
+3. View project info:
+   ```bash
+   sqlmesh info
+   ```
+
+4. Create and test models:
    ```bash
    sqlmesh plan
    sqlmesh run
@@ -41,13 +45,19 @@ To use SQLMesh in this project:
 
 ### Configuration Details
 
-- **Project name**: `product_ontime_sqlmesh`
 - **Gateway**: `local` (DuckDB connection)
-- **Environment**: `default` (uses local gateway)
+- **Default gateway**: `local`
 - **Models directory**: `models/`
+- **Database dialect**: DuckDB
 
 The configuration provides:
-- Single source of truth (TOML format)
-- Persistent database for testing consistency
-- Fast analytics performance with DuckDB
-- Clear gateway-to-environment mapping
+- **Single source of truth**: One YAML configuration file
+- **Persistent database**: File-based storage for testing consistency
+- **Fast analytics performance**: DuckDB optimized for OLAP workloads
+- **Clear gateway mapping**: Explicit connection configuration
+
+## Rationale
+
+- **DuckDB advantages**: Better analytics capabilities and faster performance than SQLite
+- **No conflicting configs**: Single `config.yaml` instead of multiple configuration files
+- **Standard format**: YAML is SQLMesh's native configuration format
