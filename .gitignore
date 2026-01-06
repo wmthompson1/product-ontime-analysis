@@ -24,9 +24,6 @@ dev_test.db
 # SQLMesh
 .sqlmesh/
 .cache/
-Utilities/SQLMesh/dev.duckdb
-Utilities/SQLMesh/.sqlmesh/
-Utilities/SQLMesh/.cache/
 Utilities/SQLMesh/logs/
 
 # Editor / IDE
