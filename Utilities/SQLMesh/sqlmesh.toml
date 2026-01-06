@@ -1,0 +1,13 @@
+[project]
+name = "product_ontime_sqlmesh"
+models_dir = "models"
+
+[model_defaults]
+dialect = "duckdb"
+
+[gateways.local]
+connection.type = "duckdb"
+connection.database = "Utilities/SQLMesh/dev.duckdb"
+
+[environments.default]
+gateway = "local"

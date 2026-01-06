@@ -18,6 +18,13 @@ node_modules/
 # Databases
 *.sqlite3
 dev_test.db
+*.duckdb
+*.duckdb.wal
+
+# SQLMesh
+.sqlmesh/
+Utilities/SQLMesh/dev.duckdb
+Utilities/SQLMesh/.sqlmesh/
 
 # Editor / IDE
 .idea/
