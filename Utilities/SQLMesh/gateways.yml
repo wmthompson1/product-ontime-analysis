@@ -1,0 +1,7 @@
+gateways:
+  local:
+    connection:
+      # type: duckdb  # alternative: duckdb
+      type: sqlite
+      # For an in-memory SQLite database use ":memory:" (note the quotes)
+      database: ":memory:"

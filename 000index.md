@@ -1,6 +1,6 @@
 ```markdown
-cd bbb/20241019\ Python/
-cd bbb/20241019\ Python/
+note note note 
+cd ./bbb/20241019\ Python/
 
 cd /workspaces/20241019 Python/000index.md
 
