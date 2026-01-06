@@ -1,0 +1,96 @@
+name: SQLMesh CI
+
+on:
+  pull_request:
+    branches: ["**"]
+    paths:
+      - 'Utilities/SQLMesh/**'
+      - '.github/workflows/sqlmesh-ci.yml'
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/add-sqlmesh-*'
+    paths:
+      - 'Utilities/SQLMesh/**'
+      - '.github/workflows/sqlmesh-ci.yml'
+
+jobs:
+  validate:
+    name: Validate SQLMesh Configuration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Utilities/SQLMesh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install SQLMesh dependencies
+        run: |
+          pip install sqlmesh sqlglot duckdb
+      
+      - name: Validate SQLMesh configuration
+        run: |
+          sqlmesh plan --dry-run
+
+  test:
+    name: Test SQLMesh Models
+    runs-on: ubuntu-latest
+    needs: validate
+    defaults:
+      run:
+        working-directory: Utilities/SQLMesh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install SQLMesh dependencies
+        run: |
+          pip install sqlmesh sqlglot duckdb
+      
+      - name: Run SQLMesh tests
+        run: |
+          sqlmesh test
+
+  run:
+    name: Run SQLMesh Models
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: Utilities/SQLMesh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      
+      - name: Install SQLMesh dependencies
+        run: |
+          pip install sqlmesh sqlglot duckdb
+      
+      - name: Run SQLMesh models
+        run: |
+          sqlmesh run
+
+      - name: Upload DuckDB artifact
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: sqlmesh-duckdb-output
+          path: Utilities/SQLMesh/dev.duckdb
+          retention-days: 7
