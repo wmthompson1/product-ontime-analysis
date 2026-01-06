@@ -1,0 +1,3 @@
+# SQLMesh cache and logs
+.cache/
+logs/
