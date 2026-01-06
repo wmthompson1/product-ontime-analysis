@@ -24,9 +24,9 @@ sqlmesh plan --auto-apply
 ```
 
 Files:
-- `sqlmesh.toml` — minimal project config (duckdb engine pointing to `dev.duckdb`).
-- `models/items_model.sql` — simple model that selects from `items` table.
-- `.env.example` — example DATABASE_URL for local runs.
+- `config.yaml` — minimal project config (duckdb gateway pointing to `dev.duckdb`).
+- `models/items_model.sql` — simple model with self-contained sample data using proper SQLMesh MODEL syntax.
+- `gateways.yml` — example gateway configuration for in-memory testing.
 
 Gateways and in-memory testing
 
