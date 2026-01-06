@@ -42,7 +42,7 @@ jobs:
       
       - name: Validate SQLMesh configuration
         run: |
-          sqlmesh plan --dry-run
+          sqlmesh plan --dry-run -p models
 
   test:
     name: Test SQLMesh Models
@@ -68,7 +68,7 @@ jobs:
       
       - name: Run SQLMesh tests
         run: |
-          sqlmesh test
+          sqlmesh test -p models
 
   run:
     name: Run SQLMesh Models
@@ -94,7 +94,7 @@ jobs:
       
       - name: Run SQLMesh models
         run: |
-          sqlmesh run
+          sqlmesh run -p models
 
       - name: Upload DuckDB artifact
         uses: actions/upload-artifact@v4
