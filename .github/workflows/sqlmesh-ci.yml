@@ -34,7 +34,8 @@ jobs:
       
       - name: Install SQLMesh dependencies
         run: |
-          pip install sqlmesh sqlglot duckdb
+          pip install -r requirements.txt
+          pip install sqlglot duckdb
       
       - name: Validate SQLMesh configuration
         run: |
@@ -59,7 +60,8 @@ jobs:
       
       - name: Install SQLMesh dependencies
         run: |
-          pip install sqlmesh sqlglot duckdb
+          pip install -r requirements.txt
+          pip install sqlglot duckdb
       
       - name: Run SQLMesh tests
         run: |
@@ -84,7 +86,8 @@ jobs:
       
       - name: Install SQLMesh dependencies
         run: |
-          pip install sqlmesh sqlglot duckdb
+          pip install -r requirements.txt
+          pip install sqlglot duckdb
       
       - name: Run SQLMesh models
         run: |
@@ -95,5 +98,5 @@ jobs:
         if: always()
         with:
           name: sqlmesh-duckdb-output
-          path: Utilities/SQLMesh/dev.duckdb
+          path: Utilities/SQLMesh/*.duckdb
           retention-days: 7
