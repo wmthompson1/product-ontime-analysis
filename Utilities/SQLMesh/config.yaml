@@ -1,0 +1,13 @@
+# SQLMesh Configuration - DuckDB
+# Single source of truth for database configuration
+
+gateways:
+  local:
+    connection:
+      type: duckdb
+      database: dev.duckdb
+
+default_gateway: local
+
+model_defaults:
+  dialect: duckdb
