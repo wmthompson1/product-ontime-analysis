@@ -36,3 +36,6 @@ mcp.json
 
 # notes unnumbered only
 000index.md
+
+# SQLMesh
+logs/sqlmesh_*.log
