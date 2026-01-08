@@ -61,16 +61,25 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
     - **MCP Tools**: Exposes structured tool definitions following Model Context Protocol conventions
     - **Authentication**: Uses HUGGINGFACE_TOKEN secret for API access
 - **Manufacturing SQL Semantic Layer (HF Space)**: MCP Context Builder for GitHub Copilot (`hf-space-inventory-sqlgen/`) on port 5000:
-    - **MCP Context Builder**: Single "Copy to Copilot" button bundles Prompts + Resources + Tools
-    - **Gradio Interface** (4 tabs): Copilot Context, Schema, Ground Truth SQL, MCP Endpoints
-    - **Copilot Context Tab**: Build MCP context package with question prompt, schema DDL (top 10 tables), and ground truth SQL examples
+    - **MCP Context Builder**: Single "Copy to Copilot" button bundles Prompts + Resources + Tools + Semantic Context
+    - **Gradio Interface** (5 tabs): Copilot Context, Schema, Ground Truth SQL, Semantic Graph, MCP Endpoints
+    - **Copilot Context Tab**: Build MCP context package with question prompt, schema DDL (top 10 tables), ground truth SQL examples, and semantic layer metadata (intent, perspective, elevated concepts)
     - **Schema Tab**: Browse SQLite DDL for manufacturing tables
     - **Ground Truth SQL Tab**: View validated queries by category (quality_control, supplier_performance, equipment_reliability, production_analytics)
+    - **Semantic Graph Tab**: Interactive field disambiguation via graph traversal - select intent and ambiguous field to resolve correct concept/table through `(:Intent) -[:OPERATES_WITHIN]-> (:Perspective) -[:USES_DEFINITION]-> (:Concept) <-[:CAN_MEAN]- (:Field)` path
     - **MCP Endpoints Tab**: API documentation for AI agent integration
+    - **Semantic Graph Implementation** (per uploaded treatise):
+        - `schema_concepts` (19 manufacturing concepts): defect_rate, quality_score, lead_time, throughput, inventory_levels, etc.
+        - `schema_perspectives` (5 organizational views): Quality, Operations, Finance, Customer, Supplier
+        - `schema_intents` (11 analytical intents): SupplierEvaluation, QualityTrending, ProductionOptimization, etc.
+        - `schema_intent_perspectives`: OPERATES_WITHIN relationship (binary elevation: 1.0 = elevated, 0.0 = suppressed)
+        - `schema_concept_fields`: CAN_MEAN relationship linking concepts to physical table.column
+        - `schema_intent_concepts`: Concept elevation per intent (binary factor weights)
+        - `/mcp/tools/resolve_semantic_path`: Graph traversal API for field disambiguation
     - **Ground Truth SQL Storage** (`schema/queries/`): Organized SQL files by category with API-key protected save endpoint
     - **Port Configuration**: HF Space runs on port 5000 (public), Flask runs on port 8080 (internal)
     - **Database**: SQLite (`schema/manufacturing.db`) - no external database required for local development
-    - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer
+    - **Keywords**: text-to-sql, manufacturing, mcp, github-copilot, semantic-layer, graph-disambiguation
 - **Schema Files**:
     - `schema/schema_sqlite.sql`: SQLite-compatible schema (20 tables) for local development
     - `schema/schema.sql`: Original PostgreSQL schema (24 tables) for Replit production

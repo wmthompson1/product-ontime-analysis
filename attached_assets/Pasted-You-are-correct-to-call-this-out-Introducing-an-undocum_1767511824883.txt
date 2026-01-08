@@ -1,0 +1,243 @@
+You are correct to call this out. Introducing an undocumented weight of **3** materially changes the semantics of the model and undermines one of its core strengths: **explainable, path-based reasoning**. I will address this in four parts:
+
+1. **Correcting the weight model (binary, not scalar)**
+2. **Formalizing path-based reasoning with your clarified semantics**
+3. **Valid traversal patterns enabled by your design**
+4. **What must be constrained or forbidden to keep the model coherent**
+
+---
+
+## 1. Weight Semantics: Enforce Binary or Ternary, Not Ordinal
+
+### Your stated rule (correct):
+
+Intent elevation is **not prioritization**; it is **activation**.
+
+Therefore, intent-to-concept and intent-to-perspective weights should mean:
+
+| Value | Meaning                      |
+| ----- | ---------------------------- |
+| `1`   | Explicitly elevated / active |
+| `0`   | Neutral / not selected       |
+| `-1`  | Explicitly suppressed        |
+
+Anything else (e.g., `3`) is **invalid state**.
+
+---
+
+### Why Scalar Weights Break the Model
+
+Allowing `3`, `5`, etc. implies:
+
+* Ranking between meanings (not allowed)
+* Probabilistic inference (not present)
+* Optimization semantics (not desired)
+
+Your system is **logical**, not **numeric**.
+
+> A path exists or it does not.
+> It is allowed or disallowed.
+> That is the reasoning unit.
+
+---
+
+### Recommendation (Concrete)
+
+Add **CHECK constraints** immediately:
+
+```sql
+ALTER TABLE schema_intent_concepts
+ADD CONSTRAINT chk_intent_factor_weight
+CHECK (intent_factor_weight IN (-1, 0, 1));
+
+ALTER TABLE schema_intent_perspectives
+ADD CONSTRAINT chk_intent_perspective_weight
+CHECK (intent_factor_weight IN (-1, 0, 1));
+```
+
+This prevents semantic drift by tooling or agents.
+
+---
+
+## 2. Path-Based Reasoning: Now Precisely Defined
+
+With binary / ternary intent control, path reasoning becomes deterministic.
+
+### Canonical Disambiguation Path
+
+```
+(Field)
+  -[:CAN_MEAN]->
+(Concept)
+  <-[:USES_DEFINITION]-
+(Perspective)
+  <-[:OPERATES_WITHIN]-
+(Intent)
+```
+
+**Validity rules:**
+
+1. Path must exist
+2. No edge on the path may have weight = -1
+3. At least one edge must be active (1) or default (0)
+
+This yields **exactly one interpretation per field per intent per perspective**.
+
+---
+
+## 3. Traversal Patterns Your Model Now Supports
+
+You correctly enumerated three—here they are formalized.
+
+---
+
+### A. Disambiguation
+
+**Problem:** `status` appears everywhere.
+
+**Traversal:**
+
+```
+Field(status)
+ → Concept(c)
+ ← Perspective(p)
+ ← Intent(i)
+```
+
+**Constraint:**
+
+* `i → p` weight ≠ -1
+* `p → c` relationship ≠ SUPPRESSED
+
+**Result:**
+
+* Meaning resolved without rewriting SQL
+* Explanation is the traversal itself
+
+---
+
+### B. Concept Rollup (Hierarchical Aggregation)
+
+This is enabled by:
+
+```sql
+schema_concepts.parent_concept_id
+```
+
+Graphically:
+
+```
+ChildConcept
+  -[:REFINES]->
+ParentConcept
+```
+
+**Use cases:**
+
+* Roll multiple failure modes into “Equipment Reliability”
+* Aggregate quality defects under “Production Quality”
+
+**Important rule:**
+
+> Rollup is allowed **only upward**
+> Never infer downward
+
+Traversal:
+
+```
+(:Concept {failure_mode})
+  -[:REFINES*]->
+(:Concept {Reliability})
+```
+
+This enables:
+
+* Metric aggregation
+* Cross-table analytics
+* KPI normalization
+
+---
+
+### C. Cross-Perspective Queries (Your Most Powerful Feature)
+
+Same field. Same value. Different meaning.
+
+Example:
+
+```
+production_lines.status = 'Active'
+```
+
+| Perspective | Concept                  |
+| ----------- | ------------------------ |
+| Operations  | OperationalAvailability  |
+| Finance     | AssetCapitalizationState |
+| Compliance  | CertificationStatus      |
+
+Traversal differs only at the `Perspective` node.
+
+This allows:
+
+* Parallel interpretations
+* Stakeholder-specific dashboards
+* No schema branching
+* No duplicated SQL
+
+---
+
+## 4. What Must Be Explicitly Forbidden
+
+To preserve semantic integrity, the following must **never** occur:
+
+### ❌ Numeric weighting beyond {-1,0,1}
+
+Breaks logical reasoning.
+
+### ❌ Intent bypassing Perspective
+
+Destroys organizational scoping.
+
+### ❌ Concept-to-Concept lateral inference
+
+Only parent-child (`REFINES`) allowed.
+
+### ❌ Multiple active Concepts for same Field + Perspective + Intent
+
+Ambiguity must be resolved, not multiplied.
+
+Enforce with a uniqueness rule at resolution time:
+
+```
+(Field, Perspective, Intent) → exactly one active Concept
+```
+
+---
+
+## 5. Why Your Model Is Now Formally Sound
+
+With these clarifications:
+
+* The graph is **explainable**
+* Traversals are **deterministic**
+* SQL remains **unchanged**
+* Ambiguity is **managed, not eliminated**
+* Agents cannot silently mutate meaning
+
+This is the key distinction between:
+
+> *semantic modeling*
+> vs
+> *heuristic enrichment*
+
+You are firmly in the former.
+
+---
+
+### If you want next steps:
+
+* Formal resolution algorithm (step-by-step)
+* SQL rewrite examples driven by graph traversal
+* Detecting semantic conflicts automatically
+* Converting this to native graph DB constraints
+
+Your correction was not cosmetic—it was foundational.

@@ -1,0 +1,6 @@
+# Local requirements for the Utilities/SQLMesh project
+# Pin sqlmesh to the currently installed version with LSP extras
+sqlmesh[lsp]==0.228.1
+
+# Add any additional local deps below, e.g.:
+# -e .  # if you later make this an installable package

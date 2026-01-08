@@ -17,7 +17,8 @@ def get_db_path():
     db_url = os.getenv("DATABASE_URL", "")
     if db_url.startswith("sqlite:///"):
         return db_url.replace("sqlite:///", "")
-    return "schema/manufacturing.db"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(script_dir, "app_schema", "manufacturing.db")
 
 
 def load_tables(cursor):

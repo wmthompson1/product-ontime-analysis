@@ -22,7 +22,7 @@ import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 
-SCHEMA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "schema")
+SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
 QUERY_API_KEY = os.environ.get("QUERY_API_KEY", "")
 SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
@@ -37,7 +37,14 @@ def get_db_engine():
     return db_engine
 
 def init_sqlite_db():
-    """Initialize SQLite database from schema file"""
+    """Initialize SQLite database from schema file.
+    
+    Executes both CREATE TABLE and INSERT statements to ensure
+    seed data (concepts, perspectives, etc.) is loaded on first run.
+    Uses sqlite3 module directly for proper multi-statement handling.
+    """
+    import sqlite3
+    
     schema_file = os.path.join(SCHEMA_DIR, "schema_sqlite.sql")
     if not os.path.exists(schema_file):
         return
@@ -45,16 +52,19 @@ def init_sqlite_db():
     with open(schema_file, 'r') as f:
         schema_sql = f.read()
     
-    engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
-    with engine.connect() as conn:
-        for statement in schema_sql.split(';'):
-            statement = statement.strip()
-            if statement and statement.startswith('CREATE TABLE'):
-                try:
-                    conn.execute(text(statement))
-                    conn.commit()
-                except Exception:
-                    pass  # Table already exists
+    # Replace INSERT with INSERT OR IGNORE for idempotent seeding
+    schema_sql = schema_sql.replace('INSERT INTO', 'INSERT OR IGNORE INTO')
+    
+    # Use sqlite3 directly for executescript (handles multi-line statements)
+    conn = sqlite3.connect(SQLITE_DB_PATH)
+    try:
+        conn.executescript(schema_sql)
+        conn.commit()
+    except Exception as e:
+        # Log but don't fail - some statements may already exist
+        print(f"Database init warning: {e}")
+    finally:
+        conn.close()
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
@@ -799,6 +809,639 @@ async def save_query_endpoint(
     return result
 
 
+# =============================================================================
+# SEMANTIC LAYER: Concept, Perspective, and Intent Endpoints
+# =============================================================================
+
+@app.get("/mcp/tools/get_concepts")
+async def get_concepts(domain: Optional[str] = None, concept_type: Optional[str] = None):
+    """Get all schema concepts, optionally filtered by domain or type.
+    
+    Concepts represent multiple possible interpretations of ambiguous fields.
+    Domains: quality, finance, operations, compliance, customer
+    Types: state, metric, classification, outcome
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = "SELECT concept_id, concept_name, concept_type, description, domain FROM schema_concepts WHERE 1=1"
+            params = {}
+            if domain:
+                query += " AND domain = :domain"
+                params["domain"] = domain
+            if concept_type:
+                query += " AND concept_type = :concept_type"
+                params["concept_type"] = concept_type
+            query += " ORDER BY domain, concept_name"
+            
+            result = conn.execute(text(query), params)
+            concepts = [
+                {"concept_id": r[0], "concept_name": r[1], "concept_type": r[2], 
+                 "description": r[3], "domain": r[4]}
+                for r in result.fetchall()
+            ]
+            return {"concepts": concepts, "count": len(concepts)}
+    except Exception as e:
+        return {"error": str(e), "concepts": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_field_concepts")
+async def get_field_concepts(table_name: Optional[str] = None, field_name: Optional[str] = None):
+    """Get concept mappings for ambiguous fields (CAN_MEAN relationships).
+    
+    Shows how the same field can have multiple interpretations based on context.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT cf.table_name, cf.field_name, cf.is_primary_meaning, cf.context_hint,
+                       c.concept_id, c.concept_name, c.concept_type, c.description, c.domain
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                WHERE 1=1
+            """
+            params = {}
+            if table_name:
+                query += " AND cf.table_name = :table_name"
+                params["table_name"] = table_name
+            if field_name:
+                query += " AND cf.field_name = :field_name"
+                params["field_name"] = field_name
+            query += " ORDER BY cf.table_name, cf.field_name, cf.is_primary_meaning DESC"
+            
+            result = conn.execute(text(query), params)
+            mappings = [
+                {
+                    "table_name": r[0], "field_name": r[1], 
+                    "is_primary": bool(r[2]), "context_hint": r[3],
+                    "concept": {
+                        "concept_id": r[4], "concept_name": r[5],
+                        "concept_type": r[6], "description": r[7], "domain": r[8]
+                    }
+                }
+                for r in result.fetchall()
+            ]
+            return {"field_concepts": mappings, "count": len(mappings)}
+    except Exception as e:
+        return {"error": str(e), "field_concepts": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_ambiguous_fields")
+async def get_ambiguous_fields():
+    """Get list of fields that have multiple concept interpretations.
+    
+    These are the fields where perspective/intent matters for correct interpretation.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT cf.table_name, cf.field_name, COUNT(*) as concept_count,
+                       GROUP_CONCAT(c.concept_name, ', ') as concepts,
+                       GROUP_CONCAT(c.domain, ', ') as domains
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                GROUP BY cf.table_name, cf.field_name
+                HAVING COUNT(*) > 1
+                ORDER BY COUNT(*) DESC
+            """))
+            fields = [
+                {
+                    "table_name": r[0], "field_name": r[1], 
+                    "concept_count": r[2], "concepts": r[3], "domains": r[4]
+                }
+                for r in result.fetchall()
+            ]
+            return {"ambiguous_fields": fields, "count": len(fields)}
+    except Exception as e:
+        return {"error": str(e), "ambiguous_fields": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_perspectives")
+async def get_perspectives():
+    """Get all organizational perspectives.
+    
+    Perspectives are viewpoints that constrain which concept interpretations are valid.
+    Each perspective represents a stakeholder group with specific priorities.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT perspective_id, perspective_name, description, 
+                       stakeholder_role, priority_focus
+                FROM schema_perspectives
+                ORDER BY perspective_name
+            """))
+            perspectives = [
+                {
+                    "perspective_id": r[0], "perspective_name": r[1],
+                    "description": r[2], "stakeholder_role": r[3],
+                    "priority_focus": r[4]
+                }
+                for r in result.fetchall()
+            ]
+            return {"perspectives": perspectives, "count": len(perspectives)}
+    except Exception as e:
+        return {"error": str(e), "perspectives": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_perspective_concepts")
+async def get_perspective_concepts(perspective_name: Optional[str] = None):
+    """Get concepts used by each perspective (USES_DEFINITION relationships).
+    
+    Shows which concept interpretations are valid for each organizational perspective.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT p.perspective_name, p.description, p.stakeholder_role,
+                       pc.relationship_type, pc.priority_weight,
+                       c.concept_id, c.concept_name, c.concept_type, c.description as concept_desc, c.domain
+                FROM schema_perspectives p
+                JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id
+                JOIN schema_concepts c ON pc.concept_id = c.concept_id
+                WHERE 1=1
+            """
+            params = {}
+            if perspective_name:
+                query += " AND p.perspective_name = :perspective_name"
+                params["perspective_name"] = perspective_name
+            query += " ORDER BY p.perspective_name, pc.priority_weight DESC"
+            
+            result = conn.execute(text(query), params)
+            mappings = [
+                {
+                    "perspective": r[0], "perspective_desc": r[1], 
+                    "stakeholder_role": r[2], "relationship_type": r[3],
+                    "priority_weight": r[4],
+                    "concept": {
+                        "concept_id": r[5], "concept_name": r[6],
+                        "concept_type": r[7], "description": r[8], "domain": r[9]
+                    }
+                }
+                for r in result.fetchall()
+            ]
+            return {"perspective_concepts": mappings, "count": len(mappings)}
+    except Exception as e:
+        return {"error": str(e), "perspective_concepts": [], "count": 0}
+
+
+@app.get("/mcp/tools/resolve_field_for_perspective")
+async def resolve_field_for_perspective(table_name: str, field_name: str, perspective_name: str):
+    """Resolve which concept interpretation applies for a field given a perspective.
+    
+    This is the semantic disambiguation endpoint - given a perspective, it returns
+    the correct interpretation of an ambiguous field.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                       cf.context_hint, pc.priority_weight
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                JOIN schema_perspective_concepts pc ON c.concept_id = pc.concept_id
+                JOIN schema_perspectives p ON pc.perspective_id = p.perspective_id
+                WHERE cf.table_name = :table_name 
+                  AND cf.field_name = :field_name
+                  AND p.perspective_name = :perspective_name
+                ORDER BY pc.priority_weight DESC
+                LIMIT 1
+            """), {"table_name": table_name, "field_name": field_name, "perspective_name": perspective_name})
+            
+            row = result.fetchone()
+            if row:
+                return {
+                    "resolved": True,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "perspective": perspective_name,
+                    "concept": {
+                        "concept_id": row[0], "concept_name": row[1],
+                        "concept_type": row[2], "description": row[3], 
+                        "domain": row[4], "context_hint": row[5],
+                        "priority_weight": row[6]
+                    }
+                }
+            else:
+                return {
+                    "resolved": False,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "perspective": perspective_name,
+                    "message": "No concept mapping found for this field/perspective combination"
+                }
+    except Exception as e:
+        return {"error": str(e), "resolved": False}
+
+
+@app.get("/mcp/tools/get_intents")
+async def get_intents(category: Optional[str] = None):
+    """Get all analytical intents, optionally filtered by category.
+    
+    Intents are analytical goals that binary-switch concept weights.
+    Each intent elevates one field interpretation to 1.0 while suppressing alternatives to 0.0.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT intent_id, intent_name, intent_category, description, typical_question
+                FROM schema_intents
+                WHERE 1=1
+            """
+            params = {}
+            if category:
+                query += " AND intent_category = :category"
+                params["category"] = category
+            query += " ORDER BY intent_category, intent_name"
+            
+            result = conn.execute(text(query), params)
+            intents = [
+                {
+                    "intent_id": r[0], "intent_name": r[1],
+                    "intent_category": r[2], "description": r[3],
+                    "typical_question": r[4]
+                }
+                for r in result.fetchall()
+            ]
+            return {"intents": intents, "count": len(intents)}
+    except Exception as e:
+        return {"error": str(e), "intents": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_intent_weights")
+async def get_intent_weights(intent_name: str):
+    """Get concept weights for a specific intent (the binary elevation/suppression).
+    
+    Returns which concepts are elevated (1.0) vs suppressed (0.0) for this intent.
+    This is the core disambiguation mechanism - intent determines which interpretation wins.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT i.intent_name, i.description, i.typical_question,
+                       ic.intent_factor_weight, ic.explanation,
+                       c.concept_id, c.concept_name, c.concept_type, c.description as concept_desc, c.domain
+                FROM schema_intents i
+                JOIN schema_intent_concepts ic ON i.intent_id = ic.intent_id
+                JOIN schema_concepts c ON ic.concept_id = c.concept_id
+                WHERE i.intent_name = :intent_name
+                ORDER BY ic.intent_factor_weight DESC, c.concept_name
+            """), {"intent_name": intent_name})
+            
+            rows = result.fetchall()
+            if not rows:
+                return {"error": f"Intent '{intent_name}' not found", "weights": []}
+            
+            weights = [
+                {
+                    "intent_factor_weight": r[3],
+                    "status": "ELEVATED" if r[3] == 1.0 else "SUPPRESSED",
+                    "explanation": r[4],
+                    "concept": {
+                        "concept_id": r[5], "concept_name": r[6],
+                        "concept_type": r[7], "description": r[8], "domain": r[9]
+                    }
+                }
+                for r in rows
+            ]
+            
+            return {
+                "intent_name": rows[0][0],
+                "description": rows[0][1],
+                "typical_question": rows[0][2],
+                "weights": weights,
+                "elevated_count": sum(1 for w in weights if w["intent_factor_weight"] == 1.0),
+                "suppressed_count": sum(1 for w in weights if w["intent_factor_weight"] == 0.0)
+            }
+    except Exception as e:
+        return {"error": str(e), "weights": []}
+
+
+@app.get("/mcp/tools/get_intent_queries")
+async def get_intent_queries(intent_name: Optional[str] = None):
+    """Get ground truth SQL queries linked to intents.
+    
+    Maps intents to validated SQL examples that demonstrate the correct interpretation.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT i.intent_name, i.intent_category, i.description,
+                       iq.query_category, iq.query_file, iq.query_index, iq.query_name
+                FROM schema_intents i
+                JOIN schema_intent_queries iq ON i.intent_id = iq.intent_id
+                WHERE 1=1
+            """
+            params = {}
+            if intent_name:
+                query += " AND i.intent_name = :intent_name"
+                params["intent_name"] = intent_name
+            query += " ORDER BY i.intent_category, i.intent_name"
+            
+            result = conn.execute(text(query), params)
+            queries = [
+                {
+                    "intent_name": r[0], "intent_category": r[1], "intent_description": r[2],
+                    "query_category": r[3], "query_file": r[4], 
+                    "query_index": r[5], "query_name": r[6]
+                }
+                for r in result.fetchall()
+            ]
+            return {"intent_queries": queries, "count": len(queries)}
+    except Exception as e:
+        return {"error": str(e), "intent_queries": [], "count": 0}
+
+
+@app.get("/mcp/tools/resolve_field_for_intent")
+async def resolve_field_for_intent(table_name: str, field_name: str, intent_name: str):
+    """Resolve which concept interpretation applies for a field given an intent.
+    
+    This is the intent-based semantic disambiguation endpoint.
+    Unlike perspective (which uses priority weights), intent uses binary elevation:
+    - 1.0 = this interpretation is THE correct one for this intent
+    - 0.0 = this interpretation should be ignored for this intent
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                       cf.context_hint, ic.intent_factor_weight, ic.explanation,
+                       i.typical_question
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                JOIN schema_intent_concepts ic ON c.concept_id = ic.concept_id
+                JOIN schema_intents i ON ic.intent_id = i.intent_id
+                WHERE cf.table_name = :table_name 
+                  AND cf.field_name = :field_name
+                  AND i.intent_name = :intent_name
+                  AND ic.intent_factor_weight = 1.0
+                LIMIT 1
+            """), {"table_name": table_name, "field_name": field_name, "intent_name": intent_name})
+            
+            row = result.fetchone()
+            if row:
+                return {
+                    "resolved": True,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "intent": intent_name,
+                    "typical_question": row[8],
+                    "concept": {
+                        "concept_id": row[0], "concept_name": row[1],
+                        "concept_type": row[2], "description": row[3], 
+                        "domain": row[4], "context_hint": row[5],
+                        "intent_factor_weight": row[6], 
+                        "explanation": row[7]
+                    }
+                }
+            else:
+                return {
+                    "resolved": False,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "intent": intent_name,
+                    "message": "No elevated concept found for this field/intent combination"
+                }
+    except Exception as e:
+        return {"error": str(e), "resolved": False}
+
+
+@app.get("/mcp/tools/get_intent_perspectives")
+async def get_intent_perspectives(intent_name: Optional[str] = None):
+    """Get OPERATES_WITHIN relationships (Intent → Perspective).
+    
+    Shows which perspective(s) each intent operates within.
+    This is the intermediate constraint layer in the graph traversal:
+    Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT i.intent_name, i.intent_category, i.description as intent_desc,
+                       ip.intent_factor_weight, ip.explanation,
+                       p.perspective_id, p.perspective_name, p.description as perspective_desc,
+                       p.stakeholder_role
+                FROM schema_intents i
+                JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                WHERE ip.intent_factor_weight = 1.0
+            """
+            params = {}
+            if intent_name:
+                query += " AND i.intent_name = :intent_name"
+                params["intent_name"] = intent_name
+            query += " ORDER BY i.intent_category, i.intent_name"
+            
+            result = conn.execute(text(query), params)
+            mappings = [
+                {
+                    "intent_name": r[0], "intent_category": r[1], 
+                    "intent_description": r[2],
+                    "relationship": "OPERATES_WITHIN",
+                    "intent_factor_weight": r[3], "explanation": r[4],
+                    "perspective": {
+                        "perspective_id": r[5], "perspective_name": r[6],
+                        "description": r[7], "stakeholder_role": r[8]
+                    }
+                }
+                for r in result.fetchall()
+            ]
+            return {"intent_perspectives": mappings, "count": len(mappings)}
+    except Exception as e:
+        return {"error": str(e), "intent_perspectives": [], "count": 0}
+
+
+@app.get("/mcp/tools/resolve_semantic_path")
+async def resolve_semantic_path(table_name: str, field_name: str, intent_name: str):
+    """Full graph traversal: Intent → Perspective → Concept ← Field.
+    
+    This is the complete semantic disambiguation endpoint that follows the graph path:
+    1. Start from Intent
+    2. Traverse OPERATES_WITHIN to get constraining Perspective
+    3. Traverse USES_DEFINITION to get valid Concepts for that Perspective
+    4. Match against Field's CAN_MEAN concepts
+    5. Apply intent_factor_weight to select the elevated concept
+    
+    Returns the deterministically resolved concept for the field given the intent.
+    """
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("""
+                SELECT 
+                    -- Intent info
+                    i.intent_name, i.intent_category, i.typical_question,
+                    -- Perspective info (via OPERATES_WITHIN)
+                    p.perspective_name, p.stakeholder_role,
+                    -- Concept info (via USES_DEFINITION and CAN_MEAN)
+                    c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                    -- Edge weights
+                    ip.intent_factor_weight as operates_within_weight,
+                    pc.priority_weight as uses_definition_weight,
+                    cf.context_hint,
+                    ic.intent_factor_weight as concept_elevation_weight,
+                    ic.explanation
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                JOIN schema_intent_concepts ic ON c.concept_id = ic.concept_id
+                JOIN schema_intents i ON ic.intent_id = i.intent_id
+                JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id 
+                    AND c.concept_id = pc.concept_id
+                WHERE cf.table_name = :table_name 
+                  AND cf.field_name = :field_name
+                  AND i.intent_name = :intent_name
+                  AND ip.intent_factor_weight = 1.0  -- Active OPERATES_WITHIN path
+                  AND ic.intent_factor_weight = 1.0  -- Elevated concept
+                LIMIT 1
+            """), {"table_name": table_name, "field_name": field_name, "intent_name": intent_name})
+            
+            row = result.fetchone()
+            if row:
+                return {
+                    "resolved": True,
+                    "field": {"table_name": table_name, "field_name": field_name},
+                    "traversal_path": {
+                        "intent": {
+                            "name": row[0], "category": row[1], 
+                            "typical_question": row[2]
+                        },
+                        "operates_within": {
+                            "perspective": row[3], "stakeholder_role": row[4],
+                            "weight": row[10]
+                        },
+                        "uses_definition": {
+                            "priority_weight": row[11]
+                        },
+                        "can_mean": {
+                            "context_hint": row[12]
+                        }
+                    },
+                    "resolved_concept": {
+                        "concept_id": row[5], "concept_name": row[6],
+                        "concept_type": row[7], "description": row[8], 
+                        "domain": row[9],
+                        "elevation_weight": row[13], "explanation": row[14]
+                    }
+                }
+            else:
+                return {
+                    "resolved": False,
+                    "field": {"table_name": table_name, "field_name": field_name},
+                    "intent": intent_name,
+                    "message": "No valid path found. Check that Intent operates within a Perspective that uses a Concept the Field can mean."
+                }
+    except Exception as e:
+        return {"error": str(e), "resolved": False}
+
+
+from semantic_reasoning import (
+    compare_query_plans, resolve_intent_probabilistic, 
+    infer_intent_from_sql, get_graph_syntax_examples,
+    resolve_field_meaning, validate_semantic_model, ResolutionResult
+)
+
+@app.get("/mcp/tools/compare_query_plans")
+async def api_compare_query_plans(table_name: str, field_name: str):
+    """Feature 1: Show how different intents produce different query plans for the same field"""
+    engine = get_db_engine()
+    plans = compare_query_plans(engine, table_name, field_name)
+    return {"field": f"{table_name}.{field_name}", "query_plans": plans, "count": len(plans)}
+
+
+class SQLInput(BaseModel):
+    sql: str
+
+@app.post("/mcp/tools/infer_intent")
+async def api_infer_intent(body: SQLInput):
+    """Feature 3: Automatically infer intent from SQL shape"""
+    engine = get_db_engine()
+    scores = infer_intent_from_sql(engine, body.sql)
+    return {
+        "sql_analyzed": body.sql[:200] + "..." if len(body.sql) > 200 else body.sql,
+        "inferred_intents": [
+            {
+                "intent": s.intent_name,
+                "confidence": s.confidence,
+                "matched_fields": s.matched_fields,
+                "matched_concepts": s.matched_concepts,
+                "explanation": s.explanation
+            } for s in scores[:5]
+        ]
+    }
+
+
+@app.get("/mcp/tools/graph_syntax")
+async def api_graph_syntax(intent_name: str, table_name: str, field_name: str):
+    """Feature 4: Get Cypher and AQL syntax for semantic path traversal"""
+    engine = get_db_engine()
+    return get_graph_syntax_examples(engine, intent_name, table_name, field_name)
+
+
+@app.get("/mcp/tools/resolve_field")
+async def api_resolve_field(intent_name: str, table_name: str, field_name: str):
+    """
+    FORMAL RESOLUTION ALGORITHM
+    
+    For a given (Intent I, Field F), resolve to exactly one Concept C.
+    
+    Algorithm per treatise:
+    1. Find perspectives where Intent operates (weight ≠ -1)
+    2. Find concepts that perspectives use/emphasize
+    3. Filter to concepts the field CAN_MEAN
+    4. Apply intent elevation/suppression
+    5. Assert exactly one result
+    
+    Returns resolution status: 'resolved', 'ambiguous', or 'no_path'
+    """
+    engine = get_db_engine()
+    result = resolve_field_meaning(engine, intent_name, table_name, field_name)
+    return {
+        "intent": result.intent,
+        "field": result.field_name,
+        "status": result.status,
+        "is_valid": result.is_valid,
+        "resolved_concept": result.resolved_concept,
+        "perspective": result.perspective,
+        "candidate_concepts": result.candidate_concepts,
+        "explanation": result.explanation
+    }
+
+
+@app.get("/mcp/tools/validate_model")
+async def api_validate_model():
+    """
+    Validate entire semantic model for resolution completeness.
+    
+    Checks all (Intent, Field) combinations and reports:
+    - Resolved: Valid single-concept resolution
+    - Ambiguous: Multiple concepts (modeling error)
+    - No Path: Missing edges (incomplete model)
+    
+    Use this to detect modeling errors before deploying.
+    """
+    engine = get_db_engine()
+    validation = validate_semantic_model(engine)
+    return {
+        "summary": validation['summary'],
+        "ambiguous_combinations": validation['ambiguous'][:10],
+        "no_path_combinations": validation['no_path'][:10],
+        "total_resolved": validation['summary']['resolved_count'],
+        "total_errors": validation['summary']['ambiguous_count'] + validation['summary']['no_path_count']
+    }
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
@@ -820,6 +1463,164 @@ def create_gradio_interface():
     def get_live_tables() -> List[str]:
         """Get list of tables from live database"""
         return get_all_tables()
+    
+    def get_perspectives_list() -> List[str]:
+        """Get list of perspectives for dropdown"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT perspective_name FROM schema_perspectives ORDER BY perspective_name"))
+                return [r[0] for r in result.fetchall()]
+        except:
+            return []
+    
+    def get_intents_list() -> List[tuple]:
+        """Get list of intents for dropdown"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT intent_name, intent_category, typical_question 
+                    FROM schema_intents ORDER BY intent_category, intent_name
+                """))
+                return [(f"{r[0]} ({r[1]})", r[0]) for r in result.fetchall()]
+        except:
+            return []
+    
+    def get_ambiguous_fields_list() -> List[tuple]:
+        """Get list of ambiguous fields for dropdown"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT DISTINCT cf.table_name, cf.field_name
+                    FROM schema_concept_fields cf
+                    GROUP BY cf.table_name, cf.field_name
+                    HAVING COUNT(*) > 1
+                    ORDER BY cf.table_name, cf.field_name
+                """))
+                return [(f"{r[0]}.{r[1]}", f"{r[0]}|{r[1]}") for r in result.fetchall()]
+        except:
+            return []
+    
+    def resolve_field_gradio(field_choice: str, intent_choice: str) -> str:
+        """Resolve a field using the full graph traversal"""
+        if not field_choice or not intent_choice:
+            return "Select both a field and an intent to resolve."
+        
+        table_name, field_name = field_choice.split("|")
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT 
+                        i.intent_name, i.intent_category, i.typical_question,
+                        p.perspective_name, p.stakeholder_role,
+                        c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                        ip.intent_factor_weight, pc.priority_weight, cf.context_hint,
+                        ic.intent_factor_weight, ic.explanation
+                    FROM schema_concept_fields cf
+                    JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                    JOIN schema_intent_concepts ic ON c.concept_id = ic.concept_id
+                    JOIN schema_intents i ON ic.intent_id = i.intent_id
+                    JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                    JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                    JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id 
+                        AND c.concept_id = pc.concept_id
+                    WHERE cf.table_name = :table_name 
+                      AND cf.field_name = :field_name
+                      AND i.intent_name = :intent_name
+                      AND ip.intent_factor_weight = 1.0
+                      AND ic.intent_factor_weight = 1.0
+                    LIMIT 1
+                """), {"table_name": table_name, "field_name": field_name, "intent_name": intent_choice})
+                
+                row = result.fetchone()
+                if row:
+                    return f"""## Graph Traversal Result
+
+### Field
+`{table_name}.{field_name}`
+
+### Intent
+**{row[0]}** ({row[1]})
+*"{row[2]}"*
+
+### OPERATES_WITHIN → Perspective
+**{row[3]}**
+Stakeholder: {row[4]}
+
+### USES_DEFINITION → Concept
+**{row[6]}** (type: {row[7]})
+Domain: {row[9]}
+
+### Resolution
+> {row[8]}
+
+**Explanation:** {row[14]}
+"""
+                else:
+                    valid_intents_result = conn.execute(text("""
+                        SELECT DISTINCT i.intent_name, c.concept_name
+                        FROM schema_intents i
+                        JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id AND ip.intent_factor_weight = 1.0
+                        JOIN schema_perspective_concepts pc ON ip.perspective_id = pc.perspective_id
+                        JOIN schema_concepts c ON pc.concept_id = c.concept_id
+                        JOIN schema_concept_fields cf ON c.concept_id = cf.concept_id
+                        JOIN schema_intent_concepts ic ON i.intent_id = ic.intent_id AND c.concept_id = ic.concept_id AND ic.intent_factor_weight = 1.0
+                        WHERE cf.table_name = :table_name AND cf.field_name = :field_name
+                    """), {"table_name": table_name, "field_name": field_name})
+                    valid_rows = valid_intents_result.fetchall()
+                    
+                    if valid_rows:
+                        suggestions = "\n".join([f"- **{r[0]}** → resolves to `{r[1]}`" for r in valid_rows])
+                        return f"""## No Valid Path Found
+
+Field: `{table_name}.{field_name}`
+Intent: `{intent_choice}`
+
+The selected intent does not have a valid semantic path to this field.
+
+### Try these intents instead:
+{suggestions}
+"""
+                    else:
+                        return f"""## No Valid Path Found
+
+Field: `{table_name}.{field_name}`
+Intent: `{intent_choice}`
+
+No intents currently have complete semantic paths to this field.
+Check that perspective-concept and intent-concept relationships are seeded.
+"""
+        except Exception as e:
+            return f"Error: {str(e)}"
+    
+    def get_graph_visualization() -> str:
+        """Generate text-based graph visualization"""
+        engine = get_db_engine()
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT i.intent_name, p.perspective_name
+                    FROM schema_intent_perspectives ip
+                    JOIN schema_intents i ON ip.intent_id = i.intent_id
+                    JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                    WHERE ip.intent_factor_weight = 1.0
+                    ORDER BY p.perspective_name, i.intent_name
+                """))
+                
+                graph = "## Intent → Perspective Graph\n\n"
+                current_perspective = None
+                for row in result.fetchall():
+                    if row[1] != current_perspective:
+                        current_perspective = row[1]
+                        graph += f"\n### {row[1]}\n"
+                    graph += f"  - {row[0]} → **{row[1]}**\n"
+                
+                return graph
+        except Exception as e:
+            return f"Error loading graph: {str(e)}"
     
     def get_table_ddl_gradio(table_name: str) -> str:
         """Get CREATE TABLE SQL for selected table"""
@@ -877,7 +1678,8 @@ def create_gradio_interface():
         | **Tools** | API endpoints for validation |
         """)
         
-        def build_copilot_context(question: str, include_schema: bool, include_queries: bool, selected_category: str) -> str:
+        def build_copilot_context(question: str, include_schema: bool, include_queries: bool, 
+                                   selected_category: str, include_semantic: bool, selected_intent: str) -> str:
             """Build MCP context package for Copilot"""
             context_parts = []
             
@@ -886,6 +1688,42 @@ def create_gradio_interface():
             if question.strip():
                 context_parts.append("## Prompt")
                 context_parts.append(f"User Question: {question}\n")
+            
+            if include_semantic and selected_intent:
+                context_parts.append("## Semantic Context")
+                context_parts.append(f"**Intent:** {selected_intent}")
+                engine = get_db_engine()
+                try:
+                    with engine.connect() as conn:
+                        result = conn.execute(text("""
+                            SELECT i.intent_name, i.description, i.typical_question,
+                                   p.perspective_name, p.stakeholder_role
+                            FROM schema_intents i
+                            JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
+                            JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
+                            WHERE i.intent_name = :intent_name AND ip.intent_factor_weight = 1.0
+                        """), {"intent_name": selected_intent})
+                        row = result.fetchone()
+                        if row:
+                            context_parts.append(f"*{row[1]}*")
+                            context_parts.append(f"\n**Perspective:** {row[3]} ({row[4]})")
+                            context_parts.append(f"**Typical Question:** {row[2]}\n")
+                        
+                        result2 = conn.execute(text("""
+                            SELECT c.concept_name, c.description, ic.explanation
+                            FROM schema_intent_concepts ic
+                            JOIN schema_concepts c ON ic.concept_id = c.concept_id
+                            WHERE ic.intent_id = (SELECT intent_id FROM schema_intents WHERE intent_name = :intent_name)
+                              AND ic.intent_factor_weight = 1.0
+                        """), {"intent_name": selected_intent})
+                        elevated = result2.fetchall()
+                        if elevated:
+                            context_parts.append("**Elevated Concepts:**")
+                            for c in elevated:
+                                context_parts.append(f"- {c[0]}: {c[1]}")
+                            context_parts.append("")
+                except:
+                    pass
             
             if include_schema:
                 context_parts.append("## Resources: Database Schema")
@@ -908,6 +1746,7 @@ def create_gradio_interface():
             context_parts.append("- `generate_sql`: Convert natural language to SQL")
             context_parts.append("- `get_table_ddl`: Get schema for specific table")
             context_parts.append("- `validate_sql`: Check SQL syntax against schema")
+            context_parts.append("- `resolve_semantic_path`: Disambiguate field meanings via graph traversal")
             
             return "\n".join(context_parts)
         
@@ -936,6 +1775,15 @@ def create_gradio_interface():
                         interactive=True
                     )
                     
+                    gr.Markdown("#### Semantic Context")
+                    include_semantic = gr.Checkbox(label="Include Semantic Layer Context", value=True)
+                    semantic_intent = gr.Dropdown(
+                        choices=get_intents_list(),
+                        label="Analytical Intent",
+                        info="Intent constrains field interpretations via graph traversal",
+                        interactive=True
+                    )
+                    
                     copy_btn = gr.Button("📋 Copy to Copilot", variant="primary", size="lg")
                 
                 with gr.Column():
@@ -947,7 +1795,7 @@ def create_gradio_interface():
             
             copy_btn.click(
                 fn=build_copilot_context,
-                inputs=[question_input, include_schema, include_queries, query_category],
+                inputs=[question_input, include_schema, include_queries, query_category, include_semantic, semantic_intent],
                 outputs=context_output
             )
         
@@ -989,19 +1837,24 @@ def create_gradio_interface():
             """)
             
             def load_queries_for_category(category_id: str):
+                print(f"[DEBUG] load_queries_for_category called with: {repr(category_id)}")
                 if not category_id:
-                    return [], ""
+                    print("[DEBUG] category_id is empty, returning empty choices")
+                    return gr.Dropdown(choices=[], value=None), ""
                 queries = get_saved_queries(category_id)
-                choices = [(q['name'], i) for i, q in enumerate(queries)]
+                print(f"[DEBUG] Found {len(queries)} queries")
+                choices = [q['name'] for q in queries]
+                print(f"[DEBUG] Returning choices: {choices}")
                 return gr.Dropdown(choices=choices, value=None), ""
             
-            def load_query_sql(category_id: str, query_idx):
-                if category_id is None or query_idx is None:
+            def load_query_sql(category_id: str, query_name: str):
+                print(f"[DEBUG] load_query_sql called with category={repr(category_id)}, query={repr(query_name)}")
+                if category_id is None or query_name is None:
                     return "", ""
                 queries = get_saved_queries(category_id)
-                if query_idx < len(queries):
-                    q = queries[query_idx]
-                    return q['sql'], q['description']
+                for q in queries:
+                    if q['name'] == query_name:
+                        return q['sql'], q['description']
                 return "", ""
             
             with gr.Row():
@@ -1011,6 +1864,7 @@ def create_gradio_interface():
                         label="Query Category",
                         interactive=True
                     )
+                    load_queries_btn = gr.Button("Load Queries", variant="secondary")
                     saved_query_dropdown = gr.Dropdown(
                         choices=[],
                         label="Select Query",
@@ -1021,7 +1875,7 @@ def create_gradio_interface():
                 with gr.Column():
                     saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True)
             
-            saved_category.change(
+            load_queries_btn.click(
                 fn=load_queries_for_category,
                 inputs=saved_category,
                 outputs=[saved_query_dropdown, saved_sql_output]
@@ -1032,6 +1886,225 @@ def create_gradio_interface():
                 inputs=[saved_category, saved_query_dropdown],
                 outputs=[saved_sql_output, saved_description]
             )
+        
+        with gr.Tab("🔗 Semantic Graph"):
+            gr.Markdown("""
+            ### Semantic Disambiguation via Graph Traversal
+            
+            Resolve ambiguous field meanings using the graph path:
+            
+            ```
+            (:Intent) -[:OPERATES_WITHIN]-> (:Perspective) -[:USES_DEFINITION]-> (:Concept) <-[:CAN_MEAN]- (:Field)
+            ```
+            
+            Select an **Intent** (analytical goal) and an **Ambiguous Field** to see how the graph resolves the field's meaning.
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("#### 1. Select Intent")
+                    intent_dropdown = gr.Dropdown(
+                        choices=get_intents_list(),
+                        label="Analytical Intent",
+                        info="Intent determines which perspective and concept to use",
+                        interactive=True
+                    )
+                    
+                    gr.Markdown("#### 2. Select Ambiguous Field")
+                    field_dropdown = gr.Dropdown(
+                        choices=get_ambiguous_fields_list(),
+                        label="Field (table.column)",
+                        info="Fields with multiple possible interpretations",
+                        interactive=True
+                    )
+                    
+                    resolve_btn = gr.Button("🔍 Resolve Field Meaning", variant="primary", size="lg")
+                
+                with gr.Column():
+                    resolution_output = gr.Markdown(
+                        value="Select an intent and field, then click **Resolve Field Meaning**.",
+                        label="Graph Traversal Result"
+                    )
+            
+            resolve_btn.click(
+                fn=resolve_field_gradio,
+                inputs=[field_dropdown, intent_dropdown],
+                outputs=resolution_output
+            )
+            
+            gr.Markdown("---")
+            
+            with gr.Accordion("View Intent → Perspective Graph", open=False):
+                graph_output = gr.Markdown(value=get_graph_visualization())
+            
+            gr.Markdown("""
+            #### Semantic MCP Endpoints
+            
+            | Endpoint | Purpose |
+            |----------|---------|
+            | `GET /mcp/tools/get_perspectives` | List organizational perspectives |
+            | `GET /mcp/tools/get_intents` | List analytical intents |
+            | `GET /mcp/tools/get_intent_perspectives` | View OPERATES_WITHIN edges |
+            | `GET /mcp/tools/resolve_semantic_path` | Full graph traversal |
+            """)
+        
+        with gr.Tab("🧠 Advanced Reasoning"):
+            gr.Markdown("""
+            ### Advanced Semantic Reasoning
+            
+            Demonstrates 4 advanced patterns for semantic graph traversal:
+            1. **Query Plan Comparison** - How different intents interpret the same field
+            2. **Probabilistic Intent Resolution** - Rank intents by confidence score
+            3. **SQL Intent Inference** - Automatically detect intent from SQL shape
+            4. **Graph Syntax Mapping** - Cypher and AQL traversal examples
+            """)
+            
+            with gr.Accordion("1. Intent Factor Weight → Query Plan Changes", open=True):
+                gr.Markdown("See how the same field resolves differently under different intents:")
+                
+                with gr.Row():
+                    qp_field = gr.Dropdown(
+                        choices=get_ambiguous_fields_list(),
+                        label="Select Ambiguous Field",
+                        interactive=True
+                    )
+                    qp_btn = gr.Button("Compare Query Plans", variant="primary")
+                
+                qp_output = gr.Markdown()
+                
+                def compare_plans_gradio(field_choice: str) -> str:
+                    if not field_choice:
+                        return "Select a field to compare query plans."
+                    table_name, field_name = field_choice.split("|")
+                    engine = get_db_engine()
+                    plans = compare_query_plans(engine, table_name, field_name)
+                    if not plans:
+                        return f"No query plans found for `{table_name}.{field_name}`"
+                    
+                    output = f"## Query Plans for `{table_name}.{field_name}`\n\n"
+                    for p in plans:
+                        output += f"### Intent: {p['intent']}\n"
+                        output += f"- **Perspective**: {p['perspective']}\n"
+                        output += f"- **Resolves to**: `{p['resolves_to']}`\n"
+                        output += f"- **Elevated concepts**: {', '.join(p['elevated']) or 'None'}\n"
+                        output += f"- **Suggested joins**: {', '.join(p['suggested_joins']) or 'None'}\n\n"
+                    return output
+                
+                qp_btn.click(fn=compare_plans_gradio, inputs=[qp_field], outputs=qp_output)
+            
+            with gr.Accordion("2. Probabilistic Intent Resolution", open=False):
+                gr.Markdown("Given multiple fields, compute confidence scores for each intent:")
+                
+                fields_input = gr.Textbox(
+                    label="Fields (comma-separated: table.field, table.field)",
+                    placeholder="daily_deliveries.ontime_rate, product_defects.severity",
+                    lines=1
+                )
+                prob_btn = gr.Button("Resolve Intents", variant="secondary")
+                prob_output = gr.Markdown()
+                
+                def probabilistic_resolve_gradio(fields_str: str) -> str:
+                    if not fields_str.strip():
+                        return "Enter fields to analyze."
+                    
+                    fields = []
+                    for f in fields_str.split(","):
+                        parts = f.strip().split(".")
+                        if len(parts) == 2:
+                            fields.append((parts[0], parts[1]))
+                    
+                    if not fields:
+                        return "Invalid field format. Use: table.field, table.field"
+                    
+                    engine = get_db_engine()
+                    scores = resolve_intent_probabilistic(engine, fields)
+                    
+                    if not scores:
+                        return "No intents found for the given fields."
+                    
+                    output = "## Intent Confidence Scores\n\n"
+                    output += "| Intent | Confidence | Matched Fields | Matched Concepts |\n"
+                    output += "|--------|------------|----------------|------------------|\n"
+                    for s in scores[:5]:
+                        output += f"| {s.intent_name} | {s.confidence:.1%} | {len(s.matched_fields)} | {', '.join(s.matched_concepts)} |\n"
+                    
+                    return output
+                
+                prob_btn.click(fn=probabilistic_resolve_gradio, inputs=[fields_input], outputs=prob_output)
+            
+            with gr.Accordion("3. Automatic Intent Inference from SQL Shape", open=False):
+                gr.Markdown("Parse SQL to detect likely intent based on tables, columns, and patterns:")
+                
+                sql_input = gr.Textbox(
+                    label="SQL Query",
+                    placeholder="SELECT supplier_id, AVG(ontime_rate) FROM daily_deliveries GROUP BY supplier_id",
+                    lines=3
+                )
+                infer_btn = gr.Button("Infer Intent", variant="secondary")
+                infer_output = gr.Markdown()
+                
+                def infer_intent_gradio(sql: str) -> str:
+                    if not sql.strip():
+                        return "Enter a SQL query to analyze."
+                    
+                    engine = get_db_engine()
+                    scores = infer_intent_from_sql(engine, sql)
+                    
+                    if not scores:
+                        return "Could not infer intent from SQL. Check that tables/columns exist in schema."
+                    
+                    output = "## Inferred Intents\n\n"
+                    for i, s in enumerate(scores[:3]):
+                        medal = ["🥇", "🥈", "🥉"][i] if i < 3 else ""
+                        output += f"### {medal} {s.intent_name} ({s.confidence:.1%})\n"
+                        output += f"- **Matched fields**: {', '.join(s.matched_fields)}\n"
+                        output += f"- **Concepts**: {', '.join(s.matched_concepts)}\n"
+                        output += f"- *{s.explanation}*\n\n"
+                    
+                    return output
+                
+                infer_btn.click(fn=infer_intent_gradio, inputs=[sql_input], outputs=infer_output)
+            
+            with gr.Accordion("4. ArangoDB / Neo4j Traversal Syntax", open=False):
+                gr.Markdown("Generate explicit graph database syntax for the semantic path:")
+                
+                with gr.Row():
+                    syntax_intent = gr.Dropdown(
+                        choices=get_intents_list(),
+                        label="Intent",
+                        interactive=True
+                    )
+                    syntax_field = gr.Dropdown(
+                        choices=get_ambiguous_fields_list(),
+                        label="Field",
+                        interactive=True
+                    )
+                
+                syntax_btn = gr.Button("Generate Graph Syntax", variant="secondary")
+                
+                with gr.Tabs():
+                    with gr.Tab("Cypher (Neo4j)"):
+                        cypher_output = gr.Code(language="sql", label="Cypher Query")
+                    with gr.Tab("AQL (ArangoDB)"):
+                        aql_output = gr.Code(language="sql", label="AQL Query")
+                    with gr.Tab("SQL Equivalent"):
+                        sql_equiv_output = gr.Code(language="sql", label="SQL Query")
+                
+                def generate_syntax_gradio(intent: str, field_choice: str):
+                    if not intent or not field_choice:
+                        return "-- Select intent and field", "-- Select intent and field", "-- Select intent and field"
+                    
+                    table_name, field_name = field_choice.split("|")
+                    engine = get_db_engine()
+                    syntax = get_graph_syntax_examples(engine, intent, table_name, field_name)
+                    
+                    return syntax["cypher"], syntax["aql"], syntax["sql_equivalent"]
+                
+                syntax_btn.click(
+                    fn=generate_syntax_gradio,
+                    inputs=[syntax_intent, syntax_field],
+                    outputs=[cypher_output, aql_output, sql_equiv_output]
+                )
         
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""
