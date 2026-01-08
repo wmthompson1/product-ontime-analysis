@@ -33,10 +33,6 @@ args = "Astro Dev Server"
 task = "workflow.run"
 args = "HF Space Inventory SQL"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "SQLMesh UI"
-
 [[workflows.workflow]]
 name = "Flask App"
 author = "agent"
@@ -86,18 +82,6 @@ outputType = "webview"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd hf-space-inventory-sqlgen && python app.py"
-waitForPort = 5000
-
-[[workflows.workflow]]
-name = "SQLMesh UI"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd Utilities/SQLMesh && sqlmesh ui --port 5000 --host 0.0.0.0"
 waitForPort = 5000
 
 [deployment]
