@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: devdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+
+  arangodb:
+    image: arangodb:3.11
+    restart: unless-stopped
+    environment:
+      ARANGO_ROOT_PASSWORD: arangopass
+    ports:
+      - "8529:8529"
+    volumes:
+      - ./arangodata:/var/lib/arangodb3
+
+  # optional web UI for Postgres (uncomment to use)
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local
+      PGADMIN_DEFAULT_PASSWORD: pgadmin
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+
+  # optional app service (commented - use if you want to run the app inside docker)
+  # app:
+  #   build: .
+  #   image: hf-space-inventory-app
+  #   restart: "no"
+  #   depends_on:
+  #     - postgres
+  #     - arangodb
+  #   volumes:
+  #     - ./:/app
+  #   working_dir: /app
+  #   command: >
+  #     bash -c "pip install -r requirements.txt &&
+  #              uvicorn hf_space_inventory_sqlgen.app:app --host 0.0.0.0 --port 8000"

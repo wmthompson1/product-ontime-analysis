@@ -1,0 +1,76 @@
+{
+  "table": "equipment_metrics",
+  "columns": [
+    {
+      "name": "equipment_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "line_id",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "equipment_type",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "equipment_name",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "measurement_date",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "availability_rate",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "performance_rate",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "quality_rate",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "oee_score",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "downtime_hours",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_date",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "equipment_id",
+    "line_id"
+  ]
+}

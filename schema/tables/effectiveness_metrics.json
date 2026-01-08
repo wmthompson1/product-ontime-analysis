@@ -1,0 +1,81 @@
+{
+  "table": "effectiveness_metrics",
+  "columns": [
+    {
+      "name": "metric_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "measurement_date",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "metric_type",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "metric_value",
+      "type": "NUMERIC",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "target_value",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "variance_percentage",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "measurement_unit",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "department",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "measurement_method",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "confidence_level",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "data_source",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "metric_id"
+  ]
+}

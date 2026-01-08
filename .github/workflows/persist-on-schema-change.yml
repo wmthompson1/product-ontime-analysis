@@ -1,0 +1,37 @@
+name: Persist schema to ArangoDB
+
+on:
+  push:
+    paths:
+      - 'data/**'
+      - 'schema/**'
+      - 'scripts/persist_to_arango.py'
+      - 'app/**'
+  workflow_dispatch: {}
+
+jobs:
+  persist:
+    runs-on: ubuntu-latest
+    env:
+      ARANGO_URL: ${{ secrets.ARANGO_URL }}
+      ARANGO_USER: ${{ secrets.ARANGO_USER }}
+      ARANGO_PASSWORD: ${{ secrets.ARANGO_PASSWORD }}
+      ARANGO_DB: ${{ secrets.ARANGO_DB }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
+          pip install networkx nx-arangodb python-arango lxml || true
+
+      - name: Run persister
+        run: |
+          chmod +x scripts/ci_persist.sh || true
+          scripts/ci_persist.sh

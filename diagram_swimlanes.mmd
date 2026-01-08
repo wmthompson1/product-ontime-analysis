@@ -1,0 +1,34 @@
+flowchart TB
+  %% swimlane-style diagram using subgraphs for Model vs Data
+  subgraph Data [Data]
+    direction TB
+    docs["Example Documents"]
+    q["Example Questions"]
+    corpus["Full Corpus"]
+  end
+
+  subgraph Model [Model]
+    direction TB
+    schema["Schema Prediction"]
+    classBox[["class HotelPage\nhotel_name: str\ncity: str\ncountry: str\nguest_rating: float"]]
+    records["Records Prediction"]
+    userQ["User question: Which non‑American hotel has the highest guest rating?"]
+    text2sql["Text → SQL\nSELECT ... LIMIT 1;"]
+    queryDB["Query DB"]
+    resultTable[["Result Table"]]
+  end
+
+  %% Connections
+  docs --> schema
+  q --> schema
+  schema --> classBox
+  classBox --> records
+  records --> corpus
+
+  corpus -.-> queryDB
+  userQ --> text2sql --> queryDB --> resultTable
+  resultTable --> answer["Answer (extracted): The Modernist"]
+
+  classDef lane fill:#f3f6fb,stroke:#bbb,stroke-width:1px;
+  class Data lane;
+  class Model lane;

@@ -1,3 +1,4 @@
+
 # --- Gateway Connection ---
 gateways:
   duckdb:

@@ -1,0 +1,31 @@
+{
+  "table": "schema_nodes",
+  "columns": [
+    {
+      "name": "table_name",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "table_type",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "description",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": []
+}

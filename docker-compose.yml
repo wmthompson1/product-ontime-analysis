@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${PGDATABASE_USER:-dev}
+      POSTGRES_PASSWORD: ${PGDATABASE_PASSWORD:-devpass}
+      POSTGRES_DB: ${PGDATABASE_NAME:-devdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+
+  arangodb:
+    image: arangodb:3.11
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Use the project-wide DATABASE_PASSWORD to keep a single secret for DBs
+      ARANGO_ROOT_PASSWORD: ${DATABASE_PASSWORD:-arangopass}
+    ports:
+      - "8529:8529"
+    volumes:
+      - arangodata:/var/lib/arangodb3
+
+  # Optional admin UI for Postgres
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-pgadmin}
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+    name: product_ontime_pgdata
+  arangodata:
+    name: product_ontime_arangodata

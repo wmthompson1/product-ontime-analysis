@@ -1,0 +1,69 @@
+{
+  "table": "maintenance_targets",
+  "columns": [
+    {
+      "name": "target_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "equipment_type",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "target_mtbf",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "target_availability",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "target_reliability",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "maintenance_interval_hours",
+      "type": "INTEGER",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "industry_sector",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "target_class",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "last_updated",
+      "type": "TEXT",
+      "notnull": false,
+      "default": "CURRENT_DATE"
+    },
+    {
+      "name": "created_date",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "target_id"
+  ]
+}

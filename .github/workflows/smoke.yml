@@ -1,0 +1,62 @@
+name: Smoke Tests
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    name: Smoke test (start server + run smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Create venv and install Python deps
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -r mcp_server/requirements.txt
+
+      - name: Install Node deps
+        run: |
+          npm ci || npm install
+
+      - name: Start FastAPI uvicorn server
+        run: |
+          .venv/bin/python -m uvicorn mcp_server.app:app --host 127.0.0.1 --port 8000 --log-level info &>/tmp/uvicorn.log &
+          echo $! > /tmp/uvicorn.pid
+          for i in {1..20}; do
+            if curl -sSf http://127.0.0.1:8000/ >/dev/null 2>&1; then
+              echo "server up"
+              break
+            fi
+            sleep 1
+          done
+          tail -n 200 /tmp/uvicorn.log || true
+
+      - name: Run smoke tests
+        run: |
+          bash ./scripts/smoke_test.sh http://127.0.0.1:8000
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "===== uvicorn log ====="
+          tail -n 200 /tmp/uvicorn.log || true
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/uvicorn.pid ]; then kill $(cat /tmp/uvicorn.pid) || true; fi
+          sleep 1 || true

@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d2" for="edge" attr.name="weight" attr.type="long"/>
+<key id="d1" for="edge" attr.name="join_column" attr.type="string"/>
+<key id="d0" for="edge" attr.name="relationship" attr.type="string"/>
+<graph edgedefault="directed"><node id="equipment"/>
+<node id="product"/>
+<node id="supplier"/>
+<node id="production_line"/>
+<node id="maintenance_log"/>
+<node id="quality_control"/>
+<edge source="equipment" target="product">
+  <data key="d0">PRODUCES</data>
+  <data key="d1">part_id</data>
+  <data key="d2">1</data>
+</edge>
+<edge source="equipment" target="production_line">
+  <data key="d0">OPERATES_ON</data>
+  <data key="d1">line_id</data>
+  <data key="d2">1</data>
+</edge>
+<edge source="equipment" target="maintenance_log">
+  <data key="d0">MAINTAINED_BY</data>
+  <data key="d1">equipment_id</data>
+  <data key="d2">1</data>
+</edge>
+<edge source="equipment" target="quality_control">
+  <data key="d0">DEPENDS_ON</data>
+  <data key="d1">equipment_id</data>
+  <data key="d2">2</data>
+</edge>
+<edge source="product" target="supplier">
+  <data key="d0">SUPPLIED_BY</data>
+  <data key="d1">supplier_id</data>
+  <data key="d2">1</data>
+</edge>
+<edge source="product" target="quality_control">
+  <data key="d0">TESTED_IN</data>
+  <data key="d1">product_id</data>
+  <data key="d2">1</data>
+</edge>
+<edge source="production_line" target="quality_control">
+  <data key="d0">MONITORED_BY</data>
+  <data key="d1">line_id</data>
+  <data key="d2">1</data>
+</edge>
+</graph></graphml>

@@ -1,0 +1,57 @@
+{
+  "table": "suppliers",
+  "columns": [
+    {
+      "name": "supplier_id",
+      "type": "INTEGER",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "supplier_name",
+      "type": "TEXT",
+      "notnull": true,
+      "default": null
+    },
+    {
+      "name": "contact_email",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "phone",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "address",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "performance_rating",
+      "type": "NUMERIC",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "certification_level",
+      "type": "TEXT",
+      "notnull": false,
+      "default": null
+    },
+    {
+      "name": "created_date",
+      "type": "DATETIME",
+      "notnull": false,
+      "default": "datetime('now')"
+    }
+  ],
+  "primary_keys": [],
+  "candidate_keys": [
+    "supplier_id"
+  ]
+}
