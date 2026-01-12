@@ -1,3 +1,15 @@
+
+# ensure venv active
+source .venv/bin/activate
+
+# confirm SQLMesh sees the project
+sqlmesh info -p Utilities/SQLMesh
+
+# plan/apply and run tests
+sqlmesh plan -p Utilities/SQLMesh --auto-apply
+sqlmesh run-test -p Utilities/SQLMesh items_model_has_rows
+
+
 I'll search the repo for every requirements.txt, read them, and compare package entries to report duplicates/conflicts.
 
 Created 3 todos
