@@ -2,5 +2,5 @@
 SELECT
     item_id,
     SUM(qty) AS total_qty
-FROM {{ ref('items_dim') }}
+FROM items_dim
 GROUP BY item_id;
