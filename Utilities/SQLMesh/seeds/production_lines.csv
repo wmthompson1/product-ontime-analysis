@@ -1,7 +1,21 @@
-line_id,line_name,facility_location,line_type,theoretical_capacity,actual_capacity,efficiency_rating,installation_date,last_maintenance_date,status,supervisor,created_at
-1,Line A - Main Assembly,Building 1,Assembly,500,443,88.6,2021-01-16,2024-10-26,Idle,James Johnson,2024-07-04 07:59:06
-2,Line B - Precision Machining,Building 1,Machining,200,189,94.5,2016-07-20,2024-09-09,Active,John Smith,2024-03-19 22:50:40
-3,Line C - Heat Treatment,Building 2,Processing,300,221,73.7,2022-08-19,2024-11-01,Maintenance,James Johnson,2024-11-01 17:02:28
-4,Line D - Quality Inspection,Building 2,Inspection,400,332,83.0,2021-03-16,2024-12-14,Idle,Wei Chen,2024-11-24 12:23:07
-5,Line E - Packaging,Building 3,Packaging,600,436,72.7,2019-11-16,2024-08-20,Active,Sarah Williams,2024-04-01 18:29:02
-6,Line F - CNC Center,Building 1,Machining,150,139,92.7,2022-01-05,2024-11-23,Idle,Maria Garcia,2024-03-19 13:36:49
+line_id,line_name,facility_location,line_type,theoretical_capacity,actual_capacity,efficiency_rating,installation_date,last_maintenance_date,status,supervisor,shift_pattern,created_at
+1,Line A - Welding,Main Facility,Welding,663,518,78.1,2020-02-02,2024-06-05,Active,Brian Andrews,3-shift,2024-04-08 11:29:19
+2,Line B - Machining,Main Facility,Machining,648,607,93.7,2017-01-28,2024-04-20,Active,Travis Chan Jr.,Day only,2024-02-21 07:04:03
+3,Line C - Packaging,Building C,Packaging,332,262,78.9,2015-02-27,2024-03-05,Active,Summer Newman,3-shift,2024-10-10 10:38:10
+4,Line D - Processing,North Plant,Processing,753,690,91.6,2016-02-25,2024-10-20,Maintenance,William Baker,24/7,2024-08-13 12:24:17
+5,Line E - Processing,North Plant,Processing,152,115,75.7,2016-04-12,2024-07-24,Active,Robert Sawyer,3-shift,2024-03-18 05:25:55
+6,Line F - Packaging,Building A,Packaging,187,177,94.7,2021-04-04,2024-11-06,Idle,Heather Rhodes,2-shift,2024-09-24 13:50:56
+7,Line G - Finishing,South Plant,Finishing,553,428,77.4,2019-10-23,2024-10-18,Active,Brian York,3-shift,2024-04-16 22:46:27
+8,Line H - Inspection,Building B,Inspection,370,320,86.5,2017-09-09,2024-10-09,Active,Alexandra Taylor,3-shift,2024-07-28 16:24:08
+9,Line I - Finishing,Building C,Finishing,398,281,70.6,2022-12-05,2024-12-25,Active,Erin Kline,2-shift,2024-05-15 22:45:27
+10,Line J - Inspection,Building B,Inspection,535,389,72.7,2022-04-06,2024-05-16,Active,Debra Quinn,3-shift,2024-03-25 11:11:59
+11,Line K - Packaging,Main Facility,Packaging,549,401,73.0,2018-05-30,2024-05-19,Idle,Grant Wilson,24/7,2024-08-12 02:55:43
+12,Line L - Assembly,South Plant,Assembly,542,478,88.2,2017-10-22,2024-02-16,Idle,Jesus Houston,3-shift,2024-12-10 09:48:45
+13,Line M - Assembly,Main Facility,Assembly,279,228,81.7,2019-12-17,2024-04-02,Maintenance,Karen Fisher,24/7,2024-02-16 17:06:45
+14,Line N - CNC,Main Facility,CNC,518,405,78.2,2016-03-04,2024-06-17,Maintenance,Carol Anderson,Day only,2024-12-05 14:34:48
+15,Line O - Assembly,Building C,Assembly,565,407,72.0,2018-08-17,2024-07-25,Active,Vicki Richard,24/7,2024-07-30 01:58:24
+16,Line P - Inspection,North Plant,Inspection,630,497,78.9,2022-01-05,2024-01-27,Active,Thomas Webb,2-shift,2024-05-27 15:57:04
+17,Line Q - Finishing,Main Facility,Finishing,224,158,70.5,2021-10-29,2024-12-29,Active,Jessica Carr,3-shift,2024-10-09 14:51:16
+18,Line R - Machining,Building A,Machining,330,312,94.5,2020-03-05,2024-11-27,Maintenance,Lisa Huffman,Day only,2024-09-17 09:57:18
+19,Line S - Welding,Building B,Welding,594,561,94.4,2020-02-14,2024-03-15,Active,Monica Snow,2-shift,2024-02-05 10:03:28
+20,Line T - Welding,South Plant,Welding,448,418,93.3,2017-12-30,2024-05-24,Idle,Mr. Stephen Alexander,24/7,2024-03-17 16:15:29

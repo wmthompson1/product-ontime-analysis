@@ -8,10 +8,16 @@ Usage:
     python 025_Entry_Point_DDL_to_SQLMesh_Part2.py [--rows N] [--output-dir PATH] [--preview]
 
 Features:
+    - Uses Faker for realistic synthetic data generation
     - Generates realistic manufacturing metrics (OEE, MTBF, defect rates)
     - Maintains referential integrity across tables
     - Creates time-series data with configurable date ranges
     - Outputs CSV seeds for SQLMesh SEED models
+
+Part II Enhancements:
+    - Faker-powered company names, contacts, addresses
+    - Manufacturing-specific Faker providers
+    - Complete coverage for all 26 staging tables
 """
 
 import os
@@ -22,6 +28,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Optional
+from faker import Faker
 
 
 # Configuration
@@ -30,14 +37,24 @@ DEFAULT_END_DATE = datetime(2024, 12, 31)
 DEFAULT_ROWS_PER_TABLE = 100
 
 
-@dataclass
 class MockConfig:
     """Configuration for mock data generation."""
-    start_date: datetime = DEFAULT_START_DATE
-    end_date: datetime = DEFAULT_END_DATE
-    rows_per_table: int = DEFAULT_ROWS_PER_TABLE
-    output_dir: str = "Utilities/SQLMesh/seeds"
-    seed: int = 42
+    def __init__(
+        self,
+        start_date: datetime = DEFAULT_START_DATE,
+        end_date: datetime = DEFAULT_END_DATE,
+        rows_per_table: int = DEFAULT_ROWS_PER_TABLE,
+        output_dir: str = "Utilities/SQLMesh/seeds",
+        seed: int = 42
+    ):
+        self.start_date = start_date
+        self.end_date = end_date
+        self.rows_per_table = rows_per_table
+        self.output_dir = output_dir
+        self.seed = seed
+        self.fake = Faker()
+        Faker.seed(seed)
+        random.seed(seed)
 
 
 # Realistic manufacturing data pools
@@ -119,17 +136,28 @@ def random_datetime(start: datetime, end: datetime) -> str:
 
 
 def generate_suppliers(config: MockConfig) -> list[dict]:
-    """Generate supplier reference data."""
+    """Generate supplier reference data using Faker."""
+    fake = config.fake
     data = []
-    for i, (name, email, phone, address) in enumerate(SUPPLIERS, 1):
+    
+    mfg_suffixes = ["Manufacturing", "Components", "Industries", "Precision", "Materials", 
+                   "Systems", "Technologies", "Aerospace", "Solutions", "Metalworks"]
+    certifications = ["AS9100", "ISO9001", "IATF16949", "ISO13485", "NADCAP", "ISO14001"]
+    
+    for i in range(1, config.rows_per_table + 1):
+        company_base = fake.company().split()[0]
+        company_name = f"{company_base} {random.choice(mfg_suffixes)}"
+        
         data.append({
             "supplier_id": i,
-            "supplier_name": name,
-            "contact_email": email,
-            "phone": phone,
-            "address": address,
+            "supplier_name": company_name,
+            "contact_email": fake.company_email(),
+            "phone": fake.phone_number(),
+            "address": f"{fake.street_address()}, {fake.city()}, {fake.state_abbr()} {fake.zipcode()}",
             "performance_rating": round(random.uniform(3.5, 5.0), 2),
-            "certification_level": random.choice(["AS9100", "ISO9001", "IATF16949", "ISO13485"]),
+            "certification_level": random.choice(certifications),
+            "lead_time_days": random.randint(3, 45),
+            "payment_terms": random.choice(["Net 30", "Net 45", "Net 60", "2/10 Net 30"]),
             "created_date": random_datetime(config.start_date, config.end_date)
         })
     return data
@@ -157,15 +185,21 @@ def generate_product_lines(config: MockConfig) -> list[dict]:
 
 
 def generate_production_lines(config: MockConfig) -> list[dict]:
-    """Generate production line reference data."""
+    """Generate production line reference data using Faker."""
+    fake = config.fake
     data = []
-    supervisors = ["John Smith", "Maria Garcia", "Wei Chen", "James Johnson", "Sarah Williams", "Ahmed Hassan"]
-    for i, (name, location, line_type, capacity) in enumerate(PRODUCTION_LINES, 1):
+    line_types = ["Assembly", "Machining", "Processing", "Inspection", "Packaging", "CNC", "Welding", "Finishing"]
+    buildings = ["Building A", "Building B", "Building C", "North Plant", "South Plant", "Main Facility"]
+    
+    for i in range(1, min(config.rows_per_table, 20) + 1):
+        line_type = random.choice(line_types)
+        capacity = random.randint(100, 800)
         actual_cap = int(capacity * random.uniform(0.7, 0.95))
+        
         data.append({
             "line_id": i,
-            "line_name": name,
-            "facility_location": location,
+            "line_name": f"Line {chr(64 + i)} - {line_type}",
+            "facility_location": random.choice(buildings),
             "line_type": line_type,
             "theoretical_capacity": capacity,
             "actual_capacity": actual_cap,
@@ -173,7 +207,8 @@ def generate_production_lines(config: MockConfig) -> list[dict]:
             "installation_date": random_date_only(datetime(2015, 1, 1), datetime(2022, 12, 31)),
             "last_maintenance_date": random_date_only(config.start_date, config.end_date),
             "status": random.choice(["Active", "Active", "Active", "Maintenance", "Idle"]),
-            "supervisor": random.choice(supervisors),
+            "supervisor": fake.name(),
+            "shift_pattern": random.choice(["3-shift", "2-shift", "Day only", "24/7"]),
             "created_at": random_datetime(config.start_date, config.end_date)
         })
     return data
@@ -518,6 +553,313 @@ def generate_non_conformant_materials(config: MockConfig, supplier_count: int, p
     return data
 
 
+def generate_products(config: MockConfig) -> list[dict]:
+    """Generate products reference data using Faker."""
+    fake = config.fake
+    data = []
+    
+    categories = ["Aerospace", "Industrial", "Automotive", "Electronics", "Defense"]
+    statuses = ["Active", "Active", "Active", "Discontinued", "Development", "Pending Approval"]
+    
+    for i in range(1, config.rows_per_table + 1):
+        category = random.choice(categories)
+        unit_cost = round(random.uniform(50, 5000), 2)
+        
+        data.append({
+            "product_id": i,
+            "product_name": f"{fake.word().title()}-{random.randint(100, 9999)}",
+            "product_category": category,
+            "unit_cost": unit_cost,
+            "unit_price": round(unit_cost * random.uniform(1.2, 2.5), 2),
+            "weight_kg": round(random.uniform(0.1, 50), 3),
+            "lead_time_days": random.randint(5, 60),
+            "min_order_qty": random.choice([1, 5, 10, 25, 50, 100]),
+            "status": random.choice(statuses),
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
+def generate_production_schedule(config: MockConfig, line_count: int, product_count: int) -> list[dict]:
+    """Generate production schedule data using Faker."""
+    data = []
+    schedule_id = 1
+    current_date = config.start_date
+    
+    while current_date <= config.end_date:
+        num_schedules = random.randint(3, 8)
+        for _ in range(num_schedules):
+            planned_qty = random.randint(50, 500)
+            actual_qty = int(planned_qty * random.uniform(0.85, 1.05))
+            
+            data.append({
+                "schedule_id": schedule_id,
+                "line_id": random.randint(1, line_count),
+                "product_id": random.randint(1, product_count),
+                "scheduled_date": current_date.strftime("%Y-%m-%d"),
+                "shift": random.choice(SHIFTS),
+                "planned_quantity": planned_qty,
+                "actual_quantity": actual_qty,
+                "completion_rate": round(actual_qty / planned_qty * 100, 1),
+                "status": random.choice(["Completed", "Completed", "In Progress", "Scheduled", "Delayed"]),
+                "created_date": current_date.strftime("%Y-%m-%d %H:%M:%S")
+            })
+            schedule_id += 1
+        current_date += timedelta(days=1)
+    
+    return data
+
+
+def generate_production_quality(config: MockConfig, line_count: int) -> list[dict]:
+    """Generate production quality metrics using Faker."""
+    data = []
+    quality_id = 1
+    current_date = config.start_date
+    
+    while current_date <= config.end_date:
+        for line_id in range(1, line_count + 1):
+            total_produced = random.randint(100, 1000)
+            passed = int(total_produced * random.uniform(0.92, 0.995))
+            
+            data.append({
+                "quality_id": quality_id,
+                "line_id": line_id,
+                "measurement_date": current_date.strftime("%Y-%m-%d"),
+                "total_produced": total_produced,
+                "passed_inspection": passed,
+                "failed_inspection": total_produced - passed,
+                "first_pass_yield": round(passed / total_produced * 100, 2),
+                "rework_count": random.randint(0, total_produced - passed),
+                "scrap_count": random.randint(0, (total_produced - passed) // 2),
+                "created_date": current_date.strftime("%Y-%m-%d %H:%M:%S")
+            })
+            quality_id += 1
+        current_date += timedelta(days=1)
+    
+    return data
+
+
+def generate_corrective_actions(config: MockConfig, incident_count: int) -> list[dict]:
+    """Generate corrective action records using Faker."""
+    fake = config.fake
+    data = []
+    
+    action_types = ["Root Cause Analysis", "Process Change", "Training", "Equipment Calibration", 
+                    "Supplier Corrective Action", "Design Change", "Inspection Enhancement"]
+    
+    for i in range(1, min(config.rows_per_table, incident_count) + 1):
+        open_date = random_date(config.start_date, config.end_date)
+        is_closed = random.random() > 0.3
+        close_date = open_date + timedelta(days=random.randint(7, 90)) if is_closed else None
+        
+        data.append({
+            "action_id": i,
+            "incident_id": random.randint(1, incident_count),
+            "action_type": random.choice(action_types),
+            "description": fake.sentence(nb_words=10),
+            "assigned_to": fake.name(),
+            "open_date": open_date.strftime("%Y-%m-%d"),
+            "due_date": (open_date + timedelta(days=random.randint(14, 60))).strftime("%Y-%m-%d"),
+            "close_date": close_date.strftime("%Y-%m-%d") if close_date else None,
+            "status": "Closed" if is_closed else random.choice(["Open", "In Progress", "Pending Verification"]),
+            "effectiveness_score": round(random.uniform(0.7, 1.0), 2) if is_closed else None,
+            "created_date": open_date.strftime("%Y-%m-%d %H:%M:%S")
+        })
+    return data
+
+
+def generate_effectiveness_metrics(config: MockConfig, action_count: int) -> list[dict]:
+    """Generate effectiveness metrics for corrective actions."""
+    data = []
+    
+    for i in range(1, min(config.rows_per_table, action_count) + 1):
+        baseline_rate = round(random.uniform(0.02, 0.10), 4)
+        improved_rate = round(baseline_rate * random.uniform(0.3, 0.9), 4)
+        
+        data.append({
+            "metric_id": i,
+            "action_id": random.randint(1, action_count),
+            "metric_type": random.choice(["Defect Rate", "Cycle Time", "Yield", "Cost Reduction", "MTBF"]),
+            "baseline_value": baseline_rate,
+            "target_value": round(baseline_rate * 0.5, 4),
+            "actual_value": improved_rate,
+            "improvement_pct": round((baseline_rate - improved_rate) / baseline_rate * 100, 1),
+            "measurement_date": random_date_only(config.start_date, config.end_date),
+            "verified_by": config.fake.name(),
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
+def generate_quality_costs(config: MockConfig) -> list[dict]:
+    """Generate quality cost tracking (Cost of Quality - CoQ)."""
+    data = []
+    cost_id = 1
+    current_date = config.start_date
+    
+    cost_categories = ["Prevention", "Appraisal", "Internal Failure", "External Failure"]
+    
+    while current_date <= config.end_date:
+        for category in cost_categories:
+            if category == "Prevention":
+                cost = round(random.uniform(5000, 20000), 2)
+            elif category == "Appraisal":
+                cost = round(random.uniform(8000, 30000), 2)
+            elif category == "Internal Failure":
+                cost = round(random.uniform(10000, 50000), 2)
+            else:
+                cost = round(random.uniform(15000, 75000), 2)
+            
+            data.append({
+                "cost_id": cost_id,
+                "cost_category": category,
+                "cost_period": current_date.strftime("%Y-%m"),
+                "amount": cost,
+                "budget": round(cost * random.uniform(0.9, 1.2), 2),
+                "variance_pct": round(random.uniform(-15, 15), 1),
+                "created_date": current_date.strftime("%Y-%m-%d %H:%M:%S")
+            })
+            cost_id += 1
+        current_date += timedelta(days=30)
+    
+    return data
+
+
+def generate_financial_impact(config: MockConfig, ncm_count: int, defect_count: int) -> list[dict]:
+    """Generate financial impact records for NCMs and defects."""
+    fake = config.fake
+    data = []
+    
+    impact_types = ["Scrap", "Rework", "Warranty Claim", "Customer Credit", "Expedite Cost", "Inspection Cost"]
+    
+    for i in range(1, config.rows_per_table + 1):
+        is_ncm = random.random() > 0.5
+        
+        data.append({
+            "impact_id": i,
+            "source_type": "NCM" if is_ncm else "Defect",
+            "source_id": random.randint(1, ncm_count if is_ncm else defect_count),
+            "impact_type": random.choice(impact_types),
+            "impact_date": random_date_only(config.start_date, config.end_date),
+            "direct_cost": round(random.uniform(500, 25000), 2),
+            "indirect_cost": round(random.uniform(100, 5000), 2),
+            "recovery_amount": round(random.uniform(0, 5000), 2),
+            "approved_by": fake.name(),
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
+def generate_maintenance_targets(config: MockConfig, equipment_count: int) -> list[dict]:
+    """Generate maintenance targets for equipment."""
+    data = []
+    
+    for i in range(1, min(config.rows_per_table, equipment_count * 2) + 1):
+        data.append({
+            "target_id": i,
+            "equipment_id": random.randint(1, equipment_count),
+            "target_year": random.choice([2024, 2025]),
+            "target_mtbf": round(random.uniform(800, 2500), 0),
+            "target_availability": round(random.uniform(0.92, 0.98), 3),
+            "target_oee": round(random.uniform(0.75, 0.90), 3),
+            "pm_interval_days": random.choice([7, 14, 30, 60, 90]),
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
+def generate_industry_benchmarks(config: MockConfig) -> list[dict]:
+    """Generate industry benchmark data."""
+    data = []
+    
+    metrics = [
+        ("OEE", "World Class", 0.85, "Manufacturing"),
+        ("OEE", "Average", 0.60, "Manufacturing"),
+        ("First Pass Yield", "World Class", 0.99, "Aerospace"),
+        ("First Pass Yield", "Average", 0.95, "Aerospace"),
+        ("MTBF", "World Class", 2000, "Industrial Equipment"),
+        ("Defect Rate (PPM)", "World Class", 100, "Automotive"),
+        ("Defect Rate (PPM)", "Average", 1000, "Automotive"),
+        ("On-Time Delivery", "World Class", 0.98, "Supply Chain"),
+        ("Inventory Turns", "World Class", 12, "Manufacturing"),
+        ("Scrap Rate", "World Class", 0.02, "Manufacturing")
+    ]
+    
+    for i, (metric, level, value, industry) in enumerate(metrics, 1):
+        data.append({
+            "benchmark_id": i,
+            "metric_name": metric,
+            "benchmark_level": level,
+            "benchmark_value": value,
+            "industry_segment": industry,
+            "source": random.choice(["Industry Report", "Trade Association", "Research Study"]),
+            "year": 2024,
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
+def generate_manufacturing_acronyms(config: MockConfig) -> list[dict]:
+    """Generate manufacturing acronym reference data."""
+    acronyms = [
+        ("OEE", "Overall Equipment Effectiveness", "Metrics", "Availability x Performance x Quality"),
+        ("MTBF", "Mean Time Between Failures", "Reliability", "Average operating time between failures"),
+        ("MTTR", "Mean Time To Repair", "Maintenance", "Average time to repair equipment"),
+        ("NCM", "Non-Conformant Material", "Quality", "Material that fails to meet specifications"),
+        ("CAPA", "Corrective and Preventive Action", "Quality", "Systematic approach to quality improvement"),
+        ("FPY", "First Pass Yield", "Quality", "Percentage passing inspection on first attempt"),
+        ("PPM", "Parts Per Million", "Quality", "Defect rate measurement"),
+        ("SPC", "Statistical Process Control", "Quality", "Using statistics to monitor production"),
+        ("TPM", "Total Productive Maintenance", "Maintenance", "Comprehensive equipment maintenance approach"),
+        ("WIP", "Work In Progress", "Production", "Inventory currently being manufactured"),
+        ("MRP", "Material Requirements Planning", "Planning", "Production planning and inventory control"),
+        ("ERP", "Enterprise Resource Planning", "Systems", "Integrated management of business processes"),
+        ("BOM", "Bill of Materials", "Engineering", "List of parts needed for production"),
+        ("CAR", "Corrective Action Request", "Quality", "Formal request for corrective action"),
+        ("COQ", "Cost of Quality", "Finance", "Total cost of quality-related activities")
+    ]
+    
+    data = []
+    for i, (acronym, full_name, category, description) in enumerate(acronyms, 1):
+        data.append({
+            "acronym_id": i,
+            "acronym": acronym,
+            "full_name": full_name,
+            "category": category,
+            "description": description,
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
+def generate_users(config: MockConfig) -> list[dict]:
+    """Generate user reference data using Faker."""
+    fake = config.fake
+    data = []
+    
+    roles = ["Operator", "Supervisor", "Quality Engineer", "Maintenance Tech", 
+             "Production Manager", "Quality Manager", "Plant Manager", "Analyst"]
+    departments = ["Production", "Quality", "Maintenance", "Engineering", "Planning", "Finance"]
+    
+    for i in range(1, config.rows_per_table + 1):
+        first = fake.first_name()
+        last = fake.last_name()
+        
+        data.append({
+            "user_id": i,
+            "username": f"{first[0].lower()}{last.lower()}{random.randint(1, 99)}",
+            "first_name": first,
+            "last_name": last,
+            "email": f"{first.lower()}.{last.lower()}@manufacturing.com",
+            "role": random.choice(roles),
+            "department": random.choice(departments),
+            "hire_date": random_date_only(datetime(2015, 1, 1), config.end_date),
+            "is_active": random.random() > 0.1,
+            "created_date": random_datetime(config.start_date, config.end_date)
+        })
+    return data
+
+
 def write_csv(data: list[dict], filepath: Path, preview: bool = False) -> None:
     """Write data to CSV file."""
     if not data:
@@ -543,20 +885,26 @@ def write_csv(data: list[dict], filepath: Path, preview: bool = False) -> None:
 
 
 def generate_all_mock_data(config: MockConfig, preview: bool = False) -> dict[str, list[dict]]:
-    """Generate all mock data tables."""
+    """Generate all mock data tables using Faker for realistic synthetic data."""
     random.seed(config.seed)
     output_dir = Path(config.output_dir)
     
-    print(f"Generating mock data (seed={config.seed}, rows={config.rows_per_table})")
+    print(f"Generating mock data with Faker (seed={config.seed}, rows={config.rows_per_table})")
     print(f"Date range: {config.start_date.date()} to {config.end_date.date()}")
-    print("-" * 60)
+    print("-" * 70)
     
-    # Generate reference tables first
+    # Phase 1: Generate reference tables first
+    print("\n[Phase 1] Reference Tables...")
     suppliers = generate_suppliers(config)
     product_lines = generate_product_lines(config)
     production_lines = generate_production_lines(config)
+    products = generate_products(config)
+    users = generate_users(config)
+    manufacturing_acronyms = generate_manufacturing_acronyms(config)
+    industry_benchmarks = generate_industry_benchmarks(config)
     
-    # Generate transactional data with referential integrity
+    # Phase 2: Generate transactional data with referential integrity
+    print("[Phase 2] Transactional Tables...")
     daily_deliveries = generate_daily_deliveries(config, len(suppliers))
     equipment_metrics = generate_equipment_metrics(config, len(production_lines))
     equipment_count = len(set(row["equipment_id"] for row in equipment_metrics))
@@ -568,10 +916,26 @@ def generate_all_mock_data(config: MockConfig, preview: bool = False) -> dict[st
     equipment_reliability = generate_equipment_reliability(config, equipment_count)
     non_conformant_materials = generate_non_conformant_materials(config, len(suppliers), len(product_lines))
     
+    # Phase 3: Generate derived/dependent tables
+    print("[Phase 3] Derived Tables...")
+    production_schedule = generate_production_schedule(config, len(production_lines), len(products))
+    production_quality = generate_production_quality(config, len(production_lines))
+    corrective_actions = generate_corrective_actions(config, len(quality_incidents))
+    effectiveness_metrics = generate_effectiveness_metrics(config, len(corrective_actions))
+    quality_costs = generate_quality_costs(config)
+    financial_impact = generate_financial_impact(config, len(non_conformant_materials), len(product_defects))
+    maintenance_targets = generate_maintenance_targets(config, equipment_count)
+    
     all_data = {
+        # Reference tables
         "suppliers.csv": suppliers,
         "product_lines.csv": product_lines,
         "production_lines.csv": production_lines,
+        "products.csv": products,
+        "users.csv": users,
+        "manufacturing_acronyms.csv": manufacturing_acronyms,
+        "industry_benchmarks.csv": industry_benchmarks,
+        # Transactional tables
         "daily_deliveries.csv": daily_deliveries,
         "equipment_metrics.csv": equipment_metrics,
         "equipment_reliability.csv": equipment_reliability,
@@ -580,18 +944,28 @@ def generate_all_mock_data(config: MockConfig, preview: bool = False) -> dict[st
         "downtime_events.csv": downtime_events,
         "quality_incidents.csv": quality_incidents,
         "non_conformant_materials.csv": non_conformant_materials,
+        # Derived tables
+        "production_schedule.csv": production_schedule,
+        "production_quality.csv": production_quality,
+        "corrective_actions.csv": corrective_actions,
+        "effectiveness_metrics.csv": effectiveness_metrics,
+        "quality_costs.csv": quality_costs,
+        "financial_impact.csv": financial_impact,
+        "maintenance_targets.csv": maintenance_targets,
     }
     
+    print("\n[Phase 4] Writing CSV files...")
     for filename, data in all_data.items():
         write_csv(data, output_dir / filename, preview)
     
-    print("-" * 60)
+    print("-" * 70)
     total_rows = sum(len(d) for d in all_data.values())
-    print(f"Generated {len(all_data)} tables with {total_rows:,} total rows")
+    print(f"\nGenerated {len(all_data)} tables with {total_rows:,} total rows")
     
     if not preview:
         print(f"\nOutput directory: {output_dir}")
-        print("\nTo use with SQLMesh, create SEED models referencing these CSVs.")
+        print("\nNote: Schema metadata tables (schema_nodes, schema_edges, schema_concepts,")
+        print("      schema_concept_fields) should be populated from the semantic graph.")
     
     return all_data
 
