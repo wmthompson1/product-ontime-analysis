@@ -1,0 +1,9 @@
+supplier_id,supplier_name,contact_email,phone,address,performance_rating,certification_level,created_date
+1,Precision Parts Inc.,precision@parts.com,555-0101,"Detroit, MI",4.46,AS9100,2024-05-20 08:54:58
+2,Global Components Ltd.,sales@globalcomp.com,555-0102,"Shanghai, China",3.83,AS9100,2024-12-12 19:51:22
+3,AeroTech Materials,info@aerotech.com,555-0103,"Seattle, WA",3.63,ISO13485,2024-01-17 01:05:05
+4,Quality Fasteners Co.,qfc@fasteners.com,555-0104,"Cleveland, OH",3.64,ISO9001,2024-09-15 21:55:07
+5,Advanced Alloys LLC,contact@advalloys.com,555-0105,"Pittsburgh, PA",3.54,ISO9001,2024-11-28 19:50:26
+6,Midwest Manufacturing,orders@midwestmfg.com,555-0106,"Chicago, IL",4.13,ISO13485,2024-10-28 10:07:43
+7,Pacific Precision,sales@pacificprec.com,555-0107,"Los Angeles, CA",4.71,AS9100,2024-03-22 15:23:12
+8,Eastern Electronics,info@easternelec.com,555-0108,"Boston, MA",4.01,ISO9001,2024-04-20 12:15:18
