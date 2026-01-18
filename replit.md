@@ -110,3 +110,5 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **xlrd**: Legacy Excel file reading (.xls)
 - **mcp**: Model Context Protocol SDK for building MCP servers and clients
 - **httpx**: Modern async HTTP client for API integrations
+- **sdv**: Synthetic Data Vault for realistic mock data generation (local development)
+- **sdmetrics**: Metrics for evaluating synthetic data quality (local development)

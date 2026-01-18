@@ -38,3 +38,7 @@ sentence-transformers
 sqlmesh
 tqdm
 typing-extensions
+
+# Synthetic Data Generation
+sdv
+sdmetrics
