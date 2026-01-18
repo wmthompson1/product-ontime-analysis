@@ -23,6 +23,14 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Optional
 
+# Optional Faker for richer fake fields
+USE_FAKER = False
+FAKE = None
+try:
+    from faker import Faker as FakerClass
+except Exception:
+    FakerClass = None
+
 
 # Configuration
 DEFAULT_START_DATE = datetime(2024, 1, 1)
@@ -122,10 +130,20 @@ def generate_suppliers(config: MockConfig) -> list[dict]:
     """Generate supplier reference data."""
     data = []
     for i, (name, email, phone, address) in enumerate(SUPPLIERS, 1):
+        if USE_FAKER and FakerClass is not None and FAKE is not None:
+            # use Faker to generate more realistic contact details
+            supplier_name = FAKE.company()
+            contact_email = FAKE.company_email()
+            phone = FAKE.phone_number()
+            address = f"{FAKE.street_address()}, {FAKE.city()}, {FAKE.state_abbr()}"
+        else:
+            supplier_name = name
+            contact_email = email
+
         data.append({
             "supplier_id": i,
-            "supplier_name": name,
-            "contact_email": email,
+            "supplier_name": supplier_name,
+            "contact_email": contact_email,
             "phone": phone,
             "address": address,
             "performance_rating": round(random.uniform(3.5, 5.0), 2),
@@ -139,10 +157,16 @@ def generate_product_lines(config: MockConfig) -> list[dict]:
     """Generate product line reference data."""
     data = []
     for i, (name, category, volume, price, margin) in enumerate(PRODUCT_LINES, 1):
+        # Add optional SKU/product code when Faker is enabled
+        product_sku = f"PL-{i:03d}-{random.randint(1000,9999)}"
+        if USE_FAKER and FakerClass is not None and FAKE is not None:
+            product_sku = FAKE.bothify(text="PL-???-####").upper()
+
         data.append({
             "product_line_id": i,
             "product_line_name": name,
             "product_category": category,
+            "product_sku": product_sku,
             "target_volume": volume,
             "unit_price": price,
             "profit_margin": margin,
@@ -162,6 +186,10 @@ def generate_production_lines(config: MockConfig) -> list[dict]:
     supervisors = ["John Smith", "Maria Garcia", "Wei Chen", "James Johnson", "Sarah Williams", "Ahmed Hassan"]
     for i, (name, location, line_type, capacity) in enumerate(PRODUCTION_LINES, 1):
         actual_cap = int(capacity * random.uniform(0.7, 0.95))
+        supervisor = random.choice(supervisors)
+        if USE_FAKER and FakerClass is not None and FAKE is not None:
+            supervisor = FAKE.name()
+
         data.append({
             "line_id": i,
             "line_name": name,
@@ -173,7 +201,7 @@ def generate_production_lines(config: MockConfig) -> list[dict]:
             "installation_date": random_date_only(datetime(2015, 1, 1), datetime(2022, 12, 31)),
             "last_maintenance_date": random_date_only(config.start_date, config.end_date),
             "status": random.choice(["Active", "Active", "Active", "Maintenance", "Idle"]),
-            "supervisor": random.choice(supervisors),
+            "supervisor": supervisor,
             "created_at": random_datetime(config.start_date, config.end_date)
         })
     return data
@@ -200,6 +228,8 @@ def generate_daily_deliveries(config: MockConfig, supplier_count: int) -> list[d
                 "delivery_id": delivery_id,
                 "supplier_id": supplier_id,
                 "delivery_date": current_date.strftime("%Y-%m-%d"),
+                "purchase_order": f"PO-{random.randint(100000,999999)}" if not (USE_FAKER and FAKE is not None) else FAKE.bothify(text="PO-######"),
+                "received_by": "Receiving" if not (USE_FAKER and FAKE is not None) else FAKE.name(),
                 "planned_quantity": planned_qty,
                 "actual_quantity": actual_qty,
                 "ontime_rate": ontime,
@@ -237,6 +267,7 @@ def generate_equipment_metrics(config: MockConfig, line_count: int) -> list[dict
                 data.append({
                     "equipment_id": equipment_id,
                     "line_id": str(line_id),
+                    "serial_number": f"SN-{line_id}-{equipment_id:04d}" if not (USE_FAKER and FAKE is not None) else FAKE.bothify(text="SN-####-????"),
                     "equipment_type": eq_type,
                     "equipment_name": eq_name,
                     "measurement_date": current_date.strftime("%Y-%m-%d"),
@@ -273,6 +304,7 @@ def generate_product_defects(config: MockConfig, product_line_count: int) -> lis
                 "product_line": product_line,
                 "production_date": current_date.strftime("%Y-%m-%d"),
                 "defect_type": random.choice(DEFECT_TYPES),
+                "lot_number": f"LOT-{random.randint(1000,9999)}" if not (USE_FAKER and FAKE is not None) else FAKE.bothify(text="LOT-####"),
                 "defect_count": defect_count,
                 "total_produced": total_produced,
                 "defect_rate": round(defect_count / total_produced, 4) if total_produced > 0 else 0,
@@ -281,6 +313,7 @@ def generate_product_defects(config: MockConfig, product_line_count: int) -> lis
                     "Tool wear", "Material variance", "Operator error",
                     "Process deviation", "Environmental factors", "Machine calibration"
                 ]),
+                "reported_by": "QA" if not (USE_FAKER and FAKE is not None) else FAKE.name(),
                 "created_date": current_date.strftime("%Y-%m-%d %H:%M:%S")
             })
             defect_id += 1
@@ -294,6 +327,8 @@ def generate_failure_events(config: MockConfig, equipment_count: int) -> list[di
     """Generate equipment failure events."""
     data = []
     technicians = ["Tech-A", "Tech-B", "Tech-C", "Tech-D", "Tech-E"]
+    if USE_FAKER and FakerClass is not None and FAKE is not None:
+        technicians = [FAKE.name() for _ in range(6)]
     
     for failure_id in range(1, config.rows_per_table + 1):
         failure_date = random_datetime(config.start_date, config.end_date)
@@ -310,7 +345,7 @@ def generate_failure_events(config: MockConfig, equipment_count: int) -> list[di
             "repair_cost": round(random.uniform(500, 25000), 2),
             "parts_replaced": random.choice(["Bearing", "Motor", "Sensor", "Belt", "Controller", "None"]),
             "technician_assigned": random.choice(technicians),
-            "failure_description": f"Equipment failure requiring {downtime:.1f}h repair",
+            "failure_description": FAKE.sentence(nb_words=6) if (USE_FAKER and FAKE is not None) else f"Equipment failure requiring {downtime:.1f}h repair",
             "root_cause_analysis": random.choice([
                 "Wear and tear", "Improper maintenance", "Overload condition",
                 "Environmental stress", "Manufacturing defect", "Under investigation"
@@ -385,6 +420,8 @@ def generate_quality_incidents(config: MockConfig, product_line_count: int) -> l
             "detection_method": random.choice(detection_methods),
             "status": "Closed" if is_resolved else random.choice(["Open", "In Progress"]),
             "assigned_to": random.choice(assignees),
+            "case_id": FAKE.bothify(text="CASE-#####") if (USE_FAKER and FAKE is not None) else f"CASE-{incident_id:05d}",
+            "customer_name": FAKE.company() if (USE_FAKER and FAKE is not None) else "",
             "resolution_date": incident_date if is_resolved else "",
             "root_cause": random.choice([
                 "Material variance", "Process parameter drift", "Tool wear",
@@ -447,8 +484,7 @@ def generate_non_conformant_materials(config: MockConfig, supplier_count: int, p
         "Titanium Alloy Ti-6Al-4V", "Aluminum 7075-T6", "Inconel 718",
         "Carbon Fiber Composite", "Stainless Steel 304L", "Copper C110",
         "Nickel Superalloy", "Magnesium AZ31B", "Tool Steel D2",
-        "Ceramic Matrix Composite"
-    ]
+        "Ceramic Matrix Composite"      
     
     ncm_descriptions = [
         "Material hardness below specification - failed Rockwell test",
@@ -632,6 +668,11 @@ def main():
         action='store_true',
         help='Preview mode - show sample data without writing files'
     )
+    parser.add_argument(
+        '--use-faker',
+        action='store_true',
+        help='Enable Faker for richer fake fields (install `faker` package)'
+    )
     
     args = parser.parse_args()
     
@@ -642,6 +683,16 @@ def main():
         output_dir=args.output,
         seed=args.seed
     )
+
+    # Configure optional Faker usage
+    global USE_FAKER, FAKE
+    if args.use_faker:
+        if FakerClass is None:
+            print("--use-faker requested but `faker` package not available. Install via `pip install Faker`.")
+            USE_FAKER = False
+        else:
+            FAKE = FakerClass()
+            USE_FAKER = True
     
     generate_all_mock_data(config, args.preview)
     return 0

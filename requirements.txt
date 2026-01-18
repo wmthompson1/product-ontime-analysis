@@ -38,3 +38,5 @@ sentence-transformers
 sqlmesh
 tqdm
 typing-extensions
+
+Faker>=23.0.0
