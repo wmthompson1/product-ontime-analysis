@@ -40,8 +40,6 @@ tqdm
 typing-extensions
 
 # Synthetic Data Generation
-sdv
-sdmetrics
+Faker>=23.0.0
 arango
-faker
 pyyaml
