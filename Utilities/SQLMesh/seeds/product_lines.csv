@@ -1,9 +1,9 @@
 product_line_id,product_line_name,product_category,target_volume,unit_price,profit_margin,launch_date,lifecycle_stage,primary_market,complexity_rating,regulatory_requirements,created_at
-1,Turbine Blades,Aerospace,5000,2500.0,0.35,2020-07-28,Introduction,North America,High,FDA,2024-11-05 09:37:51
-2,Landing Gear,Aerospace,200,45000.0,0.28,2020-03-29,Growth,Global,Low,Military,2024-05-30 22:53:17
-3,Hydraulic Actuators,Industrial,1500,850.0,0.32,2023-06-20,Mature,North America,Low,EASA,2024-05-28 02:54:18
-4,Control Valves,Industrial,3000,420.0,0.4,2021-04-21,Introduction,Asia Pacific,Very High,FDA,2024-03-24 13:28:40
-5,Precision Bearings,Automotive,10000,125.0,0.45,2021-12-28,Decline,North America,Medium,Military,2024-05-05 05:56:57
-6,Sensor Assemblies,Electronics,8000,75.0,0.38,2022-08-04,Decline,Europe,High,FAA,2024-04-27 01:10:07
-7,Composite Panels,Aerospace,800,3200.0,0.3,2021-10-08,Decline,North America,Medium,Military,2024-06-10 07:44:29
-8,Engine Mounts,Automotive,4000,280.0,0.35,2023-09-04,Introduction,Global,Medium,FDA,2024-03-12 08:58:45
+1,Turbine Blades,Aerospace,5000,2500.0,0.35,2020-08-04,Decline,Global,Medium,None,2024-03-31 18:59:46
+2,Landing Gear,Aerospace,200,45000.0,0.28,2023-08-25,Introduction,Global,Very High,Military,2024-05-17 11:44:05
+3,Hydraulic Actuators,Industrial,1500,850.0,0.32,2021-05-17,Decline,Global,Medium,None,2024-10-18 22:13:17
+4,Control Valves,Industrial,3000,420.0,0.4,2023-09-30,Decline,North America,Very High,FDA,2024-04-03 17:45:04
+5,Precision Bearings,Automotive,10000,125.0,0.45,2021-03-10,Decline,Asia Pacific,High,Military,2024-12-25 10:03:31
+6,Sensor Assemblies,Electronics,8000,75.0,0.38,2023-02-12,Mature,North America,Medium,None,2024-09-07 20:12:48
+7,Composite Panels,Aerospace,800,3200.0,0.3,2021-05-07,Introduction,Global,Low,FAA,2024-05-30 08:04:05
+8,Engine Mounts,Automotive,4000,280.0,0.35,2022-04-08,Decline,Asia Pacific,Very High,Military,2024-09-28 12:30:56

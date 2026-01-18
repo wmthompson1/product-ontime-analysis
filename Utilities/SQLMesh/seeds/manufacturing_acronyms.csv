@@ -1,0 +1,16 @@
+acronym_id,acronym,full_name,category,description,created_date
+1,OEE,Overall Equipment Effectiveness,Metrics,Availability x Performance x Quality,2024-09-23 06:10:27
+2,MTBF,Mean Time Between Failures,Reliability,Average operating time between failures,2024-12-16 13:51:43
+3,MTTR,Mean Time To Repair,Maintenance,Average time to repair equipment,2024-03-27 05:03:18
+4,NCM,Non-Conformant Material,Quality,Material that fails to meet specifications,2024-05-17 10:57:49
+5,CAPA,Corrective and Preventive Action,Quality,Systematic approach to quality improvement,2024-05-17 17:57:14
+6,FPY,First Pass Yield,Quality,Percentage passing inspection on first attempt,2024-03-15 02:18:12
+7,PPM,Parts Per Million,Quality,Defect rate measurement,2024-03-26 15:49:33
+8,SPC,Statistical Process Control,Quality,Using statistics to monitor production,2024-05-21 15:19:54
+9,TPM,Total Productive Maintenance,Maintenance,Comprehensive equipment maintenance approach,2024-06-02 17:37:49
+10,WIP,Work In Progress,Production,Inventory currently being manufactured,2024-02-09 13:08:53
+11,MRP,Material Requirements Planning,Planning,Production planning and inventory control,2024-05-08 08:58:41
+12,ERP,Enterprise Resource Planning,Systems,Integrated management of business processes,2024-11-16 18:03:05
+13,BOM,Bill of Materials,Engineering,List of parts needed for production,2024-10-31 22:27:08
+14,CAR,Corrective Action Request,Quality,Formal request for corrective action,2024-04-10 16:40:12
+15,COQ,Cost of Quality,Finance,Total cost of quality-related activities,2024-02-24 04:55:58
