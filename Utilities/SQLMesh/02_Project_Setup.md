@@ -1,5 +1,15 @@
 # SQLMesh Project Setup
 
+## test 01/12/26
+# Install
+pip install --upgrade sqlmesh
+
+# From mac terminal, go to project root and run plan
+cd "/Users/williamthompson/bbb/20241019 Python"
+sqlmesh plan --gateway local
+# If you need more logs:
+SQLMESH_LOG_LEVEL=DEBUG sqlmesh plan --gateway local
+
 ## Initialize a New Project
 
 ```bash
