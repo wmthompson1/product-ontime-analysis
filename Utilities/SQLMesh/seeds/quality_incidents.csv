@@ -1,0 +1,101 @@
+incident_id,product_line,incident_date,incident_type,severity_level,affected_units,cost_impact,detection_method,status,assigned_to,resolution_date,root_cause,created_at
+1,Sensor Assemblies,2024-12-21,Material NCM,Major,141,37368.8,CMM,Closed,Process Engineer,2024-12-21,Documentation error,2024-12-21 08:00:00
+2,Composite Panels,2024-12-09,Equipment Issue,Major,140,352.05,CMM,Closed,QA Lead,2024-12-09,Training gap,2024-12-09 08:00:00
+3,Precision Bearings,2024-12-02,Specification Change,Minor,163,4947.67,CMM,Open,Process Engineer,,Process parameter drift,2024-12-02 08:00:00
+4,Precision Bearings,2024-02-02,Specification Change,Major,302,21096.16,Audit,Closed,Process Engineer,2024-02-02,Documentation error,2024-02-02 08:00:00
+5,Turbine Blades,2024-07-18,Customer Complaint,Major,422,22274.71,Customer Report,Closed,Supervisor,2024-07-18,Process parameter drift,2024-07-18 08:00:00
+6,Composite Panels,2024-09-29,Process Deviation,Minor,437,28608.53,Visual Inspection,In Progress,Process Engineer,,Material variance,2024-09-29 08:00:00
+7,Sensor Assemblies,2024-04-16,Customer Complaint,Major,346,23422.27,CMM,Closed,Quality Engineer,2024-04-16,Documentation error,2024-04-16 08:00:00
+8,Composite Panels,2024-06-29,Process Deviation,Major,285,37228.2,CMM,Closed,Supervisor,2024-06-29,Documentation error,2024-06-29 08:00:00
+9,Landing Gear,2024-03-08,Material NCM,Critical,57,28580.18,CMM,Open,Supervisor,,Documentation error,2024-03-08 08:00:00
+10,Control Valves,2024-07-28,Specification Change,Major,164,38547.93,Visual Inspection,Closed,Process Engineer,2024-07-28,Documentation error,2024-07-28 08:00:00
+11,Composite Panels,2024-10-01,Audit Finding,Major,388,23249.31,Customer Report,Open,Quality Engineer,,Training gap,2024-10-01 08:00:00
+12,Sensor Assemblies,2024-05-27,Equipment Issue,Critical,350,45373.32,Customer Report,Closed,Supervisor,2024-05-27,Training gap,2024-05-27 08:00:00
+13,Turbine Blades,2024-07-29,Material NCM,Minor,318,25217.73,Visual Inspection,Closed,Supervisor,2024-07-29,Material variance,2024-07-29 08:00:00
+14,Control Valves,2024-06-15,Equipment Issue,Major,351,4639.23,Automated Scanner,Open,Supervisor,,Documentation error,2024-06-15 08:00:00
+15,Hydraulic Actuators,2024-09-18,Equipment Issue,Critical,90,23661.23,CMM,Closed,Process Engineer,2024-09-18,Process parameter drift,2024-09-18 08:00:00
+16,Turbine Blades,2024-05-30,Audit Finding,Major,126,34215.19,Customer Report,Open,Quality Engineer,,Training gap,2024-05-30 08:00:00
+17,Landing Gear,2024-09-13,Customer Complaint,Critical,126,23164.39,Visual Inspection,Closed,QA Lead,2024-09-13,Under investigation,2024-09-13 08:00:00
+18,Engine Mounts,2024-01-17,Process Deviation,Major,491,13075.46,Audit,Closed,QA Lead,2024-01-17,Under investigation,2024-01-17 08:00:00
+19,Turbine Blades,2024-11-06,Equipment Issue,Critical,150,40601.95,Visual Inspection,Closed,Process Engineer,2024-11-06,Training gap,2024-11-06 08:00:00
+20,Engine Mounts,2024-09-18,Process Deviation,Critical,75,42368.81,Audit,Closed,QA Lead,2024-09-18,Under investigation,2024-09-18 08:00:00
+21,Composite Panels,2024-03-27,Material NCM,Critical,408,24181.29,Automated Scanner,Closed,QA Lead,2024-03-27,Tool wear,2024-03-27 08:00:00
+22,Engine Mounts,2024-11-24,Audit Finding,Critical,388,13073.98,Automated Scanner,Closed,Supervisor,2024-11-24,Tool wear,2024-11-24 08:00:00
+23,Precision Bearings,2024-08-18,Material NCM,Critical,268,14492.68,CMM,Closed,Process Engineer,2024-08-18,Documentation error,2024-08-18 08:00:00
+24,Precision Bearings,2024-07-04,Material NCM,Minor,325,15306.59,Customer Report,Closed,Process Engineer,2024-07-04,Process parameter drift,2024-07-04 08:00:00
+25,Hydraulic Actuators,2024-12-21,Audit Finding,Major,327,11473.11,CMM,Closed,Process Engineer,2024-12-21,Process parameter drift,2024-12-21 08:00:00
+26,Precision Bearings,2024-10-26,Specification Change,Minor,446,49806.26,Customer Report,Closed,Supervisor,2024-10-26,Documentation error,2024-10-26 08:00:00
+27,Hydraulic Actuators,2024-03-28,Specification Change,Major,268,18780.69,Customer Report,Closed,Quality Engineer,2024-03-28,Documentation error,2024-03-28 08:00:00
+28,Engine Mounts,2024-09-03,Process Deviation,Minor,485,3331.15,CMM,Closed,Process Engineer,2024-09-03,Process parameter drift,2024-09-03 08:00:00
+29,Precision Bearings,2024-04-24,Equipment Issue,Critical,333,9927.42,Customer Report,Closed,Supervisor,2024-04-24,Documentation error,2024-04-24 08:00:00
+30,Control Valves,2024-11-22,Customer Complaint,Minor,17,19984.71,Visual Inspection,Closed,Process Engineer,2024-11-22,Documentation error,2024-11-22 08:00:00
+31,Landing Gear,2024-02-04,Process Deviation,Major,291,26195.14,CMM,Closed,Process Engineer,2024-02-04,Under investigation,2024-02-04 08:00:00
+32,Control Valves,2024-04-03,Equipment Issue,Major,91,2107.62,Audit,In Progress,Process Engineer,,Material variance,2024-04-03 08:00:00
+33,Hydraulic Actuators,2024-04-07,Process Deviation,Critical,117,12272.64,Audit,Closed,Supervisor,2024-04-07,Training gap,2024-04-07 08:00:00
+34,Turbine Blades,2024-02-20,Equipment Issue,Critical,101,23967.12,Customer Report,Closed,QA Lead,2024-02-20,Training gap,2024-02-20 08:00:00
+35,Control Valves,2024-04-11,Customer Complaint,Minor,5,29127.51,Visual Inspection,Closed,Supervisor,2024-04-11,Under investigation,2024-04-11 08:00:00
+36,Engine Mounts,2024-04-09,Customer Complaint,Major,308,13610.09,CMM,Closed,Process Engineer,2024-04-09,Documentation error,2024-04-09 08:00:00
+37,Precision Bearings,2024-09-04,Customer Complaint,Major,445,26656.28,Automated Scanner,Closed,Process Engineer,2024-09-04,Under investigation,2024-09-04 08:00:00
+38,Precision Bearings,2024-10-14,Process Deviation,Critical,250,425.21,Audit,Closed,Supervisor,2024-10-14,Training gap,2024-10-14 08:00:00
+39,Landing Gear,2024-03-24,Equipment Issue,Major,49,46272.24,Customer Report,Closed,Process Engineer,2024-03-24,Under investigation,2024-03-24 08:00:00
+40,Hydraulic Actuators,2024-12-17,Process Deviation,Critical,110,15429.3,Automated Scanner,In Progress,Supervisor,,Material variance,2024-12-17 08:00:00
+41,Control Valves,2024-12-16,Material NCM,Major,81,9676.01,Customer Report,Closed,Quality Engineer,2024-12-16,Process parameter drift,2024-12-16 08:00:00
+42,Sensor Assemblies,2024-11-08,Audit Finding,Minor,305,39458.56,Automated Scanner,Closed,Quality Engineer,2024-11-08,Tool wear,2024-11-08 08:00:00
+43,Sensor Assemblies,2024-08-29,Customer Complaint,Minor,182,41478.64,Automated Scanner,In Progress,Process Engineer,,Training gap,2024-08-29 08:00:00
+44,Composite Panels,2024-10-15,Audit Finding,Critical,496,20498.51,CMM,In Progress,Process Engineer,,Material variance,2024-10-15 08:00:00
+45,Control Valves,2024-12-26,Customer Complaint,Major,427,18736.41,Automated Scanner,Closed,Supervisor,2024-12-26,Training gap,2024-12-26 08:00:00
+46,Control Valves,2024-06-15,Specification Change,Minor,226,42834.53,Visual Inspection,Closed,QA Lead,2024-06-15,Process parameter drift,2024-06-15 08:00:00
+47,Engine Mounts,2024-03-23,Specification Change,Major,488,48559.55,Visual Inspection,Closed,Supervisor,2024-03-23,Under investigation,2024-03-23 08:00:00
+48,Control Valves,2024-12-27,Specification Change,Minor,193,3059.91,Visual Inspection,In Progress,Process Engineer,,Documentation error,2024-12-27 08:00:00
+49,Precision Bearings,2024-07-08,Material NCM,Minor,38,16294.82,Customer Report,Open,Quality Engineer,,Documentation error,2024-07-08 08:00:00
+50,Control Valves,2024-06-02,Audit Finding,Critical,168,28679.39,Automated Scanner,Closed,Process Engineer,2024-06-02,Under investigation,2024-06-02 08:00:00
+51,Landing Gear,2024-01-12,Equipment Issue,Minor,379,15766.67,Automated Scanner,Closed,Supervisor,2024-01-12,Under investigation,2024-01-12 08:00:00
+52,Sensor Assemblies,2024-04-19,Audit Finding,Major,171,10029.36,Automated Scanner,Closed,Process Engineer,2024-04-19,Documentation error,2024-04-19 08:00:00
+53,Landing Gear,2024-01-12,Audit Finding,Major,413,24369.24,Visual Inspection,Closed,QA Lead,2024-01-12,Documentation error,2024-01-12 08:00:00
+54,Composite Panels,2024-07-10,Specification Change,Major,405,26986.59,Automated Scanner,Closed,Process Engineer,2024-07-10,Under investigation,2024-07-10 08:00:00
+55,Landing Gear,2024-02-04,Process Deviation,Minor,82,39949.69,Visual Inspection,Closed,Supervisor,2024-02-04,Documentation error,2024-02-04 08:00:00
+56,Landing Gear,2024-11-28,Audit Finding,Major,239,22619.3,CMM,Closed,Process Engineer,2024-11-28,Material variance,2024-11-28 08:00:00
+57,Sensor Assemblies,2024-04-03,Equipment Issue,Minor,420,47430.33,Visual Inspection,Closed,Supervisor,2024-04-03,Documentation error,2024-04-03 08:00:00
+58,Composite Panels,2024-05-30,Material NCM,Major,219,7609.7,CMM,In Progress,Supervisor,,Under investigation,2024-05-30 08:00:00
+59,Sensor Assemblies,2024-12-06,Equipment Issue,Minor,79,9523.48,CMM,Closed,Quality Engineer,2024-12-06,Tool wear,2024-12-06 08:00:00
+60,Turbine Blades,2024-04-02,Process Deviation,Critical,277,17491.13,Visual Inspection,Closed,Process Engineer,2024-04-02,Tool wear,2024-04-02 08:00:00
+61,Control Valves,2024-04-27,Material NCM,Major,139,11725.64,CMM,In Progress,QA Lead,,Process parameter drift,2024-04-27 08:00:00
+62,Composite Panels,2024-08-13,Equipment Issue,Minor,107,19082.79,Customer Report,In Progress,Supervisor,,Process parameter drift,2024-08-13 08:00:00
+63,Landing Gear,2024-04-15,Material NCM,Minor,468,28957.35,Audit,Open,Quality Engineer,,Process parameter drift,2024-04-15 08:00:00
+64,Sensor Assemblies,2024-03-02,Customer Complaint,Major,98,10595.34,Visual Inspection,Closed,Process Engineer,2024-03-02,Training gap,2024-03-02 08:00:00
+65,Landing Gear,2024-05-10,Process Deviation,Critical,195,40190.24,Customer Report,Closed,QA Lead,2024-05-10,Tool wear,2024-05-10 08:00:00
+66,Landing Gear,2024-07-03,Equipment Issue,Major,118,49985.36,Visual Inspection,Closed,Supervisor,2024-07-03,Training gap,2024-07-03 08:00:00
+67,Sensor Assemblies,2024-01-09,Material NCM,Critical,290,562.77,Audit,Open,Quality Engineer,,Under investigation,2024-01-09 08:00:00
+68,Turbine Blades,2024-08-28,Material NCM,Minor,339,14724.92,Audit,Closed,Supervisor,2024-08-28,Process parameter drift,2024-08-28 08:00:00
+69,Hydraulic Actuators,2024-08-02,Material NCM,Minor,415,40534.95,CMM,Closed,Process Engineer,2024-08-02,Material variance,2024-08-02 08:00:00
+70,Engine Mounts,2024-03-24,Audit Finding,Minor,192,45458.14,Automated Scanner,In Progress,QA Lead,,Material variance,2024-03-24 08:00:00
+71,Engine Mounts,2024-06-18,Material NCM,Major,24,27019.8,Audit,Open,Quality Engineer,,Material variance,2024-06-18 08:00:00
+72,Control Valves,2024-01-08,Process Deviation,Critical,496,23836.9,Customer Report,In Progress,Quality Engineer,,Documentation error,2024-01-08 08:00:00
+73,Precision Bearings,2024-11-22,Customer Complaint,Critical,166,32853.08,Automated Scanner,Closed,QA Lead,2024-11-22,Training gap,2024-11-22 08:00:00
+74,Control Valves,2024-09-09,Specification Change,Critical,413,47120.23,CMM,Open,QA Lead,,Under investigation,2024-09-09 08:00:00
+75,Landing Gear,2024-07-25,Customer Complaint,Critical,374,33002.53,Automated Scanner,In Progress,Process Engineer,,Process parameter drift,2024-07-25 08:00:00
+76,Sensor Assemblies,2024-06-16,Specification Change,Minor,479,42552.35,Customer Report,Closed,QA Lead,2024-06-16,Process parameter drift,2024-06-16 08:00:00
+77,Hydraulic Actuators,2024-04-03,Material NCM,Critical,204,16194.37,Audit,Closed,Supervisor,2024-04-03,Training gap,2024-04-03 08:00:00
+78,Composite Panels,2024-06-25,Material NCM,Major,319,13213.95,Customer Report,Closed,QA Lead,2024-06-25,Under investigation,2024-06-25 08:00:00
+79,Sensor Assemblies,2024-05-23,Material NCM,Major,175,40368.73,Customer Report,Closed,Supervisor,2024-05-23,Under investigation,2024-05-23 08:00:00
+80,Precision Bearings,2024-02-19,Customer Complaint,Major,329,1368.16,Audit,Open,QA Lead,,Process parameter drift,2024-02-19 08:00:00
+81,Landing Gear,2024-08-22,Customer Complaint,Critical,448,17446.45,Customer Report,Closed,Supervisor,2024-08-22,Documentation error,2024-08-22 08:00:00
+82,Hydraulic Actuators,2024-02-12,Specification Change,Critical,73,42016.64,CMM,Closed,QA Lead,2024-02-12,Process parameter drift,2024-02-12 08:00:00
+83,Hydraulic Actuators,2024-06-30,Specification Change,Minor,25,40032.97,Automated Scanner,Closed,Quality Engineer,2024-06-30,Under investigation,2024-06-30 08:00:00
+84,Sensor Assemblies,2024-09-28,Equipment Issue,Critical,326,31752.2,Audit,Open,Quality Engineer,,Documentation error,2024-09-28 08:00:00
+85,Control Valves,2024-11-08,Audit Finding,Major,200,45057.74,Customer Report,In Progress,Supervisor,,Tool wear,2024-11-08 08:00:00
+86,Turbine Blades,2024-03-10,Equipment Issue,Minor,343,15649.11,Audit,Open,QA Lead,,Training gap,2024-03-10 08:00:00
+87,Engine Mounts,2024-03-12,Material NCM,Major,403,8056.21,Customer Report,Closed,Supervisor,2024-03-12,Documentation error,2024-03-12 08:00:00
+88,Sensor Assemblies,2024-04-09,Customer Complaint,Critical,458,20131.88,Audit,Open,Quality Engineer,,Training gap,2024-04-09 08:00:00
+89,Sensor Assemblies,2024-03-13,Process Deviation,Minor,160,26259.62,Audit,In Progress,Quality Engineer,,Under investigation,2024-03-13 08:00:00
+90,Landing Gear,2024-08-12,Specification Change,Major,79,3613.1,Automated Scanner,Closed,Process Engineer,2024-08-12,Material variance,2024-08-12 08:00:00
+91,Landing Gear,2024-07-14,Audit Finding,Minor,87,43824.49,Customer Report,Closed,Process Engineer,2024-07-14,Process parameter drift,2024-07-14 08:00:00
+92,Landing Gear,2024-09-24,Specification Change,Minor,443,18191.21,Customer Report,Closed,Supervisor,2024-09-24,Training gap,2024-09-24 08:00:00
+93,Landing Gear,2024-01-30,Customer Complaint,Minor,376,13865.7,Automated Scanner,Closed,Process Engineer,2024-01-30,Training gap,2024-01-30 08:00:00
+94,Sensor Assemblies,2024-12-07,Process Deviation,Minor,413,24328.88,Audit,In Progress,Quality Engineer,,Documentation error,2024-12-07 08:00:00
+95,Landing Gear,2024-08-10,Equipment Issue,Major,288,30371.37,Audit,Closed,Supervisor,2024-08-10,Documentation error,2024-08-10 08:00:00
+96,Turbine Blades,2024-09-22,Specification Change,Minor,489,5018.98,Visual Inspection,Closed,QA Lead,2024-09-22,Process parameter drift,2024-09-22 08:00:00
+97,Composite Panels,2024-07-03,Equipment Issue,Minor,21,17430.49,Customer Report,Closed,Supervisor,2024-07-03,Documentation error,2024-07-03 08:00:00
+98,Composite Panels,2024-09-24,Equipment Issue,Minor,399,21646.69,Visual Inspection,Closed,Quality Engineer,2024-09-24,Documentation error,2024-09-24 08:00:00
+99,Sensor Assemblies,2024-04-02,Audit Finding,Critical,374,22885.5,Automated Scanner,In Progress,Process Engineer,,Tool wear,2024-04-02 08:00:00
+100,Engine Mounts,2024-05-07,Customer Complaint,Major,358,49549.69,Automated Scanner,Closed,Quality Engineer,2024-05-07,Process parameter drift,2024-05-07 08:00:00
