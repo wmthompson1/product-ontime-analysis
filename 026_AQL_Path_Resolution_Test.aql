@@ -1,0 +1,260 @@
+// ============================================================================
+// AQL Path Resolution Test: NCM vs Defect Disambiguation
+// ============================================================================
+// 
+// This file demonstrates the "Solder Pattern" for resolving field collisions
+// between stg_non_conformant_materials (NCM) and stg_product_defects tables.
+//
+// The key insight: Perspective-driven Concept Elevation determines which
+// table's field to use when both have the same field name (e.g., severity).
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// TEST 1: Quality Perspective - Resolve "defects" to NCM
+// ----------------------------------------------------------------------------
+// User asks: "Show me defects with Critical severity"
+// Quality perspective elevates MATERIAL_NON_CONFORMANCE (weight=1.0)
+// Result: Routes to stg_non_conformant_materials.severity
+// ----------------------------------------------------------------------------
+
+LET user_query = "Show me defects with Critical severity"
+LET active_perspective = "Quality"
+
+// Step 1: Find the perspective node
+LET perspective_node = FIRST(
+    FOR p IN manufacturing_semantic_layer_vertices
+    FILTER p.type == "Perspective" AND p.name == active_perspective
+    RETURN p
+)
+
+// Step 2: Find elevated concepts from this perspective (weight = 1.0)
+LET elevated_concepts = (
+    FOR v, e IN 1..1 OUTBOUND perspective_node._id manufacturing_semantic_layer_edges
+    FILTER e.relationship == "ELEVATES" OR 
+           (e.relationship == "USES_DEFINITION" AND e.elevation_weight == 1.0)
+    RETURN {
+        concept: v.name,
+        elevation_weight: e.elevation_weight,
+        solder_priority: e.solder_priority,
+        collision_resolution: e.collision_resolution
+    }
+)
+
+// Step 3: Find which fields CAN_MEAN the elevated concept
+LET resolved_fields = (
+    FOR concept IN elevated_concepts
+        LET concept_node = FIRST(
+            FOR c IN manufacturing_semantic_layer_vertices
+            FILTER c.type == "Concept" AND c.name == concept.concept
+            RETURN c
+        )
+        FOR v, e IN 1..1 INBOUND concept_node._id manufacturing_semantic_layer_edges
+        FILTER e.relationship == "CAN_MEAN"
+        RETURN {
+            field: v.name,
+            table: v.table_name,
+            column: v.field_name,
+            concept: concept.concept,
+            priority: concept.solder_priority
+        }
+)
+
+RETURN {
+    query: user_query,
+    perspective: active_perspective,
+    elevated_concepts: elevated_concepts,
+    resolved_fields: resolved_fields,
+    solder_decision: "Use stg_non_conformant_materials.severity"
+}
+
+
+// ----------------------------------------------------------------------------
+// TEST 2: Finance Perspective - Resolve "defect costs" to NCM.cost_impact
+// ----------------------------------------------------------------------------
+// User asks: "What are our defect costs this quarter?"
+// Finance perspective elevates FINANCIAL_LIABILITY_NCM (weight=1.0)
+// Result: Routes to stg_non_conformant_materials.cost_impact (actual cost)
+//         NOT stg_product_defects.cost_impact (estimated cost)
+// 
+// COLLISION SCENARIO:
+// - stg_non_conformant_materials.cost_impact = ACTUAL cost (elevated)
+// - stg_product_defects.cost_impact = ESTIMATED cost (suppressed)
+// ----------------------------------------------------------------------------
+
+// Uncomment to run this test (comment out TEST 1 first)
+/*
+LET user_query = "What are our defect costs this quarter?"
+LET active_perspective = "Finance"
+
+LET perspective_node = FIRST(
+    FOR p IN manufacturing_semantic_layer_vertices
+    FILTER p.type == "Perspective" AND p.name == active_perspective
+    RETURN p
+)
+
+// Find elevated concepts (weight=1.0) and suppressed concepts (weight=0.0)
+LET elevated_concepts = (
+    FOR v, e IN 1..1 OUTBOUND perspective_node._id manufacturing_semantic_layer_edges
+    FILTER e.relationship == "ELEVATES" AND e.elevation_weight == 1.0
+    RETURN {
+        concept: v.name,
+        elevation_weight: e.elevation_weight,
+        collision_resolution: e.collision_resolution,
+        status: "ELEVATED"
+    }
+)
+
+LET suppressed_concepts = (
+    FOR v, e IN 1..1 OUTBOUND perspective_node._id manufacturing_semantic_layer_edges
+    FILTER e.relationship == "SUPPRESSES" AND e.elevation_weight == 0.0
+    RETURN {
+        concept: v.name,
+        elevation_weight: e.elevation_weight,
+        collision_resolution: e.collision_resolution,
+        status: "SUPPRESSED"
+    }
+)
+
+// Resolve fields for elevated concept only
+LET resolved_fields = (
+    FOR concept IN elevated_concepts
+        LET concept_node = FIRST(
+            FOR c IN manufacturing_semantic_layer_vertices
+            FILTER c.type == "Concept" AND c.name == concept.concept
+            RETURN c
+        )
+        FOR v, e IN 1..1 INBOUND concept_node._id manufacturing_semantic_layer_edges
+        FILTER e.relationship == "CAN_MEAN"
+        RETURN {
+            field: v.name,
+            table: v.table_name,
+            column: v.field_name,
+            concept: concept.concept,
+            is_primary: e.is_primary
+        }
+)
+
+// Show the collision: both tables have cost_impact
+LET competing_fields = (
+    FOR f IN manufacturing_semantic_layer_vertices
+    FILTER f.type == "Field" AND f.field_name == "cost_impact"
+    RETURN {
+        field: f.name,
+        table: f.table_name,
+        column: f.field_name
+    }
+)
+
+RETURN {
+    query: user_query,
+    perspective: active_perspective,
+    elevated_concepts: elevated_concepts,
+    suppressed_concepts: suppressed_concepts,
+    collision_analysis: {
+        competing_fields: competing_fields,
+        winner: "stg_non_conformant_materials.cost_impact (actual)",
+        loser: "stg_product_defects.cost_impact (estimated)"
+    },
+    resolved_fields: resolved_fields,
+    solder_decision: "Use SUM(stg_non_conformant_materials.cost_impact) - actual financial liability"
+}
+*/
+
+
+// ----------------------------------------------------------------------------
+// TEST 3: Full Graph Traversal - Intent to Field Resolution
+// ----------------------------------------------------------------------------
+// Pattern: (:Intent) -> [:OPERATES_WITHIN] -> (:Perspective)
+//          -> [:ELEVATES] -> (:Concept) <- [:CAN_MEAN] <- (:Field)
+// ----------------------------------------------------------------------------
+
+/*
+LET intent_name = "QualityTrending"
+
+LET path_resolution = (
+    FOR intent IN manufacturing_semantic_layer_vertices
+    FILTER intent.type == "Intent" AND intent.name == intent_name
+    
+    // Intent -> Perspective
+    FOR perspective, e1 IN 1..1 OUTBOUND intent._id manufacturing_semantic_layer_edges
+    FILTER e1.relationship == "OPERATES_WITHIN"
+    
+    // Perspective -> Concept (elevated only)
+    FOR concept, e2 IN 1..1 OUTBOUND perspective._id manufacturing_semantic_layer_edges
+    FILTER e2.relationship IN ["ELEVATES", "USES_DEFINITION"]
+    
+    // Concept <- Field
+    FOR field, e3 IN 1..1 INBOUND concept._id manufacturing_semantic_layer_edges
+    FILTER e3.relationship == "CAN_MEAN"
+    
+    RETURN {
+        intent: intent.name,
+        perspective: perspective.name,
+        concept: concept.name,
+        field: field.name,
+        table: field.table_name,
+        column: field.field_name,
+        operates_within_weight: e1.weight,
+        elevation_weight: e2.elevation_weight
+    }
+)
+
+RETURN {
+    intent: intent_name,
+    resolved_paths: path_resolution
+}
+*/
+
+
+// ----------------------------------------------------------------------------
+// TEST 4: Field Collision Detection
+// ----------------------------------------------------------------------------
+// Find fields that exist in multiple tables (potential collisions)
+// These require perspective-based disambiguation
+// ----------------------------------------------------------------------------
+
+/*
+LET collision_candidates = (
+    FOR f IN manufacturing_semantic_layer_vertices
+    FILTER f.type == "Field"
+    COLLECT column = f.field_name INTO tables = f.table_name
+    FILTER LENGTH(tables) > 1
+    RETURN {
+        field_name: column,
+        appears_in_tables: tables,
+        requires_disambiguation: true
+    }
+)
+
+RETURN {
+    title: "Field Collision Analysis",
+    collisions: collision_candidates,
+    resolution_strategy: "Use Perspective elevation weights to select primary table"
+}
+*/
+
+
+// ----------------------------------------------------------------------------
+// GRAPH VISUALIZATION QUERY
+// ----------------------------------------------------------------------------
+// Shows the NCM disambiguation subgraph for visualization
+// ----------------------------------------------------------------------------
+
+/*
+LET ncm_subgraph = (
+    FOR v IN manufacturing_semantic_layer_vertices
+    FILTER v.name IN [
+        "Quality", "Finance", 
+        "MATERIAL_NON_CONFORMANCE", "FINANCIAL_LIABILITY_NCM", "PRODUCTION_DEFECT",
+        "stg_non_conformant_materials.severity",
+        "stg_non_conformant_materials.cost_impact",
+        "stg_product_defects.severity"
+    ] OR v.name CONTAINS "NCM" OR v.name CONTAINS "non_conformant"
+    RETURN v
+)
+
+FOR v IN ncm_subgraph
+    FOR e IN manufacturing_semantic_layer_edges
+    FILTER e._from == v._id OR e._to == v._id
+    RETURN {vertex: v, edge: e}
+*/

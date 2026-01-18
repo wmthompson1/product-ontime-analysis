@@ -427,6 +427,97 @@ def generate_equipment_reliability(config: MockConfig, equipment_count: int) -> 
     return data
 
 
+def generate_non_conformant_materials(config: MockConfig, supplier_count: int, product_line_count: int) -> list[dict]:
+    """
+    Generate Non-Conformant Materials (NCM) data.
+    
+    NCM vs Defect Pattern:
+    - NCM is the material-centric view preferred by Quality perspective
+    - stg_product_defects tracks production defects (estimated cost)
+    - stg_non_conformant_materials tracks material NCMs (actual cost)
+    
+    When severity or cost_impact collides, the Perspective elevation
+    determines which "Solder" (table) to use:
+    - Quality perspective -> NCM.severity (root cause analysis)
+    - Finance perspective -> NCM.cost_impact (actual financial liability)
+    """
+    data = []
+    
+    material_types = [
+        "Titanium Alloy Ti-6Al-4V", "Aluminum 7075-T6", "Inconel 718",
+        "Carbon Fiber Composite", "Stainless Steel 304L", "Copper C110",
+        "Nickel Superalloy", "Magnesium AZ31B", "Tool Steel D2",
+        "Ceramic Matrix Composite"
+    ]
+    
+    ncm_descriptions = [
+        "Material hardness below specification - failed Rockwell test",
+        "Surface contamination detected - oil residue on raw stock",
+        "Dimensional variance exceeds tolerance - undersized bar stock",
+        "Grain structure anomaly - improper heat treatment by supplier",
+        "Chemical composition out of spec - carbon content high",
+        "Incoming inspection failed - visual defects on surface",
+        "Certificate of Conformance missing required test data",
+        "Lot traceability documentation incomplete",
+        "Material substitution without engineering approval",
+        "Storage damage - corrosion from improper handling"
+    ]
+    
+    root_causes = [
+        "Supplier process deviation",
+        "Raw material batch variation",
+        "Transportation damage",
+        "Storage condition failure",
+        "Incoming inspection escape",
+        "Documentation error",
+        "Supplier change notification missed",
+        "Specification interpretation error"
+    ]
+    
+    ncm_id = 1
+    current_date = config.start_date
+    
+    while current_date <= config.end_date:
+        num_ncms = random.randint(0, 2)
+        
+        for _ in range(num_ncms):
+            supplier_id = random.randint(1, supplier_count)
+            product_line = PRODUCT_LINES[random.randint(0, product_line_count - 1)][0]
+            severity = random.choice(SEVERITY_LEVELS)
+            
+            if severity == "Critical":
+                cost_impact = round(random.uniform(5000, 50000), 2)
+                quantity = random.randint(50, 500)
+            elif severity == "Major":
+                cost_impact = round(random.uniform(1000, 10000), 2)
+                quantity = random.randint(20, 200)
+            else:
+                cost_impact = round(random.uniform(100, 2000), 2)
+                quantity = random.randint(5, 50)
+            
+            is_resolved = random.random() > 0.25
+            
+            data.append({
+                "ncm_id": ncm_id,
+                "incident_date": current_date.strftime("%Y-%m-%d"),
+                "product_line": product_line,
+                "supplier_id": supplier_id,
+                "material_type": random.choice(material_types),
+                "defect_description": random.choice(ncm_descriptions),
+                "quantity_affected": quantity,
+                "severity": severity,
+                "root_cause": random.choice(root_causes),
+                "cost_impact": cost_impact,
+                "status": "Closed" if is_resolved else random.choice(["Open", "Under Review", "Pending Disposition"]),
+                "created_date": current_date.strftime("%Y-%m-%d %H:%M:%S")
+            })
+            ncm_id += 1
+        
+        current_date += timedelta(days=1)
+    
+    return data
+
+
 def write_csv(data: list[dict], filepath: Path, preview: bool = False) -> None:
     """Write data to CSV file."""
     if not data:
@@ -475,6 +566,7 @@ def generate_all_mock_data(config: MockConfig, preview: bool = False) -> dict[st
     downtime_events = generate_downtime_events(config, len(production_lines), equipment_count)
     quality_incidents = generate_quality_incidents(config, len(product_lines))
     equipment_reliability = generate_equipment_reliability(config, equipment_count)
+    non_conformant_materials = generate_non_conformant_materials(config, len(suppliers), len(product_lines))
     
     all_data = {
         "suppliers.csv": suppliers,
@@ -487,6 +579,7 @@ def generate_all_mock_data(config: MockConfig, preview: bool = False) -> dict[st
         "failure_events.csv": failure_events,
         "downtime_events.csv": downtime_events,
         "quality_incidents.csv": quality_incidents,
+        "non_conformant_materials.csv": non_conformant_materials,
     }
     
     for filename, data in all_data.items():
