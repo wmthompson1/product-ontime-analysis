@@ -860,7 +860,7 @@ samv2 = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 scib = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 scib-metrics = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 scvi-tools = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-sdmetrics = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+
 secretflow = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 segment-anything-hq = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 segment-anything-py = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
