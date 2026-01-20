@@ -1,11 +1,27 @@
 MODEL (
   name staging.stg_corrective_actions,
-  kind SEED (
-    path '$root/seeds/corrective_actions.csv'
+  kind INCREMENTAL_BY_TIME_RANGE (
+    time_column target_date
   ),
-  grain (action_id),
+  cron '@daily',
+  grain (capa_id, ncm_id),
   audits (
-    UNIQUE_VALUES(columns = (action_id)),
-    NOT_NULL(columns = (action_id))
+    UNIQUE_VALUES(columns = (capa_id)),
+    NOT_NULL(columns = (capa_id))
+  ),
+  columns (
+    effectiveness_score 'CAPA effectiveness score'
   )
 );
+
+SELECT
+  capa_id,
+  ncm_id,
+  action_description,
+  target_date,
+  actual_date,
+  effectiveness_score,
+  status,
+  COALESCE(created_date, CURRENT_TIMESTAMP) AS created_date
+FROM raw.corrective_actions
+WHERE target_date BETWEEN @start_ds AND @end_ds;

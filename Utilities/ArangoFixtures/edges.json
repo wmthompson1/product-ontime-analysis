@@ -1,0 +1,48 @@
+[
+    {
+        "_key": "e_q_elev_ncm",
+        "_from": "manufacturing_semantic_layer_vertices/p_quality",
+        "_to": "manufacturing_semantic_layer_vertices/c_ncm",
+        "relationship": "ELEVATES",
+        "elevation_weight": 1.0,
+        "solder_priority": 1,
+        "collision_resolution": "prefer_ncm"
+    },
+    {
+        "_key": "e_f_elev_fin_ncm",
+        "_from": "manufacturing_semantic_layer_vertices/p_finance",
+        "_to": "manufacturing_semantic_layer_vertices/c_fin_ncm",
+        "relationship": "ELEVATES",
+        "elevation_weight": 1.0,
+        "solder_priority": 1,
+        "collision_resolution": "prefer_financial_ncm"
+    },
+    {
+        "_key": "e_c_ncm_canmean_sev",
+        "_from": "manufacturing_semantic_layer_vertices/c_ncm",
+        "_to": "manufacturing_semantic_layer_vertices/f_ncm_severity",
+        "relationship": "CAN_MEAN",
+        "is_primary": true
+    },
+    {
+        "_key": "e_f_ncm_canmean_cost",
+        "_from": "manufacturing_semantic_layer_vertices/f_ncm_cost",
+        "_to": "manufacturing_semantic_layer_vertices/c_ncm",
+        "relationship": "CAN_MEAN",
+        "is_primary": true
+    },
+    {
+        "_key": "e_c_def_canmean_sev",
+        "_from": "manufacturing_semantic_layer_vertices/c_prod_def",
+        "_to": "manufacturing_semantic_layer_vertices/f_def_severity",
+        "relationship": "CAN_MEAN",
+        "is_primary": true
+    },
+    {
+        "_key": "e_f_def_canmean_cost",
+        "_from": "manufacturing_semantic_layer_vertices/f_def_cost",
+        "_to": "manufacturing_semantic_layer_vertices/c_prod_def",
+        "relationship": "CAN_MEAN",
+        "is_primary": true
+    }
+]

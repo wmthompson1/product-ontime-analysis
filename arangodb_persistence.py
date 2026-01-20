@@ -42,7 +42,12 @@ class ArangoDBConfig:
         """Set environment variables for nx-arangodb"""
         os.environ["DATABASE_HOST"] = self.host
         os.environ["DATABASE_USERNAME"] = self.username
-        os.environ["DATABASE_PASSWORD"] = self.password
+        # nx_arangodb treats an empty DATABASE_PASSWORD as "not set" which
+        # prevents it from attempting a connection. To be defensive, if the
+        # configured password is empty we set a placeholder so the adapter will
+        # still attempt to connect (useful when ArangoDB is started with
+        # ARANGO_NO_AUTH=1 in local tests).
+        os.environ["DATABASE_PASSWORD"] = self.password or "__placeholder_password__"
         os.environ["DATABASE_NAME"] = self.database_name
     
     def get_connection_info(self) -> Dict[str, str]:
@@ -69,14 +74,22 @@ class ArangoDBGraphPersistence:
     def _ensure_database_exists(self):
         """Create the database if it doesn't exist"""
         from arango import ArangoClient
-        
         client = ArangoClient(hosts=self.config.host)
-        sys_db = client.db("_system", username=self.config.username, password=self.config.password)
-        
-        if not sys_db.has_database(self.config.database_name):
-            print(f"📦 Creating database '{self.config.database_name}'...")
-            sys_db.create_database(self.config.database_name)
-            print(f"✅ Database created")
+        try:
+            sys_db = client.db("_system", username=self.config.username, password=self.config.password)
+        except Exception:
+            # Try without auth as a fallback for local testing
+            sys_db = client.db("_system")
+
+        try:
+            if not sys_db.has_database(self.config.database_name):
+                print(f"📦 Creating database '{self.config.database_name}'...")
+                sys_db.create_database(self.config.database_name)
+                print(f"✅ Database created")
+        except Exception as e:
+            # If permission issues occur, surface a clear message
+            print(f"⚠️  Could not verify/create database '{self.config.database_name}': {e}")
+            raise
     
     def persist_graph(
         self,
@@ -90,6 +103,27 @@ class ArangoDBGraphPersistence:
         print(f"   Nodes: {graph.number_of_nodes()}, Edges: {graph.number_of_edges()}")
         
         try:
+            # Defensive overwrite behavior: if overwrite is requested and the
+            # graph exists in ArangoDB, remove it first to guarantee a clean
+            # persistence.
+            from arango import ArangoClient
+
+            client = ArangoClient(hosts=self.config.host)
+            try:
+                sys_db = client.db("_system", username=self.config.username, password=self.config.password)
+            except Exception:
+                sys_db = client.db("_system")
+
+            db = client.db(self.config.database_name, username=self.config.username, password=self.config.password)
+            if overwrite:
+                try:
+                    if db.has_graph(name):
+                        print(f"🗑️  Overwrite requested: dropping existing graph '{name}'...")
+                        db.delete_graph(name, drop_collections=True)
+                        print(f"✅ Dropped existing graph '{name}'")
+                except Exception as e:
+                    print(f"⚠️  Could not drop existing graph '{name}': {e}")
+
             if isinstance(graph, nx.DiGraph):
                 adb_graph = nxadb.DiGraph(  # type: ignore
                     name=name,
@@ -104,7 +138,7 @@ class ArangoDBGraphPersistence:
                     write_batch_size=write_batch_size,
                     overwrite_graph=overwrite
                 )
-            
+
             print(f"✅ Graph '{name}' persisted successfully")
             return adb_graph
             
