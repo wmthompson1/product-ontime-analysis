@@ -4,14 +4,16 @@ MODEL (
     time_column incident_date
   ),
   cron '@daily',
-  grain incident_id,
+  grain (incident_id),
+    partitioned_by (incident_date),
   audits (
     UNIQUE_VALUES(columns = (incident_id)),
     NOT_NULL(columns = (incident_id))
   ),
   columns (
-    severity_level 'Severity level for prioritization',
-    cost_impact 'Financial impact in dollars'
+    incident_date "partition key",
+    severity_level "Severity level for prioritization",
+    cost_impact "Financial impact in dollars"
   )
 );
 

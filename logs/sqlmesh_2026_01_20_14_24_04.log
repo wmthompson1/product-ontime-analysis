@@ -1,0 +1,34 @@
+2026-01-20 14:24:04,058 - MainThread - sqlmesh.cli - ERROR - Unhandled exception (__init__.py:53)
+Traceback (most recent call last):
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/core/config/loader.py", line 234, in load_config_from_python_module
+    config_obj = getattr(config_module, config_name)
+AttributeError: module 'config' has no attribute 'config'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/cli/__init__.py", line 51, in _debug_exception_handler
+    return func()
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/cli/__init__.py", line 29, in <lambda>
+    return handler(sqlmesh_context, lambda: func(*args, **kwargs))
+                                            ~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/cli/main.py", line 127, in cli
+    configs = load_configs(config, Context.CONFIG_TYPE, paths, dotenv_path=dotenv)
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/core/config/loader.py", line 69, in load_configs
+    path: load_config_from_paths(
+          ~~~~~~~~~~~~~~~~~~~~~~^
+        config_type,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/core/config/loader.py", line 123, in load_config_from_paths
+    python_config = load_config_from_python_module(
+        config_type, path, config_name=config_name
+    )
+  File "/Users/williamthompson/bbb/20241019 Python/.venv/lib/python3.13/site-packages/sqlmesh/core/config/loader.py", line 236, in load_config_from_python_module
+    raise ConfigError(f"Config '{config_name}' was not found.")
+sqlmesh.utils.errors.ConfigError: Config 'config' was not found.
+2026-01-20 14:24:04,071 - MainThread - root - INFO - Shutting down the event dispatcher (dispatcher.py:159)

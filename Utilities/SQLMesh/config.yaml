@@ -1,4 +1,4 @@
-
+# --- Gateway Connection ---
 # --- Gateway Connection ---
 gateways:
   duckdb:
@@ -12,14 +12,14 @@ gateways:
       # register_comments: True
       # pre_ping: False
       # pretty_sql: False
-      # schema_differ_overrides: 
-      # catalog_type_overrides: 
-      # catalogs: 
-      # extensions: 
-      # connector_config: 
-      # secrets: 
-      # filesystems: 
-      # token: 
+      # schema_differ_overrides:
+      # catalog_type_overrides:
+      # catalogs:
+      # extensions:
+      # connector_config:
+      # secrets:
+      # filesystems:
+      # token:
 
 default_gateway: duckdb
 
@@ -29,7 +29,7 @@ default_gateway: duckdb
 model_defaults:
   dialect: duckdb
   start: 2026-01-07 # Start date for backfill history
-  cron: '@daily'    # Run models daily at 12am UTC (can override per model)
+  cron: "@daily" # Run models daily at 12am UTC (can override per model)
 
 # --- Linting Rules ---
 # Enforce standards for your team

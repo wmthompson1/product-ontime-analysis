@@ -5,12 +5,14 @@ MODEL (
   ),
   cron '@daily',
   grain (quality_id, shift_id),
+  partitioned_by (production_date),
   audits (
     UNIQUE_VALUES(columns = (quality_id)),
     NOT_NULL(columns = (quality_id))
   ),
   columns (
-    defect_rate 'Defect rate as percentage'
+    production_date "partition key",
+    defect_rate "Defect rate as percentage"
   )
 );
 

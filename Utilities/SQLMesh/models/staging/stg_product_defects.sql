@@ -4,14 +4,16 @@ MODEL (
     time_column production_date
   ),
   cron '@daily',
-  grain defect_id,
+  grain (defect_id),
+    partitioned_by (production_date),
   audits (
     UNIQUE_VALUES(columns = (defect_id)),
     NOT_NULL(columns = (defect_id))
   ),
   columns (
-    defect_rate 'Defect rate as percentage',
-    severity 'Severity classification (Critical/Major/Minor)'
+    production_date "partition key",
+    defect_rate "Defect rate as percentage",
+    severity "Severity classification (Critical/Major/Minor)"
   )
 );
 

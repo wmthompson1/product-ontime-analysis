@@ -1,13 +1,13 @@
 MODEL (
   name staging.stg_production_lines,
   kind FULL,
-  grain line_id,
+  grain (line_id),
   audits (
     UNIQUE_VALUES(columns = (line_id)),
     NOT_NULL(columns = (line_id))
   ),
   columns (
-    efficiency_rating 'Efficiency rating (0-100%)'
+    efficiency_rating "Efficiency rating (0-100%)"
   )
 );
 

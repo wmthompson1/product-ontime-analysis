@@ -4,11 +4,12 @@ MODEL (
     time_column event_date
   ),
   cron '@daily',
-  grain impact_id,
+  grain (impact_id),
+    partitioned_by (event_date),
   audits (
     UNIQUE_VALUES(columns = (impact_id)),
     NOT_NULL(columns = (impact_id))
-  )
+    ),
 );
 
 SELECT

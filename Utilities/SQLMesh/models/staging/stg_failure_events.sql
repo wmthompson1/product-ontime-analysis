@@ -5,13 +5,15 @@ MODEL (
   ),
   cron '@daily',
   grain (failure_id, equipment_id),
+    partitioned_by (failure_date),
   audits (
     UNIQUE_VALUES(columns = (failure_id)),
     NOT_NULL(columns = (failure_id))
   ),
   columns (
-    severity_level 'Severity level for prioritization',
-    downtime_hours 'Downtime duration in hours'
+    failure_date "partition key",
+    severity_level "Severity level for prioritization",
+    downtime_hours "Downtime duration in hours"
   )
 );
 

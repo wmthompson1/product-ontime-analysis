@@ -4,11 +4,12 @@ MODEL (
     time_column measurement_date
   ),
   cron '@daily',
-  grain metric_id,
+  grain (metric_id),
+    partitioned_by (measurement_date),
   audits (
     UNIQUE_VALUES(columns = (metric_id)),
     NOT_NULL(columns = (metric_id))
-  )
+  ),
 );
 
 SELECT

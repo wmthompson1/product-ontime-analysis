@@ -1,11 +1,11 @@
 MODEL (
   name staging.stg_manufacturing_acronyms,
   kind FULL,
-  grain acronym_id,
+  grain (acronym_id),
   audits (
     UNIQUE_VALUES(columns = (acronym_id)),
     NOT_NULL(columns = (acronym_id))
-  )
+  ),
 );
 
 SELECT

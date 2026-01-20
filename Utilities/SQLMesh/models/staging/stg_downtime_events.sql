@@ -5,12 +5,14 @@ MODEL (
   ),
   cron '@daily',
   grain (event_id, line_id, equipment_id),
+    partitioned_by (event_start_time),
   audits (
     UNIQUE_VALUES(columns = (event_id)),
     NOT_NULL(columns = (event_id))
   ),
   columns (
-    cost_impact 'Financial impact in dollars'
+    event_start_time "partition key",
+    cost_impact "Financial impact in dollars"
   )
 );
 

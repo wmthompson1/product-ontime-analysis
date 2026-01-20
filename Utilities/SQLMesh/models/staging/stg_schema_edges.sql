@@ -1,11 +1,11 @@
 MODEL (
   name staging.stg_schema_edges,
   kind FULL,
-  grain edge_id,
+  grain (edge_id),
   audits (
     UNIQUE_VALUES(columns = (edge_id)),
     NOT_NULL(columns = (edge_id))
-  )
+  ),
 );
 
 SELECT

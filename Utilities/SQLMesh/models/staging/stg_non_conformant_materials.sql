@@ -5,13 +5,15 @@ MODEL (
   ),
   cron '@daily',
   grain (ncm_id, supplier_id),
+  partitioned_by (incident_date),
   audits (
     UNIQUE_VALUES(columns = (ncm_id)),
     NOT_NULL(columns = (ncm_id))
   ),
   columns (
-    severity 'Severity classification (Critical/Major/Minor)',
-    cost_impact 'Financial impact in dollars'
+    incident_date "partition key",
+    severity "Severity classification (Critical/Major/Minor)",
+    cost_impact "Financial impact in dollars"
   )
 );
 

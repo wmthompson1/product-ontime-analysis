@@ -1,11 +1,11 @@
 MODEL (
   name staging.stg_suppliers,
   kind FULL,
-  grain supplier_id,
+  grain (supplier_id),
   audits (
     UNIQUE_VALUES(columns = (supplier_id)),
     NOT_NULL(columns = (supplier_id))
-  )
+  ),
 );
 
 SELECT

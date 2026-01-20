@@ -5,7 +5,7 @@ MODEL (
   audits (
     UNIQUE_VALUES(columns = (concept_id)),
     NOT_NULL(columns = (concept_id))
-  )
+  ),
 );
 
 SELECT

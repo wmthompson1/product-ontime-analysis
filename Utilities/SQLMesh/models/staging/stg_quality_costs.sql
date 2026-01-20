@@ -5,10 +5,11 @@ MODEL (
   ),
   cron '@daily',
   grain (cost_id, product_line_id),
+    partitioned_by (cost_date),
   audits (
     UNIQUE_VALUES(columns = (cost_id)),
     NOT_NULL(columns = (cost_id))
-  )
+  ),
 );
 
 SELECT

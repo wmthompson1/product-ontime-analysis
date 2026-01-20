@@ -5,13 +5,15 @@ MODEL (
   ),
   cron '@daily',
   grain (delivery_id, supplier_id),
+    partitioned_by (delivery_date),
   audits (
     UNIQUE_VALUES(columns = (delivery_id)),
     NOT_NULL(columns = (delivery_id))
   ),
   columns (
-    ontime_rate 'On-time delivery rate (0-1 scale)',
-    quality_score 'Quality score from supplier evaluation'
+    delivery_date "partition key",
+    ontime_rate "On-time delivery rate (0-1 scale)",
+    quality_score "Quality score from supplier evaluation"
   )
 );
 

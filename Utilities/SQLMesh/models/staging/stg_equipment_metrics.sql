@@ -5,16 +5,18 @@ MODEL (
   ),
   cron '@daily',
   grain (equipment_id, line_id),
-  audits (
-    UNIQUE_VALUES(columns = (equipment_id)),
-    NOT_NULL(columns = (equipment_id))
-  ),
+    partitioned_by (measurement_date),
+    audits (
+      UNIQUE_VALUES(columns = (equipment_id)),
+      NOT_NULL(columns = (equipment_id))
+    ),
   columns (
-    availability_rate 'Equipment availability (OEE component)',
-    performance_rate 'Equipment performance (OEE component)',
-    quality_rate 'Equipment quality rate (OEE component)',
-    oee_score 'Overall Equipment Effectiveness (0-100%)',
-    downtime_hours 'Downtime duration in hours'
+    measurement_date "partition key",
+    availability_rate "Equipment availability (OEE component)",
+    performance_rate "Equipment performance (OEE component)",
+    quality_rate "Equipment quality rate (OEE component)",
+    oee_score "Overall Equipment Effectiveness (0-100%)",
+    downtime_hours "Downtime duration in hours"
   )
 );
 

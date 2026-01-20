@@ -5,10 +5,11 @@ MODEL (
   ),
   cron '@daily',
   grain (schedule_id, line_id),
+    partitioned_by (planned_start),
   audits (
     UNIQUE_VALUES(columns = (schedule_id)),
     NOT_NULL(columns = (schedule_id))
-  )
+  ),
 );
 
 SELECT

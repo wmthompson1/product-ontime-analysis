@@ -1,11 +1,11 @@
 MODEL (
   name staging.stg_maintenance_targets,
   kind FULL,
-  grain target_id,
+  grain (target_id),
   audits (
     UNIQUE_VALUES(columns = (target_id)),
     NOT_NULL(columns = (target_id))
-  )
+  ),
 );
 
 SELECT

@@ -5,13 +5,15 @@ MODEL (
   ),
   cron '@daily',
   grain (reliability_id, equipment_id),
+    partitioned_by (measurement_period),
   audits (
     UNIQUE_VALUES(columns = (reliability_id)),
     NOT_NULL(columns = (reliability_id))
   ),
   columns (
-    mtbf_hours 'Mean Time Between Failures in hours',
-    reliability_score 'Reliability score (0-100)'
+    measurement_period "partition key",
+    mtbf_hours "Mean Time Between Failures in hours",
+    reliability_score "Reliability score (0-100)"
   )
 );
 

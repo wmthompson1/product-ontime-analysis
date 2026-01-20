@@ -3,7 +3,11 @@
 source .venv/bin/activate
 
 # confirm SQLMesh sees the project
+cd root
 sqlmesh info -p Utilities/SQLMesh
+
+# Run 
+cd Utilities/SQLMesh && . venv/bin/sqlmesh info (WITHOUT the -p flag). SQLMesh expects to run FROM the project directory where config.yaml lives, not with a -p path to it.
 
 # plan/apply and run tests
 sqlmesh plan -p Utilities/SQLMesh --auto-apply
