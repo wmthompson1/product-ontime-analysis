@@ -47,7 +47,7 @@ jobs:
                         - name: Create SQLMesh Plan  # ← ADD THIS STEP
                             working-directory: Utilities/SQLMesh
                             run: |
-                                sqlmesh plan --auto-apply --create-from prod
+                                sqlmesh plan --auto-apply --create-from prod --no-prompts
 
                         - name: Run SQLMesh Models
                             working-directory: Utilities/SQLMesh
