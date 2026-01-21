@@ -4,22 +4,22 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'Utilities/SQLMesh/**'
+      - "Utilities/SQLMesh/**"
   pull_request:
     branches: [main, master]
     paths:
-      - 'Utilities/SQLMesh/**'
+      - "Utilities/SQLMesh/**"
   workflow_dispatch:
 
 env:
-  PYTHON_VERSION: '3.11'
-  SQLMESH_PROJECT_PATH: 'Utilities/SQLMesh'
+  PYTHON_VERSION: "3.11"
+  SQLMESH_PROJECT_PATH: "Utilities/SQLMesh"
 
 jobs:
   lint-and-test:
     name: Lint & Test Models
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install SQLMesh
         run: |
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint-and-test
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -67,7 +67,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install SQLMesh
         run: pip install sqlmesh
@@ -84,7 +84,7 @@ jobs:
     needs: lint-and-test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -93,7 +93,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
+          cache: "pip"
 
       - name: Install SQLMesh
         run: pip install sqlmesh
@@ -103,6 +103,15 @@ jobs:
         run: |
           echo "Deploying to production..."
           sqlmesh plan --auto-apply
+
+      - name: Create SQLMesh Plan # ← ADD THIS STEP
+        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+        run: |
+          sqlmesh plan --auto-apply --create-from prod
+
+      - name: Run SQLMesh Models
+        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+        run: sqlmesh run
 
       - name: Generate lineage report
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
