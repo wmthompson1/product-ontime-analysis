@@ -47,11 +47,12 @@ jobs:
           echo "Running unit tests..."
           sqlmesh test --verbose
 
-      - name: Run SQLMesh audits
-        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
-        run: |
-          echo "Running data quality audits..."
-          sqlmesh audit
+  # REMOVE THIS STEP - audits run during plan/run
+  #  - name: Run SQLMesh audits
+  #    working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+  #    run: |
+  #      echo "Running data quality audits..."
+  #      sqlmesh audit
 
   plan-dev:
     name: Plan Dev Environment
