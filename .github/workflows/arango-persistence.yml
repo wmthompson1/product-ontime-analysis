@@ -1,0 +1,63 @@
+name: Arango Persistence CI
+
+on:
+    pull_request:
+        paths:
+            - "**/026_Entry_Point_NCM_Elevation_ArangoDB.py"
+            - "Utilities/ArangoFixtures/**"
+            - "arangodb_persistence.py"
+
+jobs:
+    arango-persist:
+        runs-on: ubuntu-latest
+        services:
+            arangodb:
+                image: arangodb/arangodb:3.10
+                env:
+                    ARANGO_ROOT_PASSWORD: rootpass
+                ports:
+                    - 8529:8529
+                options: >-
+                    --health-cmd="/usr/bin/curl -f http://localhost:8529/_api/version || exit 1"
+                    --health-interval=10s --health-timeout=5s --health-retries=10
+
+        steps:
+            - uses: actions/checkout@v4
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip
+                  if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+                  pip install pytest
+
+            - name: Wait for ArangoDB
+              run: |
+                  for i in {1..30}; do
+                    curl -sSf http://localhost:8529/_api/version && break || sleep 2
+                  done
+
+                        - name: Validate SQLMesh Configuration
+                            working-directory: Utilities/SQLMesh
+                            run: sqlmesh info
+
+                        - name: Create SQLMesh Plan  # ← ADD THIS STEP
+                            working-directory: Utilities/SQLMesh
+                            run: |
+                                sqlmesh plan --auto-apply --create-from prod --no-prompts
+
+                        - name: Run SQLMesh Models
+                            working-directory: Utilities/SQLMesh
+                            run: sqlmesh run
+
+            - name: Run persistence test
+              env:
+                  DATABASE_HOST: http://localhost:8529
+                  DATABASE_USERNAME: root
+                  DATABASE_PASSWORD: rootpass
+                  DATABASE_NAME: ci_networkx_graphs
+              run: |
+                  pytest -q

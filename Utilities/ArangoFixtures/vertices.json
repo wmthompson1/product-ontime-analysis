@@ -1,0 +1,55 @@
+[
+    {
+        "_key": "p_quality",
+        "type": "Perspective",
+        "name": "Quality"
+    },
+    {
+        "_key": "p_finance",
+        "type": "Perspective",
+        "name": "Finance"
+    },
+    {
+        "_key": "c_ncm",
+        "type": "Concept",
+        "name": "MATERIAL_NON_CONFORMANCE"
+    },
+    {
+        "_key": "c_fin_ncm",
+        "type": "Concept",
+        "name": "FINANCIAL_LIABILITY_NCM"
+    },
+    {
+        "_key": "c_prod_def",
+        "type": "Concept",
+        "name": "PRODUCTION_DEFECT"
+    },
+    {
+        "_key": "f_ncm_severity",
+        "type": "Field",
+        "name": "stg_non_conformant_materials.severity",
+        "table_name": "stg_non_conformant_materials",
+        "field_name": "severity"
+    },
+    {
+        "_key": "f_ncm_cost",
+        "type": "Field",
+        "name": "stg_non_conformant_materials.cost_impact",
+        "table_name": "stg_non_conformant_materials",
+        "field_name": "cost_impact"
+    },
+    {
+        "_key": "f_def_severity",
+        "type": "Field",
+        "name": "stg_product_defects.severity",
+        "table_name": "stg_product_defects",
+        "field_name": "severity"
+    },
+    {
+        "_key": "f_def_cost",
+        "type": "Field",
+        "name": "stg_product_defects.cost_impact",
+        "table_name": "stg_product_defects",
+        "field_name": "cost_impact"
+    }
+]
