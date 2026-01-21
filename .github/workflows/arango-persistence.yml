@@ -40,6 +40,19 @@ jobs:
                     curl -sSf http://localhost:8529/_api/version && break || sleep 2
                   done
 
+                        - name: Validate SQLMesh Configuration
+                            working-directory: Utilities/SQLMesh
+                            run: sqlmesh info
+
+                        - name: Create SQLMesh Plan  # ← ADD THIS STEP
+                            working-directory: Utilities/SQLMesh
+                            run: |
+                                sqlmesh plan --auto-apply --create-from prod
+
+                        - name: Run SQLMesh Models
+                            working-directory: Utilities/SQLMesh
+                            run: sqlmesh run
+
             - name: Run persistence test
               env:
                   DATABASE_HOST: http://localhost:8529
