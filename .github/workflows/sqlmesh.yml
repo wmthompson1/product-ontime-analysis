@@ -77,6 +77,15 @@ jobs:
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
           echo "Planning changes for dev environment..."
+          sqlmesh plan dev --auto-apply --skip-backfill
+
+      - name: Install SQLMesh
+        run: pip install sqlmesh
+
+      - name: Plan dev environment
+        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+        run: |
+          echo "Planning changes for dev environment..."
           sqlmesh plan dev --no-prompts --skip-backfill
 
   deploy-prod:
@@ -103,12 +112,12 @@ jobs:
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
           echo "Deploying to production..."
-          sqlmesh plan --auto-apply
+          sqlmesh plan --auto-apply --no-prompts
 
       - name: Create SQLMesh Plan # ← ADD THIS STEP
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
-          sqlmesh plan --auto-apply --create-from prod
+          sqlmesh plan --auto-apply --create-from prod --no-prompts
 
       - name: Run SQLMesh Models
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
