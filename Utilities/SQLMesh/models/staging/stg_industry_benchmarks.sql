@@ -3,6 +3,16 @@ MODEL (
   kind SEED (
     path '$root/seeds/industry_benchmarks.csv'
   ),
+  columns (
+    benchmark_id TEXT,
+    metric_name TEXT,
+    benchmark_level TEXT,
+    benchmark_value DOUBLE,
+    industry_segment TEXT,
+    source TEXT,
+    year INTEGER,
+    created_date TIMESTAMP
+  ),
   grain (benchmark_id),
   audits (
     UNIQUE_VALUES(columns = (benchmark_id)),

@@ -3,6 +3,14 @@ MODEL (
   kind SEED (
     path '$root/seeds/manufacturing_acronyms.csv'
   ),
+  columns (
+    acronym_id TEXT,
+    acronym TEXT,
+    full_name TEXT,
+    category TEXT,
+    description TEXT,
+    created_date TIMESTAMP
+  ),
   grain (acronym_id),
   audits (
     UNIQUE_VALUES(columns = (acronym_id)),
