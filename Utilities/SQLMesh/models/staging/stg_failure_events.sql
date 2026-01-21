@@ -10,11 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (failure_id)),
     NOT_NULL(columns = (failure_id))
   ),
-  columns (
-    failure_date "partition key",
-    severity_level "Severity level for prioritization",
-    downtime_hours "Downtime duration in hours"
-  )
+  
 );
 
 SELECT

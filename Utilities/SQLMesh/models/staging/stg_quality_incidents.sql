@@ -10,11 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (incident_id)),
     NOT_NULL(columns = (incident_id))
   ),
-  columns (
-    incident_date "partition key",
-    severity_level "Severity level for prioritization",
-    cost_impact "Financial impact in dollars"
-  )
+  
 );
 
 SELECT

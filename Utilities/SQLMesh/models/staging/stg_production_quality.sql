@@ -10,10 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (quality_id)),
     NOT_NULL(columns = (quality_id))
   ),
-  columns (
-    production_date "partition key",
-    defect_rate "Defect rate as percentage"
-  )
+  
 );
 
 SELECT

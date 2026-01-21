@@ -6,9 +6,7 @@ MODEL (
     UNIQUE_VALUES(columns = (line_id)),
     NOT_NULL(columns = (line_id))
   ),
-  columns (
-    efficiency_rating "Efficiency rating (0-100%)"
-  )
+  
 );
 
 SELECT

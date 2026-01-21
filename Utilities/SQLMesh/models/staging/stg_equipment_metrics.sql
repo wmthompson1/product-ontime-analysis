@@ -10,14 +10,7 @@ MODEL (
       UNIQUE_VALUES(columns = (equipment_id)),
       NOT_NULL(columns = (equipment_id))
     ),
-  columns (
-    measurement_date "partition key",
-    availability_rate "Equipment availability (OEE component)",
-    performance_rate "Equipment performance (OEE component)",
-    quality_rate "Equipment quality rate (OEE component)",
-    oee_score "Overall Equipment Effectiveness (0-100%)",
-    downtime_hours "Downtime duration in hours"
-  )
+  
 );
 
 SELECT

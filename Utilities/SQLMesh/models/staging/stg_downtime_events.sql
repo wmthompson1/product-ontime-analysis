@@ -10,10 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (event_id)),
     NOT_NULL(columns = (event_id))
   ),
-  columns (
-    event_start_time "partition key",
-    cost_impact "Financial impact in dollars"
-  )
+  
 );
 
 SELECT

@@ -10,11 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (defect_id)),
     NOT_NULL(columns = (defect_id))
   ),
-  columns (
-    production_date "partition key",
-    defect_rate "Defect rate as percentage",
-    severity "Severity classification (Critical/Major/Minor)"
-  )
+  
 );
 
 SELECT

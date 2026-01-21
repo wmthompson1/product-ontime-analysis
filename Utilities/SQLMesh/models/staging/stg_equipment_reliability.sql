@@ -10,11 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (reliability_id)),
     NOT_NULL(columns = (reliability_id))
   ),
-  columns (
-    measurement_period "partition key",
-    mtbf_hours "Mean Time Between Failures in hours",
-    reliability_score "Reliability score (0-100)"
-  )
+  
 );
 
 SELECT

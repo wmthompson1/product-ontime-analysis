@@ -10,10 +10,7 @@ MODEL (
     UNIQUE_VALUES(columns = (capa_id)),
     NOT_NULL(columns = (capa_id))
   ),
-  columns (
-    target_date "partition key",
-    effectiveness_score "CAPA effectiveness score"
-  )
+  
 );
 
 SELECT
