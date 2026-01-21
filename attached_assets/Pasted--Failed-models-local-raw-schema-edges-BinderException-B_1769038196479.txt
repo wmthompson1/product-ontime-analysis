@@ -1,0 +1,85 @@
+
+Failed models
+
+  "local"."raw"."schema_edges"
+
+    BinderException:
+      Binder Error: Referenced column "id" not found in FROM clause!
+      Candidate bindings: "weight", "edge_id", "join_column", "relationship_type",
+"join_column_description"
+
+      LINE 1: ...schema_edges__3718752317" AS SELECT *, COALESCE("edge_id", "id") AS "edge_id" FROM  
+READ_CSV_AUTO('Utilities/SQLMesh...
+                                                                            ^
+
+  "local"."raw"."schema_nodes"
+
+    IOException:
+      IO Error: No files found that match the pattern "$root/seeds/schema_nodes.csv"
+
+      LINE 1: ...ESCE("created_at", CURRENT_TIMESTAMP) AS "created_at" FROM
+READ_CSV_AUTO('$root/seeds/schema_nodes.csv') AS "_q_0"
+                                                                            ^
+
+  "local"."raw"."suppliers"
+
+    IOException:
+      IO Error: No files found that match the pattern "$root/seeds/suppliers.csv"
+
+      LINE 1: ..." AS SELECT *, COALESCE("supplier_id", "id") AS "id" FROM
+READ_CSV_AUTO('$root/seeds/suppliers.csv') AS "_q_0"
+                                                                           ^
+
+  "local"."raw"."users"
+
+    IOException:
+      IO Error: No files found that match the pattern "$root/seeds/users.csv"
+
+      LINE 1: ...76040" AS SELECT *, COALESCE("user_id", "id") AS "id" FROM
+READ_CSV_AUTO('$root/seeds/users.csv') AS "_q_0"
+                                                                            ^
+
+  "local"."staging"."downtime_events"
+
+    BinderException:
+      Binder Error: Referenced column "id" not found in FROM clause!
+      Candidate bindings: "line_id", "downtime_reason", "downtime_category", "production_loss_units",
+"equipment_id"
+
+      LINE 1: ...046266402" AS "staging__downtime_events__3046266402" WHERE "id" IS NULL AND TRUE) AS
+"audit"
+                                                                            ^
+
+  "local"."staging"."effectiveness_metrics"
+
+    BinderException:
+      Binder Error: Referenced column "id" not found in FROM clause!
+      Candidate bindings: "action_id", "metric_type", "verified_by", "created_date", "baseline_value"
+
+      LINE 1: ..." AS "staging__effectiveness_metrics__3541632760" WHERE "id" IS NULL AND TRUE) AS   
+"audit"
+                                                                         ^
+
+  "local"."staging"."equipment_reliability"
+
+    BinderException:
+      Binder Error: Referenced column "id" not found in FROM clause!
+      Candidate bindings: "equipment_id", "created_date", "failure_count", "reliability_id",
+"operating_hours"
+
+      LINE 1: ..." AS "staging__equipment_reliability__3986929532" WHERE "id" IS NULL AND TRUE) AS   
+"audit"
+                                                                         ^
+
+  "local"."staging"."financial_impact"
+
+    BinderException:
+      Binder Error: Referenced column "id" not found in FROM clause!
+      Candidate bindings: "indirect_cost", "direct_cost", "impact_id", "impact_type", "impact_date"  
+
+      LINE 1: ...09717913" AS "staging__financial_impact__1309717913" WHERE "id" IS NULL AND TRUE) AS
+"audit"
+                                                                            ^
+
+Error: Plan application failed.
+(.venv) PS C:\Users\williamt\source\skillsinc\skills-inc-org\SQL-Projects>
