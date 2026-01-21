@@ -11,9 +11,9 @@ MODEL (
     NOT_NULL(columns = (failure_id))
   ),
   columns (
-    failure_date timestamp "partition key",
-    severity_level varchar "Severity level for prioritization",
-    downtime_hours double "Downtime duration in hours"
+    failure_date "partition key",
+    severity_level "Severity level for prioritization",
+    downtime_hours "Downtime duration in hours"
   )
 );
 
