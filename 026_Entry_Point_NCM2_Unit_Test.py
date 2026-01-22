@@ -1,3 +1,72 @@
+"""
+# 026 Entry Point: NCM Elevation Unit Tests (Solder Pattern)
+
+## Overview
+This module validates the **Solder Pattern** for perspective-driven SQL generation
+in the Manufacturing Semantic Layer. It tests that different business perspectives
+(Quality, Finance) receive appropriately shaped data from the same underlying
+Non-Conformant Materials (NCM) concept.
+
+## Architecture
+```
+(:Intent) → [:OPERATES_WITHIN] → (:Perspective) → [:ELEVATES] → (:Concept) → [:CAN_MEAN] → (:Field)
+```
+
+## Prerequisites
+
+### Option 1: Mock Mode (Default)
+No external dependencies required - uses MockMCPService for offline testing.
+
+### Option 2: Live ArangoDB Mode
+1. **Start ArangoDB via Docker:**
+   ```bash
+   docker run -d --name arangodb -p 8529:8529 \\
+       -e ARANGO_ROOT_PASSWORD=password \\
+       arangodb/arangodb:latest
+   ```
+
+2. **Set environment variables:**
+   ```bash
+   export ARANGO_HOST=http://localhost:8529
+   export ARANGO_DB=manufacturing_semantics
+   export ARANGO_USER=root
+   export ARANGO_PASSWORD=password
+   ```
+
+3. **Populate the semantic graph:**
+   ```bash
+   python 026_Entry_Point_NCM_Elevation_ArangoDB.py
+   ```
+
+## Running Tests
+```bash
+python 026_Entry_Point_NCM2_Unit_Test.py
+```
+
+## Expected Output
+```
+✅ Finance Solder Validated:
+SELECT SUM(ncm.cost_impact) AS total_liability, ncm.severity FROM erp_virtual.stg_non_conformant_materials AS ncm WHERE ncm.product_line_hash = 'ee3c6e8ed9' GROUP BY ncm.severity
+
+✅ Quality Solder Validated:
+SELECT ncm.ncm_id, ncm.defect_description, ncm.severity FROM erp_virtual.stg_non_conformant_materials AS ncm WHERE ncm.product_line_hash = 'ee3c6e8ed9'
+
+Ran 2 tests in 0.001s
+OK
+```
+
+## Test Cases
+| Test | Perspective | Validates |
+|------|-------------|-----------|
+| test_finance_perspective_elevation | Finance | Aggregated cost data (SUM, GROUP BY) |
+| test_quality_perspective_elevation | Quality | Detail-level NCM records (no aggregation) |
+
+## Related Files
+- `026_Entry_Point_NCM_Elevation_ArangoDB.py` - ArangoDB graph population
+- `arangodb_persistence.py` - Shared graph persistence utilities
+- `Utilities/SQLMesh/models/staging/stg_non_conformant_materials.sql` - Target staging model
+"""
+
 import unittest
 import hashlib
 
