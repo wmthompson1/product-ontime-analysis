@@ -1,21 +1,28 @@
 MODEL (
   name staging.stg_daily_deliveries,
-  kind SEED (
-    path '$root/seeds/daily_deliveries.csv'
+  kind INCREMENTAL_BY_TIME_RANGE (
+    time_column delivery_date
   ),
-  columns (
-    delivery_id TEXT,
-    supplier_id TEXT,
-    delivery_date DATE,
-    planned_quantity INTEGER,
-    actual_quantity INTEGER,
-    ontime_rate DOUBLE,
-    quality_score DOUBLE,
-    created_date TIMESTAMP
-  ),
-  grain (delivery_id),
+  cron '@daily',
+  grain (delivery_id, supplier_id),
   audits (
     UNIQUE_VALUES(columns = (delivery_id)),
     NOT_NULL(columns = (delivery_id))
+  ),
+  columns (
+    ontime_rate 'On-time delivery rate (0-1 scale)',
+    quality_score 'Quality score from supplier evaluation'
   )
 );
+
+SELECT
+  delivery_id,
+  supplier_id,
+  delivery_date,
+  planned_quantity,
+  actual_quantity,
+  ontime_rate,
+  quality_score,
+  COALESCE(created_date, CURRENT_TIMESTAMP) AS created_date
+FROM raw.daily_deliveries
+WHERE delivery_date BETWEEN @start_ds AND @end_ds;

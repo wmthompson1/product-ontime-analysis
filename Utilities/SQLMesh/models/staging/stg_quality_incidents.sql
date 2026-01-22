@@ -1,26 +1,33 @@
 MODEL (
   name staging.stg_quality_incidents,
-  kind SEED (
-    path '$root/seeds/quality_incidents.csv'
+  kind INCREMENTAL_BY_TIME_RANGE (
+    time_column incident_date
   ),
-  columns (
-    incident_id TEXT,
-    product_line TEXT,
-    incident_date DATE,
-    incident_type TEXT,
-    severity_level TEXT,
-    affected_units INTEGER,
-    cost_impact DOUBLE,
-    detection_method TEXT,
-    status TEXT,
-    assigned_to TEXT,
-    resolution_date DATE,
-    root_cause TEXT,
-    created_at TIMESTAMP
-  ),
-  grain (incident_id),
+  cron '@daily',
+  grain incident_id,
   audits (
     UNIQUE_VALUES(columns = (incident_id)),
     NOT_NULL(columns = (incident_id))
+  ),
+  columns (
+    severity_level 'Severity level for prioritization',
+    cost_impact 'Financial impact in dollars'
   )
 );
+
+SELECT
+  incident_id,
+  product_line,
+  incident_date,
+  incident_type,
+  severity_level,
+  affected_units,
+  cost_impact,
+  detection_method,
+  status,
+  assigned_to,
+  resolution_date,
+  root_cause,
+  COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at
+FROM raw.quality_incidents
+WHERE incident_date BETWEEN @start_ds AND @end_ds;
