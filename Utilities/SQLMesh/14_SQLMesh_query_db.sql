@@ -1,6 +1,9 @@
--- SQLMesh Query Reference for db.db
--- Use with: sqlite3 db.db < 14_SQLMesh_query_db.sql
--- Or open in any SQLite browser and run individual queries
+-- SQLMesh Query Reference for db.db (DuckDB format)
+-- Use with: sqlmesh fetchdf "SELECT * FROM raw.corrective_actions"
+-- Note: db.db is DuckDB, not SQLite. Use sqlmesh fetchdf for queries.
+-- 
+-- List all tables:
+-- sqlmesh fetchdf "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema LIKE '%raw%' OR table_schema LIKE '%staging%'"
 
 -- ============================================================
 -- RAW LAYER TABLES
