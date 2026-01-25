@@ -1,3 +1,4 @@
+field_id,concept_id,field_name,field_type,created_at
 id,table_name,field_name,concept_id,is_primary_meaning,context_hint,created_at
 1,schema,customer_id,100,True,"Primary key for customer reference",2024-01-01T00:00:00Z
 2,schema,order_id,101,True,"Order identifier",2024-01-02T00:00:00Z

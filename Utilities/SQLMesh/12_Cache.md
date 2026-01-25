@@ -9,7 +9,7 @@ This document explains how to safely clean up SQLMesh state and the local file-s
 **What `sqlmesh destroy` does**
 
 - Drops SQLMesh state tables from the configured state backend (by default the project state DB configured in `config.yaml`).
-- Removes SQLMesh file-system cache (local artifacts, compiled snapshots, temporary files). Depending on your configuration, this may include files under `.sqlmesh/` or the configured cache directory.
+  - Removes SQLMesh file-system cache (local artifacts, compiled snapshots, temporary files). Depending on your configuration, this may include files under the configured cache directory (commonly `.cache/`).
 - Leaves user data (for example your seed CSVs in `seeds/` or external `raw.*` tables) untouched.
 
 Use `sqlmesh destroy` when you need to:
@@ -67,7 +67,7 @@ Safety and backups
 Troubleshooting
 
 - If `sqlmesh destroy` fails due to DB permissions, check environment variables and DB credentials.
-- If state was removed but CI still reports stale cache, manually remove the `.sqlmesh/` or cache directory referenced by your SQLMesh config.
+- If state was removed but CI still reports stale cache, manually remove the cache directory referenced by your SQLMesh config (commonly `.cache/`).
 - If you see schema/migration errors after restoring a DB, run migrations or recreate state from scratch by destroying and planning again.
 
 Related commands
@@ -98,3 +98,8 @@ If you’d like, I can add a CI job snippet to `/.github/workflows/sqlmesh.yml` 
 does this error warrant reloading the cache? --
 
 Short answer: no — not immediately. That BinderError means the column capa_id does not exist in the table you queried, not that DuckDB's cache is stale. Verify the table/schema first and only reload/recreate the table or clear SQLMesh state if those checks show a problem.
+
+## Pulling single files from repo
+
+git fetch origin
+git checkout origin/main -- Utilities/SQLMesh/13_SQLMesh_Folder_Map.py

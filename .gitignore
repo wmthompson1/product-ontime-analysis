@@ -22,7 +22,6 @@ dev_test.db
 *.duckdb.wal
 
 # SQLMesh
-.sqlmesh/
 .cache/
 Utilities/SQLMesh/logs/
 
