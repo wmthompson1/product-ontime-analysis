@@ -6,10 +6,12 @@ MODEL (
 
 SELECT
   concept_id,
-  concept_name,
-  concept_type,
+  -- map seed 'name' to expected 'concept_name'
+  name AS concept_name,
+  -- placeholder when seed doesn't include this field
+  NULL AS concept_type,
   description,
-  domain,
-  parent_concept_id,
+  NULL AS domain,
+  NULL AS parent_concept_id,
   COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at
 FROM raw.schema_concepts;

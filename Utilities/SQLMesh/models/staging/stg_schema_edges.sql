@@ -10,14 +10,14 @@ MODEL (
 
 SELECT
   edge_id,
-  from_table,
-  to_table,
-  relationship_type,
-  join_column,
-  weight,
+  from_node AS from_table,
+  to_node AS to_table,
+  relation AS relationship_type,
+  NULL AS join_column,
+  NULL AS weight,
   COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at,
-  join_column_description,
-  natural_language_alias,
-  few_shot_example,
-  context
+  NULL AS join_column_description,
+  NULL AS natural_language_alias,
+  NULL AS few_shot_example,
+  NULL AS context
 FROM raw.schema_edges;

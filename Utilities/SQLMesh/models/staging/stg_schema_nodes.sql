@@ -4,8 +4,9 @@ MODEL (
 );
 
 SELECT
-  table_name,
-  table_type,
-  description,
+  -- map available seed fields conservatively
+  node_id AS table_name,
+  NULL AS table_type,
+  label AS description,
   COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at
 FROM raw.schema_nodes;
