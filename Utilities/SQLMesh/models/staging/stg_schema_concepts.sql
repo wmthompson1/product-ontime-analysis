@@ -13,5 +13,8 @@ SELECT
   description,
   NULL AS domain,
   NULL AS parent_concept_id,
-  COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at
+  COALESCE(
+    CASE WHEN created_at LIKE '____-%' THEN CAST(created_at AS TIMESTAMP) ELSE NULL END,
+    CURRENT_TIMESTAMP
+  ) AS created_at
 FROM raw.schema_concepts;

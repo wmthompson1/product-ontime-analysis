@@ -15,7 +15,10 @@ SELECT
   relation AS relationship_type,
   NULL AS join_column,
   NULL AS weight,
-  COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at,
+  COALESCE(
+    CASE WHEN created_at LIKE '____-%' THEN CAST(created_at AS TIMESTAMP) ELSE NULL END,
+    CURRENT_TIMESTAMP
+  ) AS created_at,
   NULL AS join_column_description,
   NULL AS natural_language_alias,
   NULL AS few_shot_example,
