@@ -1,0 +1,26 @@
+sqlmesh plan prod --auto-apply
+[23:25:17] Model '"db"."sqlmesh_example"."full_model"' was not found at              console.py:3893
+           /Users/williamthompson/bbb/20241019                                                      
+           Python/Utilities/SQLMesh/tests/test_full_model.yaml                                      
+           Test Results: <sqlmesh.core.test.result.ModelTextTestResult run=0         console.py:3893
+           errors=0 failures=0>                                                                     
+[23:25:18] Environment Difference Summary:                                           console.py:3893
+           Model Difference Summary:                                                 console.py:3893
+           Starting plan 0c966d58cb4b4baf93a12f4707714661                            console.py:3893
+                                                                                     console.py:3893
+           SKIP: No physical layer updates to perform                                               
+           Stopping creation with success=False                                      console.py:3893
+           SKIP: No model batches to execute                                         console.py:3893
+           Starting promotion for 11 snapshots                                       console.py:3893
+           Promoting "db"."raw"."corrective_actions"                                 console.py:3893
+           Promoting "db"."raw"."daily_deliveries"                                   console.py:3893
+           Promoting "db"."raw"."downtime_events"                                    console.py:3893
+           Promoting "db"."raw"."effectiveness_metrics"                              console.py:3893
+           Promoting "db"."raw"."equipment_reliability"                              console.py:3893
+           Promoting "db"."raw"."financial_impact"                                   console.py:3893
+           Promoting "db"."raw"."production_schedule"                                console.py:3893
+           Promoting "db"."raw"."schema_concept_fields"                              console.py:3893
+           Promoting "db"."raw"."schema_concepts"                                    console.py:3893
+           Promoting "db"."raw"."schema_edges"                                       console.py:3893
+           Promoting "db"."raw"."schema_nodes"                                       console.py:3893
+           Stopping promotion with success=True              
