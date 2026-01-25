@@ -7,7 +7,7 @@
 -- ============================================================
 
 -- Corrective Actions (NCM remediation records)
--- SELECT * FROM raw.corrective_actions;
+SELECT * FROM raw.corrective_actions;
 
 -- Inspections (quality inspection records)
 -- SELECT * FROM raw.inspections;
