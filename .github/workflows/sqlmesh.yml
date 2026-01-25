@@ -47,10 +47,7 @@ jobs:
           echo "Running unit tests..."
           sqlmesh test --verbose
 
-      # Note: Audits are executed automatically during 'sqlmesh plan' and 'sqlmesh run'
-      # No separate audit step is needed as they are part of the validation and execution phases
-      - name: Audit execution info
-        run: echo "✅ Audits run automatically during plan validation"
+      # Audits are executed automatically during plan and run phases
 
   plan-dev:
     name: Plan Dev Environment
