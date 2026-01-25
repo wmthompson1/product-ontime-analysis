@@ -17,7 +17,7 @@ node_modules/
 
 # Databases
 *.sqlite3
-dev_test.db
+*.db
 *.duckdb
 *.duckdb.wal
 

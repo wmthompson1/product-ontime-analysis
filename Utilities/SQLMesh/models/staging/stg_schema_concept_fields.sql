@@ -3,7 +3,6 @@ MODEL (
   kind FULL,
   grain (id, concept_id),
   audits (
-    UNIQUE_VALUES(columns = (concept_id)),
     NOT_NULL(columns = (concept_id))
   )
 );
