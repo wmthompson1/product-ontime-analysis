@@ -17,7 +17,6 @@ node_modules/
 
 # Databases
 *.sqlite3
-*.db
 *.duckdb
 *.duckdb.wal
 
