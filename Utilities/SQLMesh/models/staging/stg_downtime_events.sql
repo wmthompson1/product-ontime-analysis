@@ -1,33 +1,27 @@
 MODEL (
   name staging.stg_downtime_events,
-  kind INCREMENTAL_BY_TIME_RANGE (
-    time_column event_start_time
+  kind SEED (
+    path '$root/seeds/downtime_events.csv'
   ),
-  cron '@daily',
-  grain (event_id, line_id, equipment_id),
+  columns (
+    event_id TEXT,
+    line_id TEXT,
+    equipment_id TEXT,
+    event_start_time TIMESTAMP,
+    event_end_time TIMESTAMP,
+    downtime_duration_minutes INTEGER,
+    downtime_category TEXT,
+    downtime_reason TEXT,
+    impact_severity TEXT,
+    production_loss_units INTEGER,
+    cost_impact DOUBLE,
+    resolution_method TEXT,
+    reported_by TEXT,
+    created_at TIMESTAMP
+  ),
+  grain (event_id),
   audits (
     UNIQUE_VALUES(columns = (event_id)),
     NOT_NULL(columns = (event_id))
-  ),
-  columns (
-    cost_impact 'Financial impact in dollars'
   )
 );
-
-SELECT
-  event_id,
-  line_id,
-  equipment_id,
-  event_start_time,
-  event_end_time,
-  downtime_duration_minutes,
-  downtime_category,
-  downtime_reason,
-  impact_severity,
-  production_loss_units,
-  cost_impact,
-  resolution_method,
-  reported_by,
-  COALESCE(created_at, CURRENT_TIMESTAMP) AS created_at
-FROM raw.downtime_events
-WHERE event_start_time BETWEEN @start_ds AND @end_ds;
