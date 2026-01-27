@@ -36,15 +36,17 @@ The **Digital Twin** initiative creates a virtualized representation of the manu
 
 ### Generated Models
 
-| Category | Model Kind | Tables | Time Column |
+| Category | Model Kind | Tables | Data Source |
 |----------|------------|--------|-------------|
-| **Delivery Performance** | INCREMENTAL | daily_deliveries | delivery_date |
-| **Equipment Health** | INCREMENTAL | equipment_metrics, equipment_reliability | measurement_date |
-| **Failure Analysis** | INCREMENTAL | failure_events, downtime_events | failure_date |
-| **Quality Control** | INCREMENTAL | product_defects, production_quality | production_date |
-| **Financial Impact** | INCREMENTAL | financial_impact, quality_costs | event_date |
-| **Reference Data** | FULL | suppliers, products, production_lines | - |
-| **Semantic Layer** | FULL | schema_concepts, schema_edges | - |
+| **Delivery Performance** | SEED | daily_deliveries | seeds/daily_deliveries.csv |
+| **Equipment Health** | SEED | equipment_metrics, equipment_reliability | seeds/*.csv |
+| **Failure Analysis** | SEED | failure_events, downtime_events | seeds/*.csv |
+| **Quality Control** | SEED | product_defects, production_quality | seeds/*.csv |
+| **Financial Impact** | SEED | financial_impact, quality_costs | seeds/*.csv |
+| **Reference Data** | SEED | suppliers, products, production_lines | seeds/*.csv |
+| **Semantic Layer** | SEED | schema_concepts, schema_edges | seeds/*.csv |
+
+**Note**: The current implementation uses SEED models to stage data from CSV files. This approach supports both raw and staging schemas for digital twin development.
 
 ### Entry Point Script
 
@@ -66,7 +68,8 @@ python 024_Entry_Point_DDL_to_SQLMesh.py --ddl schema/schema_sqlite.sql
 Each generated model includes:
 
 1. **Appropriate Kind Selection**
-   - `INCREMENTAL_BY_TIME_RANGE` for time-series data
+   - `SEED` for staging data loaded from CSV files in the seeds directory
+   - `INCREMENTAL_BY_TIME_RANGE` for time-series data (future marts layer)
    - `FULL` for reference/dimension tables
 
 2. **Data Quality Audits**
@@ -76,19 +79,31 @@ Each generated model includes:
      NOT_NULL(columns = (equipment_id))
    )
    ```
+   
+   **Note**: Audits are executed automatically during `sqlmesh plan` and `sqlmesh run`. No separate audit step is needed as they are part of the validation and execution phases.
 
 3. **Manufacturing Domain Documentation**
    ```sql
    columns (
-     oee_score 'Overall Equipment Effectiveness (0-100%)',
-     mtbf_hours 'Mean Time Between Failures in hours',
-     defect_rate 'Defect rate as percentage'
+     equipment_id TEXT,
+     oee_score DOUBLE 'Overall Equipment Effectiveness (0-100%)',
+     mtbf_hours DOUBLE 'Mean Time Between Failures in hours',
+     defect_rate DOUBLE 'Defect rate as percentage'
    )
    ```
 
-4. **Incremental Time Filtering**
+4. **Seed-Based Data Loading** (Current Implementation)
    ```sql
-   WHERE measurement_date BETWEEN @start_ds AND @end_ds
+   MODEL (
+     name staging.stg_equipment_metrics,
+     kind SEED (
+       path '$root/seeds/equipment_metrics.csv'
+     ),
+     grain (equipment_id),
+     audits (
+       NOT_NULL(columns = (equipment_id))
+     )
+   );
    ```
 
 ### Directory Structure
@@ -159,9 +174,11 @@ To use SQLMesh in this project:
 
 4. Create and test models:
    ```bash
-   sqlmesh plan
-   sqlmesh run
+   sqlmesh plan  # Creates execution plan and runs audits
+   sqlmesh run   # Executes models and validates with audits
    ```
+   
+   **Note**: Audits are automatically executed as part of `plan` and `run` commands. No separate audit command is required.
 
 ### Configuration Details
 
