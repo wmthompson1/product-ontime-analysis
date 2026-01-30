@@ -1765,8 +1765,9 @@ def convert_csv_to_schema():
         
         csv_content = data['csv_content']
         block_type = data.get('block_type', 'tabular')
+        keep_nbsp = data.get('keep_nbsp', True)
         
-        result = process_csv_for_block_schema(csv_content, block_type)
+        result = process_csv_for_block_schema(csv_content, block_type, keep_nbsp)
         
         return jsonify({
             "success": True,
@@ -1774,7 +1775,10 @@ def convert_csv_to_schema():
             "json_output": result['json_output'],
             "columns": result['columns'],
             "column_count": result['column_count'],
-            "type_summary": result['type_summary']
+            "type_summary": result['type_summary'],
+            "nbsp_info": result['nbsp_info'],
+            "nbsp_count": result['nbsp_count'],
+            "keep_nbsp": result['keep_nbsp']
         })
         
     except Exception as e:

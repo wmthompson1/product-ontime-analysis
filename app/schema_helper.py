@@ -3,6 +3,7 @@ CSV to JSON Schema Helper
 
 Transforms CSV samples into JSON schema format for the Combined Pipeline.
 Infers data types from column names and sample values.
+Handles NBSP (non-breaking space) characters in column names.
 """
 
 import csv
@@ -11,6 +12,23 @@ import re
 from io import StringIO
 from typing import Dict, List, Tuple
 from datetime import datetime
+
+NBSP_CHAR = '\u00A0'
+
+
+def detect_nbsp_in_column(column_name: str) -> bool:
+    """Check if column name contains NBSP characters."""
+    return NBSP_CHAR in column_name
+
+
+def normalize_nbsp(column_name: str) -> str:
+    """Replace NBSP with regular space."""
+    return column_name.replace(NBSP_CHAR, ' ')
+
+
+def get_nbsp_positions(column_name: str) -> List[int]:
+    """Get positions of NBSP characters in column name."""
+    return [i for i, c in enumerate(column_name) if c == NBSP_CHAR]
 
 
 def infer_type_from_name(column_name: str) -> str:
@@ -65,34 +83,56 @@ def infer_type_from_value(value: str) -> str:
     return 'text'
 
 
-def csv_to_schema(csv_content: str) -> Tuple[Dict[str, str], List[str]]:
+def csv_to_schema(csv_content: str, keep_nbsp: bool = True) -> Tuple[Dict[str, str], List[str], List[Dict]]:
     """
     Convert CSV sample to JSON schema.
     
     Args:
         csv_content: CSV string with header row and optionally one data row
+        keep_nbsp: If True, preserve NBSP characters; if False, normalize to regular spaces
         
     Returns:
-        Tuple of (schema_dict, column_names)
+        Tuple of (schema_dict, column_names, nbsp_info)
     """
     reader = csv.reader(StringIO(csv_content.strip()))
     rows = list(reader)
     
     if not rows:
-        return {}, []
+        return {}, [], []
     
-    headers = [h.strip() for h in rows[0]]
-    sample_values = rows[1] if len(rows) > 1 else ['' for _ in headers]
+    raw_headers = rows[0]
+    sample_values = rows[1] if len(rows) > 1 else ['' for _ in raw_headers]
     
-    if len(sample_values) < len(headers):
-        sample_values.extend([''] * (len(headers) - len(sample_values)))
+    if len(sample_values) < len(raw_headers):
+        sample_values.extend([''] * (len(raw_headers) - len(sample_values)))
+    
+    nbsp_info = []
+    headers = []
+    
+    for h in raw_headers:
+        h_stripped = h.strip()
+        has_nbsp = detect_nbsp_in_column(h_stripped)
+        
+        if has_nbsp:
+            nbsp_info.append({
+                'original': h_stripped,
+                'normalized': normalize_nbsp(h_stripped),
+                'positions': get_nbsp_positions(h_stripped),
+                'has_nbsp': True
+            })
+        
+        if keep_nbsp:
+            headers.append(h_stripped)
+        else:
+            headers.append(normalize_nbsp(h_stripped))
     
     schema = {}
     for i, header in enumerate(headers):
         if not header:
             continue
         
-        name_type = infer_type_from_name(header)
+        check_header = normalize_nbsp(header)
+        name_type = infer_type_from_name(check_header)
         value_type = infer_type_from_value(sample_values[i]) if i < len(sample_values) else 'text'
         
         if name_type == 'date' or value_type == 'date':
@@ -102,7 +142,7 @@ def csv_to_schema(csv_content: str) -> Tuple[Dict[str, str], List[str]]:
         else:
             schema[header] = 'text'
     
-    return schema, headers
+    return schema, headers, nbsp_info
 
 
 def schema_to_json(schema: Dict[str, str], indent: int = 2) -> str:
@@ -112,18 +152,19 @@ def schema_to_json(schema: Dict[str, str], indent: int = 2) -> str:
     return json.dumps(schema, indent=indent)
 
 
-def process_csv_for_block_schema(csv_content: str, block_type: str = 'tabular') -> Dict:
+def process_csv_for_block_schema(csv_content: str, block_type: str = 'tabular', keep_nbsp: bool = True) -> Dict:
     """
     Process CSV content and return schema with metadata.
     
     Args:
         csv_content: CSV string
         block_type: 'freeform' or 'tabular'
+        keep_nbsp: If True, preserve NBSP characters in column names
         
     Returns:
-        Dict with schema, json_output, columns, and type_summary
+        Dict with schema, json_output, columns, type_summary, and nbsp_info
     """
-    schema, columns = csv_to_schema(csv_content)
+    schema, columns, nbsp_info = csv_to_schema(csv_content, keep_nbsp)
     
     type_counts = {'text': 0, 'numeric': 0, 'date': 0}
     for dtype in schema.values():
@@ -135,5 +176,8 @@ def process_csv_for_block_schema(csv_content: str, block_type: str = 'tabular') 
         'columns': columns,
         'column_count': len(columns),
         'type_summary': type_counts,
-        'block_type': block_type
+        'block_type': block_type,
+        'nbsp_info': nbsp_info,
+        'nbsp_count': len(nbsp_info),
+        'keep_nbsp': keep_nbsp
     }

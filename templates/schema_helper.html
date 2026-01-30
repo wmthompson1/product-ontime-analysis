@@ -187,6 +187,61 @@
             padding: 10px;
             display: none;
         }
+        
+        .option-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .option-row label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+        
+        .option-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .nbsp-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px 15px;
+            margin-top: 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9em;
+            display: none;
+        }
+        
+        .nbsp-warning strong { color: #856404; }
+        
+        .nbsp-list {
+            margin-top: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85em;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .nbsp-item {
+            padding: 3px 0;
+            color: #856404;
+        }
+        
+        .nbsp-highlight {
+            background: #ffc107;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body>
@@ -212,6 +267,13 @@ Example:
 &quot;check_trace_num&quot;,&quot;payment_status&quot;,&quot;payment_check_date&quot;,&quot;payment_settlement_date&quot;
 &quot;0003248950&quot;,&quot;Issued/Active&quot;,&quot;2026-01-09 00:00:00&quot;,&quot;2026-01-12 00:00:00&quot;"></textarea>
             
+            <div class="option-row">
+                <label>
+                    <input type="checkbox" id="keepNbsp" checked>
+                    Keep NBSP (non-breaking spaces) in column names
+                </label>
+            </div>
+            
             <button class="btn" onclick="convertToSchema()" id="convertBtn">Convert to JSON Schema</button>
         </div>
         
@@ -229,6 +291,11 @@ Example:
                 <span class="stat-badge date" id="dateCount">0 date</span>
             </div>
             
+            <div class="nbsp-warning" id="nbspWarning">
+                <strong>NBSP Detected:</strong> Found non-breaking spaces in column names
+                <div class="nbsp-list" id="nbspList"></div>
+            </div>
+            
             <div class="columns-list" id="columnsList" style="display: none;"></div>
         </div>
     </div>
@@ -243,6 +310,9 @@ Example:
             const statsArea = document.getElementById('statsArea');
             const columnsList = document.getElementById('columnsList');
             const copyBtn = document.getElementById('copyBtn');
+            const nbspWarning = document.getElementById('nbspWarning');
+            const nbspList = document.getElementById('nbspList');
+            const keepNbsp = document.getElementById('keepNbsp').checked;
             
             if (!csvInput) {
                 jsonOutput.textContent = '// Please paste CSV content first';
@@ -252,12 +322,13 @@ Example:
             convertBtn.disabled = true;
             convertBtn.textContent = 'Converting...';
             jsonOutput.textContent = '// Processing...';
+            nbspWarning.style.display = 'none';
             
             try {
                 const response = await fetch('/schema-helper/convert', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ csv_content: csvInput, block_type: 'tabular' })
+                    body: JSON.stringify({ csv_content: csvInput, block_type: 'tabular', keep_nbsp: keepNbsp })
                 });
                 
                 const data = await response.json();
@@ -273,11 +344,19 @@ Example:
                     document.getElementById('dateCount').textContent = data.type_summary.date + ' date';
                     statsArea.style.display = 'flex';
                     
+                    if (data.nbsp_count > 0) {
+                        nbspList.innerHTML = data.nbsp_info.map(info => 
+                            `<div class="nbsp-item">"${info.original}" (NBSP at position${info.positions.length > 1 ? 's' : ''}: ${info.positions.join(', ')})</div>`
+                        ).join('');
+                        nbspWarning.style.display = 'block';
+                    }
+                    
                     columnsList.innerHTML = data.columns.map(col => {
                         const type = data.schema[col] || 'text';
-                        return `<span class="column-item">
+                        const hasNbsp = data.nbsp_info.some(info => info.original === col || info.normalized === col);
+                        return `<span class="column-item" ${hasNbsp ? 'style="border-color: #ffc107;"' : ''}>
                             <span class="type-indicator ${type}"></span>
-                            ${col}
+                            ${col}${hasNbsp ? ' <span class="nbsp-highlight">NBSP</span>' : ''}
                         </span>`;
                     }).join('');
                     columnsList.style.display = 'block';
