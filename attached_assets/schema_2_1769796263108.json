@@ -1,0 +1,5 @@
+{
+  "date": "date",
+  "total_received": "numeric",
+  "received_late": "numeric"
+}
