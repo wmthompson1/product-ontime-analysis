@@ -1749,6 +1749,6 @@ def huggingface_mcp_tools():
 
 if __name__ == '__main__':
     import os
-    port = int(os.environ.get('FLASK_PORT', 8080))
+    port = int(os.environ.get('FLASK_PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
 
