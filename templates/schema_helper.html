@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schema Helper - CSV to JSON</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f8f9fa; 
+            line-height: 1.6;
+        }
+        .header { 
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%); 
+            color: white; 
+            padding: 40px; 
+            border-radius: 15px; 
+            margin-bottom: 30px; 
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .header h1 { margin: 0; font-size: 2.5em; font-weight: 300; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1em; }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #6f42c1;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .back-link:hover { color: #e83e8c; }
+        
+        .container { 
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        
+        .panel { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08); 
+        }
+        
+        .panel h2 {
+            margin-top: 0;
+            color: #343a40;
+            border-bottom: 2px solid #6f42c1;
+            padding-bottom: 10px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #6f42c1;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(111, 66, 193, 0.3);
+            width: 100%;
+            margin-top: 15px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(111, 66, 193, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-copy {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            margin-top: 10px;
+        }
+        
+        .output-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            min-height: 200px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .stat-badge {
+            background: #e9ecef;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        
+        .stat-badge.text { background: #d4edda; color: #155724; }
+        .stat-badge.numeric { background: #cce5ff; color: #004085; }
+        .stat-badge.date { background: #fff3cd; color: #856404; }
+        
+        .hint {
+            background: #f8f9fa;
+            border-left: 4px solid #6f42c1;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        
+        .hint strong { color: #6f42c1; }
+        
+        .columns-list {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .column-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            margin: 3px;
+            background: white;
+            border-radius: 4px;
+            font-size: 0.85em;
+            border: 1px solid #dee2e6;
+        }
+        
+        .type-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .type-indicator.text { background: #28a745; }
+        .type-indicator.numeric { background: #007bff; }
+        .type-indicator.date { background: #ffc107; }
+        
+        .success-message {
+            color: #28a745;
+            text-align: center;
+            padding: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">&#8592; Back to Home</a>
+    
+    <div class="header">
+        <h1>Schema Helper</h1>
+        <p>Transform CSV samples into JSON schema for the Combined Pipeline</p>
+    </div>
+    
+    <div class="hint">
+        <strong>How to use:</strong> Paste your CSV sample (header row + optional data row) on the left. 
+        The tool will infer column types (text, numeric, date) based on column names and sample values.
+        Copy the generated JSON schema for use in the Combined Pipeline.
+    </div>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Input CSV Sample</h2>
+            <textarea id="csvInput" placeholder="Paste your CSV here...
+
+Example:
+&quot;check_trace_num&quot;,&quot;payment_status&quot;,&quot;payment_check_date&quot;,&quot;payment_settlement_date&quot;
+&quot;0003248950&quot;,&quot;Issued/Active&quot;,&quot;2026-01-09 00:00:00&quot;,&quot;2026-01-12 00:00:00&quot;"></textarea>
+            
+            <button class="btn" onclick="convertToSchema()" id="convertBtn">Convert to JSON Schema</button>
+        </div>
+        
+        <div class="panel">
+            <h2>Generated JSON Schema</h2>
+            <div class="output-area" id="jsonOutput">// JSON schema will appear here...</div>
+            
+            <button class="btn btn-copy" onclick="copySchema()" id="copyBtn" disabled>Copy to Clipboard</button>
+            <div class="success-message" id="copySuccess">Copied!</div>
+            
+            <div class="stats" id="statsArea" style="display: none;">
+                <span class="stat-badge" id="totalColumns">0 columns</span>
+                <span class="stat-badge text" id="textCount">0 text</span>
+                <span class="stat-badge numeric" id="numericCount">0 numeric</span>
+                <span class="stat-badge date" id="dateCount">0 date</span>
+            </div>
+            
+            <div class="columns-list" id="columnsList" style="display: none;"></div>
+        </div>
+    </div>
+    
+    <script>
+        let lastSchema = null;
+        
+        async function convertToSchema() {
+            const csvInput = document.getElementById('csvInput').value.trim();
+            const convertBtn = document.getElementById('convertBtn');
+            const jsonOutput = document.getElementById('jsonOutput');
+            const statsArea = document.getElementById('statsArea');
+            const columnsList = document.getElementById('columnsList');
+            const copyBtn = document.getElementById('copyBtn');
+            
+            if (!csvInput) {
+                jsonOutput.textContent = '// Please paste CSV content first';
+                return;
+            }
+            
+            convertBtn.disabled = true;
+            convertBtn.textContent = 'Converting...';
+            jsonOutput.textContent = '// Processing...';
+            
+            try {
+                const response = await fetch('/schema-helper/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ csv_content: csvInput, block_type: 'tabular' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    lastSchema = data.json_output;
+                    jsonOutput.textContent = data.json_output;
+                    copyBtn.disabled = false;
+                    
+                    document.getElementById('totalColumns').textContent = data.column_count + ' columns';
+                    document.getElementById('textCount').textContent = data.type_summary.text + ' text';
+                    document.getElementById('numericCount').textContent = data.type_summary.numeric + ' numeric';
+                    document.getElementById('dateCount').textContent = data.type_summary.date + ' date';
+                    statsArea.style.display = 'flex';
+                    
+                    columnsList.innerHTML = data.columns.map(col => {
+                        const type = data.schema[col] || 'text';
+                        return `<span class="column-item">
+                            <span class="type-indicator ${type}"></span>
+                            ${col}
+                        </span>`;
+                    }).join('');
+                    columnsList.style.display = 'block';
+                } else {
+                    jsonOutput.textContent = '// Error: ' + data.error;
+                    copyBtn.disabled = true;
+                }
+            } catch (error) {
+                jsonOutput.textContent = '// Error: ' + error.message;
+                copyBtn.disabled = true;
+            }
+            
+            convertBtn.disabled = false;
+            convertBtn.textContent = 'Convert to JSON Schema';
+        }
+        
+        function copySchema() {
+            if (!lastSchema) return;
+            
+            navigator.clipboard.writeText(lastSchema).then(() => {
+                const successMsg = document.getElementById('copySuccess');
+                successMsg.style.display = 'block';
+                setTimeout(() => { successMsg.style.display = 'none'; }, 2000);
+            });
+        }
+        
+        document.getElementById('csvInput').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                convertToSchema();
+            }
+        });
+    </script>
+</body>
+</html>

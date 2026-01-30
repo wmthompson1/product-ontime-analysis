@@ -1747,6 +1747,40 @@ def huggingface_mcp_tools():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/schema-helper")
+def schema_helper_page():
+    """CSV to JSON Schema helper interface"""
+    return render_template('schema_helper.html')
+
+
+@app.route("/schema-helper/convert", methods=["POST"])
+def convert_csv_to_schema():
+    """Convert CSV sample to JSON schema"""
+    from app.schema_helper import process_csv_for_block_schema
+    
+    try:
+        data = request.get_json()
+        if not data or 'csv_content' not in data:
+            return jsonify({"error": "No CSV content provided"}), 400
+        
+        csv_content = data['csv_content']
+        block_type = data.get('block_type', 'tabular')
+        
+        result = process_csv_for_block_schema(csv_content, block_type)
+        
+        return jsonify({
+            "success": True,
+            "schema": result['schema'],
+            "json_output": result['json_output'],
+            "columns": result['columns'],
+            "column_count": result['column_count'],
+            "type_summary": result['type_summary']
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('FLASK_PORT', 5000))
