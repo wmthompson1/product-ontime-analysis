@@ -109,3 +109,10 @@ externalPort = 8080
 
 [agent]
 expertMode = true
+
+[userenv]
+
+[userenv.shared]
+ARANGO_HOST = "https://de328f336d5b.arangodb.cloud:8529"
+ARANGO_PORT = "8529"
+ARANGO_DB = "manufacturing_semantic_layer"
