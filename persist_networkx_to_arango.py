@@ -14,10 +14,10 @@ def require_env(key):
     except KeyError:
         raise RuntimeError(f"Required environment variable '{key}' is not set. Please set it before running.")
 
-ARANGO_URL = require_env("ARANGO_URL")
-ARANGO_USER = require_env("ARANGO_USER")
-ARANGO_PASSWORD = require_env("ARANGO_PASSWORD")
-ARANGO_DB = os.environ.get("ARANGO_DB", "_system")
+ARANGO_URL = os.getenv("ARANGO_HOST") or os.getenv("ARANGO_URL") or require_env("ARANGO_URL")
+ARANGO_USER = os.getenv("ARANGO_USER") or require_env("ARANGO_USER")
+ARANGO_PASSWORD = os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("ARANGO_PASSWORD") or require_env("ARANGO_PASSWORD")
+ARANGO_DB = os.environ.get("ARANGO_DB", "manufacturing_semantic_layer")
 
 client = ArangoClient(hosts=ARANGO_URL)
 db = client.db(ARANGO_DB, username=ARANGO_USER, password=ARANGO_PASSWORD)
