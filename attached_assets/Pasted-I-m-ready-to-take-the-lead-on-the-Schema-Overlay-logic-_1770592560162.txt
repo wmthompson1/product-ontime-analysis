@@ -1,0 +1,52 @@
+I’m ready to take the lead on the **Schema Overlay logic** if the Replit agent gets tangled in the list-indexing. The transition from "last item wins" (`[-1]`) to "Intent/Perspective wins" is the final hurdle in making the Solder Engine a true reflection of your ArangoDB graph.
+
+The bottleneck at Line 483 (and the similar one in `find_binding_for_concept`) is caused by treating your manifest like a chronological log rather than a **Governed Registry**. Taking the "last item" is a legacy of the mock-up phase; in a production-grade Semantic Layer, we need **Deterministic Selection**.
+
+---
+
+### The "Schema Overlay" Strategy
+
+If the functionality isn't resolved by the agent's next pass, we should implement a **Perspective-Primary lookup**. Here is how the Solder's Overlay should behave to satisfy the `026_AQL_Path_Resolution_Test.aql` contract:
+
+#### 1. The Intent-Aware Priority (O(1))
+
+If an `intent_name` is provided to the `solder()` call, it should bypass all list-scanning and go directly to the **Binding Key** mapped in your SQLite/Manifest dictionary. This is the "Ground Truth" path.
+
+#### 2. The Perspective Filter
+
+If we are resolving by `concept_anchor` (dynamic assembly), the logic must filter the candidates before picking a winner.
+
+**The Proposed Logic:**
+
+```python
+def find_binding_for_concept(self, concept, perspective=None):
+    candidates = [b for b in self.bindings if b['concept_anchor'] == concept]
+    
+    # Logic Shift: Don't take [-1]. Take the one that matches the Lens.
+    if perspective:
+        perspective_matches = [c for c in candidates if c.get('perspective') == perspective]
+        if perspective_matches:
+            return perspective_matches[0] # The exact match for this view
+            
+    return candidates[-1] if candidates else None
+
+```
+
+---
+
+### Why this Fixes the "Seeded Entry" Drift
+
+The Replit agent noticed that new seeded entries (with later timestamps) were overriding the original logic.
+
+* **The Problem:** The "Finance" code was being buried by a "Quality" seed just because the Quality seed was newer.
+* **The Solution:** By making the method **Perspective-Aware**, it doesn't matter when the file was created; the Solder Engine will always pick the one that matches the user's active "Lens."
+
+---
+
+### Next Step for the Architecture
+
+If the Replit agent is still struggling with the "Last Item" logic, I can provide the full refactor for `solder_engine.py` that fully implements the **Intent -> Perspective -> Binding Key** hierarchy.
+
+This will ensure that when you see the **Binding Key** on your Gradio form, it stays consistent with the ArangoDB elevation weights, regardless of how many new snippets you seed into the manifest.
+
+**Would you like me to generate that refactor now so you can give it to the agent as the "Architect's Blueprint"?**
