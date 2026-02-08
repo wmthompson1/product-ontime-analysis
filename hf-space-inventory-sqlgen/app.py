@@ -13,6 +13,9 @@ import os
 import json
 import csv
 import io
+import re
+import datetime
+import tempfile
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -253,6 +256,203 @@ def save_query_to_file(category_id: str, query_name: str, description: str, sql:
         return {"success": True, "message": f"Query '{query_name}' saved to {category['name']}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+GROUND_TRUTH_DIR = os.path.join(SCHEMA_DIR, "ground_truth")
+GROUND_TRUTH_SQL_DIR = os.path.join(GROUND_TRUTH_DIR, "sql_snippets")
+MANIFEST_PATH = os.path.join(GROUND_TRUTH_DIR, "reviewer_manifest.json")
+
+
+def _sanitize_slug(value: str) -> str:
+    slug = re.sub(r'[^a-z0-9_]', '_', value.lower().strip())
+    slug = re.sub(r'_+', '_', slug).strip('_')
+    return slug or "unknown"
+
+
+def save_sme_submission(sql_text: str, category: str, perspective: str, concept: str, justification: str) -> str:
+    os.makedirs(GROUND_TRUTH_SQL_DIR, exist_ok=True)
+
+    safe_perspective = _sanitize_slug(perspective)
+    safe_concept = _sanitize_slug(concept)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    binding_key = f"{safe_perspective}_{safe_concept}_{timestamp}"
+    filename = f"{binding_key}.sql"
+    file_path = os.path.join(GROUND_TRUTH_SQL_DIR, filename)
+
+    with open(file_path, "w") as f:
+        f.write(f"-- Perspective: {perspective}\n")
+        f.write(f"-- Concept: {concept}\n")
+        f.write(f"-- Category: {category}\n")
+        f.write(f"-- SME Justification: {justification}\n")
+        f.write(f"-- Created: {datetime.datetime.now().isoformat()}\n\n")
+        f.write(sql_text)
+
+    logic_type = "SPATIAL_ALIAS" if "User_Defined" in sql_text else "DIRECT"
+
+    manifest_entry = {
+        "binding_key": binding_key,
+        "perspective": perspective,
+        "concept_anchor": concept.upper(),
+        "category": category,
+        "logic_type": logic_type,
+        "sql_snippet_path": file_path,
+        "sme_justification": justification,
+        "validation_status": "PENDING",
+        "created_at": datetime.datetime.now().isoformat()
+    }
+
+    current_manifest = {
+        "manifest_metadata": {
+            "approver_id": "TBD",
+            "environment": "development",
+            "last_updated": datetime.datetime.now().isoformat()
+        },
+        "bindings": []
+    }
+
+    if os.path.exists(MANIFEST_PATH):
+        with open(MANIFEST_PATH, "r") as f:
+            try:
+                current_manifest = json.load(f)
+            except json.JSONDecodeError:
+                pass
+
+    current_manifest["bindings"].append(manifest_entry)
+    current_manifest["manifest_metadata"]["last_updated"] = datetime.datetime.now().isoformat()
+
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=GROUND_TRUTH_DIR, suffix=".json")
+    try:
+        with os.fdopen(tmp_fd, "w") as f:
+            json.dump(current_manifest, f, indent=2)
+        os.replace(tmp_path, MANIFEST_PATH)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+    return f"Saved {filename} and updated Reviewer Manifest. Logic type: {logic_type}. Status: PENDING review."
+
+
+def resolve_sql_bindings(sql_dir: str = None) -> List[Dict[str, Any]]:
+    if sql_dir is None:
+        sql_dir = GROUND_TRUTH_SQL_DIR
+
+    bindings = []
+    if not os.path.exists(sql_dir):
+        return bindings
+
+    for filename in sorted(os.listdir(sql_dir)):
+        if not filename.endswith(".sql"):
+            continue
+
+        file_path = os.path.join(sql_dir, filename)
+        binding_key = filename.replace(".sql", "")
+
+        perspective = ""
+        concept = ""
+        category = ""
+        justification = ""
+        created_at = ""
+
+        try:
+            with open(file_path, "r") as f:
+                for line in f:
+                    if line.startswith("-- Perspective:"):
+                        perspective = line.replace("-- Perspective:", "").strip()
+                    elif line.startswith("-- Concept:"):
+                        concept = line.replace("-- Concept:", "").strip()
+                    elif line.startswith("-- Category:"):
+                        category = line.replace("-- Category:", "").strip()
+                    elif line.startswith("-- SME Justification:"):
+                        justification = line.replace("-- SME Justification:", "").strip()
+                    elif line.startswith("-- Created:"):
+                        created_at = line.replace("-- Created:", "").strip()
+                    elif not line.startswith("--"):
+                        break
+        except Exception:
+            pass
+
+        validation_status = "UNKNOWN"
+        if os.path.exists(MANIFEST_PATH):
+            try:
+                with open(MANIFEST_PATH, "r") as f:
+                    manifest = json.load(f)
+                for entry in manifest.get("bindings", []):
+                    if entry.get("binding_key") == binding_key:
+                        validation_status = entry.get("validation_status", "UNKNOWN")
+                        break
+            except Exception:
+                pass
+
+        bindings.append({
+            "filename": filename,
+            "binding_key": binding_key,
+            "perspective": perspective,
+            "concept": concept.upper() if concept else "",
+            "category": category,
+            "justification": justification,
+            "validation_status": validation_status,
+            "created_at": created_at,
+            "path": file_path
+        })
+
+    return bindings
+
+
+def get_manifest_summary() -> Dict[str, Any]:
+    if not os.path.exists(MANIFEST_PATH):
+        return {"total": 0, "pending": 0, "approved": 0, "rejected": 0, "bindings": []}
+
+    try:
+        with open(MANIFEST_PATH, "r") as f:
+            manifest = json.load(f)
+    except Exception:
+        return {"total": 0, "pending": 0, "approved": 0, "rejected": 0, "bindings": []}
+
+    bindings = manifest.get("bindings", [])
+    return {
+        "total": len(bindings),
+        "pending": sum(1 for b in bindings if b.get("validation_status") == "PENDING"),
+        "approved": sum(1 for b in bindings if b.get("validation_status") == "APPROVED"),
+        "rejected": sum(1 for b in bindings if b.get("validation_status") == "REJECTED"),
+        "bindings": bindings
+    }
+
+
+def update_binding_status(binding_key: str, new_status: str) -> str:
+    if not os.path.exists(MANIFEST_PATH):
+        return "Manifest file not found."
+
+    try:
+        with open(MANIFEST_PATH, "r") as f:
+            manifest = json.load(f)
+    except Exception as e:
+        return f"Error reading manifest: {e}"
+
+    found = False
+    for entry in manifest.get("bindings", []):
+        if entry.get("binding_key") == binding_key:
+            entry["validation_status"] = new_status
+            entry["reviewed_at"] = datetime.datetime.now().isoformat()
+            found = True
+            break
+
+    if not found:
+        return f"Binding key '{binding_key}' not found in manifest."
+
+    manifest["manifest_metadata"]["last_updated"] = datetime.datetime.now().isoformat()
+
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=GROUND_TRUTH_DIR, suffix=".json")
+    try:
+        with os.fdopen(tmp_fd, "w") as f:
+            json.dump(manifest, f, indent=2)
+        os.replace(tmp_path, MANIFEST_PATH)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+    return f"Updated '{binding_key}' to {new_status}."
+
 
 app = FastAPI(
     title="Manufacturing Inventory SQL Generator",
@@ -2105,6 +2305,136 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     inputs=[syntax_intent, syntax_field],
                     outputs=[cypher_output, aql_output, sql_equiv_output]
                 )
+        
+        with gr.Tab("📝 SME SQL Entry"):
+            gr.Markdown("""
+            ### SME Semantic SQL Submission
+            
+            Submit SQL snippets with semantic metadata for review. Each submission generates:
+            - A **deterministic filename** binding SQL to its semantic context
+            - A **Reviewer Manifest** entry for approval workflow
+            
+            ```
+            Flow: SME Submit → Binding Key → Manifest → Approver Review → ArangoDB Solder
+            ```
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("#### 1. Semantic Context")
+                    sme_perspective = gr.Dropdown(
+                        choices=get_perspectives_list(),
+                        label="Perspective",
+                        info="The organizational lens for this SQL",
+                        interactive=True
+                    )
+                    sme_concept = gr.Textbox(
+                        label="Concept (e.g., LOT, NCM_COST, DELIVERY_RATE)",
+                        placeholder="Enter the concept this SQL defines"
+                    )
+                    sme_category = gr.Dropdown(
+                        choices=["Inventory", "Quality", "Delivery", "Financial", "Production"],
+                        label="Category",
+                        value="Inventory",
+                        interactive=True
+                    )
+                    
+                    gr.Markdown("#### 2. SQL Statement")
+                    sme_sql = gr.Code(
+                        label="SQL Statement",
+                        language="sql",
+                        lines=8,
+                        value="-- Enter your SQL here\nSELECT "
+                    )
+                    
+                    sme_justification = gr.Textbox(
+                        label="SME Justification / Notes",
+                        placeholder="Why does this SQL represent the concept from this perspective?",
+                        lines=3
+                    )
+                    
+                    sme_submit_btn = gr.Button("Submit for Review", variant="primary", size="lg")
+                    sme_status = gr.Textbox(label="Submission Status", interactive=False)
+                
+                with gr.Column():
+                    gr.Markdown("#### Reviewer's Decision Table")
+                    
+                    def load_reviewer_table() -> str:
+                        bindings = resolve_sql_bindings()
+                        if not bindings:
+                            return "No submissions yet. Use the form on the left to submit SQL."
+                        
+                        output = "| Filename | Perspective | Concept | Status |\n"
+                        output += "|----------|-------------|---------|--------|\n"
+                        
+                        status_icons = {
+                            "PENDING": "⏳",
+                            "APPROVED": "✅",
+                            "REJECTED": "❌",
+                            "UNKNOWN": "❓"
+                        }
+                        
+                        for b in bindings:
+                            icon = status_icons.get(b["validation_status"], "❓")
+                            output += f"| `{b['filename']}` | {b['perspective']} | {b['concept']} | {icon} {b['validation_status']} |\n"
+                        
+                        summary = get_manifest_summary()
+                        output += f"\n**Total: {summary['total']}** | "
+                        output += f"Pending: {summary['pending']} | "
+                        output += f"Approved: {summary['approved']} | "
+                        output += f"Rejected: {summary['rejected']}"
+                        
+                        return output
+                    
+                    reviewer_table = gr.Markdown(value=load_reviewer_table())
+                    refresh_reviewer_btn = gr.Button("Refresh Table", variant="secondary")
+                    
+                    gr.Markdown("#### Review Actions")
+                    with gr.Row():
+                        review_binding_key = gr.Textbox(
+                            label="Binding Key",
+                            placeholder="e.g., quality_ncm_cost_20260208_143000"
+                        )
+                        review_action = gr.Dropdown(
+                            choices=["APPROVED", "REJECTED"],
+                            label="Decision",
+                            interactive=True
+                        )
+                    review_btn = gr.Button("Update Status", variant="secondary")
+                    review_status = gr.Textbox(label="Review Status", interactive=False)
+            
+            def submit_sme(sql, category, perspective, concept, justification):
+                if not sql or not sql.strip() or sql.strip() == "-- Enter your SQL here\nSELECT":
+                    return "Please enter a SQL statement.", load_reviewer_table()
+                if not perspective:
+                    return "Please select a perspective.", load_reviewer_table()
+                if not concept or not concept.strip():
+                    return "Please enter a concept name.", load_reviewer_table()
+                
+                result = save_sme_submission(sql, category or "Inventory", perspective, concept.strip(), justification or "")
+                return result, load_reviewer_table()
+            
+            sme_submit_btn.click(
+                fn=submit_sme,
+                inputs=[sme_sql, sme_category, sme_perspective, sme_concept, sme_justification],
+                outputs=[sme_status, reviewer_table]
+            )
+            
+            refresh_reviewer_btn.click(fn=load_reviewer_table, outputs=reviewer_table)
+            
+            def do_review(binding_key, action):
+                if not binding_key or not binding_key.strip():
+                    return "Enter a binding key.", load_reviewer_table()
+                if not action:
+                    return "Select a decision.", load_reviewer_table()
+                result = update_binding_status(binding_key.strip(), action)
+                return result, load_reviewer_table()
+            
+            review_btn.click(
+                fn=do_review,
+                inputs=[review_binding_key, review_action],
+                outputs=[review_status, reviewer_table]
+            )
         
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""

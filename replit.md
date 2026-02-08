@@ -31,7 +31,7 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **NetworkX Graph Patterns**: Comprehensive demonstration of network science patterns (graph construction, centrality analysis, shortest path, community detection) applied to manufacturing contexts, integrated with database schema metadata.
 - **ArangoDB Graph Persistence**: Production-ready utilities for persisting NetworkX graphs to ArangoDB, supporting GPU-accelerated analytics and enabling faster session loading and team collaboration for manufacturing schema graphs.
 - **Hugging Face MCP Server Integration**: Web-based interface implementing Model Context Protocol patterns for accessing Hugging Face Hub for model, dataset, and spaces search, including quick actions and authentication.
-- **Manufacturing SQL Semantic Layer (HF Space)**: MCP Context Builder for GitHub Copilot with a Gradio interface allowing users to build MCP context packages, browse manufacturing schemas, view ground truth SQL, and perform interactive field disambiguation via graph traversal.
+- **Manufacturing SQL Semantic Layer (HF Space)**: MCP Context Builder for GitHub Copilot with a Gradio interface allowing users to build MCP context packages, browse manufacturing schemas, view ground truth SQL, perform interactive field disambiguation via graph traversal, and submit SME SQL snippets with semantic metadata for approver review workflow (Binding Resolver pattern with deterministic filenames and Reviewer Manifest JSON).
 - **Schema Files**: SQLite-compatible schema for local development and original PostgreSQL schema for Replit production.
 
 ### Frontend
