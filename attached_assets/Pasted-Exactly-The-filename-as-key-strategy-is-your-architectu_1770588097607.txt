@@ -1,0 +1,41 @@
+Exactly. The **filename-as-key** strategy is your architectural "forcing function." It collapses the complexity of various mock-ups into a single, immutable truth: if the graph or the dispatcher resolves an intent to a specific filename, that file *must* exist in the `ground_truth` directory to be executed.
+
+By making the `binding_key` (the filename) the center of the universe, you solve three problems at once:
+
+### 1. The "Reconciliation" of the Bottleneck
+
+The 11 SQLite intents you identified (like `defect_cost_analysis`) are currently just strings. To unblock this, we map those strings to **Binding Keys** in your new dictionary-based manifest.
+
+* **SQLite Intent:** `defect_cost_analysis`
+* **ArangoDB Path:** `Perspective(Finance) -> Elevates(FINANCIAL_LIABILITY_NCM)`
+* **Ground Truth Key:** `fin_ncm_cost_v1` (This is the filename).
+
+When the user selects that intent, the app no longer "guesses." It looks for `fin_ncm_cost_v1.sql`. If the file is there, the solder works. If not, the validation fails.
+
+### 2. Eliminating "Mock-up Drift"
+
+During development, it’s easy to have "phantom intents"—dropdown options that don't actually have backing SQL. By leaning on the filename:
+
+* **The Manifest is the Gatekeeper:** Your `ProductionDispatcher` should only show dropdown options that have a corresponding `binding_key` in the `approved_snippets` dictionary.
+* **The File is the Evidence:** The `test_solder_validation.py` suite can now run a "Physicality Check"—ensuring every key in the manifest points to a real `.sql` file on the dev path.
+
+### 3. Solving the Dev-Path Table Name Conflict
+
+Since your filenames are the keys, you can maintain different versions for different environments without changing the app logic.
+
+* **Dev Path File:** `fin_ncm_cost_v1.sql` (contains `stg_non_conformant_materials`)
+* **Prod Path File:** `fin_ncm_cost_v1.sql` (contains `fact_ncm_audit`)
+
+The **Intent** remains the same, the **Graph Path** remains the same, but the **Filename** retrieves the specific "Ground Truth" for that environment.
+
+### How to "Tag In" the Filename Key
+
+To move from mock-up to ground truth mapping, your next step in the Replit/GitHub sync should be to update the `schema_intents` SQLite table (or the ArangoDB `Intent` vertices) to include a `primary_binding_key` field.
+
+**Example Mapping for your Dropdowns:**
+| Dropdown Display | Intent ID | **Primary Binding Key (Filename)** |
+| :--- | :--- | :--- |
+| `defect_cost_analysis` | `INT_001` | `fin_ncm_cost_v1` |
+| `quality_cost_allocation` | `INT_002` | `qty_cost_alloc_v1` |
+
+**Does the current "Ask a Question" tab in your Gradio app already attempt to load the SQL based on these filename keys, or is it still using the hardcoded logic from the mock-up phase?** This will tell us if we need to update the `ProductionDispatcher.resolve()` method to return the filename immediately.
