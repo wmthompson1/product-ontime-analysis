@@ -2018,15 +2018,36 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 print(f"[DEBUG] Returning choices: {choices}")
                 return gr.Dropdown(choices=choices, value=None), ""
             
+            def _find_binding_key_for_sql(sql_text: str) -> str:
+                """Look up binding key from manifest by matching SQL content"""
+                if not sql_text or not sql_text.strip():
+                    return ""
+                manifest_path = os.path.join(GROUND_TRUTH_DIR, "reviewer_manifest.json")
+                try:
+                    with open(manifest_path, 'r') as f:
+                        manifest = json.load(f)
+                    sql_normalized = sql_text.strip()
+                    for binding_key, entry in manifest.get("approved_snippets", {}).items():
+                        file_path = entry.get("file_path", "")
+                        if os.path.exists(file_path):
+                            with open(file_path, 'r') as sf:
+                                snippet_sql = sf.read().strip()
+                            if snippet_sql == sql_normalized:
+                                return binding_key
+                except Exception as e:
+                    print(f"[DEBUG] Binding key lookup error: {e}")
+                return ""
+
             def load_query_sql(category_id: str, query_name: str):
                 print(f"[DEBUG] load_query_sql called with category={repr(category_id)}, query={repr(query_name)}")
                 if category_id is None or query_name is None:
-                    return "", ""
+                    return "", "", ""
                 queries = get_saved_queries(category_id)
                 for q in queries:
                     if q['name'] == query_name:
-                        return q['sql'], q['description']
-                return "", ""
+                        binding_key = _find_binding_key_for_sql(q['sql'])
+                        return q['sql'], q['description'], binding_key if binding_key else "— not bound to manifest —"
+                return "", "", ""
             
             with gr.Row():
                 with gr.Column():
@@ -2042,6 +2063,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         interactive=True
                     )
                     saved_description = gr.Textbox(label="Description", interactive=False)
+                    saved_binding_key = gr.Textbox(label="Binding Key (manifest filename)", interactive=False)
                 
                 with gr.Column():
                     saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True)
@@ -2055,7 +2077,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             saved_query_dropdown.change(
                 fn=load_query_sql,
                 inputs=[saved_category, saved_query_dropdown],
-                outputs=[saved_sql_output, saved_description]
+                outputs=[saved_sql_output, saved_description, saved_binding_key]
             )
         
         with gr.Tab("🔗 Semantic Graph"):
