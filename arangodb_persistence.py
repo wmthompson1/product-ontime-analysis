@@ -60,20 +60,28 @@ class ArangoDBGraphPersistence:
         )
     
     def _ensure_database_exists(self):
-        """Create the database if it doesn't exist"""
+        """Create the database if it doesn't exist.
+        
+        On cloud instances (ArangoDB Oasis/Cloud), _system access is typically
+        restricted. In that case we skip auto-creation and assume the database
+        was pre-created via the cloud console.
+        """
         try:
-            sys_db = self._client.db("_system", username=self.config.username, password=self.config.password)
-        except Exception:
-            sys_db = self._client.db("_system")
-
-        try:
+            sys_db = self._client.db(
+                "_system",
+                username=self.config.username,
+                password=self.config.password
+            )
             if not sys_db.has_database(self.config.database_name):
                 print(f"Creating database '{self.config.database_name}'...")
                 sys_db.create_database(self.config.database_name)
                 print(f"Database created")
         except Exception as e:
-            print(f"Could not verify/create database '{self.config.database_name}': {e}")
-            raise
+            if "401" in str(e) or "not authorized" in str(e).lower():
+                print(f"Skipping _system check (cloud instance): will connect directly to '{self.config.database_name}'")
+            else:
+                print(f"Could not verify/create database '{self.config.database_name}': {e}")
+                raise
 
     def _ensure_collection(self, name: str, edge: bool = False):
         """Ensure a collection exists, creating it if needed"""
