@@ -286,40 +286,36 @@ def save_sme_submission(sql_text: str, category: str, perspective: str, concept:
     logic_type = "SPATIAL_ALIAS" if "User_Defined" in sql_text else "DIRECT"
 
     manifest_entry = {
-        "binding_key": binding_key,
-        "perspective": perspective,
         "concept_anchor": concept.upper(),
+        "perspective": perspective,
         "category": category,
         "logic_type": logic_type,
-        "sql_snippet_path": file_path,
+        "file_path": file_path,
         "sme_justification": justification,
         "validation_status": "PENDING",
+        "binding_key": binding_key,
         "created_at": datetime.datetime.now().isoformat()
     }
 
-    current_manifest = {
-        "manifest_metadata": {
-            "approver_id": "TBD",
-            "environment": "development",
-            "last_updated": datetime.datetime.now().isoformat()
-        },
-        "bindings": []
-    }
-
     if os.path.exists(MANIFEST_PATH):
-        with open(MANIFEST_PATH, "r") as f:
-            try:
-                current_manifest = json.load(f)
-            except json.JSONDecodeError:
-                pass
+        try:
+            with open(MANIFEST_PATH, "r") as f:
+                manifest = json.load(f)
+        except (json.JSONDecodeError, Exception):
+            manifest = {"approved_snippets": {}}
+    else:
+        manifest = {"approved_snippets": {}}
 
-    current_manifest["bindings"].append(manifest_entry)
-    current_manifest["manifest_metadata"]["last_updated"] = datetime.datetime.now().isoformat()
+    if "approved_snippets" not in manifest:
+        manifest["approved_snippets"] = {}
+
+    manifest["approved_snippets"][binding_key] = manifest_entry
+    manifest["last_updated"] = datetime.datetime.now().isoformat()
 
     tmp_fd, tmp_path = tempfile.mkstemp(dir=GROUND_TRUTH_DIR, suffix=".json")
     try:
         with os.fdopen(tmp_fd, "w") as f:
-            json.dump(current_manifest, f, indent=2)
+            json.dump(manifest, f, indent=4)
         os.replace(tmp_path, MANIFEST_PATH)
     except Exception:
         if os.path.exists(tmp_path):
@@ -337,58 +333,34 @@ def resolve_sql_bindings(sql_dir: str = None) -> List[Dict[str, Any]]:
     if not os.path.exists(sql_dir):
         return bindings
 
+    manifest = {}
+    if os.path.exists(MANIFEST_PATH):
+        try:
+            with open(MANIFEST_PATH, "r") as f:
+                manifest = json.load(f)
+        except Exception:
+            pass
+
+    approved_snippets = manifest.get("approved_snippets", {})
+
     for filename in sorted(os.listdir(sql_dir)):
         if not filename.endswith(".sql"):
             continue
 
-        file_path = os.path.join(sql_dir, filename)
         binding_key = filename.replace(".sql", "")
+        file_path = os.path.join(sql_dir, filename)
 
-        perspective = ""
-        concept = ""
-        category = ""
-        justification = ""
-        created_at = ""
-
-        try:
-            with open(file_path, "r") as f:
-                for line in f:
-                    if line.startswith("-- Perspective:"):
-                        perspective = line.replace("-- Perspective:", "").strip()
-                    elif line.startswith("-- Concept:"):
-                        concept = line.replace("-- Concept:", "").strip()
-                    elif line.startswith("-- Category:"):
-                        category = line.replace("-- Category:", "").strip()
-                    elif line.startswith("-- SME Justification:"):
-                        justification = line.replace("-- SME Justification:", "").strip()
-                    elif line.startswith("-- Created:"):
-                        created_at = line.replace("-- Created:", "").strip()
-                    elif not line.startswith("--"):
-                        break
-        except Exception:
-            pass
-
-        validation_status = "UNKNOWN"
-        if os.path.exists(MANIFEST_PATH):
-            try:
-                with open(MANIFEST_PATH, "r") as f:
-                    manifest = json.load(f)
-                for entry in manifest.get("bindings", []):
-                    if entry.get("binding_key") == binding_key:
-                        validation_status = entry.get("validation_status", "UNKNOWN")
-                        break
-            except Exception:
-                pass
+        entry = approved_snippets.get(binding_key, {})
 
         bindings.append({
             "filename": filename,
             "binding_key": binding_key,
-            "perspective": perspective,
-            "concept": concept.upper() if concept else "",
-            "category": category,
-            "justification": justification,
-            "validation_status": validation_status,
-            "created_at": created_at,
+            "perspective": entry.get("perspective", ""),
+            "concept": entry.get("concept_anchor", ""),
+            "category": entry.get("category", ""),
+            "justification": entry.get("sme_justification", ""),
+            "validation_status": entry.get("validation_status", "UNKNOWN"),
+            "created_at": entry.get("created_at", ""),
             "path": file_path
         })
 
@@ -405,13 +377,14 @@ def get_manifest_summary() -> Dict[str, Any]:
     except Exception:
         return {"total": 0, "pending": 0, "approved": 0, "rejected": 0, "bindings": []}
 
-    bindings = manifest.get("bindings", [])
+    snippets = manifest.get("approved_snippets", {})
+    bindings_list = list(snippets.values())
     return {
-        "total": len(bindings),
-        "pending": sum(1 for b in bindings if b.get("validation_status") == "PENDING"),
-        "approved": sum(1 for b in bindings if b.get("validation_status") == "APPROVED"),
-        "rejected": sum(1 for b in bindings if b.get("validation_status") == "REJECTED"),
-        "bindings": bindings
+        "total": len(bindings_list),
+        "pending": sum(1 for b in bindings_list if b.get("validation_status") == "PENDING"),
+        "approved": sum(1 for b in bindings_list if b.get("validation_status") == "APPROVED"),
+        "rejected": sum(1 for b in bindings_list if b.get("validation_status") == "REJECTED"),
+        "bindings": bindings_list
     }
 
 
@@ -425,23 +398,19 @@ def update_binding_status(binding_key: str, new_status: str) -> str:
     except Exception as e:
         return f"Error reading manifest: {e}"
 
-    found = False
-    for entry in manifest.get("bindings", []):
-        if entry.get("binding_key") == binding_key:
-            entry["validation_status"] = new_status
-            entry["reviewed_at"] = datetime.datetime.now().isoformat()
-            found = True
-            break
+    snippets = manifest.get("approved_snippets", {})
 
-    if not found:
+    if binding_key not in snippets:
         return f"Binding key '{binding_key}' not found in manifest."
 
-    manifest["manifest_metadata"]["last_updated"] = datetime.datetime.now().isoformat()
+    snippets[binding_key]["validation_status"] = new_status
+    snippets[binding_key]["reviewed_at"] = datetime.datetime.now().isoformat()
+    manifest["last_updated"] = datetime.datetime.now().isoformat()
 
     tmp_fd, tmp_path = tempfile.mkstemp(dir=GROUND_TRUTH_DIR, suffix=".json")
     try:
         with os.fdopen(tmp_fd, "w") as f:
-            json.dump(manifest, f, indent=2)
+            json.dump(manifest, f, indent=4)
         os.replace(tmp_path, MANIFEST_PATH)
     except Exception:
         if os.path.exists(tmp_path):

@@ -81,16 +81,18 @@ class SolderEngine:
         except Exception:
             return []
 
+        snippets = manifest.get("approved_snippets", {})
+        manifest_dir = os.path.dirname(os.path.abspath(self.manifest_path))
+
         bindings = []
-        for entry in manifest.get("bindings", []):
+        for binding_key, entry in snippets.items():
             if entry.get("validation_status") != "APPROVED":
                 continue
 
             sql_text = ""
-            sql_path = entry.get("sql_snippet_path", "")
+            sql_path = entry.get("file_path", "")
             resolved_path = sql_path
             if sql_path and not os.path.isabs(sql_path):
-                manifest_dir = os.path.dirname(os.path.abspath(self.manifest_path))
                 candidate = os.path.join(manifest_dir, os.path.basename(sql_path))
                 if os.path.exists(candidate):
                     resolved_path = candidate
@@ -102,14 +104,12 @@ class SolderEngine:
             if resolved_path and os.path.exists(resolved_path):
                 try:
                     with open(resolved_path, "r") as f:
-                        lines = f.readlines()
-                    sql_lines = [l for l in lines if not l.startswith("--")]
-                    sql_text = "".join(sql_lines).strip()
+                        sql_text = f.read().strip()
                 except Exception:
                     pass
 
             bindings.append(SolderBinding(
-                binding_key=entry.get("binding_key", ""),
+                binding_key=binding_key,
                 perspective=entry.get("perspective", ""),
                 concept_anchor=entry.get("concept_anchor", ""),
                 logic_type=entry.get("logic_type", "DIRECT"),
