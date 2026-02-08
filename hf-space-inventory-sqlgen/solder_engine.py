@@ -88,9 +88,20 @@ class SolderEngine:
 
             sql_text = ""
             sql_path = entry.get("sql_snippet_path", "")
-            if sql_path and os.path.exists(sql_path):
+            resolved_path = sql_path
+            if sql_path and not os.path.isabs(sql_path):
+                manifest_dir = os.path.dirname(os.path.abspath(self.manifest_path))
+                candidate = os.path.join(manifest_dir, os.path.basename(sql_path))
+                if os.path.exists(candidate):
+                    resolved_path = candidate
+                elif not os.path.exists(sql_path):
+                    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    candidate2 = os.path.join(repo_root, sql_path)
+                    if os.path.exists(candidate2):
+                        resolved_path = candidate2
+            if resolved_path and os.path.exists(resolved_path):
                 try:
-                    with open(sql_path, "r") as f:
+                    with open(resolved_path, "r") as f:
                         lines = f.readlines()
                     sql_lines = [l for l in lines if not l.startswith("--")]
                     sql_text = "".join(sql_lines).strip()
@@ -382,6 +393,146 @@ class SolderEngine:
             ast_operations=ast_operations,
             warnings=["No approved SME snippet found; using auto-generated base query"]
         )
+
+    def get_elevation_weight(self, intent_name: str, concept_name: str) -> float:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute("""
+                SELECT ic.intent_factor_weight
+                FROM schema_intent_concepts ic
+                JOIN schema_intents i ON ic.intent_id = i.intent_id
+                JOIN schema_concepts c ON ic.concept_id = c.concept_id
+                WHERE i.intent_name = ? AND c.concept_name = ?
+            """, (intent_name, concept_name)).fetchone()
+            return row["intent_factor_weight"] if row else 0
+        finally:
+            conn.close()
+
+    def resolve_concept_snippet(self, perspective: str, concept: str,
+                                 intent: str = None) -> Optional[SolderBinding]:
+        weight = self.get_elevation_weight(intent, concept) if intent else 0
+
+        all_approved = self.load_approved_bindings()
+
+        candidates = [
+            b for b in all_approved
+            if b.concept_anchor == concept.upper()
+            and (not perspective or b.perspective.lower() == perspective.lower())
+            and b.validation_status == "APPROVED"
+        ]
+
+        if not candidates:
+            candidates = [
+                b for b in all_approved
+                if b.concept_anchor == concept.upper()
+                and b.validation_status == "APPROVED"
+            ]
+
+        if not candidates:
+            return None
+
+        if weight <= -1:
+            return SolderBinding(
+                binding_key="SUPPRESSED",
+                perspective=perspective or "",
+                concept_anchor=concept.upper(),
+                logic_type="SUPPRESSED",
+                sql_snippet_path="",
+                sme_justification="Suppressed by intent elevation weight",
+                validation_status="APPROVED",
+                sql_text="NULL"
+            )
+
+        return sorted(candidates, key=lambda x: x.binding_key, reverse=True)[0]
+
+    def assemble_query(self, intent: str, perspective: str,
+                       concepts: List[str], base_table: str,
+                       target_dialect: str = "sqlite") -> Dict[str, Any]:
+        cte_parts = []
+        select_refs = []
+        report = []
+        warnings = []
+        resolved_count = 0
+
+        for concept in concepts:
+            binding = self.resolve_concept_snippet(perspective, concept, intent)
+
+            if not binding:
+                report.append(f"- **{concept}**: No approved snippet found (skipped)")
+                continue
+
+            if binding.logic_type == "SUPPRESSED":
+                select_refs.append(f"NULL AS {concept}")
+                report.append(f"- ~~{concept}~~: SUPPRESSED by intent weight → NULL")
+                resolved_count += 1
+                continue
+
+            snippet_sql = binding.sql_text.strip().rstrip(";")
+            if not snippet_sql:
+                report.append(f"- **{concept}**: Binding `{binding.binding_key}` has empty SQL (skipped)")
+                continue
+
+            try:
+                sqlglot.parse_one(snippet_sql, read="sqlite")
+            except Exception as e:
+                report.append(f"- **{concept}**: Parse error in snippet (skipped)")
+                warnings.append(f"Could not parse snippet for {concept}: {e}")
+                continue
+
+            cte_parts.append(f"{concept} AS (\n{snippet_sql}\n)")
+            select_refs.append(f"{concept}.*")
+            resolved_count += 1
+
+            report.append(
+                f"- **{concept}**: Bound via `{binding.binding_key}` "
+                f"({binding.logic_type})"
+            )
+
+            if binding.logic_type == "SPATIAL_ALIAS":
+                warnings.append(
+                    f"SPATIAL_ALIAS on {concept}: verify coordinate/bin accuracy"
+                )
+
+        if not select_refs:
+            return {
+                "sql": f"-- No projections resolved for intent '{intent}'",
+                "dialect": target_dialect,
+                "report": report,
+                "warnings": ["No concepts could be resolved to approved snippets"]
+            }
+
+        cte_clause = "WITH " + ",\n".join(cte_parts) + "\n" if cte_parts else ""
+        cte_names = [c.split(" AS ")[0] for c in cte_parts]
+
+        if cte_names:
+            from_clause = cte_names[0]
+            join_clauses = ""
+            for cte_name in cte_names[1:]:
+                join_clauses += f"\nCROSS JOIN {cte_name}"
+            assembled_sql = (
+                f"{cte_clause}"
+                f"SELECT {', '.join(select_refs)}\n"
+                f"FROM {from_clause}{join_clauses}"
+            )
+        else:
+            assembled_sql = f"SELECT {', '.join(select_refs)}\nFROM {base_table}"
+
+        if target_dialect != "sqlite":
+            output_sql = self.transpile(assembled_sql, "sqlite", target_dialect)
+        else:
+            output_sql = assembled_sql
+
+        return {
+            "sql": output_sql,
+            "dialect": target_dialect,
+            "report": report,
+            "warnings": warnings,
+            "concept_count": resolved_count,
+            "intent": intent,
+            "perspective": perspective,
+            "base_table": base_table
+        }
 
     def _generate_base_query(self, edge: ElevationEdge) -> str:
         if edge.table_name and edge.field_name:

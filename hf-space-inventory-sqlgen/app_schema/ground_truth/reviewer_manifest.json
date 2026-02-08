@@ -1,0 +1,45 @@
+{
+  "manifest_version": "1.0",
+  "last_updated": "2026-02-08T15:02:00Z",
+  "bindings": [
+    {
+      "binding_key": "finance_ncm_cost_20260208_150000",
+      "perspective": "Finance",
+      "concept_anchor": "DEFECTSEVERITYCOST",
+      "logic_type": "DIRECT",
+      "sql_snippet_path": "hf-space-inventory-sqlgen/app_schema/ground_truth/finance_ncm_cost_20260208_150000.sql",
+      "sme_justification": "NCM cost analysis with repair and scrap cost aggregation for financial defect severity assessment",
+      "validation_status": "APPROVED",
+      "submitted_by": "seed_data",
+      "submitted_at": "2026-02-08T15:00:00Z",
+      "approved_by": "seed_data",
+      "approved_at": "2026-02-08T15:01:00Z"
+    },
+    {
+      "binding_key": "quality_defectseverityquality_20260208_150100",
+      "perspective": "Quality",
+      "concept_anchor": "DEFECTSEVERITYQUALITY",
+      "logic_type": "DIRECT",
+      "sql_snippet_path": "hf-space-inventory-sqlgen/app_schema/ground_truth/quality_defectseverityquality_20260208_150100.sql",
+      "sme_justification": "Quality-focused defect severity with root cause and quality score for trending analysis",
+      "validation_status": "APPROVED",
+      "submitted_by": "seed_data",
+      "submitted_at": "2026-02-08T15:01:00Z",
+      "approved_by": "seed_data",
+      "approved_at": "2026-02-08T15:01:30Z"
+    },
+    {
+      "binding_key": "customer_defectseveritycustomer_20260208_150200",
+      "perspective": "Customer",
+      "concept_anchor": "DEFECTSEVERITYCUSTOMER",
+      "logic_type": "DIRECT",
+      "sql_snippet_path": "hf-space-inventory-sqlgen/app_schema/ground_truth/customer_defectseveritycustomer_20260208_150200.sql",
+      "sme_justification": "Customer impact tracking for defect severity with complaint and notification data",
+      "validation_status": "APPROVED",
+      "submitted_by": "seed_data",
+      "submitted_at": "2026-02-08T15:02:00Z",
+      "approved_by": "seed_data",
+      "approved_at": "2026-02-08T15:02:30Z"
+    }
+  ]
+}

@@ -2555,6 +2555,105 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 inputs=[solder_intent],
                 outputs=solder_report_output
             )
+            
+            gr.Markdown("---")
+            gr.Markdown("""
+            ### Preview Solder (Multi-Concept Assembly)
+            
+            Combine **multiple concepts** into a single cohesive query. The engine resolves 
+            each concept's approved snippet, applies elevation weights, and assembles them 
+            as projections from a base table. Suppressed concepts become `NULL`.
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    assemble_intent = gr.Dropdown(
+                        choices=intent_choices,
+                        label="Intent",
+                        info="Controls which concepts are elevated vs suppressed",
+                        interactive=True
+                    )
+                    
+                    perspective_choices = ["Finance", "Quality", "Operations", "Customer", "Compliance"]
+                    assemble_perspective = gr.Dropdown(
+                        choices=perspective_choices,
+                        label="Perspective",
+                        info="SME perspective for snippet resolution",
+                        interactive=True
+                    )
+                    
+                    assemble_concepts = gr.Textbox(
+                        label="Concepts (comma-separated)",
+                        placeholder="e.g., DefectSeverityCost, DefectSeverityQuality, DefectSeverityCustomer",
+                        info="List the concepts to include as projections"
+                    )
+                    
+                    assemble_base_table = gr.Textbox(
+                        label="Base Table",
+                        value="stg_manufacturing_flat",
+                        info="FROM clause table name"
+                    )
+                    
+                    assemble_dialect = gr.Dropdown(
+                        choices=[
+                            ("SQLite", "sqlite"),
+                            ("T-SQL (SQL Server)", "tsql"),
+                            ("PostgreSQL", "postgres"),
+                            ("MySQL", "mysql"),
+                            ("BigQuery", "bigquery"),
+                        ],
+                        value="sqlite",
+                        label="Target Dialect",
+                        interactive=True
+                    )
+                    
+                    assemble_btn = gr.Button("Assemble Query", variant="primary", size="lg")
+                
+                with gr.Column():
+                    gr.Markdown("#### Assembled Output")
+                    assembled_sql_output = gr.Code(label="Assembled SQL", language="sql", lines=12)
+                    assembled_report = gr.Markdown(label="Assembly Report")
+            
+            def run_assemble(intent, perspective, concepts_str, base_table, dialect):
+                if not intent:
+                    return "-- Select an intent", "Select an intent above."
+                if not concepts_str or not concepts_str.strip():
+                    return "-- Enter concepts", "Enter comma-separated concept names."
+                
+                concepts = [c.strip() for c in concepts_str.split(",") if c.strip()]
+                result = solder.assemble_query(
+                    intent=intent,
+                    perspective=perspective or "",
+                    concepts=concepts,
+                    base_table=base_table or "stg_manufacturing_flat",
+                    target_dialect=dialect or "sqlite"
+                )
+                
+                report_md = f"## Assembly Report\n\n"
+                report_md += f"**Intent:** {result.get('intent', '')}\n\n"
+                report_md += f"**Perspective:** {result.get('perspective', '')}\n\n"
+                report_md += f"**Base Table:** `{result.get('base_table', '')}`\n\n"
+                report_md += f"**Concepts Resolved:** {result.get('concept_count', 0)} / {len(concepts)}\n\n"
+                report_md += f"**Dialect:** {result.get('dialect', 'sqlite')}\n\n"
+                
+                if result.get("report"):
+                    report_md += "### Concept Resolution\n"
+                    for line in result["report"]:
+                        report_md += f"{line}\n"
+                    report_md += "\n"
+                
+                if result.get("warnings"):
+                    report_md += "### Warnings\n"
+                    for w in result["warnings"]:
+                        report_md += f"- {w}\n"
+                
+                return result.get("sql", ""), report_md
+            
+            assemble_btn.click(
+                fn=run_assemble,
+                inputs=[assemble_intent, assemble_perspective, assemble_concepts, assemble_base_table, assemble_dialect],
+                outputs=[assembled_sql_output, assembled_report]
+            )
         
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""

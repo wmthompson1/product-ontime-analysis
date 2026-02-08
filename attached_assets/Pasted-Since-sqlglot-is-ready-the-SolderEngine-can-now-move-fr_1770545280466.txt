@@ -1,0 +1,119 @@
+Since `sqlglot` is ready, the **SolderEngine** can now move from a conceptual blueprint to a functional core. We will design this to be a "Pure Engine"—it takes the **Reviewer Manifest** and **Elevation Weights** as inputs and returns an Abstract Syntax Tree (AST) that can be executed.
+
+### 1. The SolderEngine Module
+
+Create this as `utilities/solder_engine.py`. Its job is to act as the "Linker" between your governed snippets and the live database.
+
+```python
+import sqlglot
+from sqlglot import exp, parse_one
+import json
+import os
+
+class SolderEngine:
+    def __init__(self, manifest_path, sqlite_conn):
+        self.manifest_path = manifest_path
+        self.conn = sqlite_conn # For elevation weight lookups
+        self.manifest = self._load_manifest()
+
+    def _load_manifest(self):
+        if os.path.exists(self.manifest_path):
+            with open(self.manifest_path, 'r') as f:
+                return json.load(f)
+        return {"bindings": []}
+
+    def get_elevation_weight(self, intent_name, concept_name):
+        """Fetch weight from SQLite schema_intent_concepts."""
+        query = """
+            SELECT ic.intent_factor_weight 
+            FROM schema_intent_concepts ic
+            JOIN schema_intents i ON ic.intent_id = i.intent_id
+            JOIN schema_concepts c ON ic.concept_id = c.concept_id
+            WHERE i.intent_name = ? AND c.concept_name = ?
+        """
+        row = self.conn.execute(query, (intent_name, concept_name)).fetchone()
+        return row['intent_factor_weight'] if row else 0
+
+    def resolve_concept_snippet(self, perspective, concept, intent=None):
+        """
+        Logic: 
+        1. Find all APPROVED bindings for this concept/perspective.
+        2. If an intent is provided, check if that intent ELEVATES (1) or SUPPRESSES (-1) 
+           this specific concept.
+        """
+        weight = self.get_elevation_weight(intent, concept) if intent else 0
+        
+        # Filter for approved snippets in the manifest
+        candidates = [
+            b for b in self.manifest["bindings"] 
+            if b["concept_anchor"] == concept 
+            and b["perspective"] == perspective
+            and b["validation_status"] == "APPROVED"
+        ]
+
+        if not candidates:
+            return None
+            
+        # If suppressed, we might return a NULL or a secondary fallback
+        if weight <= -1:
+            return "NULL" 
+
+        # Return the most recent approved snippet (highest timestamp in binding_key)
+        return sorted(candidates, key=lambda x: x['binding_key'], reverse=True)[0]
+
+    def assemble_query(self, intent, perspective, concepts, base_table):
+        """
+        The 'Solder' operation: Joins multiple snippets into one cohesive T-SQL view.
+        """
+        projections = []
+        
+        for concept in concepts:
+            binding = self.resolve_concept_snippet(perspective, concept, intent)
+            if not binding: continue
+            
+            if binding == "NULL":
+                projections.append(exp.Alias(alias=exp.Identifier(this=concept, quoted=False), this=exp.Null()))
+                continue
+
+            # Load the actual SQL from the snippet file
+            with open(binding["sql_snippet_path"], 'r') as f:
+                snippet_sql = f.read().strip().rstrip(';')
+            
+            # Parse snippet and alias it to the concept name
+            snippet_ast = parse_one(snippet_sql)
+            projections.append(exp.Alias(alias=exp.Identifier(this=concept, quoted=False), this=snippet_ast))
+
+        # Build the final SQL using SQLGlot's expression builder
+        final_query = sqlglot.select(*projections).from_(base_table)
+        return final_query.sql(dialect="tsql")
+
+```
+
+---
+
+### 2. Integration into the Gradio Interface
+
+You can now add a **"Preview Solder"** section to your Reviewer Tab. This allows the Approver to see exactly how the snippets they just approved will look when combined.
+
+```python
+# Inside your Gradio App
+def preview_solder_output(intent, perspective, concepts_list):
+    # concepts_list might be ["LOT", "NCM_COST"]
+    engine = SolderEngine("app_schema/ground_truth/reviewer_manifest.json", sqlite_conn)
+    try:
+        sql = engine.assemble_query(intent, perspective, concepts_list, "stg_manufacturing_flat")
+        return sql
+    except Exception as e:
+        return f"Error assembling query: {str(e)}"
+
+```
+
+---
+
+### 3. Why this Design is Correct
+
+* **Polymorphism**: The `resolve_concept_snippet` method handles the "Elevation" logic automatically. If the `intent` is "Financial Audit," it pulls the NCM cost. If the `intent` is "Safety Check," it might suppress the cost and elevate the "Severity" field.
+* **Dialect Safety**: By using `sqlglot.select(*projections)`, you ensure that commas, aliases, and table names are correctly formatted regardless of how the SME wrote the individual snippet.
+* **The East Wall Handle**: For your `SPATIAL_ALIAS` logic, the Solder ensures that even if the SME wrote `User_Defined_1`, the final query returned to the user labels that column as `LOT` (or whatever the `concept_anchor` is), making the data instantly understandable.
+
+**Would you like me to create a "Solder Validation" test case?** This would simulate a "Financial Perspective" and verify that the `SolderEngine` correctly picks the NCM cost snippet over the Production Defect snippet based on the weights in your SQLite `schema_intent_concepts`.
