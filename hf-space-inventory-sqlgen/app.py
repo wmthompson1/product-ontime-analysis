@@ -25,6 +25,7 @@ import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from solder_engine import SolderEngine
+from production_dispatcher import ProductionDispatcher
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
@@ -2437,6 +2438,129 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[review_status, reviewer_table]
             )
         
+        solder = SolderEngine()
+        
+        with gr.Tab("💬 Ask a Question"):
+            gr.Markdown("""
+            ### Production Dispatcher — Hybrid RAG
+            
+            Ask a **natural language question** about your manufacturing data. The system:
+            1. Routes your question to the correct **Intent** and **Concepts** (closed vocabulary)
+            2. Passes those to the **SolderEngine** to assemble governed SQL
+            3. Returns perspective-aware SQL built entirely from **SME-approved snippets**
+            
+            The LLM acts as a **Semantic Router**, not a SQL generator. All SQL is governed.
+            """)
+            
+            dispatcher = ProductionDispatcher(solder_engine=solder, use_live_api=True)
+            
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("#### Your Question")
+                    nl_input = gr.Textbox(
+                        label="Natural Language Query",
+                        placeholder="e.g., What are our top defect costs this quarter?",
+                        lines=3,
+                        info="Ask about defects, costs, suppliers, OEE, scheduling, maintenance..."
+                    )
+                    
+                    with gr.Row():
+                        perspective_override = gr.Dropdown(
+                            choices=[("Auto-detect", "")] + [(p, p) for p in dispatcher.perspectives],
+                            value="",
+                            label="Perspective Override",
+                            info="Leave as Auto-detect to let the router choose",
+                            interactive=True
+                        )
+                        dispatch_dialect = gr.Dropdown(
+                            choices=[
+                                ("SQLite", "sqlite"),
+                                ("T-SQL (SQL Server)", "tsql"),
+                                ("PostgreSQL", "postgres"),
+                                ("MySQL", "mysql"),
+                                ("BigQuery", "bigquery"),
+                            ],
+                            value="sqlite",
+                            label="Target Dialect",
+                            interactive=True
+                        )
+                    
+                    with gr.Row():
+                        dispatch_mode = gr.Radio(
+                            choices=[("Live API (OpenAI)", "live"), ("Demo Mode (Mock)", "mock")],
+                            value="mock",
+                            label="Routing Mode",
+                            info="Demo mode uses keyword matching; Live uses GPT-4o-mini"
+                        )
+                    
+                    dispatch_btn = gr.Button("Ask", variant="primary", size="lg")
+                    
+                    gr.Markdown("#### Example Questions")
+                    gr.Markdown("""
+                    - *"Show me the cost of defects on the East Wall"*
+                    - *"What is our supplier delivery performance?"*
+                    - *"How is OEE trending for the assembly line?"*
+                    - *"What are the top NCM costs this quarter?"*
+                    - *"Which defects have customer impact?"*
+                    - *"What's the maintenance schedule for critical equipment?"*
+                    """)
+                
+                with gr.Column(scale=1):
+                    gr.Markdown("#### Governed SQL Output")
+                    dispatch_sql = gr.Code(label="Assembled SQL", language="sql", lines=14)
+                    
+                    dispatch_metadata = gr.Markdown(label="Routing Metadata")
+                    
+                    dispatch_warnings = gr.Markdown(label="Warnings")
+            
+            def run_dispatch(question, perspective, dialect, mode):
+                if not question or not question.strip():
+                    return (
+                        "-- Enter a question above",
+                        "Enter a natural language question to begin.",
+                        ""
+                    )
+                
+                force_mock = (mode == "mock")
+                persp = perspective if perspective else None
+                
+                result = dispatcher.dispatch(
+                    user_query=question.strip(),
+                    perspective_override=persp,
+                    force_mock=force_mock,
+                    target_dialect=dialect or "sqlite"
+                )
+                
+                meta = f"## Routing Result\n\n"
+                meta += f"**Mode:** {result.routing_mode}\n\n"
+                meta += f"**Confidence:** {result.routing_confidence}\n\n"
+                meta += f"**Intent:** `{result.intent}`\n\n"
+                meta += f"**Concepts:** {', '.join(f'`{c}`' for c in result.concepts) if result.concepts else 'None'}\n\n"
+                meta += f"**Perspective:** {result.perspective or 'N/A'}\n\n"
+                
+                if result.assembly_report:
+                    meta += "### Assembly Report\n"
+                    for line in result.assembly_report:
+                        meta += f"{line}\n"
+                    meta += "\n"
+                
+                warn_md = ""
+                if result.warnings:
+                    warn_md = "### Warnings\n"
+                    for w in result.warnings:
+                        warn_md += f"- {w}\n"
+                
+                if result.out_of_scope:
+                    warn_md += "\n**This question is outside the manufacturing domain.** Try asking about defects, costs, suppliers, OEE, scheduling, or maintenance.\n"
+                
+                return result.assembled_sql, meta, warn_md
+            
+            dispatch_btn.click(
+                fn=run_dispatch,
+                inputs=[nl_input, perspective_override, dispatch_dialect, dispatch_mode],
+                outputs=[dispatch_sql, dispatch_metadata, dispatch_warnings]
+            )
+        
         with gr.Tab("🔧 Solder Engine"):
             gr.Markdown("""
             ### Semantic Transpilation Engine
@@ -2450,8 +2574,6 @@ Check that perspective-concept and intent-concept relationships are seeded.
             Intent → ELEVATES → Concept → Approved Snippet → SQLGlot AST → Final SQL
             ```
             """)
-            
-            solder = SolderEngine()
             
             with gr.Row():
                 with gr.Column():

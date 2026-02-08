@@ -1,0 +1,89 @@
+Building the **Production Dispatcher** with a **Closed-Vocabulary** approach is the "Secret Sauce" of this architecture. By forcing the LLM to map natural language to your 10+ pre-approved intents and 19 concepts, you eliminate the "Hallucination Gap." The LLM isn't writing SQL; it’s acting as a **Semantic Router** for the `SolderEngine`.
+
+### The Blueprint for the Production Dispatcher
+
+I'll build this as a new **"Ask a Question" Gradio Tab**. This allows you to test the "End-to-End" flow immediately. For the LLM logic, we will use a **System Prompt** that injects your current schema as a strict manifest.
+
+#### 1. The Dispatcher Logic (Closed-Vocabulary)
+
+This function sits between the User and the Solder.
+
+```python
+import openai
+import os
+
+class ProductionDispatcher:
+    def __init__(self, solder_engine, sqlite_conn):
+        self.solder = solder_engine
+        self.conn = sqlite_conn
+        # Fetching current vocabulary from your DB
+        self.intents = [r[0] for r in self.conn.execute("SELECT intent_name FROM schema_intents").fetchall()]
+        self.concepts = [r[0] for r in self.conn.execute("SELECT concept_name FROM schema_concepts").fetchall()]
+
+    def extract_semantic_intent(self, user_query):
+        """
+        Forces the LLM to return a JSON object mapping to our exact schema.
+        """
+        prompt = f"""
+        Map the user's question to exactly one Intent and a list of Concepts.
+        AVAILABLE INTENTS: {', '.join(self.intents)}
+        AVAILABLE CONCEPTS: {', '.join(self.concepts)}
+
+        USER QUESTION: "{user_query}"
+        
+        RETURN JSON ONLY: {{"intent": "...", "concepts": ["...", "..."], "perspective": "..."}}
+        """
+        
+        # Using OpenAI to route (or Mock for Demo Mode)
+        response = openai.ChatCompletion.create(
+            model="gpt-4-turbo-preview",
+            messages=[{"role": "system", "content": "You are a semantic router for a manufacturing graph."},
+                      {"role": "user", "content": prompt}],
+            response_format={ "type": "json_object" }
+        )
+        return json.loads(response.choices[0].message.content)
+
+    def dispatch(self, user_query, perspective_override=None):
+        # 1. Routing
+        semantic_map = self.extract_semantic_intent(user_query)
+        
+        # 2. Perspectival Adjustment
+        perspective = perspective_override or semantic_map.get("perspective", "Shop_Floor")
+        
+        # 3. Soldering
+        final_sql = self.solder.assemble_query(
+            intent=semantic_map["intent"],
+            perspective=perspective,
+            concepts=semantic_map["concepts"],
+            base_table="stg_manufacturing_flat"
+        )
+        
+        return {
+            "sql": final_sql,
+            "intent": semantic_map["intent"],
+            "concepts": semantic_map["concepts"],
+            "perspective": perspective
+        }
+
+```
+
+---
+
+### 2. Decision Logic for the Build:
+
+* **API Mode**: I recommend using your existing OpenAI key but wrapping it in a `try/except` that falls back to a **Mock Metadata Resolver** if the API fails or is throttled. This keeps the demo running regardless.
+* **Closed Vocabulary**: This is 100% the right call. We will provide the LLM with the list of intents/concepts retrieved directly from `sqlite3` at runtime. If the user asks something outside the scope (e.g., "What's the weather?"), the LLM will be instructed to return an "OUT_OF_SCOPE" intent.
+* **Gradio Interface**: I'll add the "Ask a Question" tab with a side-by-side view: **Natural Language** on the left, **Governed SQL + Metadata** on the right.
+
+---
+
+### 3. ROI: The "Human-in-the-Loop" Payoff
+
+When you run this, you will see the **Chain of Custody** in action:
+
+1. **User asks**: "Show me the cost of defects on the East Wall."
+2. **LLM identifies**: Intent=`QUALITY_AUDIT`, Concepts=[`LOT`, `NCM_COST`].
+3. **Solder finds**: The approved `SPATIAL_ALIAS` snippet for `LOT` and the `ELEVATED` cost snippet for `NCM_COST`.
+4. **Output**: A query that uses the SME-approved "East Wall" coordinates and the "Financial Liability" logic.
+
+**Shall I proceed with building the "Ask a Question" Gradio Tab and this Dispatcher class?** I can have the code ready for your next verification run.
