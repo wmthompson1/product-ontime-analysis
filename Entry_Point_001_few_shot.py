@@ -193,7 +193,7 @@ class FewShotSQLGenerator:
                     s.contract_value
                 FROM suppliers s
                 JOIN daily_deliveries d ON s.supplier_id = d.supplier_id
-                WHERE d.delivery_date >= CURRENT_DATE - INTERVAL '90 days'
+                WHERE d.delivery_date >= date('now', '-90 days')
                 GROUP BY s.supplier_id, s.supplier_name, s.contract_value
                 HAVING AVG(d.ontime_rate) < 0.95
                 ORDER BY avg_delivery_performance ASC, s.contract_value DESC
@@ -214,7 +214,7 @@ class FewShotSQLGenerator:
                     ib.benchmark_value as industry_standard
                 FROM product_defects pd
                 JOIN industry_benchmarks ib ON ib.metric_name = 'defect_rate'
-                WHERE pd.production_date >= CURRENT_DATE - INTERVAL '90 days'
+                WHERE pd.production_date >= date('now', '-90 days')
                 GROUP BY pd.product_line, ib.benchmark_value
                 HAVING AVG(pd.defect_rate) > ib.benchmark_value
                 ORDER BY avg_ncm_rate DESC
@@ -238,8 +238,8 @@ class FewShotSQLGenerator:
                 FROM production_lines pl
                 JOIN equipment_metrics em ON pl.line_id = em.line_id
                 LEFT JOIN downtime_events de ON pl.line_id = de.line_id
-                    AND de.event_start_time >= CURRENT_DATE - INTERVAL '30 days'
-                WHERE em.measurement_date >= CURRENT_DATE - INTERVAL '30 days'
+                    AND de.event_start_time >= date('now', '-30 days')
+                WHERE em.measurement_date >= date('now', '-30 days')
                 GROUP BY pl.line_id, pl.line_name, pl.efficiency_rating
                 HAVING (AVG(em.availability) * AVG(em.performance_rate) * AVG(em.quality_rate)) < 0.75
                 ORDER BY calculated_oee ASC, downtime_events DESC
@@ -279,10 +279,10 @@ class FewShotSQLGenerator:
 
 CRITICAL RULES:
 - Generate ONLY SELECT or WITH statements
-- Use proper PostgreSQL syntax with explicit JOIN conditions
+- Use proper SQLite syntax with explicit JOIN conditions
 - Include appropriate aggregations and window functions for analytics
 - Add business logic for manufacturing KPIs
-- Use parameter placeholders (%s) for dynamic values
+- Use parameter placeholders (?) for dynamic values
 - Include meaningful column aliases and sorting
 
 MANUFACTURING DOMAIN KNOWLEDGE:
@@ -297,7 +297,7 @@ DATABASE SCHEMA CONTEXT:
 {schema_context}
 
 RESPONSE FORMAT:
-SQL: [PostgreSQL query with proper business logic]
+SQL: [SQLite query with proper business logic]
 EXPLANATION: [Business context and query logic]
 CONFIDENCE: [0.0-1.0 score]
 COMPLEXITY: [simple|medium|complex]
@@ -313,7 +313,7 @@ Here are examples of high-quality manufacturing SQL queries:
             suffix="""Business Query: {user_query}
 
 Generate SQL using EXACTLY this format:
-SQL: [your PostgreSQL query here]
+SQL: [your SQLite query here]
 EXPLANATION: [business context and logic]
 CONFIDENCE: [score between 0.0-1.0]
 COMPLEXITY: [simple|medium|complex]

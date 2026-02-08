@@ -16,8 +16,8 @@ Demonstrates fundamental NetworkX patterns applied to manufacturing intelligence
 
 import networkx as nx
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
+from config import SQLITE_DB_PATH
 from typing import Dict, List, Any, Optional
 import json
 
@@ -149,7 +149,7 @@ class ManufacturingNetworkBuilder:
         
         return G
     
-    def load_from_database_metadata(self, database_url: Optional[str] = None) -> nx.DiGraph:
+    def load_from_database_metadata(self, db_path: Optional[str] = None) -> nx.DiGraph:
         """
         Pattern 4: Loading Graph from Database
         Integration with Entry Point 018 schema metadata
@@ -158,11 +158,10 @@ class ManufacturingNetworkBuilder:
         """
         print("\n📊 Pattern 4: Load from Database (Schema Metadata)")
         
-        db_url = database_url or os.getenv("DATABASE_URL")
-        if not db_url:
-            raise ValueError("DATABASE_URL must be provided or set in environment")
-        conn = psycopg2.connect(db_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        db_path = db_path or SQLITE_DB_PATH
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
         
         G = nx.DiGraph()
         

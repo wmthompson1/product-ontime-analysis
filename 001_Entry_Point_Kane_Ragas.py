@@ -281,7 +281,7 @@ MANUFACTURING DATABASE SCHEMA:
 
 USER QUERY: {query}
 
-Generate a PostgreSQL query that incorporates current industry trends and best practices.
+Generate a SQLite query that incorporates current industry trends and best practices.
 
 RESPONSE FORMAT:
 SQL: [your query]

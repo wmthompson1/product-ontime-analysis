@@ -7,7 +7,7 @@ Based on NVIDIA Developer Blog:
 "Accelerated, Production-Ready Graph Analytics for NetworkX Users"
 https://developer.nvidia.com/blog/accelerated-production-ready-graph-analytics-for-networkx-users/
 
-Demonstrates production-ready graph persistence using nx-arangodb:
+Demonstrates production-ready graph persistence patterns:
 - Persist NetworkX graphs to ArangoDB
 - Load graphs from ArangoDB in new sessions
 - Collaborative graph analytics with shared persistence layer
@@ -374,7 +374,7 @@ def demo_integration_with_entry_points():
     
     print("\n📊 Entry Point 018: Structured RAG Graph → ArangoDB")
     print("   Use case: Persist database schema graph for team collaboration")
-    print("   Pattern: Load from PostgreSQL → Persist to ArangoDB → Share with team")
+    print("   Pattern: Load from SQLite → Persist to ArangoDB → Share with team")
     print("   Benefit: Deterministic join pathfinding available to all team members")
     
     print("\n📊 Entry Point 019: NetworkX Patterns → ArangoDB")

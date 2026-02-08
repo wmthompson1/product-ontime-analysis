@@ -1,11 +1,11 @@
 """
 020_Entry_Point_Persist_2nd_NetworkX_Arango.py
 
-Second Pass: Load Manufacturing Schema from PostgreSQL → NetworkX → ArangoDB
+Second Pass: Load Manufacturing Schema from SQLite → NetworkX → ArangoDB
 Simple, focused pattern for persisting schema graphs.
 
 Workflow:
-1. Load schema_nodes and schema_edges from PostgreSQL database
+1. Load schema_nodes and schema_edges from SQLite database
 2. Create NetworkX graph with proper node metadata
 3. Persist to ArangoDB with metadata preservation
 """
@@ -13,25 +13,23 @@ Workflow:
 import networkx as nx
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
+from config import SQLITE_DB_PATH
 
 print("=" * 75)
 print("NetworkX over ArangoDB - Second Pass")
-print("Load Schema from PostgreSQL → Persist to ArangoDB")
+print("Load Schema from SQLite → Persist to ArangoDB")
 print("=" * 75)
 
-# Step 1: Connect to PostgreSQL database
-print("\n📊 Step 1: Load schema from PostgreSQL database")
+# Step 1: Connect to SQLite database
+print("\n📊 Step 1: Load schema from SQLite database")
 print("-" * 75)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    print("❌ DATABASE_URL not found")
-    exit(1)
+DB_PATH = SQLITE_DB_PATH
 
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor(cursor_factory=RealDictCursor)
+conn = sqlite3.connect(DB_PATH)
+conn.row_factory = sqlite3.Row
+cursor = conn.cursor()
 
 # Load nodes
 cursor.execute("SELECT * FROM schema_nodes ORDER BY table_name")
@@ -118,12 +116,12 @@ print(f"   All edge metadata preserved (relationships, join columns, weights)")
 print(f"   Enhanced metadata preserved (aliases, descriptions, few-shot examples, context)")
 
 print("\n" + "=" * 75)
-print("✅ Complete: PostgreSQL → NetworkX → ArangoDB")
+print("✅ Complete: SQLite → NetworkX → ArangoDB")
 print("=" * 75)
 print(f"""
 Summary:
-• Loaded {len(nodes)} schema nodes from PostgreSQL
-• Loaded {len(edges)} schema edges from PostgreSQL
+• Loaded {len(nodes)} schema nodes from SQLite
+• Loaded {len(edges)} schema edges from SQLite
 • Created NetworkX graph with full metadata
 • Persisted to ArangoDB as '{graph_name}'
 

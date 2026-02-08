@@ -252,7 +252,7 @@ DATABASE SCHEMA:
 
 MANUFACTURING QUERY: {query}
 
-Generate a PostgreSQL query that incorporates current industry trends and manufacturing best practices.
+Generate a SQLite query that incorporates current industry trends and manufacturing best practices.
 Consider the real-time context provided above when crafting your response.
 
 RESPONSE FORMAT:

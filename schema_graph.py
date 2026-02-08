@@ -6,8 +6,8 @@ Provides SchemaGraphManager for building database schema graphs
 """
 
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
+from config import SQLITE_DB_PATH
 import networkx as nx
 from typing import List, Dict, Any, Tuple, Optional
 
@@ -18,10 +18,8 @@ class SchemaGraphManager:
     Enables deterministic join pathfinding for RAG applications
     """
     
-    def __init__(self, database_url: Optional[str] = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL")
-        if not self.database_url:
-            raise ValueError("DATABASE_URL must be provided or set in environment")
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or SQLITE_DB_PATH
     
     def build_graph_from_database(self) -> nx.DiGraph:
         """
@@ -32,8 +30,9 @@ class SchemaGraphManager:
         """
         print("🔨 Building schema graph from database...")
         
-        conn = psycopg2.connect(self.database_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
         
         G = nx.DiGraph()
         

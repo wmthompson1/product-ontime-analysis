@@ -8,7 +8,7 @@ import networkx as nx
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 from schema_graph import SchemaGraphManager
 
-# Step 1: Load schema graph from PostgreSQL
+# Step 1: Load schema graph from SQLite
 manager = SchemaGraphManager()
 schema_graph = manager.build_graph_from_database()
 

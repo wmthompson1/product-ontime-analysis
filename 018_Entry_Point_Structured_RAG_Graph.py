@@ -12,30 +12,30 @@ Implements the principle of logical determinism:
 import os
 import networkx as nx
 from typing import List, Dict, Any, Tuple, Optional
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
+from config import SQLITE_DB_PATH
 import json
 
 class SchemaGraphManager:
     """Manages schema graph for deterministic join pathfinding"""
     
-    def __init__(self, database_url: Optional[str] = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL")
-        if not self.database_url:
-            raise ValueError("DATABASE_URL must be provided or set in environment")
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or SQLITE_DB_PATH
         self.graph = nx.DiGraph()
         self._load_graph_from_database()
     
     def _get_db_connection(self):
         """Get database connection"""
-        return psycopg2.connect(self.database_url)
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
     
     def _load_graph_from_database(self):
         """Load graph structure from schema metadata tables"""
         print("📊 Loading schema graph from metadata tables...")
         
         conn = self._get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         
         try:
             # Load nodes
@@ -187,8 +187,8 @@ class StructuredRAGEngine:
     - LLM: Natural language understanding and SQL generation (inference)
     """
     
-    def __init__(self, database_url: Optional[str] = None):
-        self.schema_graph = SchemaGraphManager(database_url)
+    def __init__(self, db_path: Optional[str] = None):
+        self.schema_graph = SchemaGraphManager(db_path)
     
     def process_query(self, natural_language_query: str, start_table: str, end_table: str) -> Dict[str, Any]:
         """
