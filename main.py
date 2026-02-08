@@ -1,5 +1,6 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
+import requests as http_requests
+from flask import Flask, request, jsonify, send_from_directory, render_template, send_file, Response
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from io import BytesIO
@@ -1780,6 +1781,36 @@ def convert_csv_to_schema():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+GRADIO_BACKEND = "http://127.0.0.1:8080"
+
+@app.route('/gradio')
+def proxy_gradio_root():
+    from flask import redirect
+    return redirect('/gradio/', code=302)
+
+@app.route('/gradio/', defaults={'path': ''})
+@app.route('/gradio/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+def proxy_gradio(path):
+    target_url = f"{GRADIO_BACKEND}/gradio/{path}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+    try:
+        resp = http_requests.request(
+            method=request.method,
+            url=target_url,
+            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=30,
+            stream=True,
+        )
+        excluded = {'content-encoding', 'transfer-encoding', 'connection'}
+        headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded]
+        return Response(resp.content, status=resp.status_code, headers=headers)
+    except http_requests.exceptions.ConnectionError:
+        return Response("The SQL Generator service is starting up. Please refresh in a moment.", status=503)
 
 if __name__ == '__main__':
     import os
