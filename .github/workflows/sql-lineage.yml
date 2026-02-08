@@ -1,0 +1,59 @@
+name: SQL Lineage Analysis
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'SQL_Reports/**/*.sql'
+      - 'Utilities/SQLMesh/analysis/**'
+  workflow_dispatch:
+
+jobs:
+  analyze-lineage:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r Utilities/SQLMesh/analysis/requirements.txt
+      
+      - name: Extract table lineage
+        run: |
+          cd Utilities/SQLMesh/analysis
+          python lineage/extract_tables.py
+      
+      - name: Extract column lineage
+        run: |
+          cd Utilities/SQLMesh/analysis
+          python lineage/column_lineage.py
+        continue-on-error: true
+      
+      - name: Build lineage graphs
+        run: |
+          cd Utilities/SQLMesh/analysis
+          python graph/networkx_builder.py
+        continue-on-error: true
+      
+      - name: Upload lineage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: lineage-reports
+          path: Utilities/SQLMesh/analysis/reports/
+          retention-days: 30
+      
+      - name: Commit lineage reports
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add Utilities/SQLMesh/analysis/reports/
+          git diff --staged --quiet || git commit -m "chore: update lineage reports [skip ci]"
+          git push
+        continue-on-error: true
