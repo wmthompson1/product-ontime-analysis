@@ -24,6 +24,7 @@ from pydantic import BaseModel, Field
 import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
+from solder_engine import SolderEngine
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
@@ -2434,6 +2435,125 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 fn=do_review,
                 inputs=[review_binding_key, review_action],
                 outputs=[review_status, reviewer_table]
+            )
+        
+        with gr.Tab("🔧 Solder Engine"):
+            gr.Markdown("""
+            ### Semantic Transpilation Engine
+            
+            The **Solder Pattern** assembles final executable SQL by combining:
+            - **Elevation Weights** from the semantic graph (which concepts are relevant)
+            - **Approved SQL Snippets** from SME submissions (governed ground truth)
+            - **SQLGlot AST Manipulation** for alias renaming, table qualification, and dialect transpilation
+            
+            ```
+            Intent → ELEVATES → Concept → Approved Snippet → SQLGlot AST → Final SQL
+            ```
+            """)
+            
+            solder = SolderEngine()
+            
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("#### 1. Select Intent")
+                    available_intents = solder.get_available_intents()
+                    intent_choices = [(f"{i['intent_name']} ({i['intent_category']})", i['intent_name']) for i in available_intents]
+                    
+                    solder_intent = gr.Dropdown(
+                        choices=intent_choices,
+                        label="Analytical Intent",
+                        info="Determines which concepts are ELEVATED vs SUPPRESSED",
+                        interactive=True
+                    )
+                    
+                    gr.Markdown("#### 2. Target Concept (optional)")
+                    solder_concept = gr.Textbox(
+                        label="Target Concept",
+                        placeholder="Leave blank to use primary elevated concept",
+                        info="e.g., DefectSeverityCost, NCM_COST"
+                    )
+                    
+                    gr.Markdown("#### 3. Output Dialect")
+                    solder_dialect = gr.Dropdown(
+                        choices=[
+                            ("SQLite", "sqlite"),
+                            ("T-SQL (SQL Server)", "tsql"),
+                            ("PostgreSQL", "postgres"),
+                            ("MySQL", "mysql"),
+                            ("BigQuery", "bigquery"),
+                        ],
+                        value="sqlite",
+                        label="Target SQL Dialect",
+                        interactive=True
+                    )
+                    
+                    with gr.Accordion("Alias Overrides (Advanced)", open=False):
+                        gr.Markdown("Rename table aliases in the soldered SQL:")
+                        alias_old = gr.Textbox(label="Old Alias", placeholder="e.g., t1")
+                        alias_new = gr.Textbox(label="New Alias", placeholder="e.g., defects")
+                    
+                    solder_btn = gr.Button("Solder Query", variant="primary", size="lg")
+                    report_btn = gr.Button("View Elevation Report", variant="secondary")
+                
+                with gr.Column():
+                    gr.Markdown("#### Soldered Output")
+                    soldered_sql_output = gr.Code(label="Final SQL", language="sql", lines=10)
+                    
+                    solder_details = gr.Markdown(label="Solder Details")
+                    
+                    solder_report_output = gr.Markdown(label="Elevation Report")
+            
+            def run_solder(intent, concept, dialect, old_alias, new_alias):
+                if not intent:
+                    return "-- Select an intent to solder", "Select an intent above."
+                
+                overrides = {}
+                if old_alias and old_alias.strip() and new_alias and new_alias.strip():
+                    overrides[old_alias.strip()] = new_alias.strip()
+                
+                result = solder.solder(
+                    intent_name=intent,
+                    target_concept=concept.strip() if concept and concept.strip() else None,
+                    target_dialect=dialect or "sqlite",
+                    context_overrides=overrides if overrides else None
+                )
+                
+                details = f"## Solder Result\n\n"
+                details += f"**Binding Key:** `{result.binding_key}`\n\n"
+                details += f"**Perspective:** {result.perspective}\n\n"
+                details += f"**Concept:** {result.concept}\n\n"
+                details += f"**Logic Type:** {result.logic_type}\n\n"
+                details += f"**Elevation Weight:** {result.elevation_weight}\n\n"
+                details += f"**Dialect:** {result.dialect}\n\n"
+                
+                if result.ast_operations:
+                    details += "### AST Operations\n"
+                    for op in result.ast_operations:
+                        details += f"- {op}\n"
+                    details += "\n"
+                
+                if result.warnings:
+                    details += "### Warnings\n"
+                    for w in result.warnings:
+                        details += f"- {w}\n"
+                
+                return result.soldered_sql, details
+            
+            def run_report(intent):
+                if not intent:
+                    return "Select an intent to view the elevation report."
+                return solder.get_solder_report(intent)
+            
+            solder_btn.click(
+                fn=run_solder,
+                inputs=[solder_intent, solder_concept, solder_dialect, alias_old, alias_new],
+                outputs=[soldered_sql_output, solder_details]
+            )
+            
+            report_btn.click(
+                fn=run_report,
+                inputs=[solder_intent],
+                outputs=solder_report_output
             )
         
         with gr.Tab("🔌 MCP Endpoints"):
