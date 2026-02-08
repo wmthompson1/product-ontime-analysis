@@ -97,7 +97,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install python-arango networkx nx-arangodb
+          pip install python-arango networkx
           
           # Install additional dependencies if needed
           if [ -f scripts/modules/manufacturing_semantics/requirements.txt ]; then
