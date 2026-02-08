@@ -1,0 +1,99 @@
+Perfect analysis. Let's refactor to remove NetworkX entirely:
+
+```powershell
+# Create a new persistence module without NetworkX
+New-Item -Path "arangodb_helpers" -ItemType Directory -Force
+```
+
+I'll create a pure `python-arango` implementation:
+
+````python name=arangodb_helpers/graph_builder.py
+```python
+"""Direct ArangoDB graph builder without NetworkX dependency."""
+from typing import Dict, List, Any
+from python_arango import ArangoClient
+
+class DirectGraphBuilder:
+    """Build graph structure using plain dicts instead of NetworkX."""
+    
+    def __init__(self):
+        self.nodes: List[Dict[str, Any]] = []
+        self.edges: List[Dict[str, Any]] = []
+    
+    def add_node(self, node_id: str, collection: str, **attrs):
+        """Add a node with attributes."""
+        self.nodes.append({
+            '_key': node_id,
+            '_collection': collection,
+            **attrs
+        })
+    
+    def add_edge(self, from_node: str, to_node: str, edge_type: str, **attrs):
+        """Add an edge with attributes."""
+        self.edges.append({
+            '_from': from_node,
+            '_to': to_node,
+            'edge_type': edge_type,
+            **attrs
+        })
+    
+    def stats(self):
+        """Return graph statistics."""
+        return {
+            'nodes': len(self.nodes),
+            'edges': len(self.edges),
+            'node_types': len(set(n['_collection'] for n in self.nodes)),
+            'edge_types': len(set(e['edge_type'] for e in self.edges))
+        }
+
+class ArangoGraphPersistence:
+    """Persist graph directly to ArangoDB without NetworkX."""
+    
+    def __init__(self, host: str, port: int, db_name: str):
+        self.client = ArangoClient(hosts=f'http://{host}:{port}')
+        self.sys_db = self.client.db('_system', username='root', password='')
+        self.db_name = db_name
+        self.db = None
+    
+    def ensure_database(self):
+        """Create database if it doesn't exist."""
+        if not self.sys_db.has_database(self.db_name):
+            self.sys_db.create_database(self.db_name)
+        self.db = self.client.db(self.db_name, username='root', password='')
+    
+    def persist_graph(self, builder: DirectGraphBuilder, graph_name: str):
+        """Persist nodes and edges to ArangoDB."""
+        self.ensure_database()
+        
+        # Group nodes by collection
+        collections = {}
+        for node in builder.nodes:
+            coll = node.pop('_collection')
+            collections.setdefault(coll, []).append(node)
+        
+        # Create vertex collections and insert
+        for coll_name, nodes in collections.items():
+            if not self.db.has_collection(coll_name):
+                self.db.create_collection(coll_name)
+            coll = self.db.collection(coll_name)
+            coll.insert_many(nodes, overwrite=True)
+        
+        # Create edge collection and insert
+        edge_coll_name = f"{graph_name}_edges"
+        if not self.db.has_collection(edge_coll_name):
+            self.db.create_collection(edge_coll_name, edge=True)
+        edge_coll = self.db.collection(edge_coll_name)
+        edge_coll.insert_many(builder.edges, overwrite=True)
+        
+        print(f"✅ Persisted {len(builder.nodes)} nodes and {len(builder.edges)} edges to {self.db_name}")
+```
+````
+
+Now refactor the seed script:
+
+```powershell
+# Show the current structure
+Get-Content utilities/SQLMesh/seeds/twinning_export/026_Entry_Point_NCM_Elevation_ArangoDB.py | Select-Object -First 50
+```
+
+Should I create a refactored version that replaces NetworkX with `DirectGraphBuilder`?
