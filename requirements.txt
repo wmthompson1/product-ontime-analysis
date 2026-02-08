@@ -43,3 +43,4 @@ arango
 pyyaml
 psycopg2-binary
 sqlglot
+python-arango

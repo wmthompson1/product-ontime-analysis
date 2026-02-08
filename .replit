@@ -2,7 +2,7 @@ modules = ["python-3.11", "nodejs-20", "python3", "postgresql-16"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["cairo", "duckdb", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libxcrypt", "libyaml", "nano", "pkg-config", "qhull", "sqlite", "tcl", "tk", "vim", "xcodebuild", "xsimd", "zlib"]
+packages = ["arangodb", "cairo", "duckdb", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libxcrypt", "libyaml", "nano", "pkg-config", "qhull", "sqlite", "tcl", "tk", "vim", "xcodebuild", "xsimd", "zlib"]
 
 [workflows]
 runButton = "Project"
