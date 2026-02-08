@@ -281,11 +281,6 @@ def save_sme_submission(sql_text: str, category: str, perspective: str, concept:
     file_path = os.path.join(GROUND_TRUTH_SQL_DIR, filename)
 
     with open(file_path, "w") as f:
-        f.write(f"-- Perspective: {perspective}\n")
-        f.write(f"-- Concept: {concept}\n")
-        f.write(f"-- Category: {category}\n")
-        f.write(f"-- SME Justification: {justification}\n")
-        f.write(f"-- Created: {datetime.datetime.now().isoformat()}\n\n")
         f.write(sql_text)
 
     logic_type = "SPATIAL_ALIAS" if "User_Defined" in sql_text else "DIRECT"

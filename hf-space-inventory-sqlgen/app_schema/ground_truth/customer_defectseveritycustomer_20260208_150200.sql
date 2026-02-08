@@ -1,7 +1,3 @@
--- Perspective: Customer
--- Concept: DefectSeverityCustomer
--- Logic Type: DIRECT
--- SME: Seed data for Solder Validation
 SELECT
     d.defect_id,
     d.severity_level,
