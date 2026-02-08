@@ -2487,10 +2487,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     
                     with gr.Row():
                         dispatch_mode = gr.Radio(
-                            choices=[("Live API (OpenAI)", "live"), ("Demo Mode (Mock)", "mock")],
+                            choices=[("Live API (HuggingFace)", "live"), ("Demo Mode (Mock)", "mock")],
                             value="mock",
                             label="Routing Mode",
-                            info="Demo mode uses keyword matching; Live uses GPT-4o-mini"
+                            info="Demo mode uses keyword matching; Live uses HF Inference API"
                         )
                     
                     dispatch_btn = gr.Button("Ask", variant="primary", size="lg")

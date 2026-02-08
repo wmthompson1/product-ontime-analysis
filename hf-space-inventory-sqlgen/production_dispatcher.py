@@ -2,7 +2,7 @@
 ProductionDispatcher - Hybrid RAG Semantic Router
 ===================================================
 Takes natural language questions and routes them through:
-  1. LLM (OpenAI) → Closed-vocabulary intent/concept extraction
+  1. LLM (HuggingFace Inference) → Closed-vocabulary intent/concept extraction
   2. SolderEngine → Governed SQL assembly from approved snippets
 
 The LLM acts as a Semantic Router, NOT a SQL generator.
@@ -18,6 +18,8 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
 from solder_engine import SolderEngine, SQLITE_DB_PATH
+
+HF_DEFAULT_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
 
 MOCK_ROUTES = {
     "cost": {
@@ -90,10 +92,12 @@ class DispatchResult:
 class ProductionDispatcher:
 
     def __init__(self, solder_engine: SolderEngine = None,
-                 db_path: str = None, use_live_api: bool = True):
+                 db_path: str = None, use_live_api: bool = True,
+                 hf_model: str = None):
         self.solder = solder_engine or SolderEngine()
         self.db_path = db_path or SQLITE_DB_PATH
         self.use_live_api = use_live_api
+        self.hf_model = hf_model or HF_DEFAULT_MODEL
 
         self.intents = self._load_vocabulary("SELECT intent_name FROM schema_intents")
         self.concepts = self._load_vocabulary("SELECT concept_name FROM schema_concepts")
@@ -141,7 +145,7 @@ AVAILABLE CONCEPTS: {concept_block}
 AVAILABLE PERSPECTIVES: {perspective_block}
 
 RULES:
-1. You MUST return ONLY a JSON object. No explanation, no markdown.
+1. You MUST return ONLY a JSON object. No explanation, no markdown, no extra text.
 2. The "intent" field MUST be exactly one of the AVAILABLE INTENTS listed above.
 3. The "concepts" field MUST be a list of 1-3 items from AVAILABLE CONCEPTS.
 4. The "perspective" field MUST be exactly one of the AVAILABLE PERSPECTIVES.
@@ -149,26 +153,38 @@ RULES:
    {{"intent": "OUT_OF_SCOPE", "concepts": [], "perspective": "", "confidence": "none"}}
 6. Include a "confidence" field: "high", "medium", or "low".
 
-RETURN FORMAT:
+RETURN FORMAT (JSON only, no other text):
 {{"intent": "...", "concepts": ["...", "..."], "perspective": "...", "confidence": "..."}}"""
 
     def extract_via_llm(self, user_query: str) -> Dict[str, Any]:
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            from huggingface_hub import InferenceClient
+
+            hf_token = os.environ.get("HF_TOKEN")
+            client = InferenceClient(
+                provider="hf-inference",
+                api_key=hf_token
+            )
 
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=self.hf_model,
                 messages=[
                     {"role": "system", "content": self._build_system_prompt()},
                     {"role": "user", "content": user_query}
                 ],
-                response_format={"type": "json_object"},
                 temperature=0.1,
                 max_tokens=200
             )
 
             content = response.choices[0].message.content
+
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("```")[1]
+                if content.startswith("json"):
+                    content = content[4:]
+                content = content.strip()
+
             parsed = json.loads(content)
 
             if parsed.get("intent") not in self.intents and parsed.get("intent") != "OUT_OF_SCOPE":
@@ -182,6 +198,14 @@ RETURN FORMAT:
 
             return parsed
 
+        except json.JSONDecodeError as e:
+            return {
+                "intent": "ERROR",
+                "concepts": [],
+                "perspective": "",
+                "confidence": "none",
+                "error": f"Failed to parse LLM JSON response: {e}"
+            }
         except Exception as e:
             return {
                 "intent": "ERROR",
@@ -225,7 +249,7 @@ RETURN FORMAT:
                 semantic_map = self.extract_via_mock(user_query)
                 routing_mode = "mock (API fallback)"
             else:
-                routing_mode = "live (OpenAI gpt-4o-mini)"
+                routing_mode = f"live (HF: {self.hf_model})"
 
         intent = semantic_map.get("intent", "OUT_OF_SCOPE")
         concepts = semantic_map.get("concepts", [])
