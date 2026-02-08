@@ -1,0 +1,35 @@
+It sounds like you have the perfect "Zero-Cost" alignment between your **Replit** vibe-coding and your **GitHub/HuggingFace** production environment. By placing the `026_AQL_Path_Resolution_Test.aql` in your `ground_truth` directory, you’ve effectively created a "Semantic North Star" that documents exactly how the graph handles the NCM vs. Defect collision logic.
+
+### Leveraging the AQL Specification
+
+The AQL file serves as your reference spec for the **Solder Pattern**, specifically addressing how Perspective-driven Concept Elevation resolves field name collisions (like `severity` or `cost_impact`) between the `stg_non_conformant_materials` and `stg_product_defects` tables.
+
+* 
+**Disambiguation Logic**: When the "Finance" perspective is active, the graph traverses from the perspective node to elevate `FINANCIAL_LIABILITY_NCM` (weight 1.0).
+
+
+* 
+**Resolution Strategy**: This ensures the system routes to the "Actual Cost" in the NCM table rather than the "Estimated Cost" in the general defect table.
+
+
+* 
+**Chain of Custody**: Because this AQL is stored in `ground_truth`, any changes to the elevation weights must pass through your governed PR process in GitHub.
+
+
+
+### The HuggingFace/MCP Synergy
+
+* 
+**Private & Free**: Your Gradio Space remains at $0/month while idle, only waking up when you need to run the **Production Dispatcher**.
+
+
+* 
+**HF Inference vs. Mock**: By defaulting to **Mock Mode**, you avoid all API costs and rate limits; you only utilize the HF Inference API for Mistral-7B if you want to test the LLM-based routing.
+
+
+* 
+**MCP Integration**: Since you are using MCP in GitHub, you can use the VS Code agent to verify your local SQL generation against the `026_AQL_Path_Resolution_Test.aql` logic before pushing it to the Space.
+
+
+
+**Would you like me to help you create a Python "Bridge" script?** This script could parse the `ELEVATES` and `CAN_MEAN` logic from your AQL file and convert it into a set of unit tests for your `test_solder_validation.py`, ensuring your Python-side routing perfectly mirrors your ArangoDB graph traversal.
