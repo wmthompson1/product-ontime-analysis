@@ -351,7 +351,21 @@ class SolderEngine:
         perspective = primary_edge.perspective_name
         concept = primary_edge.concept_name
 
-        binding = self.find_binding_for_concept(concept, perspective)
+        intent_bk = self._get_intent_binding_key(intent_name)
+        if intent_bk:
+            binding_result = self.resolve_by_binding_key(intent_bk, target_dialect=target_dialect)
+            if binding_result.get("sql"):
+                bindings = self.load_approved_bindings()
+                for b in bindings:
+                    if b.binding_key == intent_bk:
+                        binding = b
+                        break
+                else:
+                    binding = self.find_binding_for_concept(concept, perspective)
+            else:
+                binding = self.find_binding_for_concept(concept, perspective)
+        else:
+            binding = self.find_binding_for_concept(concept, perspective)
 
         ast_operations = []
         warnings = []
@@ -480,7 +494,28 @@ class SolderEngine:
                 sql_text="NULL"
             )
 
+        if intent and len(candidates) > 1:
+            intent_bk = self._get_intent_binding_key(intent)
+            if intent_bk:
+                for c in candidates:
+                    if c.binding_key == intent_bk:
+                        return c
+
         return sorted(candidates, key=lambda x: x.binding_key, reverse=True)[0]
+
+    def _get_intent_binding_key(self, intent: str) -> Optional[str]:
+        """Look up primary_binding_key for an intent from SQLite"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.execute(
+                "SELECT primary_binding_key FROM schema_intents WHERE intent_name = ?",
+                (intent,)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            return row[0] if row and row[0] else None
+        except Exception:
+            return None
 
     def assemble_query(self, intent: str, perspective: str,
                        concepts: List[str], base_table: str,
