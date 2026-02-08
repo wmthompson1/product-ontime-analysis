@@ -2769,6 +2769,50 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[assembled_sql_output, assembled_report]
             )
         
+        with gr.Tab("🔄 Graph Sync"):
+            gr.Markdown("""
+            ### ArangoDB Graph Sync
+            
+            Synchronize the SQLite semantic layer into ArangoDB as a named graph.
+            This creates/updates the vertex and edge structure:
+            
+            ```
+            (:Intent) -[:OPERATES_WITHIN]-> (:Perspective)
+            (:Intent) -[:ELEVATES {weight}]-> (:Concept)
+            (:Perspective) -[:USES_DEFINITION]-> (:Concept)
+            (:Intent) -[:BOUND_TO]-> (:Binding)
+            ```
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    sync_dry_run_btn = gr.Button("Dry Run (Preview)", variant="secondary")
+                    sync_live_btn = gr.Button("Sync to ArangoDB", variant="primary")
+                with gr.Column():
+                    sync_status = gr.Textbox(label="Status", interactive=False, value="Ready")
+            
+            sync_report_output = gr.Code(label="Sync Report", language=None, lines=20)
+            
+            def run_graph_sync(dry_run: bool):
+                try:
+                    from graph_sync import sync_graph
+                    report = sync_graph(dry_run=dry_run)
+                    status = "SUCCESS" if report.success else "FAILED"
+                    if dry_run:
+                        status = "DRY RUN — " + status
+                    return status, report.summary()
+                except Exception as e:
+                    return f"ERROR: {e}", str(e)
+            
+            sync_dry_run_btn.click(
+                fn=lambda: run_graph_sync(dry_run=True),
+                outputs=[sync_status, sync_report_output]
+            )
+            sync_live_btn.click(
+                fn=lambda: run_graph_sync(dry_run=False),
+                outputs=[sync_status, sync_report_output]
+            )
+        
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""
             ### Model Context Protocol API

@@ -39,7 +39,6 @@ typing-extensions
 
 # Synthetic Data Generation
 Faker>=23.0.0
-arango
 pyyaml
 psycopg2-binary
 sqlglot
