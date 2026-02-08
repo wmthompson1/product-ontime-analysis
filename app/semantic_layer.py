@@ -79,16 +79,17 @@ class SemanticLayer:
     def _initialize_templates(self) -> Dict[str, str]:
         """Initialize prompt templates for different query types"""
         
-        base_system = """You are an expert SQL assistant with deep knowledge of PostgreSQL and vector databases.
+        base_system = """You are an expert SQL assistant with deep knowledge of SQLite and manufacturing analytics.
         
 CRITICAL SAFETY RULES:
 - Generate ONLY SELECT or WITH statements
 - NEVER use DROP, DELETE, UPDATE, INSERT, ALTER, CREATE, TRUNCATE
-- Use parameter placeholders (%s) for all user inputs
+- Use parameter placeholders (?) for all user inputs
 - Reference only tables in the provided schema
 - Limit results appropriately to prevent resource exhaustion
+- Use SQLite-compatible syntax (e.g. strftime for dates, GROUP_CONCAT instead of STRING_AGG)
 
-Your responses must be valid PostgreSQL SQL that follows these constraints."""
+Your responses must be valid SQLite SQL that follows these constraints."""
 
         simple_template = """Schema Context:
 {schema_context}
@@ -96,7 +97,7 @@ Your responses must be valid PostgreSQL SQL that follows these constraints."""
 Generate a SQL query for: "{user_query}"
 
 Response format:
-SQL: [your SQL query with %s placeholders]
+SQL: [your SQL query with ? placeholders]
 PARAMS: [list of parameter values]
 EXPLANATION: [brief explanation of the query logic]
 CONFIDENCE: [score 0.0-1.0]
@@ -120,7 +121,7 @@ Consider:
 5. Vector similarity search if relevant
 
 Response format:
-SQL: [optimized SQL query with %s placeholders]
+SQL: [optimized SQL query with ? placeholders]
 PARAMS: [list of parameter values]
 EXPLANATION: [detailed explanation including join strategy and performance notes]
 CONFIDENCE: [score 0.0-1.0]

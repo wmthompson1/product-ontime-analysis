@@ -1,30 +1,28 @@
-# Adding a new route to integrate Claude sample via iframe.
 import os
 from flask import Flask, request, jsonify, send_from_directory, render_template, send_file
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from io import BytesIO
+from config import SQLALCHEMY_DATABASE_URI
 
 
 class Base(DeclarativeBase):
     pass
 
 
-# Create Flask app and database
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY") or "a secret key"
 
-# Add CORS headers to all responses
 @app.after_request
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
     return response
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
+    "connect_args": {"check_same_thread": False},
 }
 
 db = SQLAlchemy(model_class=Base)
@@ -1237,21 +1235,22 @@ def add_acronym():
                 "error": "Both acronym and definition are required"
             }), 400
         
-        # Insert into database (idempotent with ON CONFLICT)
-        import psycopg2
-        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        import sqlite3
+        from config import SQLITE_DB_PATH
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
         cur.execute("""
             INSERT INTO manufacturing_acronyms (acronym, definition, table_name)
-            VALUES (%s, %s, %s)
+            VALUES (?, ?, ?)
             ON CONFLICT (acronym, table_name) 
             DO UPDATE SET 
-                definition = EXCLUDED.definition,
+                definition = excluded.definition,
                 updated_at = CURRENT_TIMESTAMP
-            RETURNING acronym_id, created_at, updated_at
         """, (acronym, definition, table_name))
         
+        cur.execute("SELECT last_insert_rowid() as acronym_id")
         result = cur.fetchone()
         conn.commit()
         cur.close()
@@ -1342,40 +1341,37 @@ def add_edge_metadata():
                 "error": "Missing required fields: from_table, to_table, or description"
             }), 400
         
-        # Update edge in database
-        import psycopg2
-        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        import sqlite3
+        from config import SQLITE_DB_PATH
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         
-        # Create natural language alias
         natural_alias = f"{from_table} to {to_table} via {description}"
         
-        # Check if edge exists
         cur.execute("""
             SELECT edge_id FROM schema_edges 
-            WHERE from_table = %s AND to_table = %s
+            WHERE from_table = ? AND to_table = ?
         """, (from_table, to_table))
         
         edge = cur.fetchone()
         
         if edge:
-            # Update existing edge
             cur.execute("""
                 UPDATE schema_edges 
-                SET join_column_description = %s,
-                    natural_language_alias = %s,
-                    few_shot_example = %s,
-                    context = %s
-                WHERE from_table = %s AND to_table = %s
-                RETURNING edge_id
+                SET join_column_description = ?,
+                    natural_language_alias = ?,
+                    few_shot_example = ?,
+                    context = ?
+                WHERE from_table = ? AND to_table = ?
             """, (description, natural_alias, example, 
                   f"Join {from_table} and {to_table} on {description}",
                   from_table, to_table))
             
-            result = cur.fetchone()
-            edge_id = result[0]
+            edge_id = edge['edge_id']
             action = "updated"
         else:
+            conn.close()
             return jsonify({
                 "error": f"Edge {from_table} → {to_table} does not exist. Create the edge first in schema_edges table.",
                 "suggestion": "Add the edge with join_column information before updating metadata"
@@ -1403,7 +1399,7 @@ def add_edge_metadata():
             }
         }), 200 if action == "updated" else 201
     
-    except psycopg2.IntegrityError as e:
+    except sqlite3.IntegrityError as e:
         return jsonify({
             "error": f"Database constraint violation: {str(e)}",
             "suggestion": "Ensure both table names exist in schema_nodes"

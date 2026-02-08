@@ -322,7 +322,7 @@ Key Concepts: {', '.join(example['concepts'])}
     def _create_safe_fallback(self, request: QueryRequest, error_msg: str) -> QueryResult:
         """Create safe fallback result with domain context"""
         return QueryResult(
-            sql_query="SELECT 'Query generation failed' as status, %s as error_message, %s as domain_hint",
+            sql_query="SELECT 'Query generation failed' as status, ? as error_message, ? as domain_hint",
             parameters=[error_msg, self._detect_domain(request.natural_language)],
             confidence_score=0.0,
             complexity=QueryComplexity.SIMPLE,

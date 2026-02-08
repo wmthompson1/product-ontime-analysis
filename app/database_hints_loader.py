@@ -4,31 +4,36 @@ Dynamically loads enhanced metadata from schema_edges table for production-ready
 """
 
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
 from typing import Dict, List, Optional
 from functools import lru_cache
+
+from config import SQLITE_DB_PATH
 
 class DatabaseHintsLoader:
     """Load contextual hints from database schema metadata"""
     
-    def __init__(self, database_url: str = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL")
-        if not self.database_url:
-            raise ValueError("DATABASE_URL not found in environment")
+    def __init__(self, db_path: str = None):
+        self.db_path = db_path or SQLITE_DB_PATH
+        if not os.path.exists(self.db_path):
+            raise ValueError(f"SQLite database not found at: {self.db_path}")
+    
+    def _get_connection(self):
+        """Get a SQLite connection with row factory"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
     
     @lru_cache(maxsize=1)
     def load_schema_graph(self) -> Dict:
         """Load complete schema graph with enhanced metadata from database"""
-        conn = psycopg2.connect(self.database_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        conn = self._get_connection()
+        cursor = conn.cursor()
         
         try:
-            # Load nodes
             cursor.execute("SELECT * FROM schema_nodes ORDER BY table_name")
-            nodes = cursor.fetchall()
+            nodes = [dict(row) for row in cursor.fetchall()]
             
-            # Load edges with enhanced metadata
             cursor.execute("""
                 SELECT 
                     edge_id,
@@ -44,11 +49,11 @@ class DatabaseHintsLoader:
                 FROM schema_edges 
                 ORDER BY edge_id
             """)
-            edges = cursor.fetchall()
+            edges = [dict(row) for row in cursor.fetchall()]
             
             return {
-                'nodes': [dict(node) for node in nodes],
-                'edges': [dict(edge) for edge in edges]
+                'nodes': nodes,
+                'edges': edges
             }
         finally:
             cursor.close()
@@ -93,9 +98,8 @@ class DatabaseHintsLoader:
         schema = self.load_schema_graph()
         acronyms = {}
         
-        # Load user-defined acronyms from manufacturing_acronyms table
-        conn = psycopg2.connect(self.database_url)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        conn = self._get_connection()
+        cursor = conn.cursor()
         
         try:
             cursor.execute("""
@@ -103,9 +107,8 @@ class DatabaseHintsLoader:
                 FROM manufacturing_acronyms
                 ORDER BY acronym
             """)
-            user_acronyms = cursor.fetchall()
+            user_acronyms = [dict(row) for row in cursor.fetchall()]
             
-            # Add user-defined acronyms first (they take priority)
             for record in user_acronyms:
                 acronym_key = record['acronym'].upper()
                 acronyms[acronym_key] = {
@@ -116,18 +119,16 @@ class DatabaseHintsLoader:
                     'example_sql': '',
                     'source': 'user_defined'
                 }
+        except sqlite3.OperationalError:
+            pass
         finally:
             cursor.close()
             conn.close()
         
-        # Extract acronyms from edge metadata (fallback if not user-defined)
         for edge in schema['edges']:
-            # Look for acronyms in natural_language_alias and context
             if edge.get('natural_language_alias'):
-                alias = edge['natural_language_alias']
                 context_text = edge.get('context', '')
                 
-                # Check if context mentions specific acronyms
                 if 'NCM' in context_text or 'Non-Conformance' in context_text:
                     if 'NCM' not in acronyms:
                         acronyms['NCM'] = {
@@ -142,7 +143,6 @@ class DatabaseHintsLoader:
                         acronyms['NCM']['related_fields'].append(edge['join_column'])
                         acronyms['NCM']['related_tables'].extend([edge['from_table'], edge['to_table']])
                 
-                # OTD (On-Time Delivery)
                 if 'OTD' in context_text or 'delivery' in context_text.lower():
                     if 'OTD' not in acronyms:
                         acronyms['OTD'] = {
@@ -157,7 +157,6 @@ class DatabaseHintsLoader:
                         acronyms['OTD']['related_fields'].append(edge['join_column'])
                         acronyms['OTD']['related_tables'].extend([edge['from_table'], edge['to_table']])
         
-        # Deduplicate related tables
         for acronym in acronyms:
             acronyms[acronym]['related_tables'] = list(set(acronyms[acronym]['related_tables']))
             acronyms[acronym]['related_fields'] = list(set(acronyms[acronym]['related_fields']))
@@ -168,14 +167,13 @@ class DatabaseHintsLoader:
         """Generate contextual hints from database metadata"""
         hints = []
         
-        # If table name is specified, get edges for that table
         if table_name:
             edges = self.get_edges_for_node(table_name)
             
             for edge in edges:
                 if edge.get('context'):
                     hint = {
-                        'text': f"{edge['from_table']} → {edge['to_table']}",
+                        'text': f"{edge['from_table']} -> {edge['to_table']}",
                         'type': 'table_relationship',
                         'confidence': 0.9,
                         'explanation': edge.get('join_column_description', edge['context']),
@@ -186,7 +184,6 @@ class DatabaseHintsLoader:
                     }
                     hints.append(hint)
         
-        # Look for acronyms in the query
         acronyms = self.build_acronym_mappings()
         for acronym, data in acronyms.items():
             if acronym in query.upper():
@@ -195,7 +192,7 @@ class DatabaseHintsLoader:
                     'type': 'acronym',
                     'confidence': 0.95,
                     'explanation': data['context'],
-                    'suggested_fields': data['related_fields'][:5],  # Limit to 5
+                    'suggested_fields': data['related_fields'][:5],
                     'example_query': data.get('example_sql'),
                     'related_tables': data['related_tables']
                 }
@@ -207,7 +204,6 @@ class DatabaseHintsLoader:
         """Clear the cached schema graph (call when database is updated)"""
         self.load_schema_graph.cache_clear()
 
-# Global instance
 _loader = None
 
 def get_database_hints_loader() -> DatabaseHintsLoader:

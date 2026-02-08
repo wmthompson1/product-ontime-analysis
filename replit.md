@@ -17,7 +17,7 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 ### Backend
 - **Framework**: Flask (Python web framework)
 - **ORM**: SQLAlchemy with Flask-SQLAlchemy
-- **Database**: PostgreSQL
+- **Database**: SQLite (single file at `hf-space-inventory-sqlgen/app_schema/manufacturing.db`, WAL mode for concurrency)
 - **API Design**: RESTful JSON endpoints for user CRUD, database connection pooling, and automatic table creation.
 - **Advanced RAG Implementation**: Four-stage methodology progressing from educational demos to production-ready Advanced RAG with Tavily and OpenAI integration, incorporating manufacturing intelligence and RAGAS evaluation.
 - **Semantic Layer**: LangChain-based Natural Language to SQL conversion with dynamic schema introspection, safety features (SQL injection prevention, operation whitelisting), and monitoring. Includes advanced techniques like vector store retrieval (FAISS, OpenAI embeddings) and few-shot prompting with manufacturing domain examples.
@@ -43,7 +43,7 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Flask**: Web framework
 - **Flask-SQLAlchemy**: ORM integration for Flask
 - **SQLAlchemy**: Object-relational mapping
-- **psycopg2-binary**: PostgreSQL adapter
+- **sqlite3**: Built-in Python SQLite adapter (no external dependency)
 - **LangChain**: Framework for developing applications powered by language models (for semantic layer)
 - **requests**: HTTP client
 - **beautifulsoup4**: HTML parsing

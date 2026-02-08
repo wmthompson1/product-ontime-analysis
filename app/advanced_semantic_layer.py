@@ -118,7 +118,7 @@ class AdvancedSemanticLayer(SemanticLayer):
                     s.contract_value
                 FROM suppliers s
                 JOIN daily_deliveries d ON s.supplier_id = d.supplier_id
-                WHERE d.delivery_date >= CURRENT_DATE - INTERVAL '90 days'
+                WHERE d.delivery_date >= date('now', '-90 days')
                 GROUP BY s.supplier_id, s.supplier_name, s.contract_value
                 HAVING AVG(d.ontime_rate) < 0.95
                 ORDER BY avg_delivery_performance ASC, s.contract_value DESC
@@ -133,11 +133,11 @@ class AdvancedSemanticLayer(SemanticLayer):
                 WITH monthly_defects AS (
                     SELECT 
                         product_line,
-                        DATE_TRUNC('month', production_date) as month,
+                        strftime('%Y-%m', production_date) as month,
                         AVG(defect_rate) as monthly_defect_rate
                     FROM production_quality
-                    WHERE production_date >= CURRENT_DATE - INTERVAL '6 months'
-                    GROUP BY product_line, DATE_TRUNC('month', production_date)
+                    WHERE production_date >= date('now', '-6 months')
+                    GROUP BY product_line, strftime('%Y-%m', production_date)
                 ),
                 trend_analysis AS (
                     SELECT 
@@ -182,7 +182,7 @@ class AdvancedSemanticLayer(SemanticLayer):
                     END as oee_classification
                 FROM production_lines pl
                 JOIN production_metrics pm ON pl.line_id = pm.line_id
-                WHERE pm.measurement_date >= CURRENT_DATE - INTERVAL '30 days'
+                WHERE pm.measurement_date >= date('now', '-30 days')
                 GROUP BY pl.line_id, pl.line_name, pl.theoretical_capacity
                 ORDER BY oee_score DESC
                 """,
@@ -198,13 +198,13 @@ class AdvancedSemanticLayer(SemanticLayer):
                     nc.failure_mode,
                     COUNT(*) as ncm_incidents,
                     AVG(nc.cost_impact) as avg_cost_impact,
-                    STRING_AGG(DISTINCT nc.root_cause, ', ') as common_root_causes,
+                    GROUP_CONCAT(DISTINCT nc.root_cause, ', ') as common_root_causes,
                     ROUND(
                         COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (PARTITION BY nc.product_line),
                         2
                     ) as percentage_of_line_ncm
                 FROM non_conformant_materials nc
-                WHERE nc.incident_date >= CURRENT_DATE - INTERVAL '90 days'
+                WHERE nc.incident_date >= date('now', '-90 days')
                     AND nc.status = 'CLOSED'
                 GROUP BY nc.product_line, nc.failure_mode
                 HAVING COUNT(*) >= 3
@@ -277,21 +277,23 @@ class AdvancedSemanticLayer(SemanticLayer):
 
 CRITICAL RULES:
 - Generate ONLY SELECT or WITH statements
-- Use proper PostgreSQL syntax with explicit JOIN conditions
+- Use proper SQLite syntax with explicit JOIN conditions
+- Use SQLite date functions (date(), strftime()) instead of PostgreSQL INTERVAL
+- Use GROUP_CONCAT() instead of STRING_AGG()
 - Include appropriate aggregations and window functions for analytics
 - Add business logic for manufacturing KPIs (OEE, NCM, OTD, etc.)
-- Use parameter placeholders (%s) for dynamic values
+- Use parameter placeholders (?) for dynamic values
 - Include meaningful column aliases and sorting
 
 MANUFACTURING DOMAIN KNOWLEDGE:
 - NCM = Non-Conformant Material (quality defects)
 - OTD = On-Time Delivery (supply chain performance)  
-- OEE = Overall Equipment Effectiveness (Availability × Performance × Quality)
+- OEE = Overall Equipment Effectiveness (Availability x Performance x Quality)
 - DPMO = Defects Per Million Opportunities
 - MTBF = Mean Time Between Failures
 
 RESPONSE FORMAT:
-SQL: [PostgreSQL query with proper business logic]
+SQL: [SQLite query with proper business logic]
 EXPLANATION: [Business context and query logic]
 CONFIDENCE: [0.0-1.0 score]
 COMPLEXITY: [simple|medium|complex]
@@ -434,7 +436,7 @@ Generate a SQL query for manufacturing analytics:"""
     def _create_fallback_result(self, request: QueryRequest, error_msg: str) -> QueryResult:
         """Create safe fallback result"""
         return QueryResult(
-            sql_query="SELECT 'Query generation failed' as status, %s as error_message",
+            sql_query="SELECT 'Query generation failed' as status, ? as error_message",
             parameters=[error_msg],
             confidence_score=0.0,
             complexity=QueryComplexity.SIMPLE,

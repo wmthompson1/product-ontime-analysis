@@ -230,7 +230,7 @@ async def validate_sql_query(sql_query: SQLQuery):
             "safety_message": safety_message,
             "syntax_issues": syntax_issues,
             "recommendations": [
-                "Use parameterized queries with %s placeholders",
+                "Use parameterized queries with ? placeholders",
                 "Add LIMIT clause for large result sets",
                 "Consider indexing for performance"
             ] if is_safe else ["Address safety issues before execution"]
