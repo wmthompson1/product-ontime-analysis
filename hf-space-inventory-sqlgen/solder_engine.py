@@ -121,6 +121,42 @@ class SolderEngine:
 
         return bindings
 
+    def resolve_by_binding_key(self, binding_key: str, target_dialect: str = "sqlite") -> Dict[str, Any]:
+        bindings = self.load_approved_bindings()
+        binding = None
+        for b in bindings:
+            if b.binding_key == binding_key:
+                binding = b
+                break
+
+        if not binding:
+            return {
+                "sql": "",
+                "report": [f"Binding key `{binding_key}` not found or not APPROVED in manifest."],
+                "warnings": [f"Missing ground truth: `{binding_key}.sql`"]
+            }
+
+        sql = binding.sql_text
+        if target_dialect and target_dialect != "sqlite":
+            try:
+                import sqlglot
+                sql = sqlglot.transpile(sql, read="sqlite", write=target_dialect)[0]
+            except Exception as e:
+                return {
+                    "sql": binding.sql_text,
+                    "report": [f"Bound via `{binding_key}` (transpilation failed: {e})"],
+                    "warnings": [f"Transpilation to {target_dialect} failed, returning SQLite dialect"]
+                }
+
+        return {
+            "sql": sql,
+            "report": [
+                f"**{binding.concept_anchor}**: Bound via `{binding_key}` ({binding.logic_type})",
+                f"Perspective: {binding.perspective}"
+            ],
+            "warnings": []
+        }
+
     def get_elevation_edges(self, intent_name: str) -> List[ElevationEdge]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

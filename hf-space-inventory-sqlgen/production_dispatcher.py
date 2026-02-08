@@ -104,6 +104,7 @@ class ProductionDispatcher:
         self.perspectives = self._load_vocabulary("SELECT perspective_name FROM schema_perspectives")
 
         self.intent_details = self._load_intent_details()
+        self.intent_binding_map = self._load_intent_binding_map()
 
     def _load_vocabulary(self, query: str) -> List[str]:
         conn = sqlite3.connect(self.db_path)
@@ -118,10 +119,23 @@ class ProductionDispatcher:
         conn.row_factory = sqlite3.Row
         try:
             rows = conn.execute("""
-                SELECT intent_name, intent_category, description, typical_question
+                SELECT intent_name, intent_category, description, typical_question,
+                       primary_binding_key
                 FROM schema_intents ORDER BY intent_category
             """).fetchall()
             return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def _load_intent_binding_map(self) -> Dict[str, str]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            rows = conn.execute("""
+                SELECT intent_name, primary_binding_key
+                FROM schema_intents
+                WHERE primary_binding_key IS NOT NULL
+            """).fetchall()
+            return {r[0]: r[1] for r in rows}
         finally:
             conn.close()
 
@@ -269,6 +283,27 @@ RETURN FORMAT (JSON only, no other text):
                 routing_confidence=confidence,
                 out_of_scope=True
             )
+
+        binding_key = self.intent_binding_map.get(intent)
+        if binding_key:
+            binding_result = self.solder.resolve_by_binding_key(binding_key, target_dialect=target_dialect)
+            if binding_result.get("sql"):
+                report = [f"Resolved via primary_binding_key: `{binding_key}`"]
+                report.extend(binding_result.get("report", []))
+                warnings = binding_result.get("warnings", [])
+                if semantic_map.get("warning"):
+                    warnings.insert(0, semantic_map["warning"])
+                return DispatchResult(
+                    user_query=user_query,
+                    intent=intent,
+                    concepts=concepts,
+                    perspective=perspective,
+                    assembled_sql=binding_result["sql"],
+                    assembly_report=report,
+                    warnings=warnings,
+                    routing_mode=routing_mode,
+                    routing_confidence=confidence
+                )
 
         if not concepts:
             return DispatchResult(

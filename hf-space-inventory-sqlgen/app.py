@@ -1641,15 +1641,20 @@ def create_gradio_interface():
             return []
     
     def get_intents_list() -> List[tuple]:
-        """Get list of intents for dropdown"""
+        """Get list of intents for dropdown, marking which have ground truth SQL"""
         engine = get_db_engine()
         try:
             with engine.connect() as conn:
                 result = conn.execute(text("""
-                    SELECT intent_name, intent_category, typical_question 
+                    SELECT intent_name, intent_category, primary_binding_key 
                     FROM schema_intents ORDER BY intent_category, intent_name
                 """))
-                return [(f"{r[0]} ({r[1]})", r[0]) for r in result.fetchall()]
+                choices = []
+                for r in result.fetchall():
+                    has_binding = r[2] is not None
+                    label = f"{r[0]} ({r[1]})" if has_binding else f"{r[0]} ({r[1]}) [no SQL]"
+                    choices.append((label, r[0]))
+                return choices
         except:
             return []
     
