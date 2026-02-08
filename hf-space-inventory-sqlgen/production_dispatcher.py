@@ -87,6 +87,7 @@ class DispatchResult:
     routing_mode: str
     routing_confidence: str = ""
     out_of_scope: bool = False
+    binding_key: str = ""
 
 
 class ProductionDispatcher:
@@ -302,7 +303,8 @@ RETURN FORMAT (JSON only, no other text):
                     assembly_report=report,
                     warnings=warnings,
                     routing_mode=routing_mode,
-                    routing_confidence=confidence
+                    routing_confidence=confidence,
+                    binding_key=binding_key
                 )
 
         if not concepts:

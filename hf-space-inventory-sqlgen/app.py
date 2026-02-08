@@ -2526,6 +2526,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 meta += f"**Mode:** {result.routing_mode}\n\n"
                 meta += f"**Confidence:** {result.routing_confidence}\n\n"
                 meta += f"**Intent:** `{result.intent}`\n\n"
+                meta += f"**Binding Key:** `{result.binding_key}`\n\n" if result.binding_key else ""
                 meta += f"**Concepts:** {', '.join(f'`{c}`' for c in result.concepts) if result.concepts else 'None'}\n\n"
                 meta += f"**Perspective:** {result.perspective or 'N/A'}\n\n"
                 
