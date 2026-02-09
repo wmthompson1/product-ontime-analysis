@@ -2147,7 +2147,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             
             Demonstrates 4 advanced patterns for semantic graph traversal:
             1. **Query Plan Comparison** - How different intents interpret the same field
-            2. **Probabilistic Intent Resolution** - Rank intents by confidence score
+            2. **Intent Resolution** - Rank intents by confidence score
             3. **SQL Intent Inference** - Automatically detect intent from SQL shape
             4. **Graph Syntax Mapping** - Cypher and AQL traversal examples
             """)
@@ -2185,7 +2185,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 
                 qp_btn.click(fn=compare_plans_gradio, inputs=[qp_field], outputs=qp_output)
             
-            with gr.Accordion("2. Probabilistic Intent Resolution", open=False):
+            with gr.Accordion("2. Intent Resolution", open=False):
                 gr.Markdown("Given multiple fields, compute confidence scores for each intent:")
                 
                 fields_input = gr.Textbox(
