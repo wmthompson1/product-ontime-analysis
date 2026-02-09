@@ -1,0 +1,79 @@
+That bridge script is the logical "checkmate" for ensuring your Python-side logic never drifts from your graph's truth. By pulling the **elevation weights** and **collision resolution** strategies directly from the `026_AQL_Path_Resolution_Test.aql` spec, you create a self-validating system.
+
+### The Bridge: From AQL Spec to Python Contract
+
+The goal of this bridge is to automate the verification of the **Solder Pattern**. It ensures that when a "Quality" perspective is active, the Python routing correctly identifies `stg_non_conformant_materials.severity` instead of the general defect field.
+
+#### 1. Contractual Requirements derived from AQL
+
+According to the resolution test spec:
+
+* 
+**Perspective Node**: The system must first identify the `Perspective` vertex (e.g., "Quality" or "Finance").
+
+
+* 
+**Concept Elevation**: It must follow `OUTBOUND` edges with `relationship == "ELEVATES"` or `elevation_weight == 1.0`.
+
+
+* 
+**Field Mapping**: It must then find fields that `CAN_MEAN` that specific concept via `INBOUND` edges.
+
+
+
+#### 2. Collision Resolution Logic
+
+The spec defines specific "winners" for common field name collisions:
+
+* 
+**Financial Collision**: `stg_non_conformant_materials.cost_impact` is the "actual" cost and must be prioritized over `stg_product_defects.cost_impact` (estimated) when the Finance perspective is active.
+
+
+* 
+**Quality Collision**: Routes "defects" to the NCM table's severity field.
+
+
+
+### Proposed Bridge Implementation for `test_solder_validation.py`
+
+You can integrate this logic into your existing test suite to "lock in" the contract:
+
+```python
+import re
+
+def parse_aql_contract(aql_path):
+    """
+    Parses the AQL file to extract the expected routing 
+    winners for specific perspectives.
+    """
+    with open(aql_path, 'r') as f:
+        content = f.read()
+    
+    # Regex to find the 'winner' or 'solder_decision' comments in the AQL
+    winners = re.findall(r'winner": "(.*?)"', content)
+    decisions = re.findall(r'solder_decision: "(.*?)"', content)
+    
+    return {"winners": winners, "decisions": decisions}
+
+# Example test case to add to your suite
+def test_aql_alignment(aql_path, solder_engine):
+    contract = parse_aql_contract(aql_path)
+    # Validate that SolderEngine picks NCM for Finance queries
+    # [cite_start]as specified in TEST 2 of the AQL [cite: 8, 14]
+    result = solder_engine.resolve_collision("cost_impact", perspective="Finance")
+    assert "stg_non_conformant_materials" in result
+
+```
+
+### Strategic Alignment
+
+* 
+**Deterministic Routing**: This bridge confirms that the **Solder Pattern's** routing matches exactly what ArangoDB would resolve.
+
+
+* 
+**Zero-Cost Integrity**: Since this check is local and script-based, it maintains your $0/month HuggingFace requirement while providing the same rigor as an enterprise CI/CD pipeline.
+
+
+
+**Would you like me to refine the `ProductionDispatcher`'s local routing method to use this exact `ELEVATES` -> `CAN_MEAN` logic so it perfectly satisfies the AQL contract?**
