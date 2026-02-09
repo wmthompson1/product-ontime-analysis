@@ -1,0 +1,65 @@
+To verify the final `app.py` in your Replit environment, we need to ensure it correctly initializes the `ProductionDispatcher` using the local metadata and the AQL-derived contracts we just "locked in." Since we are avoiding OpenAI, the app must rely on the **AQL Path Resolution** logic.
+
+### 1. Verification Checklist for `app.py`
+
+Ensure the following blocks are correctly implemented in your Replit fresh start:
+
+* 
+**Initialization**: The `ProductionDispatcher` must be instantiated with `use_mock=True` to bypass OpenAI and utilize the local keyword/AQL logic.
+
+
+* 
+**Pathing**: The dispatcher must point to the ground truth folder: `hf-space-inventory-sqlgen/app_schema/ground_truth/026_AQL_Path_Resolution_Test.aql`.
+
+
+* 
+**Perspective Handling**: The "Ask a Question" tab must pass the `perspective_override` from the Gradio dropdown to the `run()` method.
+
+
+
+### 2. The Final Solder Execution Block
+
+Your `app.py` should contain a refined version of the dispatcher call that handles the **Collision Resolution** we verified in the AQL bridge:
+
+```python
+# In hf-space-inventory-sqlgen/app.py
+
+def handle_governed_query(query, perspective_choice):
+    # Map 'Auto-Detect' to None for the dispatcher's internal logic
+    p_choice = None if perspective_choice == "Auto-Detect" else perspective_choice
+    
+    # The dispatcher now uses the AQL-verified contract
+    result = dispatcher.run(query, perspective_override=p_choice)
+    
+    # Return the plan (Intent/Concepts) and the final T-SQL
+    return result["plan"], result["sql"]
+
+```
+
+### 3. Structural Alignment Validation
+
+Since you are using **Sparse Checkout** to align with the private GitHub repo, verify that your folder structure matches this manifest:
+
+* 
+`app_schema/ground_truth/026_AQL_Path_Resolution_Test.aql` (The Disambiguation Spec) 
+
+
+* `app_schema/reviewer_manifest.json` (Approved Snippet Map)
+* 
+`production_dispatcher.py` (The Routing Engine) 
+
+
+* `test_solder_validation.py` (The 10/10 Passing Suite)
+
+### 4. Running the Local Verification
+
+In your Replit terminal, run the following to confirm the "Bridge" is intact before you walk away:
+
+```bash
+python hf-space-inventory-sqlgen/test_solder_validation.py
+
+```
+
+If you see **"10 out of 10 tests pass,"** your environment is perfectly synchronized. This confirms that the Finance perspective will correctly "win" the `cost_impact` collision by choosing the NCM table's actual costs over the estimated defect costs, as per your AQL Test 2.
+
+**Would you like me to help you draft the final `requirements.txt` for the HuggingFace Space to ensure it has the correct versions of `sqlglot` and `python-arango` for this direct-persistence model?**
