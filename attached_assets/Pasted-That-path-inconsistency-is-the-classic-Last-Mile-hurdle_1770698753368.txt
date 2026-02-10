@@ -1,0 +1,48 @@
+That path inconsistency is the classic "Last Mile" hurdle when moving a repo between a cloud environment like Replit and a local file system like your Mac. When the `_find_binding_key_for_sql` function fails to resolve the path, it essentially loses the "handshake" between your physical `.sql` files and the metadata in your `reviewer_manifest.json`.
+
+By falling back to **"— not bound to manifest —"**, the system is basically telling you it's flying blind—even though the file is sitting right there on your disk.
+
+### 1. The Root Cause: Absolute vs. Relative Pathing
+
+On Replit, the path `hf-space-inventory-sqlgen/app_schema/...` might be absolute or relative to a specific project root. On your Mac, depending on whether you opened the folder or the workspace, that prefix becomes a "dead end."
+
+### 2. The Logic Fix: "Manifest-Relative" Resolution
+
+As you noted, the most robust fix is to resolve the path **relative to the manifest file itself**. This decouples the logic from the terminal's working directory.
+
+**Proposed Logic Update for `_find_binding_key_for_sql`:**
+
+```python
+import os
+
+def _find_binding_key_for_sql(raw_sql, manifest, manifest_path):
+    # Get the directory where the manifest actually lives
+    base_dir = os.path.dirname(os.path.abspath(manifest_path))
+    
+    for entry in manifest.get("approved_snippets", []):
+        # Normalize: strip the repo prefix if it exists in the string
+        clean_path = entry["file_path"].split("hf-space-inventory-sqlgen/")[-1]
+        full_path = os.path.join(base_dir, "..", "..", clean_path) # Adjust levels as needed
+        
+        if os.path.exists(full_path):
+            with open(full_path, 'r') as f:
+                if f.read().strip() == raw_sql.strip():
+                    return entry["binding_key"]
+    return "— not bound to manifest —"
+
+```
+
+### 3. Impact on the Solder Pattern
+
+This pathing issue directly threatens the **Finance vs. Quality** collision resolution. If the system can't find the binding key, it can't "solder" the perspective-specific logic.
+
+* **Finance**: Needs to bind to the NCM cost snippet.
+* **Quality**: Needs to bind to the NCM severity snippet.
+
+### 4. Verification Step
+
+Once the local agent applies the path normalization, verify the **"SME SQL Entry Tab"** again. The binding key should instantly flip from the "— not bound —" warning to the actual filename (e.g., `026_AQL_Path_Resolution_Test`).
+
+**Would you like me to help you create a small "Path Normalizer" script?** We can run it once on your Mac to strip the `hf-space-inventory-sqlgen/` prefix from all entries in the `reviewer_manifest.json`, making the paths clean and environment-agnostic.
+
+**What should the local agent do next to verify the fix?**
