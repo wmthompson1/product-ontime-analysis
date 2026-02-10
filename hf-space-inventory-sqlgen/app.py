@@ -2515,7 +2515,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             allow_custom_value=False
                         )
                         review_action = gr.Dropdown(
-                            choices=["APPROVED", "REJECTED"],
+                            choices=["APPROVED", "REJECTED", "PENDING"],
                             label="Decision",
                             interactive=True
                         )
