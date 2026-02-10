@@ -2524,19 +2524,20 @@ Check that perspective-concept and intent-concept relationships are seeded.
             
             def submit_sme(sql, category, perspective, concept, justification):
                 if not sql or not sql.strip() or sql.strip() == "-- Enter your SQL here\nSELECT":
-                    return "Please enter a SQL statement.", load_reviewer_table()
+                    return "Please enter a SQL statement.", load_reviewer_table(), gr.update()
                 if not perspective:
-                    return "Please select a perspective.", load_reviewer_table()
+                    return "Please select a perspective.", load_reviewer_table(), gr.update()
                 if not concept or not concept.strip():
-                    return "Please enter a concept name.", load_reviewer_table()
+                    return "Please enter a concept name.", load_reviewer_table(), gr.update()
                 
                 result = save_sme_submission(sql, category or "Inventory", perspective, concept.strip(), justification or "")
-                return result, load_reviewer_table()
+                keys = get_pending_binding_keys()
+                return result, load_reviewer_table(), gr.update(choices=keys, value=keys[0] if keys else None)
             
             sme_submit_btn.click(
                 fn=submit_sme,
                 inputs=[sme_sql, sme_category, sme_perspective, sme_concept, sme_justification],
-                outputs=[sme_status, reviewer_table]
+                outputs=[sme_status, reviewer_table, review_binding_key]
             )
             
             def refresh_reviewer_and_keys():
