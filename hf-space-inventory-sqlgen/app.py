@@ -2018,6 +2018,23 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 print(f"[DEBUG] Returning choices: {choices}")
                 return gr.Dropdown(choices=choices, value=None), ""
             
+            def _resolve_sql_file_path(file_path: str) -> str:
+                """Resolve a SQL file path from the manifest, handling inconsistent paths"""
+                if not file_path:
+                    return ""
+                if os.path.isabs(file_path) and os.path.exists(file_path):
+                    return file_path
+                candidate = os.path.join(GROUND_TRUTH_DIR, os.path.basename(file_path))
+                if os.path.exists(candidate):
+                    return candidate
+                if os.path.exists(file_path):
+                    return file_path
+                repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                candidate2 = os.path.join(repo_root, file_path)
+                if os.path.exists(candidate2):
+                    return candidate2
+                return ""
+
             def _find_binding_key_for_sql(sql_text: str) -> str:
                 """Look up binding key from manifest by matching SQL content"""
                 if not sql_text or not sql_text.strip():
@@ -2028,9 +2045,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         manifest = json.load(f)
                     sql_normalized = sql_text.strip()
                     for binding_key, entry in manifest.get("approved_snippets", {}).items():
-                        file_path = entry.get("file_path", "")
-                        if os.path.exists(file_path):
-                            with open(file_path, 'r') as sf:
+                        resolved = _resolve_sql_file_path(entry.get("file_path", ""))
+                        if resolved:
+                            with open(resolved, 'r') as sf:
                                 snippet_sql = sf.read().strip()
                             if snippet_sql == sql_normalized:
                                 return binding_key
