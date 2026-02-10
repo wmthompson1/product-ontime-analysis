@@ -2434,10 +2434,17 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     refresh_reviewer_btn = gr.Button("Refresh Table", variant="secondary")
                     
                     gr.Markdown("#### Review Actions")
+                    
+                    def get_pending_binding_keys():
+                        bindings = resolve_sql_bindings()
+                        return [b["binding_key"] for b in bindings]
+                    
                     with gr.Row():
-                        review_binding_key = gr.Textbox(
+                        review_binding_key = gr.Dropdown(
+                            choices=get_pending_binding_keys(),
                             label="Binding Key",
-                            placeholder="e.g., quality_ncm_cost_20260208_143000"
+                            interactive=True,
+                            allow_custom_value=False
                         )
                         review_action = gr.Dropdown(
                             choices=["APPROVED", "REJECTED"],
@@ -2464,20 +2471,25 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[sme_status, reviewer_table]
             )
             
-            refresh_reviewer_btn.click(fn=load_reviewer_table, outputs=reviewer_table)
+            def refresh_reviewer_and_keys():
+                keys = get_pending_binding_keys()
+                return load_reviewer_table(), gr.update(choices=keys, value=keys[0] if keys else None)
+            
+            refresh_reviewer_btn.click(fn=refresh_reviewer_and_keys, outputs=[reviewer_table, review_binding_key])
             
             def do_review(binding_key, action):
-                if not binding_key or not binding_key.strip():
-                    return "Enter a binding key.", load_reviewer_table()
+                if not binding_key:
+                    return "Select a binding key.", load_reviewer_table(), gr.update()
                 if not action:
-                    return "Select a decision.", load_reviewer_table()
+                    return "Select a decision.", load_reviewer_table(), gr.update()
                 result = update_binding_status(binding_key.strip(), action)
-                return result, load_reviewer_table()
+                keys = get_pending_binding_keys()
+                return result, load_reviewer_table(), gr.update(choices=keys, value=keys[0] if keys else None)
             
             review_btn.click(
                 fn=do_review,
                 inputs=[review_binding_key, review_action],
-                outputs=[review_status, reviewer_table]
+                outputs=[review_status, reviewer_table, review_binding_key]
             )
         
         solder = SolderEngine()
