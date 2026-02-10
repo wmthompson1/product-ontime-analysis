@@ -44,6 +44,7 @@ GROUP BY severity_level
 ORDER BY incident_count DESC;
 
 -- Query: NCM by Employee
+-- Binding: gt_ncm_by_employee_20260210_230752
 -- Description: Links non-conformant materials to assigned employees for accountability tracking
 SELECT
     NCM.ncm_id,

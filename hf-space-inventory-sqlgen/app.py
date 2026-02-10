@@ -399,6 +399,86 @@ CATEGORY_MAP = {
     "Production": "production_analytics",
 }
 
+REVERSE_CATEGORY_MAP = {v: k for k, v in CATEGORY_MAP.items()}
+
+
+def _ensure_manifest_entry(query_name: str, sql_text: str, description: str, category_id: str) -> str:
+    """Reverse bridge: create a PENDING manifest entry for a Ground Truth query that has no binding key."""
+    safe_name = _sanitize_slug(query_name)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    binding_key = f"gt_{safe_name}_{timestamp}"
+    filename = f"{binding_key}.sql"
+    file_path = os.path.join(GROUND_TRUTH_SQL_DIR, filename)
+
+    os.makedirs(GROUND_TRUTH_SQL_DIR, exist_ok=True)
+    with open(file_path, "w") as f:
+        f.write(sql_text.strip())
+
+    category_label = REVERSE_CATEGORY_MAP.get(category_id, category_id)
+    logic_type = "SPATIAL_ALIAS" if "User_Defined" in sql_text else "DIRECT"
+
+    manifest_entry = {
+        "concept_anchor": safe_name.upper(),
+        "perspective": "Pending",
+        "category": category_label,
+        "logic_type": logic_type,
+        "file_path": file_path,
+        "sme_justification": f"Auto-created from Ground Truth: {query_name} — {description}",
+        "validation_status": "PENDING",
+        "binding_key": binding_key,
+        "created_at": datetime.datetime.now().isoformat()
+    }
+
+    if os.path.exists(MANIFEST_PATH):
+        try:
+            with open(MANIFEST_PATH, "r") as f:
+                manifest = json.load(f)
+        except (json.JSONDecodeError, Exception):
+            manifest = {"approved_snippets": {}}
+    else:
+        manifest = {"approved_snippets": {}}
+
+    if "approved_snippets" not in manifest:
+        manifest["approved_snippets"] = {}
+
+    manifest["approved_snippets"][binding_key] = manifest_entry
+    manifest["last_updated"] = datetime.datetime.now().isoformat()
+
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=GROUND_TRUTH_DIR, suffix=".json")
+    try:
+        with os.fdopen(tmp_fd, "w") as f:
+            json.dump(manifest, f, indent=4)
+        os.replace(tmp_path, MANIFEST_PATH)
+    except Exception:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
+
+    _inject_binding_tag(query_name, binding_key, category_id)
+
+    return binding_key
+
+
+def _inject_binding_tag(query_name: str, binding_key: str, category_id: str):
+    """Inject a -- Binding: tag into the category .sql file so subsequent loads find it directly."""
+    index = get_query_categories()
+    category = next((c for c in index.get("categories", []) if c["id"] == category_id), None)
+    if not category:
+        return
+    sql_file = os.path.join(QUERIES_DIR, category["file"])
+    if not os.path.exists(sql_file):
+        return
+    with open(sql_file, "r") as f:
+        content = f.read()
+    marker = f"-- Query: {query_name}"
+    if marker not in content:
+        return
+    if f"-- Binding: {binding_key}" in content:
+        return
+    patched = content.replace(marker, f"{marker}\n-- Binding: {binding_key}")
+    with open(sql_file, "w") as f:
+        f.write(patched)
+
 
 def _append_to_category_file(entry: Dict[str, Any], binding_key: str) -> str:
     category_name = entry.get("category", "")
@@ -2188,6 +2268,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                                 binding_key = raw
                         if not binding_key:
                             binding_key = _find_binding_key_by_name(query_name)
+                        if not binding_key:
+                            binding_key = _ensure_manifest_entry(
+                                query_name, q['sql'], q.get('description', ''), category_id
+                            )
                         return q['sql'], q['description'], binding_key
                 return "", "", ""
             
