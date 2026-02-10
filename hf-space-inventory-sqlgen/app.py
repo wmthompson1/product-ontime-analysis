@@ -2026,14 +2026,61 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 try:
                     with open(manifest_path, 'r') as f:
                         manifest = json.load(f)
-                    sql_normalized = sql_text.strip()
+
+                    def normalize_sql(s: str) -> str:
+                        if not s:
+                            return ""
+                        # Remove block comments /* ... */
+                        s = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
+                        # Remove line comments -- ...\n
+                        s = re.sub(r"--.*?\n", "\n", s)
+                        # Remove any remaining SQL comments starting at line end
+                        s = re.sub(r"--.*$", "", s, flags=re.M)
+                        # Strip trailing semicolons and whitespace
+                        s = s.replace(';', ' ')
+                        # Collapse whitespace
+                        s = " ".join(s.split())
+                        return s.lower().strip()
+
+                    sql_normalized = normalize_sql(sql_text)
                     for binding_key, entry in manifest.get("approved_snippets", {}).items():
                         file_path = entry.get("file_path", "")
-                        if os.path.exists(file_path):
-                            with open(file_path, 'r') as sf:
-                                snippet_sql = sf.read().strip()
-                            if snippet_sql == sql_normalized:
-                                return binding_key
+                        candidates = []
+                        # Raw path as provided
+                        if file_path:
+                            candidates.append(file_path)
+                        # If manifest entry used a repo-relative path (e.g., app_schema/...), resolve relative to this package
+                        candidates.append(os.path.join(os.path.dirname(__file__), file_path))
+                        # Try resolving as basename inside ground truth directory
+                        candidates.append(os.path.join(GROUND_TRUTH_DIR, os.path.basename(file_path)))
+                        # Try resolving inside sql_snippets
+                        candidates.append(os.path.join(GROUND_TRUTH_SQL_DIR, os.path.basename(file_path)))
+                        # Try canonical binding_key filename inside sql_snippets
+                        candidates.append(os.path.join(GROUND_TRUTH_SQL_DIR, f"{binding_key}.sql"))
+
+                        resolved = None
+                        for candidate in candidates:
+                            try:
+                                if candidate and os.path.exists(candidate):
+                                    resolved = candidate
+                                    break
+                            except Exception:
+                                continue
+
+                        if not resolved:
+                            print(f"[DEBUG] No snippet file found for binding {binding_key}; tried candidates: {candidates}")
+                            continue
+
+                        try:
+                            with open(resolved, 'r') as sf:
+                                snippet_sql = sf.read()
+                        except Exception as e:
+                            print(f"[DEBUG] error reading snippet file {resolved}: {e}")
+                            continue
+
+                        if normalize_sql(snippet_sql) == sql_normalized:
+                            print(f"[DEBUG] Found binding for query -> {binding_key} (file: {resolved})")
+                            return binding_key
                 except Exception as e:
                     print(f"[DEBUG] Binding key lookup error: {e}")
                 return ""
@@ -2046,7 +2093,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 for q in queries:
                     if q['name'] == query_name:
                         binding_key = _find_binding_key_for_sql(q['sql'])
-                        return q['sql'], q['description'], binding_key if binding_key else "— not bound to manifest —"
+                        # Return the manifest filename when a binding exists, otherwise return empty string
+                        result_binding = (f"{binding_key}.sql" if binding_key else "")
+                        print(f"[DEBUG] load_query_sql returning binding: {repr(result_binding)} for query {repr(query_name)}")
+                        return q['sql'], q['description'], result_binding
                 return "", "", ""
             
             with gr.Row():
