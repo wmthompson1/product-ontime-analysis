@@ -16,27 +16,39 @@ DB_PATH = os.path.join(ROOT, "app_schema", "manufacturing.db")
 COLLISION_RULES = [
     {
         "perspective": "Quality",
-        "elevated_concept": "MATERIAL_NON_CONFORMANCE",
-        "winner": {"table": "stg_non_conformant_materials", "field": "severity"},
-        "loser": {"table": "stg_product_defects", "field": "severity"},
+        "elevated_concept": "DEFECT_SEVERITY",
+        "winner": {"table": "product_defects", "field": "severity"},
+        "loser": {"table": "failure_events", "field": "severity_level"},
+        "winner_concept": "DefectSeverityQuality",
+        "loser_concept": "FailureSeverityProduction",
     },
     {
         "perspective": "Finance",
-        "elevated_concept": "FINANCIAL_LIABILITY_NCM",
-        "winner": {"table": "stg_non_conformant_materials", "field": "cost_impact"},
-        "loser": {"table": "stg_product_defects", "field": "cost_impact"},
+        "elevated_concept": "DEFECT_COST_LIABILITY",
+        "winner": {"table": "product_defects", "field": "severity"},
+        "loser": {"table": "failure_events", "field": "severity_level"},
+        "winner_concept": "DefectSeverityCost",
+        "loser_concept": "FailureSeverityCost",
     },
 ]
 
 
-def find_concept_by_field(conn, table_name, field_name):
+def find_concept_by_field(conn, table_name, field_name, concept_name=None):
     cur = conn.cursor()
-    cur.execute(
-        "SELECT c.concept_id, c.concept_name FROM schema_concept_fields cf JOIN schema_concepts c ON cf.concept_id = c.concept_id WHERE cf.table_name = ? AND cf.field_name = ?",
-        (table_name, field_name),
-    )
+    if concept_name:
+        cur.execute(
+            "SELECT c.concept_id, c.concept_name FROM schema_concept_fields cf JOIN schema_concepts c ON cf.concept_id = c.concept_id WHERE cf.table_name = ? AND cf.field_name = ? AND c.concept_name = ?",
+            (table_name, field_name, concept_name),
+        )
+    else:
+        cur.execute(
+            "SELECT c.concept_id, c.concept_name FROM schema_concept_fields cf JOIN schema_concepts c ON cf.concept_id = c.concept_id WHERE cf.table_name = ? AND cf.field_name = ?",
+            (table_name, field_name),
+        )
     row = cur.fetchone()
-    return row[0], row[1] if row else (None, None)
+    if row:
+        return row[0], row[1]
+    return None, None
 
 
 def find_perspective_id(conn, perspective_name):
@@ -86,8 +98,8 @@ def check_rule(conn, rule):
     l_table = rule["loser"]["table"]
     l_field = rule["loser"]["field"]
 
-    w_cid, w_concept = find_concept_by_field(conn, w_table, w_field)
-    l_cid, l_concept = find_concept_by_field(conn, l_table, l_field)
+    w_cid, w_concept = find_concept_by_field(conn, w_table, w_field, rule.get("winner_concept"))
+    l_cid, l_concept = find_concept_by_field(conn, l_table, l_field, rule.get("loser_concept"))
 
     if not w_cid:
         messages.append(f"MISSING WINNER MAPPING: no concept found for {w_table}.{w_field}")
