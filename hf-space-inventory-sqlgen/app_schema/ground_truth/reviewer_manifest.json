@@ -1,5 +1,5 @@
 {
-    "last_updated": "2026-02-10T23:07:52.850835",
+    "last_updated": "2026-02-10T23:17:11.138832",
     "approved_snippets": {
         "finance_ncm_cost_20260208_150000": {
             "concept_anchor": "DEFECTSEVERITYCOST",
@@ -243,7 +243,8 @@
             "sme_justification": "Auto-created from Ground Truth: NCM by Employee \u2014 Links non-conformant materials to assigned employees for accountability tracking",
             "validation_status": "PENDING",
             "binding_key": "gt_ncm_by_employee_20260210_230752",
-            "created_at": "2026-02-10T23:07:52.850232"
+            "created_at": "2026-02-10T23:07:52.850232",
+            "reviewed_at": "2026-02-10T23:17:11.138821"
         }
     }
 }

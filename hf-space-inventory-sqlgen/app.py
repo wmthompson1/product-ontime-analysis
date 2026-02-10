@@ -273,6 +273,30 @@ def _sanitize_slug(value: str) -> str:
     return slug or "unknown"
 
 
+def _auto_concept_from_sql(sql_text: str) -> str:
+    """Auto-generate a concept name from SQL when user leaves Concept blank."""
+    upper = sql_text.upper()
+    from_match = re.search(r'\bFROM\s+(\w+)', upper)
+    if from_match:
+        table = from_match.group(1)
+        select_cols = re.search(r'SELECT\s+(.*?)\s+FROM', upper, re.DOTALL)
+        if select_cols:
+            cols = select_cols.group(1).strip()
+            if cols == "*":
+                return f"{table}_OVERVIEW"
+            col_parts = []
+            for c in cols.split(','):
+                part = c.strip().split('.')[-1].split(' ')[-1]
+                part = re.sub(r'[^A-Z0-9_]', '', part)
+                if part:
+                    col_parts.append(part)
+            if col_parts and len(col_parts) <= 3:
+                return f"{table}_{'_'.join(col_parts)}"
+            return f"{table}_QUERY"
+        return f"{table}_QUERY"
+    return "UNCLASSIFIED"
+
+
 def save_sme_submission(sql_text: str, category: str, perspective: str, concept: str, justification: str) -> str:
     os.makedirs(GROUND_TRUTH_SQL_DIR, exist_ok=True)
 
@@ -2611,18 +2635,30 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     )
                     
                     sme_submit_btn = gr.Button("Submit for Review", variant="primary", size="lg")
-                    sme_status = gr.Textbox(label="Submission Status", interactive=False)
+                    sme_status = gr.Textbox(label="Submission Status", interactive=False, value="")
                 
                 with gr.Column():
                     gr.Markdown("#### Reviewer's Decision Table")
                     
+                    def _friendly_name(binding_key: str, concept: str, perspective: str) -> str:
+                        """Convert binding key to human-readable name for reviewer."""
+                        if concept and concept != "UNKNOWN":
+                            label = concept.replace("_", " ").title()
+                            if perspective:
+                                return f"{label} ({perspective})"
+                            return label
+                        parts = binding_key.replace("gt_", "").rsplit("_", 2)
+                        if len(parts) >= 2:
+                            return parts[0].replace("_", " ").title()
+                        return binding_key
+
                     def load_reviewer_table() -> str:
                         bindings = resolve_sql_bindings()
                         if not bindings:
                             return "No submissions yet. Use the form on the left to submit SQL."
                         
-                        output = "| Filename | Perspective | Concept | Status |\n"
-                        output += "|----------|-------------|---------|--------|\n"
+                        output = "| Name | Perspective | Concept | Status |\n"
+                        output += "|------|-------------|---------|--------|\n"
                         
                         status_icons = {
                             "PENDING": "⏳",
@@ -2633,7 +2669,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         
                         for b in bindings:
                             icon = status_icons.get(b["validation_status"], "❓")
-                            output += f"| `{b['filename']}` | {b['perspective']} | {b['concept']} | {icon} {b['validation_status']} |\n"
+                            name = _friendly_name(b["binding_key"], b.get("concept", ""), b.get("perspective", ""))
+                            output += f"| {name} | {b['perspective']} | {b['concept']} | {icon} {b['validation_status']} |\n"
                         
                         summary = get_manifest_summary()
                         output += f"\n**Total: {summary['total']}** | "
@@ -2650,7 +2687,13 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     
                     def get_pending_binding_keys():
                         bindings = resolve_sql_bindings()
-                        return [b["binding_key"] for b in bindings]
+                        result = []
+                        for b in bindings:
+                            friendly = _friendly_name(b["binding_key"], b.get("concept", ""), b.get("perspective", ""))
+                            status = b.get("validation_status", "UNKNOWN")
+                            label = f"{friendly} [{status}]"
+                            result.append((label, b["binding_key"]))
+                        return result
                     
                     with gr.Row():
                         review_binding_key = gr.Dropdown(
@@ -2668,14 +2711,17 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     review_status = gr.Textbox(label="Review Status", interactive=False)
             
             def submit_sme(sql, category, perspective, concept, justification):
-                if not sql or not sql.strip() or sql.strip() == "-- Enter your SQL here\nSELECT":
+                if not sql or not sql.strip():
+                    return "Please enter a SQL statement.", load_reviewer_table(), gr.update()
+                cleaned_sql = sql.strip()
+                if cleaned_sql in ("-- Enter your SQL here\nSELECT", "-- Enter your SQL here", "SELECT"):
                     return "Please enter a SQL statement.", load_reviewer_table(), gr.update()
                 if not perspective:
                     return "Please select a perspective.", load_reviewer_table(), gr.update()
                 if not concept or not concept.strip():
-                    return "Please enter a concept name.", load_reviewer_table(), gr.update()
+                    concept = _auto_concept_from_sql(cleaned_sql)
                 
-                result = save_sme_submission(sql, category or "Inventory", perspective, concept.strip(), justification or "")
+                result = save_sme_submission(cleaned_sql, category or "Inventory", perspective, concept.strip(), justification or "")
                 keys = get_pending_binding_keys()
                 return result, load_reviewer_table(), gr.update(choices=keys, value=keys[0] if keys else None)
             
