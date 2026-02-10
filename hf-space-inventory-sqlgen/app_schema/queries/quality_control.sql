@@ -42,3 +42,14 @@ FROM quality_incidents
 WHERE incident_date >= CURRENT_DATE - INTERVAL '90 days'
 GROUP BY severity_level
 ORDER BY incident_count DESC;
+
+-- Query: NCM by Employee
+-- Description: Links non-conformant materials to assigned employees for accountability tracking
+SELECT
+    NCM.ncm_id,
+    NCM.incident_date,
+    E.FIRST_NAME,
+    E.LAST_NAME
+FROM non_conformant_materials NCM
+    LEFT OUTER JOIN EMPLOYEE E
+        ON E.ID = NCM.ASSIGNED_EMPLOYEE_ID;

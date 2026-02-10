@@ -389,6 +389,68 @@ def get_manifest_summary() -> Dict[str, Any]:
     }
 
 
+CATEGORY_MAP = {
+    "Quality": "quality_control",
+    "Inventory": "production_analytics",
+    "Delivery": "supplier_performance",
+    "Financial": "production_analytics",
+    "Production": "production_analytics",
+}
+
+
+def _append_to_category_file(entry: Dict[str, Any], binding_key: str) -> str:
+    category_name = entry.get("category", "")
+    category_id = CATEGORY_MAP.get(category_name, "")
+    if not category_id:
+        category_id = CATEGORY_MAP.get(category_name.title(), "")
+    if not category_id:
+        return f"No category mapping for '{category_name}'"
+
+    index = get_query_categories()
+    category = next((c for c in index.get("categories", []) if c["id"] == category_id), None)
+    if not category:
+        return f"Category '{category_id}' not found in index"
+
+    sql_file = os.path.join(QUERIES_DIR, category["file"])
+
+    concept = entry.get("concept_anchor", binding_key)
+    perspective = entry.get("perspective", "")
+    query_name = f"{concept} ({perspective})"
+    justification = entry.get("sme_justification", "SME-approved query")
+
+    if os.path.exists(sql_file):
+        with open(sql_file, "r") as f:
+            existing = f.read()
+        if binding_key in existing or f"-- Query: {query_name}" in existing:
+            return f"Already in {category['name']} (skipped duplicate)"
+
+    file_path = entry.get("file_path", "")
+    candidates = [
+        file_path,
+        os.path.join(GROUND_TRUTH_SQL_DIR, os.path.basename(file_path)),
+        os.path.join(GROUND_TRUTH_SQL_DIR, f"{binding_key}.sql"),
+        os.path.join(GROUND_TRUTH_DIR, os.path.basename(file_path)),
+        os.path.join(GROUND_TRUTH_DIR, f"{binding_key}.sql"),
+    ]
+
+    sql_text = ""
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            with open(candidate, "r") as f:
+                sql_text = f.read().strip()
+            break
+
+    if not sql_text:
+        return f"Could not find SQL file for {binding_key}"
+
+    new_entry = f"\n\n-- Query: {query_name}\n-- Description: {justification}\n-- Binding: {binding_key}\n{sql_text}\n"
+
+    with open(sql_file, "a") as f:
+        f.write(new_entry)
+
+    return f"Added to {category['name']} category"
+
+
 def update_binding_status(binding_key: str, new_status: str) -> str:
     if not os.path.exists(MANIFEST_PATH):
         return "Manifest file not found."
@@ -418,7 +480,13 @@ def update_binding_status(binding_key: str, new_status: str) -> str:
             os.unlink(tmp_path)
         raise
 
-    return f"Updated '{binding_key}' to {new_status}."
+    category_msg = ""
+    if new_status == "APPROVED":
+        category_msg = _append_to_category_file(snippets[binding_key], binding_key)
+        if category_msg:
+            category_msg = f" | {category_msg}"
+
+    return f"Updated '{binding_key}' to {new_status}.{category_msg}"
 
 
 app = FastAPI(
