@@ -2210,8 +2210,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 with gr.Column():
                     saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True, interactive=True)
             
-            save_query_btn = gr.Button("Save Changes", variant="primary")
-            save_query_status = gr.Textbox(label="Save Status", interactive=False)
+            with gr.Row():
+                save_query_btn = gr.Button("Save Changes", variant="primary", elem_id="gt_save_btn")
+                save_query_status = gr.Textbox(label="Save Status", interactive=False)
 
             def save_query_edits(category_id, query_name, new_sql, new_description):
                 if not category_id or not query_name:
@@ -2254,7 +2255,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
             save_query_btn.click(
                 fn=save_query_edits,
                 inputs=[saved_category, saved_query_dropdown, saved_sql_output, saved_description],
-                outputs=[save_query_status]
+                outputs=[save_query_status],
+                api_name="save_ground_truth_edits"
             )
         
         with gr.Tab("🔗 Semantic Graph"):
@@ -2299,7 +2301,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
             resolve_btn.click(
                 fn=resolve_field_gradio,
                 inputs=[field_dropdown, intent_dropdown],
-                outputs=resolution_output
+                outputs=resolution_output,
+                api_name="resolve_semantic_field"
             )
             
             gr.Markdown("---")
