@@ -220,16 +220,18 @@ def get_saved_queries(category_id: str) -> List[Dict[str, str]]:
             content = f.read()
         
         queries = []
-        current_query = {"name": "", "description": "", "sql": ""}
+        current_query = {"name": "", "description": "", "sql": "", "binding_key": ""}
         lines = content.split('\n')
         
         for line in lines:
             if line.startswith('-- Query:'):
                 if current_query["sql"].strip():
                     queries.append(current_query)
-                current_query = {"name": line.replace('-- Query:', '').strip(), "description": "", "sql": ""}
+                current_query = {"name": line.replace('-- Query:', '').strip(), "description": "", "sql": "", "binding_key": ""}
             elif line.startswith('-- Description:'):
                 current_query["description"] = line.replace('-- Description:', '').strip()
+            elif line.startswith('-- Binding:'):
+                current_query["binding_key"] = line.replace('-- Binding:', '').strip()
             elif not line.startswith('-- ') and line.strip():
                 current_query["sql"] += line + "\n"
         
@@ -2154,18 +2156,39 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     print(f"[DEBUG] Binding key lookup error: {e}")
                 return ""
 
+            def _find_binding_key_by_name(query_name: str) -> str:
+                """Look up binding key from manifest by matching query name against concept/perspective"""
+                try:
+                    with open(MANIFEST_PATH, 'r') as f:
+                        manifest = json.load(f)
+                    query_lower = query_name.lower().replace(' ', '').replace('_', '').replace('-', '')
+                    for key, entry in manifest.get("approved_snippets", {}).items():
+                        concept = entry.get("concept_anchor", "").lower().replace('_', '')
+                        perspective = entry.get("perspective", "")
+                        sme_just = entry.get("sme_justification", "").lower()
+                        entry_name = f"{concept} ({perspective.lower()})".replace(' ', '').replace('_', '')
+                        if query_lower == entry_name:
+                            return key
+                        if query_name.lower() in sme_just:
+                            return key
+                except Exception:
+                    pass
+                return ""
+
             def load_query_sql(category_id: str, query_name: str):
-                print(f"[DEBUG] load_query_sql called with category={repr(category_id)}, query={repr(query_name)}")
                 if category_id is None or query_name is None:
                     return "", "", ""
                 queries = get_saved_queries(category_id)
                 for q in queries:
                     if q['name'] == query_name:
-                        binding_key = _find_binding_key_for_sql(q['sql'])
-                        # Return the manifest filename when a binding exists, otherwise return empty string
-                        result_binding = (f"{binding_key}.sql" if binding_key else "")
-                        print(f"[DEBUG] load_query_sql returning binding: {repr(result_binding)} for query {repr(query_name)}")
-                        return q['sql'], q['description'], result_binding
+                        binding_key = q.get('binding_key', '')
+                        if not binding_key:
+                            raw = _find_binding_key_for_sql(q['sql'])
+                            if raw:
+                                binding_key = raw
+                        if not binding_key:
+                            binding_key = _find_binding_key_by_name(query_name)
+                        return q['sql'], q['description'], binding_key
                 return "", "", ""
             
             with gr.Row():
