@@ -145,6 +145,7 @@ def get_all_tables() -> List[str]:
     
     try:
         inspector = inspect(engine)
+        inspector.clear_cache()
         return inspector.get_table_names()
     except Exception:
         return []
