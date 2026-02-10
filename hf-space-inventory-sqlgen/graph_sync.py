@@ -59,25 +59,53 @@ EDGE_DEFINITIONS = [
 @dataclass
 class SyncReport:
     timestamp: str = ""
-    vertices_created: Dict[str, int] = field(default_factory=dict)
-    edges_created: Dict[str, int] = field(default_factory=dict)
+    vertices_synced: Dict[str, int] = field(default_factory=dict)
+    vertices_new: Dict[str, int] = field(default_factory=dict)
+    vertices_updated: Dict[str, int] = field(default_factory=dict)
+    edges_synced: Dict[str, int] = field(default_factory=dict)
+    edges_new: Dict[str, int] = field(default_factory=dict)
+    edges_updated: Dict[str, int] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
+    dry_run: bool = False
 
     @property
     def success(self) -> bool:
         return len(self.errors) == 0
 
+    @property
+    def total_vertices(self) -> int:
+        return sum(self.vertices_synced.values())
+
+    @property
+    def total_edges(self) -> int:
+        return sum(self.edges_synced.values())
+
     def summary(self) -> str:
+        mode = "DRY RUN" if self.dry_run else "LIVE SYNC"
         lines = [f"Graph Sync Report ({self.timestamp})"]
+        lines.append(f"Mode: {mode}")
         lines.append(f"Status: {'SUCCESS' if self.success else 'FAILED'}")
         lines.append("")
-        lines.append("Vertices:")
-        for coll, count in self.vertices_created.items():
-            lines.append(f"  {coll}: {count}")
-        lines.append("Edges:")
-        for coll, count in self.edges_created.items():
-            lines.append(f"  {coll}: {count}")
+        lines.append(f"Vertices (total synced: {self.total_vertices}):")
+        for coll in self.vertices_synced:
+            synced = self.vertices_synced.get(coll, 0)
+            new = self.vertices_new.get(coll, 0)
+            updated = self.vertices_updated.get(coll, 0)
+            if self.dry_run:
+                lines.append(f"  {coll}: {synced} to sync")
+            else:
+                lines.append(f"  {coll}: {synced} synced ({new} new, {updated} updated)")
+        lines.append("")
+        lines.append(f"Edges (total synced: {self.total_edges}):")
+        for coll in self.edges_synced:
+            synced = self.edges_synced.get(coll, 0)
+            new = self.edges_new.get(coll, 0)
+            updated = self.edges_updated.get(coll, 0)
+            if self.dry_run:
+                lines.append(f"  {coll}: {synced} to sync")
+            else:
+                lines.append(f"  {coll}: {synced} synced ({new} new, {updated} updated)")
         if self.warnings:
             lines.append("")
             lines.append("Warnings:")
@@ -224,13 +252,14 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
         return report
 
     if dry_run:
-        report.vertices_created = {
+        report.dry_run = True
+        report.vertices_synced = {
             "intents": len(data["intents"]),
             "perspectives": len(data["perspectives"]),
             "concepts": len(data["concepts"]),
             "bindings": len(manifest.get("approved_snippets", {})),
         }
-        report.edges_created = {
+        report.edges_synced = {
             "operates_within": len(data["intent_perspectives"]),
             "elevates": len(data["intent_concepts"]),
             "uses_definition": len(data["perspective_concepts"]),
@@ -249,7 +278,10 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
 
     graph = db.graph(GRAPH_NAME)
 
-    created = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
+    v_synced = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
+    v_new = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
+    v_updated = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
+
     intent_coll = graph.vertex_collection("intents")
     for intent in data["intents"]:
         key = intent["intent_name"]
@@ -262,8 +294,12 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_vertex(intent_coll, key, doc):
-                created["intents"] += 1
+            is_new = _upsert_vertex(intent_coll, key, doc)
+            v_synced["intents"] += 1
+            if is_new:
+                v_new["intents"] += 1
+            else:
+                v_updated["intents"] += 1
         except Exception as e:
             report.warnings.append(f"Intent '{key}': {e}")
 
@@ -278,8 +314,12 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_vertex(persp_coll, key, doc):
-                created["perspectives"] += 1
+            is_new = _upsert_vertex(persp_coll, key, doc)
+            v_synced["perspectives"] += 1
+            if is_new:
+                v_new["perspectives"] += 1
+            else:
+                v_updated["perspectives"] += 1
         except Exception as e:
             report.warnings.append(f"Perspective '{key}': {e}")
 
@@ -294,8 +334,12 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_vertex(concept_coll, key, doc):
-                created["concepts"] += 1
+            is_new = _upsert_vertex(concept_coll, key, doc)
+            v_synced["concepts"] += 1
+            if is_new:
+                v_new["concepts"] += 1
+            else:
+                v_updated["concepts"] += 1
         except Exception as e:
             report.warnings.append(f"Concept '{key}': {e}")
 
@@ -315,14 +359,22 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_vertex(bindings_coll, bk, doc):
-                created["bindings"] += 1
+            is_new = _upsert_vertex(bindings_coll, bk, doc)
+            v_synced["bindings"] += 1
+            if is_new:
+                v_new["bindings"] += 1
+            else:
+                v_updated["bindings"] += 1
         except Exception as e:
             report.warnings.append(f"Binding '{bk}': {e}")
 
-    report.vertices_created = created
+    report.vertices_synced = v_synced
+    report.vertices_new = v_new
+    report.vertices_updated = v_updated
 
-    edge_created = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
+    e_synced = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
+    e_new = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
+    e_updated = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
 
     ow_coll = graph.edge_collection("operates_within")
     for ip in data["intent_perspectives"]:
@@ -335,8 +387,12 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_edge(ow_coll, from_id, to_id, key, doc):
-                edge_created["operates_within"] += 1
+            is_new = _upsert_edge(ow_coll, from_id, to_id, key, doc)
+            e_synced["operates_within"] += 1
+            if is_new:
+                e_new["operates_within"] += 1
+            else:
+                e_updated["operates_within"] += 1
         except Exception as e:
             report.warnings.append(f"operates_within '{key}': {e}")
 
@@ -352,8 +408,12 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_edge(el_coll, from_id, to_id, key, doc):
-                edge_created["elevates"] += 1
+            is_new = _upsert_edge(el_coll, from_id, to_id, key, doc)
+            e_synced["elevates"] += 1
+            if is_new:
+                e_new["elevates"] += 1
+            else:
+                e_updated["elevates"] += 1
         except Exception as e:
             report.warnings.append(f"elevates '{key}': {e}")
 
@@ -368,8 +428,12 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             "synced_at": report.timestamp,
         }
         try:
-            if _upsert_edge(ud_coll, from_id, to_id, key, doc):
-                edge_created["uses_definition"] += 1
+            is_new = _upsert_edge(ud_coll, from_id, to_id, key, doc)
+            e_synced["uses_definition"] += 1
+            if is_new:
+                e_new["uses_definition"] += 1
+            else:
+                e_updated["uses_definition"] += 1
         except Exception as e:
             report.warnings.append(f"uses_definition '{key}': {e}")
 
@@ -385,12 +449,18 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
                 "synced_at": report.timestamp,
             }
             try:
-                if _upsert_edge(bt_coll, from_id, to_id, key, doc):
-                    edge_created["bound_to"] += 1
+                is_new = _upsert_edge(bt_coll, from_id, to_id, key, doc)
+                e_synced["bound_to"] += 1
+                if is_new:
+                    e_new["bound_to"] += 1
+                else:
+                    e_updated["bound_to"] += 1
             except Exception as e:
                 report.warnings.append(f"bound_to '{key}': {e}")
 
-    report.edges_created = edge_created
+    report.edges_synced = e_synced
+    report.edges_new = e_new
+    report.edges_updated = e_updated
     return report
 
 

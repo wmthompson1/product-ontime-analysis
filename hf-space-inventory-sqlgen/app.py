@@ -2773,15 +2773,22 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown("""
             ### ArangoDB Graph Sync
             
-            Synchronize the SQLite semantic layer into ArangoDB as a named graph.
-            This creates/updates the vertex and edge structure:
+            Push the semantic layer from SQLite into ArangoDB as a named graph (`semantic_graph`).
+            This keeps your cloud graph database in sync with local changes to intents, perspectives,
+            concepts, elevation weights, and SME-approved bindings.
             
-            ```
-            (:Intent) -[:OPERATES_WITHIN]-> (:Perspective)
-            (:Intent) -[:ELEVATES {weight}]-> (:Concept)
-            (:Perspective) -[:USES_DEFINITION]-> (:Concept)
-            (:Intent) -[:BOUND_TO]-> (:Binding)
-            ```
+            **Graph structure:**
+            
+            | Edge | From | To | Purpose |
+            |------|------|----|---------|
+            | `OPERATES_WITHIN` | Intent | Perspective | Which lens an intent uses |
+            | `ELEVATES` | Intent | Concept | Elevation weight (1.0 = primary, 0.0 = neutral) |
+            | `USES_DEFINITION` | Perspective | Concept | Which concepts a perspective defines |
+            | `BOUND_TO` | Intent | Binding | Links intent to its approved SQL snippet |
+            
+            **How to use:**
+            1. Click **Dry Run** to preview what will be synced (reads SQLite only, no ArangoDB connection)
+            2. Click **Sync to ArangoDB** to push changes (creates new documents or updates existing ones)
             """)
             
             with gr.Row():
@@ -2789,17 +2796,20 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     sync_dry_run_btn = gr.Button("Dry Run (Preview)", variant="secondary")
                     sync_live_btn = gr.Button("Sync to ArangoDB", variant="primary")
                 with gr.Column():
-                    sync_status = gr.Textbox(label="Status", interactive=False, value="Ready")
+                    sync_status = gr.Textbox(label="Status", interactive=False, value="Ready — click Dry Run or Sync")
             
-            sync_report_output = gr.Code(label="Sync Report", language=None, lines=20)
+            sync_report_output = gr.Code(label="Sync Report", language=None, lines=22)
             
             def run_graph_sync(dry_run: bool):
                 try:
                     from graph_sync import sync_graph
                     report = sync_graph(dry_run=dry_run)
-                    status = "SUCCESS" if report.success else "FAILED"
                     if dry_run:
-                        status = "DRY RUN — " + status
+                        status = f"DRY RUN — {report.total_vertices} vertices, {report.total_edges} edges ready to sync"
+                    elif report.success:
+                        status = f"SUCCESS — {report.total_vertices} vertices, {report.total_edges} edges synced to ArangoDB"
+                    else:
+                        status = f"FAILED — see errors in report below"
                     return status, report.summary()
                 except Exception as e:
                     return f"ERROR: {e}", str(e)
