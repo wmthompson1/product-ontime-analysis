@@ -2204,12 +2204,41 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         label="Select Query",
                         interactive=True
                     )
-                    saved_description = gr.Textbox(label="Description", interactive=False)
-                    saved_binding_key = gr.Textbox(label="Binding Key (manifest filename)", interactive=False)
+                    saved_description = gr.Textbox(label="Description", interactive=True)
+                    saved_binding_key = gr.Textbox(label="Binding Key (empty = not yet in manifest)", interactive=False)
                 
                 with gr.Column():
-                    saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True)
+                    saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True, interactive=True)
             
+            save_query_btn = gr.Button("Save Changes", variant="primary")
+            save_query_status = gr.Textbox(label="Save Status", interactive=False)
+
+            def save_query_edits(category_id, query_name, new_sql, new_description):
+                if not category_id or not query_name:
+                    return "Select a category and query first."
+                index = get_query_categories()
+                category = next((c for c in index.get("categories", []) if c["id"] == category_id), None)
+                if not category:
+                    return f"Category '{category_id}' not found."
+                sql_file = os.path.join(QUERIES_DIR, category["file"])
+                if not os.path.exists(sql_file):
+                    return f"File not found: {category['file']}"
+                with open(sql_file, "r") as f:
+                    content = f.read()
+                queries = get_saved_queries(category_id)
+                match = next((q for q in queries if q["name"] == query_name), None)
+                if not match:
+                    return f"Query '{query_name}' not found in {category['file']}."
+                old_sql_block = match["sql"].strip()
+                old_desc_line = f"-- Description: {match['description']}"
+                new_desc_line = f"-- Description: {new_description.strip()}"
+                new_sql_clean = new_sql.strip() if new_sql else old_sql_block
+                updated = content.replace(old_desc_line, new_desc_line)
+                updated = updated.replace(old_sql_block, new_sql_clean)
+                with open(sql_file, "w") as f:
+                    f.write(updated)
+                return f"Saved changes to '{query_name}' in {category['name']}."
+
             load_queries_btn.click(
                 fn=load_queries_for_category,
                 inputs=saved_category,
@@ -2220,6 +2249,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 fn=load_query_sql,
                 inputs=[saved_category, saved_query_dropdown],
                 outputs=[saved_sql_output, saved_description, saved_binding_key]
+            )
+
+            save_query_btn.click(
+                fn=save_query_edits,
+                inputs=[saved_category, saved_query_dropdown, saved_sql_output, saved_description],
+                outputs=[save_query_status]
             )
         
         with gr.Tab("🔗 Semantic Graph"):
