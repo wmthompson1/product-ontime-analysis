@@ -32,6 +32,9 @@ Utilities/SQLMesh/logs/
 # OS files
 .DS_Store
 
+# Attached assets from chat
+attached_assets/
+
 # Direnv
 .envrc
 

@@ -1,5 +1,5 @@
 {
-    "last_updated": "2026-02-10T23:17:11.138832",
+    "last_updated": "2026-02-11T03:52:36.567335",
     "approved_snippets": {
         "finance_ncm_cost_20260208_150000": {
             "concept_anchor": "DEFECTSEVERITYCOST",
@@ -229,10 +229,10 @@
             "logic_type": "DIRECT",
             "file_path": "/Users/williamthompson/bbb/20241019 Python/hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/quality_ncm_cost_20260209_193816.sql",
             "sme_justification": "test capa",
-            "validation_status": "APPROVED",
+            "validation_status": "PENDING",
             "binding_key": "quality_ncm_cost_20260209_193816",
             "created_at": "2026-02-09T19:38:16.162929",
-            "reviewed_at": "2026-02-10T22:12:25.602021"
+            "reviewed_at": "2026-02-11T03:52:36.567325"
         },
         "gt_ncm_by_employee_20260210_230752": {
             "concept_anchor": "NCM_BY_EMPLOYEE",
@@ -244,7 +244,7 @@
             "validation_status": "PENDING",
             "binding_key": "gt_ncm_by_employee_20260210_230752",
             "created_at": "2026-02-10T23:07:52.850232",
-            "reviewed_at": "2026-02-10T23:17:11.138821"
+            "reviewed_at": "2026-02-11T03:52:29.875053"
         }
     }
 }
