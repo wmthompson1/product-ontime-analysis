@@ -27,9 +27,8 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Combined Cleansing + Segmentation Pipeline**: Production-ready ETL pipeline integrating data cleansing and document segmentation with multi-CSV output, schema-based column filtering, per-block cleansing, and web/terminal interfaces for processing.
 - **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata and user-defined acronyms.
 - **LangGraph 101 Implementation**: Entry Point series demonstrating LangGraph base class patterns for custom manufacturing tools, workflow orchestration, and agent patterns, including a Manufacturing Queue Router and Plant Log Ingestion system.
-- **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation separating deterministic logic (NetworkX for join pathfinding) from LLM inference, using graph metadata stored in a relational database.
-- **NetworkX Graph Patterns**: Comprehensive demonstration of network science patterns (graph construction, centrality analysis, shortest path, community detection) applied to manufacturing contexts, integrated with database schema metadata.
-- **ArangoDB Graph Persistence**: Production-ready utilities for persisting NetworkX graphs to ArangoDB, supporting GPU-accelerated analytics and enabling faster session loading and team collaboration for manufacturing schema graphs.
+- **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation separating deterministic logic from LLM inference, using graph metadata stored in a relational database.
+- **ArangoDB Graph Persistence**: Production-ready utilities for persisting schema graphs to ArangoDB, supporting GPU-accelerated analytics and enabling faster session loading and team collaboration for manufacturing schema graphs.
 - **Hugging Face MCP Server Integration**: Web-based interface implementing Model Context Protocol patterns for accessing Hugging Face Hub for model, dataset, and spaces search, including quick actions and authentication.
 - **Manufacturing SQL Semantic Layer (HF Space)**: MCP Context Builder for GitHub Copilot with a Gradio interface allowing users to build MCP context packages, browse manufacturing schemas, view ground truth SQL, perform interactive field disambiguation via graph traversal, and submit SME SQL snippets with semantic metadata for approver review workflow (Binding Resolver pattern with deterministic filenames and Reviewer Manifest JSON).
 - **SolderEngine (Semantic Transpilation)**: SQLGlot-based engine that assembles final executable SQL by combining APPROVED ground truth snippets with elevation weights (ELEVATES/SUPPRESSES) from the semantic graph. Supports AST manipulation (alias renaming, table qualification), multi-dialect transpilation (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery), SPATIAL_ALIAS detection, and perspective-driven concept selection. Integrated into Gradio interface with elevation reports. Includes multi-concept assembly via CTE-based query construction (assemble_query), resolve_concept_snippet with perspective fallback and suppression-to-NULL logic, and a validation test suite with seed manifest data.
@@ -54,7 +53,6 @@ LangGraph 101 Discovery: Successfully identified and implemented the foundationa
 - **Tavily API**: For advanced RAG implementation
 - **OpenAI API**: For advanced RAG implementation
 - **FAISS**: For vector store retrieval in semantic layer
-- **NetworkX**: Graph-theoretic algorithms
 - **LangGraph**: StateGraph workflow orchestration
 - **pandas**: Data manipulation and analysis
 - **openpyxl**: Excel file reading and writing (.xlsx)

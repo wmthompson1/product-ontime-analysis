@@ -117,21 +117,6 @@ VALUES
  'Use for order fulfillment queries');
 ```
 
-### Using schema_graph.py
-
-Build a NetworkX graph from schema_edges:
-
-```bash
-cd hf-space-inventory-sqlgen
-python schema_graph.py
-```
-
-Import from GraphML file:
-
-```bash
-python schema_graph.py --import data/schema.graphml
-```
-
 ## Ground Truth SQL Queries
 
 ### File Format
