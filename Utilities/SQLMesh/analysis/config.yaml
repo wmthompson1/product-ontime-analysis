@@ -1,0 +1,46 @@
+# SQL Lineage Analysis Configuration
+
+# SQL Dialect (for sqlglot parser)
+sql_dialect: tsql
+
+# Paths (relative to repository root)
+paths:
+  sql_reports: SQL_Reports
+  analysis_output: Utilities/SQLMesh/analysis/reports
+  
+# Important tables to track (for alerts/notifications)
+important_tables:
+  - WORK_ORDER
+  - CUSTOMER_ORDER
+  - PART
+  - SHIPPER
+  - RECEIVER
+  - PAYABLE
+  - LABOR_TICKET
+
+# Dashboard settings
+dashboard:
+  port: 5000
+  host: 0.0.0.0
+  share_public: false
+
+# Report generation options
+reports:
+  max_top_tables: 50
+  include_failed_parses: true
+  detailed_logging: true
+
+# ArangoDB connection (optional - disabled by default)
+arangodb:
+  enabled: false
+  host: localhost
+  port: 8529
+  database: lineage
+  username: root
+  password: ""
+  
+# Graph export formats
+graph_exports:
+  - graphml  # For Gephi, yEd
+  - json     # For D3.js, Cytoscape.js
+  - pickle   # For Python NetworkX
