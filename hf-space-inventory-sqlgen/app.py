@@ -267,6 +267,50 @@ GROUND_TRUTH_SQL_DIR = os.path.join(GROUND_TRUTH_DIR, "sql_snippets")
 MANIFEST_PATH = os.path.join(GROUND_TRUTH_DIR, "reviewer_manifest.json")
 
 
+def get_ground_truth_tables() -> List[str]:
+    """Extract unique table names referenced in APPROVED ground truth SQL files."""
+    if not os.path.exists(MANIFEST_PATH):
+        return []
+
+    try:
+        with open(MANIFEST_PATH, "r") as f:
+            manifest = json.load(f)
+    except Exception:
+        return []
+
+    approved = manifest.get("approved_snippets", {})
+    all_tables = set()
+    known_tables = set(get_all_tables())
+
+    for entry in approved.values():
+        if entry.get("validation_status") != "APPROVED":
+            continue
+        file_path = entry.get("file_path", "")
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), file_path)
+        if not os.path.exists(file_path):
+            alt = os.path.join(GROUND_TRUTH_DIR, os.path.basename(file_path))
+            if os.path.exists(alt):
+                file_path = alt
+            else:
+                continue
+        try:
+            with open(file_path, "r") as sf:
+                sql_text = sf.read().upper()
+            for m in re.finditer(r'\bFROM\s+(\w+)', sql_text):
+                tbl = m.group(1).lower()
+                if tbl in known_tables:
+                    all_tables.add(tbl)
+            for m in re.finditer(r'\bJOIN\s+(\w+)', sql_text):
+                tbl = m.group(1).lower()
+                if tbl in known_tables:
+                    all_tables.add(tbl)
+        except Exception:
+            continue
+
+    return sorted(all_tables)
+
+
 def _sanitize_slug(value: str) -> str:
     slug = re.sub(r'[^a-z0-9_]', '_', value.lower().strip())
     slug = re.sub(r'_+', '_', slug).strip('_')
@@ -2072,10 +2116,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     pass
             
             if include_schema:
-                context_parts.append("## Resources: Database Schema")
-                tables = get_all_tables()
-                if tables:
-                    for table in sorted(tables)[:10]:
+                gt_tables = get_ground_truth_tables()
+                context_parts.append(f"## Resources: Database Schema ({len(gt_tables)} tables from Ground Truth)")
+                if gt_tables:
+                    for table in gt_tables:
                         ddl = get_table_create_sql(table)
                         context_parts.append(f"```sql\n-- {table}\n{ddl}\n```")
                 context_parts.append("")
@@ -2113,7 +2157,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     )
                     
                     gr.Markdown("#### Select Resources")
-                    include_schema = gr.Checkbox(label="Include Database Schema (top 10 tables)", value=True)
+                    include_schema = gr.Checkbox(label="Include Database Schema (tables in Ground Truth)", value=True)
                     include_queries = gr.Checkbox(label="Include Ground Truth SQL Examples", value=True)
                     query_category = gr.Dropdown(
                         choices=get_category_choices(),
