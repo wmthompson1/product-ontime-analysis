@@ -2,19 +2,26 @@
 """
 ArangoDB Graph Persistence using python-arango
 
-Persists and loads NetworkX graphs to/from ArangoDB using the official
-python-arango client. No nx-arangodb or GPU dependencies required.
+Persists and loads graphs to/from ArangoDB using the official
+python-arango client. Works with plain Python dicts — no graph
+library dependency required.
 
 Supports hybrid deployment:
   - Local Docker: http://localhost:8529
   - ArangoDB Cloud: https://xxxxx.arangodb.cloud:8529
+
+Safety policy:
+  - overwrite=False (default): upserts nodes, inserts edges — safe for re-runs
+  - overwrite=True: drops and re-creates the named graph — destructive
+  - load/list/test operations are always read-only
+  - Credentials read from env vars, never hardcoded
+  - See 020_ArangoDB_Usage_Examples.md for full safety documentation
 
 Environment variables (with ARANGO_* prefix):
   ARANGO_HOST, ARANGO_USER, ARANGO_ROOT_PASSWORD, ARANGO_DB
 """
 
 import os
-import networkx as nx
 from typing import Optional, Dict, Any, Union, List
 import json
 
@@ -47,8 +54,12 @@ class ArangoDBConfig:
 
 
 class ArangoDBGraphPersistence:
-    """Utility class for persisting NetworkX graphs to ArangoDB using python-arango"""
-    
+    """Persist and load graph data to/from ArangoDB using python-arango.
+
+    Works with plain Python dicts — no graph library required.
+    See 020_ArangoDB_Usage_Examples.md for safety policy.
+    """
+
     def __init__(self, config: Optional[ArangoDBConfig] = None):
         self.config = config or ArangoDBConfig()
         self._client = ArangoClient(hosts=self.config.host)
@@ -58,12 +69,12 @@ class ArangoDBGraphPersistence:
             username=self.config.username,
             password=self.config.password
         )
-    
+
     def _ensure_database_exists(self):
         """Create the database if it doesn't exist.
-        
+
         On cloud instances (ArangoDB Oasis/Cloud), _system access is typically
-        restricted. In that case we skip auto-creation and assume the database
+        restricted.  In that case we skip auto-creation and assume the database
         was pre-created via the cloud console.
         """
         try:
@@ -95,80 +106,103 @@ class ArangoDBGraphPersistence:
             return self._db.graph(name)
         return self._db.create_graph(name, edge_definitions=edge_definitions)
 
-    def persist_graph(
+    @staticmethod
+    def _sanitize_key(raw: str) -> str:
+        """Sanitize a string into a valid ArangoDB document _key."""
+        return str(raw).replace("/", "_").replace(" ", "_")
+
+    @staticmethod
+    def _safe_value(val: Any) -> Any:
+        """Return val if JSON-serializable, else str(val)."""
+        try:
+            json.dumps(val)
+            return val
+        except (TypeError, ValueError):
+            return str(val)
+
+    def persist_from_dicts(
         self,
-        graph: Union[nx.Graph, nx.DiGraph],
         name: str,
+        nodes: List[Dict[str, Any]],
+        edges: List[Dict[str, Any]],
         vertex_collection: str = "vertices",
         edge_collection: str = "edges",
         overwrite: bool = False,
-        node_table_attr: str = "table"
+        node_id_field: str = "id",
+        node_collection_field: str = "table",
+        edge_relationship_field: str = "relationship",
+        edge_from_field: str = "from",
+        edge_to_field: str = "to",
     ) -> Dict[str, Any]:
-        """Persist NetworkX graph to ArangoDB using python-arango.
-        
+        """Persist graph data from plain Python dicts to ArangoDB.
+
+        Safety:
+          - overwrite=False (default): upserts nodes, inserts edges
+          - overwrite=True: DESTRUCTIVE — drops the named graph first
+
         Args:
-            graph: NetworkX graph to persist
-            name: Name for the ArangoDB named graph
-            vertex_collection: Default vertex collection name (used when nodes lack a table attr)
-            edge_collection: Default edge collection name
-            overwrite: If True, drop existing graph and collections first
-            node_table_attr: Node attribute used to group nodes into separate collections
-            
+            name: ArangoDB named graph identifier
+            nodes: list of dicts, each with at least an id field
+            edges: list of dicts, each with 'from' and 'to' fields
+            vertex_collection: default vertex collection name
+            edge_collection: default edge collection name
+            overwrite: drop existing graph before writing (destructive)
+            node_id_field: key in node dicts used as document _key
+            node_collection_field: key in node dicts for collection routing
+            edge_relationship_field: key in edge dicts for edge collection routing
+            edge_from_field: key in edge dicts for source node id
+            edge_to_field: key in edge dicts for target node id
+
         Returns:
             Dict with persistence stats
         """
         print(f"Persisting graph '{name}' to ArangoDB...")
-        print(f"   Nodes: {graph.number_of_nodes()}, Edges: {graph.number_of_edges()}")
-        
+        print(f"   Nodes: {len(nodes)}, Edges: {len(edges)}")
+
         if overwrite and self._db.has_graph(name):
             print(f"  Overwrite requested: dropping existing graph '{name}'...")
             self._db.delete_graph(name, drop_collections=True)
             print(f"  Dropped existing graph '{name}'")
-        
-        vertex_collections = {}
-        edge_collections_map = {}
-        
-        for node, attrs in graph.nodes(data=True):
-            table = attrs.get(node_table_attr, vertex_collection)
+
+        vertex_collections: Dict[str, Any] = {}
+        edge_collections_map: Dict[str, Any] = {}
+
+        for node in nodes:
+            table = node.get(node_collection_field, vertex_collection)
             if table not in vertex_collections:
-                coll = self._ensure_collection(table, edge=False)
-                vertex_collections[table] = coll
+                vertex_collections[table] = self._ensure_collection(table, edge=False)
 
-        for u, v, attrs in graph.edges(data=True):
-            rel = attrs.get("relationship", attrs.get(node_table_attr, edge_collection))
+        for edge in edges:
+            rel = edge.get(edge_relationship_field, edge_collection)
             if rel not in edge_collections_map:
-                coll = self._ensure_collection(rel, edge=True)
-                edge_collections_map[rel] = coll
+                edge_collections_map[rel] = self._ensure_collection(rel, edge=True)
 
-        edge_definitions = []
         from_collections = list(vertex_collections.keys())
         to_collections = list(vertex_collections.keys())
-        for edge_coll_name in edge_collections_map.keys():
-            edge_definitions.append({
-                "edge_collection": edge_coll_name,
+        edge_definitions = [
+            {
+                "edge_collection": ecoll_name,
                 "from_vertex_collections": from_collections,
-                "to_vertex_collections": to_collections
-            })
-        
+                "to_vertex_collections": to_collections,
+            }
+            for ecoll_name in edge_collections_map
+        ]
         if edge_definitions:
             self._ensure_graph(name, edge_definitions)
-        
+
         nodes_inserted = 0
         nodes_updated = 0
-        for node, attrs in graph.nodes(data=True):
-            table = attrs.get(node_table_attr, vertex_collection)
+        for node in nodes:
+            table = node.get(node_collection_field, vertex_collection)
             coll = vertex_collections[table]
-            key = str(node).replace("/", "_").replace(" ", "_")
-            doc = {}
-            for k, v in attrs.items():
-                try:
-                    json.dumps(v)
-                    doc[k] = v
-                except (TypeError, ValueError):
-                    doc[k] = str(v)
+            key = self._sanitize_key(node.get(node_id_field, ""))
+            doc = {
+                k: self._safe_value(v)
+                for k, v in node.items()
+                if k not in (node_id_field, node_collection_field)
+            }
             doc["_key"] = key
-            doc["nx_node_id"] = str(node)
-            
+            doc["original_id"] = str(node.get(node_id_field, key))
             try:
                 if coll.has(key):
                     coll.update(doc)
@@ -177,100 +211,95 @@ class ArangoDBGraphPersistence:
                     coll.insert(doc)
                     nodes_inserted += 1
             except Exception as e:
-                print(f"  Warning: Could not persist node '{node}': {e}")
-        
+                print(f"  Warning: Could not persist node '{key}': {e}")
+
         edges_inserted = 0
-        for u, v, attrs in graph.edges(data=True):
-            rel = attrs.get("relationship", attrs.get(node_table_attr, edge_collection))
+        for edge in edges:
+            rel = edge.get(edge_relationship_field, edge_collection)
             coll = edge_collections_map[rel]
-            
-            u_table = graph.nodes[u].get(node_table_attr, vertex_collection)
-            v_table = graph.nodes[v].get(node_table_attr, vertex_collection)
-            u_key = str(u).replace("/", "_").replace(" ", "_")
-            v_key = str(v).replace("/", "_").replace(" ", "_")
-            
+            from_id = self._sanitize_key(edge.get(edge_from_field, ""))
+            to_id = self._sanitize_key(edge.get(edge_to_field, ""))
+            from_table = vertex_collection
+            to_table = vertex_collection
+            for n in nodes:
+                nid = self._sanitize_key(n.get(node_id_field, ""))
+                if nid == from_id:
+                    from_table = n.get(node_collection_field, vertex_collection)
+                if nid == to_id:
+                    to_table = n.get(node_collection_field, vertex_collection)
+
             edge_doc = {
-                "_from": f"{u_table}/{u_key}",
-                "_to": f"{v_table}/{v_key}"
+                "_from": f"{from_table}/{from_id}",
+                "_to": f"{to_table}/{to_id}",
             }
-            for k, val in attrs.items():
-                if k not in ("_from", "_to"):
-                    try:
-                        json.dumps(val)
-                        edge_doc[k] = val
-                    except (TypeError, ValueError):
-                        edge_doc[k] = str(val)
-            
+            for k, val in edge.items():
+                if k not in (edge_from_field, edge_to_field, "_from", "_to"):
+                    edge_doc[k] = self._safe_value(val)
             try:
                 coll.insert(edge_doc)
                 edges_inserted += 1
             except Exception as e:
-                print(f"  Warning: Could not persist edge '{u}' -> '{v}': {e}")
-        
+                print(f"  Warning: Could not persist edge '{from_id}' -> '{to_id}': {e}")
+
         stats = {
             "graph_name": name,
             "nodes_inserted": nodes_inserted,
             "nodes_updated": nodes_updated,
             "edges_inserted": edges_inserted,
             "vertex_collections": list(vertex_collections.keys()),
-            "edge_collections": list(edge_collections_map.keys())
+            "edge_collections": list(edge_collections_map.keys()),
         }
         print(f"  Graph '{name}' persisted: {nodes_inserted} inserted, {nodes_updated} updated, {edges_inserted} edges")
         return stats
-    
+
     def load_graph(
         self,
         name: str,
-        directed: bool = True
-    ) -> Union[nx.Graph, nx.DiGraph]:
-        """Load graph from ArangoDB into NetworkX.
-        
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Load graph from ArangoDB as plain Python dicts (read-only).
+
         Args:
             name: ArangoDB named graph name
-            directed: If True, return DiGraph; otherwise Graph
-            
+
         Returns:
-            NetworkX graph with all node/edge attributes
+            Dict with 'nodes' and 'edges' lists
         """
         print(f"Loading graph '{name}' from ArangoDB...")
-        
+
         if not self._db.has_graph(name):
             raise ValueError(f"Graph '{name}' not found in ArangoDB")
-        
+
         adb_graph = self._db.graph(name)
-        
-        if directed:
-            nx_graph = nx.DiGraph()
-        else:
-            nx_graph = nx.Graph()
-        
+
+        nodes: List[Dict[str, Any]] = []
         for vcoll_name in adb_graph.vertex_collections():
             vcoll = self._db.collection(vcoll_name)
             for doc in vcoll.all():
-                node_id = doc.get("nx_node_id", doc["_key"])
-                attrs = {k: v for k, v in doc.items() if not k.startswith("_")}
-                nx_graph.add_node(node_id, **attrs)
-        
+                node = {k: v for k, v in doc.items() if not k.startswith("_")}
+                node["_key"] = doc["_key"]
+                node["_collection"] = vcoll_name
+                nodes.append(node)
+
+        edges: List[Dict[str, Any]] = []
         for edge_def in adb_graph.edge_definitions():
             ecoll_name = edge_def["edge_collection"]
             ecoll = self._db.collection(ecoll_name)
             for doc in ecoll.all():
-                from_key = doc["_from"].split("/", 1)[1]
-                to_key = doc["_to"].split("/", 1)[1]
-                from_node = doc.get("nx_from_id", from_key)
-                to_node = doc.get("nx_to_id", to_key)
-                attrs = {k: v for k, v in doc.items() if not k.startswith("_")}
-                nx_graph.add_edge(from_node, to_node, **attrs)
-        
-        print(f"  Graph loaded: {nx_graph.number_of_nodes()} nodes, {nx_graph.number_of_edges()} edges")
-        return nx_graph
-    
+                edge = {k: v for k, v in doc.items() if not k.startswith("_")}
+                edge["_from"] = doc["_from"]
+                edge["_to"] = doc["_to"]
+                edge["_collection"] = ecoll_name
+                edges.append(edge)
+
+        print(f"  Graph loaded: {len(nodes)} nodes, {len(edges)} edges")
+        return {"nodes": nodes, "edges": edges}
+
     def list_graphs(self) -> List[str]:
-        """List all named graphs in the database"""
+        """List all named graphs in the database (read-only)"""
         return [g["name"] for g in self._db.graphs()]
-    
+
     def delete_graph(self, name: str, drop_collections: bool = True):
-        """Delete a named graph"""
+        """Delete a named graph (DESTRUCTIVE — see safety policy)"""
         if self._db.has_graph(name):
             self._db.delete_graph(name, drop_collections=drop_collections)
             print(f"  Deleted graph '{name}'")
@@ -278,7 +307,7 @@ class ArangoDBGraphPersistence:
             print(f"  Graph '{name}' not found")
 
     def test_connection(self) -> Dict[str, Any]:
-        """Test the ArangoDB connection and return status info"""
+        """Test the ArangoDB connection and return status info (read-only)"""
         try:
             version = self._db.version()
             return {
@@ -286,11 +315,11 @@ class ArangoDBGraphPersistence:
                 "version": version,
                 "database": self.config.database_name,
                 "host": self.config.host,
-                "graphs": self.list_graphs()
+                "graphs": self.list_graphs(),
             }
         except Exception as e:
             return {
                 "connected": False,
                 "error": str(e),
-                "host": self.config.host
+                "host": self.config.host,
             }

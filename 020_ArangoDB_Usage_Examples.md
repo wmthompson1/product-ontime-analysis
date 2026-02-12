@@ -11,19 +11,19 @@ Persist manufacturing schema graphs directly from SQLite to ArangoDB for faster 
 - When logging connection info, `get_connection_info()` masks the password field.
 
 ### Write Safety
-- **`overwrite=False` is the default.** Calling `persist_graph()` without `overwrite=True` will **insert or update** documents, never drop existing collections.
-- **`overwrite=True` drops the entire named graph** and its collections before re-creating. Use only when you intend a full replacement.
+- **`overwrite=False` is the default.** Calling `persist_from_dicts()` without `overwrite=True` will **insert or update** documents, never drop existing collections.
+- **`overwrite=True` drops the entire named graph** and its collections before re-creating. Use only when you intend a full replacement (e.g., refreshing from SQLite after drift).
 - Individual node persistence uses **upsert logic**: if a document key already exists, it updates; otherwise it inserts. This prevents duplicate-key errors on re-runs.
 - Edge inserts do **not** upsert — if you re-run without `overwrite=True`, you may get duplicate edges. Use `overwrite=True` for idempotent full syncs.
 
 ### Read Safety
-- `load_graph()` is read-only — it queries vertex and edge collections and returns plain Python dicts. It never modifies ArangoDB.
+- `load_graph()` is read-only — it queries vertex and edge collections and returns `{"nodes": [...], "edges": [...]}`. It never modifies ArangoDB.
 - `list_graphs()` is read-only — returns graph names only.
 - `test_connection()` is read-only — returns version and graph list.
 
 ### Destructive Operations (Require Explicit Confirmation)
 - `delete_graph(name, drop_collections=True)` — permanently removes the named graph **and all its collections**. Data cannot be recovered unless you have a backup.
-- `persist_graph(..., overwrite=True)` — drops and re-creates. Equivalent to delete + insert.
+- `persist_from_dicts(..., overwrite=True)` — drops and re-creates. Equivalent to delete + insert.
 - **Rule:** Never call destructive operations in automated scripts without a confirmation prompt or `--force` flag reviewed by a human.
 
 ### Database Creation Safety
@@ -31,8 +31,8 @@ Persist manufacturing schema graphs directly from SQLite to ArangoDB for faster 
 - This means cloud deployments require **pre-creating the database** through the ArangoDB Cloud console.
 
 ### Collection Naming Safety
-- Vertex collections are named from the `node_table_attr` attribute on each node (defaults to `"vertices"`).
-- Edge collections are named from the `relationship` attribute on each edge (defaults to `"edges"`).
+- Vertex collections are named from the `node_collection_field` key in each node dict (defaults to `"vertices"`).
+- Edge collections are named from the `edge_relationship_field` key in each edge dict (defaults to `"edges"`).
 - Document `_key` values are sanitized: `/` and spaces are replaced with `_` to comply with ArangoDB key constraints.
 
 ## Setup
@@ -75,17 +75,17 @@ ARANGO_DB=manufacturing_semantic_layer
 ## Data Flow
 
 ```
-SQLite (schema_nodes, schema_edges)
+SQLite (schema_intents, schema_perspectives, schema_concepts, ...)
         |
         | Direct read via sqlite3
         v
 Python dicts (nodes[], edges[])
         |
-        | arangodb_persistence.persist_graph()
+        | arangodb_persistence.persist_from_dicts()
         v
 ArangoDB (named graph with vertex + edge collections)
         |
-        | arangodb_persistence.load_graph()
+        | arangodb_persistence.load_graph()  -> {"nodes": [...], "edges": [...]}
         v
 Python dicts (for use in SolderEngine, Dispatcher, Gradio UI)
 ```
@@ -94,7 +94,7 @@ No intermediate graph library is needed. Data flows directly from SQLite to Aran
 
 ## Usage Patterns
 
-### Pattern 1: Persist Schema from SQLite to ArangoDB
+### Pattern 1: Persist Semantic Layer from SQLite to ArangoDB
 
 ```python
 import sqlite3
@@ -104,40 +104,40 @@ DB_PATH = "hf-space-inventory-sqlgen/app_schema/manufacturing.db"
 conn = sqlite3.connect(DB_PATH)
 conn.row_factory = sqlite3.Row
 
-nodes = conn.execute("SELECT * FROM schema_nodes ORDER BY table_name").fetchall()
-edges = conn.execute("SELECT * FROM schema_edges ORDER BY edge_id").fetchall()
+node_list = []
+for row in conn.execute("SELECT concept_id, concept_name, description FROM schema_concepts"):
+    node_list.append({
+        "id": f"concept_{row['concept_name']}",
+        "table": "semantic_node",
+        "node_type": "Concept",
+        "name": row["concept_name"],
+        "description": row["description"] or "",
+    })
+
+edge_list = []
+for row in conn.execute("""
+    SELECT p.perspective_name, c.concept_name
+    FROM schema_perspective_concepts pc
+    JOIN schema_perspectives p ON pc.perspective_id = p.perspective_id
+    JOIN schema_concepts c ON pc.concept_id = c.concept_id
+"""):
+    edge_list.append({
+        "from": f"perspective_{row['perspective_name']}",
+        "to": f"concept_{row['concept_name']}",
+        "relationship": "semantic_edge",
+        "edge_type": "USES_DEFINITION",
+    })
 conn.close()
 
 config = ArangoDBConfig()
 persistence = ArangoDBGraphPersistence(config)
 
-node_list = []
-for n in nodes:
-    node_list.append({
-        "id": n["table_name"],
-        "table": "schema_node",
-        "label": n["table_name"],
-        "table_type": n["table_type"],
-        "description": n["description"]
-    })
-
-edge_list = []
-for e in edges:
-    edge_list.append({
-        "from": e["from_table"],
-        "to": e["to_table"],
-        "relationship": "schema_edge",
-        "relationship_type": e["relationship_type"],
-        "join_column": e["join_column"],
-        "weight": e["weight"]
-    })
-
 stats = persistence.persist_from_dicts(
-    name="manufacturing_schema",
+    name="manufacturing_semantic_layer",
     nodes=node_list,
     edges=edge_list,
-    vertex_collection="schema_node",
-    edge_collection="schema_edge",
+    vertex_collection="semantic_node",
+    edge_collection="semantic_edge",
     overwrite=True
 )
 
@@ -156,15 +156,15 @@ status = persistence.test_connection()
 print(f"Connected: {status['connected']}")
 print(f"Available graphs: {status.get('graphs', [])}")
 
-graph_data = persistence.load_graph_as_dicts(name="manufacturing_schema")
+graph_data = persistence.load_graph(name="manufacturing_semantic_layer")
 
 print(f"Nodes: {len(graph_data['nodes'])}")
 for node in graph_data["nodes"][:5]:
-    print(f"  {node.get('label', node.get('_key'))}: {node.get('description', '')}")
+    print(f"  {node.get('name', node.get('_key'))}: {node.get('description', '')}")
 
 print(f"Edges: {len(graph_data['edges'])}")
 for edge in graph_data["edges"][:5]:
-    print(f"  {edge['_from']} -> {edge['_to']} ({edge.get('relationship_type', '')})")
+    print(f"  {edge['_from']} -> {edge['_to']} ({edge.get('edge_type', '')})")
 ```
 
 ### Pattern 3: Safe Graph Replacement (with confirmation)
@@ -227,17 +227,31 @@ for doc in cursor:
 |--------|-------|-------|
 | `test_connection()` | Read-only | Returns version, graph list |
 | `list_graphs()` | Read-only | Returns graph names |
-| `load_graph()` | Read-only | Queries collections, returns dicts |
-| `persist_graph(overwrite=False)` | Insert/Update | Upserts nodes, inserts edges |
-| `persist_graph(overwrite=True)` | **Destructive** | Drops and re-creates graph |
+| `load_graph()` | Read-only | Queries collections, returns `{"nodes": [...], "edges": [...]}` |
+| `persist_from_dicts(overwrite=False)` | Insert/Update | Upserts nodes, inserts edges |
+| `persist_from_dicts(overwrite=True)` | **Destructive** | Drops and re-creates graph |
 | `delete_graph()` | **Destructive** | Removes graph and collections permanently |
+
+## Refresh Script
+
+When ArangoDB data drifts from the SQLite source of truth (e.g., manual edits in the web UI), run:
+
+```bash
+python refresh_arango_from_sqlite.py            # full refresh (overwrite=True)
+python refresh_arango_from_sqlite.py --dry-run   # preview without writing
+python refresh_arango_from_sqlite.py --db /path/to/manufacturing.db
+```
+
+This script is container-agnostic — it works the same whether ArangoDB runs in Docker, Podman, a VM, bare metal, or ArangoDB Cloud. Only the `ARANGO_*` environment variables need to point to the right host.
 
 ## Integration Architecture
 
 ```
 +---------------------------------------------------+
 | SQLite (manufacturing.db)                         |
-| schema_nodes, schema_edges, ground_truth_registry |
+| schema_intents, schema_perspectives,              |
+| schema_concepts, schema_concept_fields,           |
+| ground_truth_registry                             |
 +-------------------------+-------------------------+
                           |
                           | sqlite3 read (read-only)
