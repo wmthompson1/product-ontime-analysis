@@ -1,10 +1,43 @@
-# Entry Point 020: ArangoDB Graph Persistence - Usage Examples
+# Entry Point 020: ArangoDB Graph Persistence - Safe Usage Guide
 
-Persist NetworkX graphs to local ArangoDB for faster session loading and team collaboration.
+Persist manufacturing schema graphs directly from SQLite to ArangoDB for faster session loading, team collaboration, and governed semantic layer operations.
+
+## Safety Policy
+
+### Credential Safety
+- **Never hardcode passwords** in source files or commit them to version control.
+- Store credentials in environment variables or Replit Secrets (`ARANGO_HOST`, `ARANGO_USER`, `ARANGO_ROOT_PASSWORD`, `ARANGO_DB`).
+- The `ArangoDBConfig` class reads from environment variables automatically — no credentials appear in code.
+- When logging connection info, `get_connection_info()` masks the password field.
+
+### Write Safety
+- **`overwrite=False` is the default.** Calling `persist_graph()` without `overwrite=True` will **insert or update** documents, never drop existing collections.
+- **`overwrite=True` drops the entire named graph** and its collections before re-creating. Use only when you intend a full replacement.
+- Individual node persistence uses **upsert logic**: if a document key already exists, it updates; otherwise it inserts. This prevents duplicate-key errors on re-runs.
+- Edge inserts do **not** upsert — if you re-run without `overwrite=True`, you may get duplicate edges. Use `overwrite=True` for idempotent full syncs.
+
+### Read Safety
+- `load_graph()` is read-only — it queries vertex and edge collections and returns plain Python dicts. It never modifies ArangoDB.
+- `list_graphs()` is read-only — returns graph names only.
+- `test_connection()` is read-only — returns version and graph list.
+
+### Destructive Operations (Require Explicit Confirmation)
+- `delete_graph(name, drop_collections=True)` — permanently removes the named graph **and all its collections**. Data cannot be recovered unless you have a backup.
+- `persist_graph(..., overwrite=True)` — drops and re-creates. Equivalent to delete + insert.
+- **Rule:** Never call destructive operations in automated scripts without a confirmation prompt or `--force` flag reviewed by a human.
+
+### Database Creation Safety
+- `_ensure_database_exists()` attempts to create the target database via `_system`. On cloud instances where `_system` access is restricted, it silently skips creation and assumes the database already exists.
+- This means cloud deployments require **pre-creating the database** through the ArangoDB Cloud console.
+
+### Collection Naming Safety
+- Vertex collections are named from the `node_table_attr` attribute on each node (defaults to `"vertices"`).
+- Edge collections are named from the `relationship` attribute on each edge (defaults to `"edges"`).
+- Document `_key` values are sanitized: `/` and spaces are replaced with `_` to comply with ArangoDB key constraints.
 
 ## Setup
 
-### 1. Install ArangoDB Locally
+### 1. Install ArangoDB
 
 **macOS (Homebrew)**
 ```bash
@@ -23,203 +56,223 @@ sudo apt-get install arangodb3
 
 **Default Access**: http://localhost:8529
 
-### 2. Install Dependencies
+### 2. Install Python Dependencies
 
 ```bash
-python3 -m venv .venv
-./.venv/bin/pip install -r requirements-arango.txt
+pip install python-arango
 ```
 
 ### 3. Set Environment Variables
 
-Create `.env` file in project root:
+In Replit Secrets or a local `.env` file:
 ```bash
 ARANGO_HOST=http://localhost:8529
-ARANGO_USERNAME=root
-ARANGO_PASSWORD=your_local_password
-ARANGO_DATABASE=manufacturing_graphs
+ARANGO_USER=root
+ARANGO_ROOT_PASSWORD=your_password
+ARANGO_DB=manufacturing_semantic_layer
 ```
 
-### 4. Run Persistence Script
+## Data Flow
 
-```bash
-./.venv/bin/python scripts/persist_to_arango.py
+```
+SQLite (schema_nodes, schema_edges)
+        |
+        | Direct read via sqlite3
+        v
+Python dicts (nodes[], edges[])
+        |
+        | arangodb_persistence.persist_graph()
+        v
+ArangoDB (named graph with vertex + edge collections)
+        |
+        | arangodb_persistence.load_graph()
+        v
+Python dicts (for use in SolderEngine, Dispatcher, Gradio UI)
 ```
 
-The script uses `python-dotenv` to safely load credentials from `.env`.
+No intermediate graph library is needed. Data flows directly from SQLite to ArangoDB using the `python-arango` client.
 
 ## Usage Patterns
 
-### Pattern 1: Persist Entry Point 018 Schema Graph
+### Pattern 1: Persist Schema from SQLite to ArangoDB
 
 ```python
-from 020_Entry_Point_ArangoDB_Graph_Persistence import (
-    ArangoDBConfig,
-    ArangoDBGraphPersistence
-)
-from 018_Entry_Point_Structured_RAG_Graph import SchemaGraphManager
+import sqlite3
+from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 
-# Step 1: Load schema graph from PostgreSQL
-manager = SchemaGraphManager()
-schema_graph = manager.build_graph_from_database()
+DB_PATH = "hf-space-inventory-sqlgen/app_schema/manufacturing.db"
+conn = sqlite3.connect(DB_PATH)
+conn.row_factory = sqlite3.Row
 
-print(f"Loaded schema graph: {schema_graph.number_of_nodes()} nodes, {schema_graph.number_of_edges()} edges")
+nodes = conn.execute("SELECT * FROM schema_nodes ORDER BY table_name").fetchall()
+edges = conn.execute("SELECT * FROM schema_edges ORDER BY edge_id").fetchall()
+conn.close()
 
-# Step 2: Configure ArangoDB connection
-config = ArangoDBConfig()  # Uses environment variables
+config = ArangoDBConfig()
 persistence = ArangoDBGraphPersistence(config)
 
-# Step 3: Persist to ArangoDB
-adb_graph = persistence.persist_graph(
-    graph=schema_graph,
-    name="manufacturing_schema_v1",
-    write_batch_size=10000
+node_list = []
+for n in nodes:
+    node_list.append({
+        "id": n["table_name"],
+        "table": "schema_node",
+        "label": n["table_name"],
+        "table_type": n["table_type"],
+        "description": n["description"]
+    })
+
+edge_list = []
+for e in edges:
+    edge_list.append({
+        "from": e["from_table"],
+        "to": e["to_table"],
+        "relationship": "schema_edge",
+        "relationship_type": e["relationship_type"],
+        "join_column": e["join_column"],
+        "weight": e["weight"]
+    })
+
+stats = persistence.persist_from_dicts(
+    name="manufacturing_schema",
+    nodes=node_list,
+    edges=edge_list,
+    vertex_collection="schema_node",
+    edge_collection="schema_edge",
+    overwrite=True
 )
 
-print("✅ Schema graph persisted to ArangoDB")
-
-# Step 4: In a new session, load from ArangoDB (3x faster)
-adb_graph = persistence.load_graph(
-    name="manufacturing_schema_v1",
-    directed=True
-)
-
-# Step 5: Run deterministic join pathfinding on persisted graph
-import networkx as nx
-
-path = nx.shortest_path(adb_graph, "equipment", "supplier")
-print(f"Join path: {' → '.join(path)}")
+print(f"Persisted: {stats['nodes_inserted']} nodes, {stats['edges_inserted']} edges")
 ```
 
-### Pattern 2: Persist Entry Point 019 Manufacturing Networks
+### Pattern 2: Load and Inspect a Persisted Graph
 
 ```python
-from 020_Entry_Point_ArangoDB_Graph_Persistence import ArangoDBGraphPersistence
-from 019_Entry_Point_NetworkX_Graph_Patterns import ManufacturingNetworkBuilder
+from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 
-# Step 1: Create manufacturing network locally
-builder = ManufacturingNetworkBuilder()
-supply_chain = builder.create_directed_supply_chain()
+config = ArangoDBConfig()
+persistence = ArangoDBGraphPersistence(config)
 
-# Step 2: Persist for team collaboration
-persistence = ArangoDBGraphPersistence()
-adb_graph = persistence.persist_graph(
-    graph=supply_chain,
-    name="supply_chain_2025_q1",
-    write_batch_size=5000
-)
+status = persistence.test_connection()
+print(f"Connected: {status['connected']}")
+print(f"Available graphs: {status.get('graphs', [])}")
 
-# Step 3: Team member loads in new session
-adb_graph = persistence.load_graph("supply_chain_2025_q1")
+graph_data = persistence.load_graph_as_dicts(name="manufacturing_schema")
 
-# Step 4: Run centrality analysis on persisted graph
-import networkx as nx
+print(f"Nodes: {len(graph_data['nodes'])}")
+for node in graph_data["nodes"][:5]:
+    print(f"  {node.get('label', node.get('_key'))}: {node.get('description', '')}")
 
-centrality = nx.degree_centrality(adb_graph)
-most_connected = max(centrality.items(), key=lambda x: x[1])
-
-print(f"Most connected node: {most_connected[0]} (score: {most_connected[1]:.3f})")
+print(f"Edges: {len(graph_data['edges'])}")
+for edge in graph_data["edges"][:5]:
+    print(f"  {edge['_from']} -> {edge['_to']} ({edge.get('relationship_type', '')})")
 ```
 
-### Pattern 3: Centrality Analysis on Persisted Graph
+### Pattern 3: Safe Graph Replacement (with confirmation)
 
 ```python
-import networkx as nx
-from 020_Entry_Point_ArangoDB_Graph_Persistence import ArangoDBGraphPersistence
+from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 
-# Load graph from local ArangoDB
-persistence = ArangoDBGraphPersistence()
-adb_graph = persistence.load_graph(
-    name="manufacturing_schema_v1",
-    directed=True
+config = ArangoDBConfig()
+persistence = ArangoDBGraphPersistence(config)
+
+graph_name = "manufacturing_schema"
+existing = persistence.list_graphs()
+
+if graph_name in existing:
+    confirm = input(f"Graph '{graph_name}' exists. Overwrite? (yes/no): ")
+    if confirm.lower() != "yes":
+        print("Aborted. No changes made.")
+        exit()
+
+stats = persistence.persist_from_dicts(
+    name=graph_name,
+    nodes=node_list,
+    edges=edge_list,
+    overwrite=True
 )
-
-# Run centrality analysis
-result = nx.betweenness_centrality(adb_graph.to_undirected())
-
-# Find critical bridge nodes
-top_bridges = sorted(result.items(), key=lambda x: x[1], reverse=True)[:5]
-
-print("Top 5 critical bridge nodes:")
-for node, score in top_bridges:
-    print(f"  {node}: {score:.3f}")
+print(f"Graph replaced: {stats}")
 ```
 
-### Pattern 4: Convert Between ArangoDB and NetworkX
+### Pattern 4: AQL Traversal (Native ArangoDB Query)
 
 ```python
-from 020_Entry_Point_ArangoDB_Graph_Persistence import ArangoDBGraphPersistence
-import networkx as nx
+from arango import ArangoClient
+import os
 
-persistence = ArangoDBGraphPersistence()
-
-# Load from ArangoDB
-adb_graph = persistence.load_graph("manufacturing_schema_v1")
-
-# Convert to in-memory NetworkX for local analysis
-nx_graph = persistence.convert_to_networkx(adb_graph)
-
-# Run local analysis
-communities = list(nx.community.greedy_modularity_communities(nx_graph.to_undirected()))
-
-print(f"Found {len(communities)} communities in schema graph")
-
-# Modify locally
-nx_graph.nodes["equipment"]["analyzed"] = True
-
-# Persist updated graph back to ArangoDB
-updated_adb_graph = persistence.persist_graph(
-    graph=nx_graph,
-    name="manufacturing_schema_v1",
-    overwrite=True  # Replace existing graph
+client = ArangoClient(hosts=os.getenv("ARANGO_HOST", "http://localhost:8529"))
+db = client.db(
+    os.getenv("ARANGO_DB", "manufacturing_semantic_layer"),
+    username=os.getenv("ARANGO_USER", "root"),
+    password=os.getenv("ARANGO_ROOT_PASSWORD", "")
 )
+
+aql = """
+FOR v, e, p IN 1..3 OUTBOUND @start_node
+    GRAPH 'manufacturing_schema'
+    RETURN {
+        node: v.label,
+        relationship: e.relationship_type,
+        join_column: e.join_column,
+        path_length: LENGTH(p.edges)
+    }
+"""
+cursor = db.aql.execute(aql, bind_vars={"start_node": "schema_node/inventory"})
+for doc in cursor:
+    print(f"  {doc['node']} via {doc['relationship']} on {doc['join_column']}")
 ```
 
-## Key Benefits
+## Safety Checklist
 
-### Performance Improvements
-- **Faster session loading** - Graphs persisted in ArangoDB load faster than rebuilding from SQLite
-- **Batch optimization** - Configurable read/write batch sizes for optimal throughput
-
-### Production Features
-- **Team Collaboration** - Share graphs across team members and sessions
-- **Persistence** - No need to rebuild graphs from source data every time
-- **Flexibility** - Support for multiple data models (graph, document, key/value)
-
-### Zero Code Changes
-- NetworkX algorithms work on ArangoDB-backed graphs
-- Seamless integration with existing NetworkX workflows
+| Action | Safe? | Notes |
+|--------|-------|-------|
+| `test_connection()` | Read-only | Returns version, graph list |
+| `list_graphs()` | Read-only | Returns graph names |
+| `load_graph()` | Read-only | Queries collections, returns dicts |
+| `persist_graph(overwrite=False)` | Insert/Update | Upserts nodes, inserts edges |
+| `persist_graph(overwrite=True)` | **Destructive** | Drops and re-creates graph |
+| `delete_graph()` | **Destructive** | Removes graph and collections permanently |
 
 ## Integration Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Entry Points 018, 019                               │
-│ (Local NetworkX Graph Development)                  │
-└─────────────────────┬───────────────────────────────┘
-                      │
-                      │ persist_graph()
-                      ▼
-┌─────────────────────────────────────────────────────┐
-│ Entry Point 020 - ArangoDB Persistence Layer        │
-│ - Configuration management                          │
-│ - Batch read/write optimization                     │
-│ - Environment variable security                     │
-└─────────────────────┬───────────────────────────────┘
-                      │
-                      │ load_graph()
-                      ▼
-┌─────────────────────────────────────────────────────┐
-│ Team Collaboration & Production Analytics           │
-│ - Shared graph access                               │
-│ - GPU-accelerated algorithms (nx-cugraph)           │
-│ - 3x faster session loading                         │
-└─────────────────────────────────────────────────────┘
++---------------------------------------------------+
+| SQLite (manufacturing.db)                         |
+| schema_nodes, schema_edges, ground_truth_registry |
++-------------------------+-------------------------+
+                          |
+                          | sqlite3 read (read-only)
+                          v
++---------------------------------------------------+
+| arangodb_persistence.py                           |
+| - ArangoDBConfig (env var credentials)            |
+| - ArangoDBGraphPersistence (persist/load/delete)  |
+| - Upsert logic for safe re-runs                   |
+| - Overwrite protection by default                 |
++-------------------------+-------------------------+
+                          |
+                          | python-arango client
+                          v
++---------------------------------------------------+
+| ArangoDB                                          |
+| - Named graphs with vertex + edge collections     |
+| - AQL traversal for join pathfinding              |
+| - Team collaboration via shared database          |
+| - Cloud or local deployment                       |
++---------------------------------------------------+
 ```
+
+## Environment Variable Reference
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `ARANGO_HOST` | ArangoDB server URL | `http://localhost:8529` |
+| `ARANGO_USER` | Database username | `root` |
+| `ARANGO_ROOT_PASSWORD` | Database password | (empty) |
+| `ARANGO_DB` | Target database name | `manufacturing_semantic_layer` |
 
 ## References
 
-- **nx-arangodb GitHub**: [ArangoDB-Community/nx-arangodb](https://github.com/ArangoDB-Community/nx-arangodb)
+- **python-arango**: [python-arango docs](https://docs.python-arango.com/)
+- **ArangoDB AQL**: [AQL Documentation](https://www.arangodb.com/docs/stable/aql/)
 - **ArangoDB Downloads**: [arangodb.com/download](https://www.arangodb.com/download/)
 - **Entry Point 018**: Structured RAG with Graph-Theoretic Determinism
-- **Entry Point 019**: NetworkX Graph Patterns
