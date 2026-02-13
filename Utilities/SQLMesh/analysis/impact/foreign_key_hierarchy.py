@@ -215,7 +215,7 @@ def main():
     args = parser.parse_args()
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    default_csv = os.path.join(script_dir, "..", "reports", "impact", "foreign_key_index.csv")
+    default_csv = os.path.join(script_dir, "output", "foreign_key_index.csv")
 
     fk_csv = args.fk_csv or default_csv
     if not os.path.exists(fk_csv):
@@ -223,7 +223,7 @@ def main():
         print("Run foreign_key_iterator.py first to generate it.", file=sys.stderr)
         sys.exit(1)
 
-    out_dir = args.output_dir or os.path.dirname(fk_csv)
+    out_dir = args.output_dir or os.path.join(script_dir, "output")
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"Reading FK index: {fk_csv}")

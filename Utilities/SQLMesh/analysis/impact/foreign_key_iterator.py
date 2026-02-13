@@ -238,7 +238,8 @@ def main():
     unique = deduplicate(all_entries)
     print(f"Found {len(all_entries)} FK references ({len(unique)} unique)")
 
-    out_dir = args.output_dir or os.path.join(os.path.dirname(ddl_path), "output")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    out_dir = args.output_dir or os.path.join(script_dir, "output")
     os.makedirs(out_dir, exist_ok=True)
 
     csv_path = os.path.join(out_dir, args.csv)
