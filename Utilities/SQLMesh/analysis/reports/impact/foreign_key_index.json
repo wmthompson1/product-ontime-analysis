@@ -1,0 +1,155 @@
+[
+  {
+    "source_file": "dbo.OPERATION_1770943474317.sql",
+    "constraint_name": "FKEY0269",
+    "from_table": "OPERATION",
+    "from_columns": "OPERATION_TYPE, SITE_ID",
+    "to_table": "OPERATION_TYPE",
+    "to_columns": "ID, SITE_ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_1770943474317.sql",
+    "constraint_name": "FKEY0114",
+    "from_table": "OPERATION",
+    "from_columns": "RESOURCE_ID",
+    "to_table": "SHOP_RESOURCE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_1770943474317.sql",
+    "constraint_name": "FK_OPER_TO_SITE",
+    "from_table": "OPERATION",
+    "from_columns": "SERVICE_ID",
+    "to_table": "SERVICE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_1770943474317.sql",
+    "constraint_name": "FK_OPER_TO_SITE",
+    "from_table": "OPERATION",
+    "from_columns": "SITE_ID",
+    "to_table": "SITE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_1770943474317.sql",
+    "constraint_name": "FKEY0120",
+    "from_table": "OPERATION",
+    "from_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID",
+    "to_table": "WORK_ORDER",
+    "to_columns": "TYPE, BASE_ID, LOT_ID, SPLIT_ID, SUB_ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_AUDIT_1770943474317.sql",
+    "constraint_name": "FKEY0297",
+    "from_table": "OPERATION_AUDIT",
+    "from_columns": "SCHEDULE_ID",
+    "to_table": "SCHEDULE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_BINARY_1770943474314.sql",
+    "constraint_name": "FKEY0138",
+    "from_table": "OPERATION_BINARY",
+    "from_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "to_table": "OPERATION",
+    "to_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_RESOURCE_1770943474315.sql",
+    "constraint_name": "FKEY0128",
+    "from_table": "OPERATION_RESOURCE",
+    "from_columns": "RESOURCE_ID",
+    "to_table": "SHOP_RESOURCE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_RESOURCE_1770943474315.sql",
+    "constraint_name": "FKEY0128",
+    "from_table": "OPERATION_RESOURCE",
+    "from_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "to_table": "OPERATION",
+    "to_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_RESOURCE_DISPATCH_1770943474315.sql",
+    "constraint_name": "FK_OPER_RES_DISP_OPER",
+    "from_table": "OPERATION_RESOURCE_DISPATCH",
+    "from_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "to_table": "OPERATION",
+    "to_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_SCHED_1770943474316.sql",
+    "constraint_name": "FKEY0131",
+    "from_table": "OPERATION_SCHED",
+    "from_columns": "RESOURCE_ID",
+    "to_table": "SHOP_RESOURCE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_SCHED_1770943474316.sql",
+    "constraint_name": "FKEY0131",
+    "from_table": "OPERATION_SCHED",
+    "from_columns": "SCHEDULE_ID",
+    "to_table": "SCHEDULE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_SCHED_1770943474316.sql",
+    "constraint_name": "FKEY0186",
+    "from_table": "OPERATION_SCHED",
+    "from_columns": "SCHEDULE_ID, WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID",
+    "to_table": "WORK_ORDER_SCHED",
+    "to_columns": "SCHEDULE_ID, WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_TYPE_1770943474316.sql",
+    "constraint_name": "FKEY0112",
+    "from_table": "OPERATION_TYPE",
+    "from_columns": "RESOURCE_ID",
+    "to_table": "SHOP_RESOURCE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_TYPE_1770943474316.sql",
+    "constraint_name": "FK_OPER_TYPE_TO_SITE",
+    "from_table": "OPERATION_TYPE",
+    "from_columns": "SERVICE_ID",
+    "to_table": "SERVICE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_TYPE_1770943474316.sql",
+    "constraint_name": "FK_OPER_TYPE_TO_SITE",
+    "from_table": "OPERATION_TYPE",
+    "from_columns": "SITE_ID",
+    "to_table": "SITE",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  },
+  {
+    "source_file": "dbo.OPERATION_TYPE_1770943474316.sql",
+    "constraint_name": "FKEY0121",
+    "from_table": "OPERATION_TYPE",
+    "from_columns": "TEST_ID",
+    "to_table": "TEST",
+    "to_columns": "ID",
+    "match_type": "ALTER_TABLE_FK"
+  }
+]
