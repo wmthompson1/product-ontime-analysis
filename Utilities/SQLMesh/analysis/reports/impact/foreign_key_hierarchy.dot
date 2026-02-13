@@ -1,0 +1,43 @@
+digraph ForeignKeyHierarchy {
+    rankdir=TB;
+    node [shape=box, style="filled,rounded", fontname="Arial"];
+    edge [color="#666666"];
+
+    // Level 0
+    "SCHEDULE" [fillcolor="#2196F3", label="SCHEDULE\nL0"];
+    "SERVICE" [fillcolor="#2196F3", label="SERVICE\nL0"];
+    "SHOP_RESOURCE" [fillcolor="#2196F3", label="SHOP_RESOURCE\nL0"];
+    "SITE" [fillcolor="#2196F3", label="SITE\nL0"];
+    "TEST" [fillcolor="#2196F3", label="TEST\nL0"];
+    "WORK_ORDER" [fillcolor="#2196F3", label="WORK_ORDER\nL0"];
+    "WORK_ORDER_SCHED" [fillcolor="#2196F3", label="WORK_ORDER_SCHED\nL0"];
+
+    // Level 1
+    "OPERATION" [fillcolor="#4CAF50", label="OPERATION\nL1"];
+    "OPERATION_AUDIT" [fillcolor="#4CAF50", label="OPERATION_AUDIT\nL1"];
+    "OPERATION_RESOURCE" [fillcolor="#4CAF50", label="OPERATION_RESOURCE\nL1"];
+    "OPERATION_SCHED" [fillcolor="#4CAF50", label="OPERATION_SCHED\nL1"];
+    "OPERATION_TYPE" [fillcolor="#4CAF50", label="OPERATION_TYPE\nL1"];
+
+    // Level 2
+    "OPERATION_BINARY" [fillcolor="#FF9800", label="OPERATION_BINARY\nL2"];
+    "OPERATION_RESOURCE_DISPATCH" [fillcolor="#FF9800", label="OPERATION_RESOURCE_DISPATCH\nL2"];
+
+    "OPERATION" -> "OPERATION_TYPE";
+    "OPERATION" -> "SHOP_RESOURCE";
+    "OPERATION" -> "SERVICE";
+    "OPERATION" -> "SITE";
+    "OPERATION" -> "WORK_ORDER";
+    "OPERATION_AUDIT" -> "SCHEDULE";
+    "OPERATION_BINARY" -> "OPERATION";
+    "OPERATION_RESOURCE" -> "SHOP_RESOURCE";
+    "OPERATION_RESOURCE" -> "OPERATION";
+    "OPERATION_RESOURCE_DISPATCH" -> "OPERATION";
+    "OPERATION_SCHED" -> "SHOP_RESOURCE";
+    "OPERATION_SCHED" -> "SCHEDULE";
+    "OPERATION_SCHED" -> "WORK_ORDER_SCHED";
+    "OPERATION_TYPE" -> "SHOP_RESOURCE";
+    "OPERATION_TYPE" -> "SERVICE";
+    "OPERATION_TYPE" -> "SITE";
+    "OPERATION_TYPE" -> "TEST";
+}

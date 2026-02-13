@@ -1,0 +1,100 @@
+[
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "SCHEDULE",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "SERVICE",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "SHOP_RESOURCE",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "SITE",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "TEST",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "WORK_ORDER",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 0,
+    "parent": "(root)",
+    "child": "WORK_ORDER_SCHED",
+    "fk_columns": "",
+    "referenced_columns": ""
+  },
+  {
+    "level": 1,
+    "parent": "SCHEDULE",
+    "child": "OPERATION_AUDIT",
+    "fk_columns": "SCHEDULE_ID",
+    "referenced_columns": "ID"
+  },
+  {
+    "level": 1,
+    "parent": "SCHEDULE",
+    "child": "OPERATION_SCHED",
+    "fk_columns": "SCHEDULE_ID",
+    "referenced_columns": "ID"
+  },
+  {
+    "level": 1,
+    "parent": "SERVICE",
+    "child": "OPERATION",
+    "fk_columns": "SERVICE_ID",
+    "referenced_columns": "ID"
+  },
+  {
+    "level": 1,
+    "parent": "SERVICE",
+    "child": "OPERATION_TYPE",
+    "fk_columns": "SERVICE_ID",
+    "referenced_columns": "ID"
+  },
+  {
+    "level": 1,
+    "parent": "SHOP_RESOURCE",
+    "child": "OPERATION_RESOURCE",
+    "fk_columns": "RESOURCE_ID",
+    "referenced_columns": "ID"
+  },
+  {
+    "level": 2,
+    "parent": "OPERATION",
+    "child": "OPERATION_BINARY",
+    "fk_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "referenced_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO"
+  },
+  {
+    "level": 2,
+    "parent": "OPERATION",
+    "child": "OPERATION_RESOURCE_DISPATCH",
+    "fk_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO",
+    "referenced_columns": "WORKORDER_TYPE, WORKORDER_BASE_ID, WORKORDER_LOT_ID, WORKORDER_SPLIT_ID, WORKORDER_SUB_ID, SEQUENCE_NO"
+  }
+]
