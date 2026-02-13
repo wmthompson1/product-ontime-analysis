@@ -206,7 +206,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Extract foreign key references from SQL Server DDL files"
     )
-    parser.add_argument("ddl_path", help="Directory containing .sql DDL files")
+    parser.add_argument("ddl_path", nargs="?", default=None,
+                        help="Directory containing .sql DDL files (default: output/live)")
     parser.add_argument("--output-dir", "-o", default=None,
                         help="Output directory (default: <ddl_path>/../output)")
     parser.add_argument("--summary", "-s", action="store_true",
@@ -217,7 +218,8 @@ def main():
                         help="DOT graph output filename (default: foreign_key_graph.dot)")
 
     args = parser.parse_args()
-    ddl_path = os.path.abspath(args.ddl_path)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    ddl_path = os.path.abspath(args.ddl_path) if args.ddl_path else os.path.join(script_dir, "output", "live")
 
     if not os.path.isdir(ddl_path):
         print(f"Error: DDL directory not found: {ddl_path}", file=sys.stderr)
@@ -238,7 +240,6 @@ def main():
     unique = deduplicate(all_entries)
     print(f"Found {len(all_entries)} FK references ({len(unique)} unique)")
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
     out_dir = args.output_dir or os.path.join(script_dir, "output")
     os.makedirs(out_dir, exist_ok=True)
 
