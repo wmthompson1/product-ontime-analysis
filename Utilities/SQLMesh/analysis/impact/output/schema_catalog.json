@@ -1,0 +1,2513 @@
+[
+  {
+    "table_name": "OPERATION",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SETUP_HRS",
+    "data_type": "DECIMAL(8,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN_TYPE",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "LOAD_SIZE_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN_HRS",
+    "data_type": "DECIMAL(7,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MOVE_HRS",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "TRANSIT_DAYS",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SERVICE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SCRAP_YIELD_PCT",
+    "data_type": "DECIMAL(5,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SCRAP_YIELD_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "FIXED_SCRAP_UNITS",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MINIMUM_MOVE_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "CALC_START_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "CALC_END_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "COMPLETED_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "DEVIATED_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_SETUP_HRS",
+    "data_type": "DECIMAL(7,2)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_RUN_HRS",
+    "data_type": "DECIMAL(7,2)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "STATUS",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SETUP_COMPLETED",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SERVICE_BEGIN_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "CLOSE_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "OPERATION_TYPE",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "DRAWING_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "DRAWING_REV_NO",
+    "data_type": "NVARCHAR(8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "OVERRIDE_QTYS",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BEGIN_TRACEABILITY",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "CAPACITY_USAGE_MAX",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "CAPACITY_USAGE_MIN",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "TEST_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SPC_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SCHED_START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SCHED_FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "COULD_FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ISDETERMINANT",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SETUP_COST_PER_HR",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN_COST_PER_HR",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN_COST_PER_UNIT",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BUR_PER_HR_SETUP",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BUR_PER_HR_RUN",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BUR_PER_UNIT_RUN",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SERVICE_BASE_CHG",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BUR_PERCENT_SETUP",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BUR_PERCENT_RUN",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BUR_PER_OPERATION",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_ATL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_ATL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_ATL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_ATL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_ATL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_ATL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_ATL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_ATL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_ATL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_TTL_MAT_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_TTL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_TTL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "EST_TTL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_TTL_MAT_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_TTL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_TTL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "REM_TTL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_TTL_MAT_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_TTL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_TTL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACT_TTL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SPLIT_ADJUSTMENT",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MILESTONE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SCHEDULE_TYPE",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MIN_SEGMENT_SIZE",
+    "data_type": "DECIMAL(14,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "PROTECT_COST",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "DRAWING_FILE",
+    "data_type": "NVARCHAR(255)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "DISPATCHED_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SERVICE_MIN_CHG",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "VENDOR_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "VENDOR_SERVICE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SERVICE_PART_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "LAST_DISP_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "LAST_RECV_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WAREHOUSE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ALLOCATED_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "FULFILLED_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "LEAST_MIN_MOVE_QTY",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MAX_GAP_PREV_OP",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "APPLY_CALENDAR",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MAX_DOWNTIME",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "ACCUM_DOWNTIME",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN_QTY_PER_CYCLE",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_1",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_2",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_3",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_4",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_5",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_6",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_7",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_8",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_9",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "USER_10",
+    "data_type": "NVARCHAR(80)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "UDF_LAYOUT_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "NUM_MEM_TO_SCHED",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SERVICE_BUFFER",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MILESTONE_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "POST_MILESTONE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "PROJ_MILESTONE_OP",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WBS_CODE",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WBS_START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WBS_END_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "WBS_DURATION",
+    "data_type": "DECIMAL(14,4)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MILESTONE_SEQ_NO",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "PRD_INSP_PLAN_ID",
+    "data_type": "NVARCHAR(16)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SETUP_INSPECT_REQ",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "RUN_INSPECT_REQ",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "STATUS_EFF_DATE",
+    "data_type": "datetime",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "PRED_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "PRED_SEQ_NO",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SITE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "SCHED_CAPACITY_USAGE",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "BID_RATE_CATEGORY_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "OVERLAP_SETUP",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "PERCENT_COMPL",
+    "data_type": "NVARCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "QTY_COMPL_BY_HRS",
+    "data_type": "NVARCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "MAX_QTY_COMPLETE",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "DISPATCH_SEQUENCE",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION",
+    "column_name": "COMB_DISP_SEQUENCE",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SCHEDULE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "ATTEMPT_NO",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "UNIT_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "WORKORDER_PASS_NO",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "DIRECTION",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "RESULT",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "COULD_START_FINISH",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "RESULT_DETAIL",
+    "data_type": "NVARCHAR(60)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_TYPE",
+    "data_type": "NVARCHAR(2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_SEQ_NO",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "SUPPLY_NO",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_AUDIT",
+    "column_name": "PART_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "BITS",
+    "data_type": "image",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_BINARY",
+    "column_name": "BITS_LENGTH",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "PERCENT_DURATION",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "JUSTIFICATION",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "SCHEDULE_TYPE",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "MIN_SEGMENT_SIZE",
+    "data_type": "DECIMAL(14,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "NUM_MEM_TO_SCHED",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "SCHED_EQUAL_CAP",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "SCHED_START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "SCHED_FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE",
+    "column_name": "SCHED_CAPACITY_USAGE",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_RESOURCE_DISPATCH",
+    "column_name": "DISPATCH_SEQUENCE",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "SCHEDULE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "UNIT_ASSIGNED",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "COULD_START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "COULD_FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "ISDETERMINANT",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "DIRECTION",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "DELAY_REASON",
+    "data_type": "NVARCHAR(60)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "USER_START_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "USER_FINISH_DATE",
+    "data_type": "datetime",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "SCHED_RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "IS_CONCURRENT",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "GROUP_RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "ORG_RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "ACT_MIN_MOVE_QTY",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "SETUP_HOURS",
+    "data_type": "DECIMAL(14,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "RUN_HOURS",
+    "data_type": "DECIMAL(14,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "PROBLEM_CODE",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SCHED",
+    "column_name": "DISPATCH_SEQUENCE",
+    "data_type": "int",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "SPID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "WORKORDER_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "WORKORDER_BASE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "WORKORDER_LOT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "WORKORDER_SPLIT_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "WORKORDER_SUB_ID",
+    "data_type": "NVARCHAR(3)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "SEQUENCE_NO",
+    "data_type": "smallint",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "EST_ATL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "EST_ATL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "EST_ATL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "REM_ATL_LAB_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "REM_ATL_BUR_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "REM_ATL_SER_COST",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": false,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "RUN_HRS",
+    "data_type": "DECIMAL(7,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "STATUS",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_SUMMARY",
+    "column_name": "SETUP_COMPLETED",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "ROWID",
+    "data_type": "int",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "DESCRIPTION",
+    "data_type": "NVARCHAR(40)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "RESOURCE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SETUP_HRS",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "RUN",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "RUN_TYPE",
+    "data_type": "NCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "LOAD_SIZE_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "MOVE_HRS",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SERVICE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "TRANSIT_DAYS",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SCRAP_YIELD_PCT",
+    "data_type": "DECIMAL(5,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SCRAP_YIELD_TYPE",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "FIXED_SCRAP_UNITS",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "MINIMUM_MOVE_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "CALC_START_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "CALC_END_QTY",
+    "data_type": "DECIMAL(20,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "OVERRIDE_QTYS",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BEGIN_TRACEABILITY",
+    "data_type": "NCHAR(1)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "TEST_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SETUP_COST_PER_HR",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "RUN_COST_PER_HR",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BUR_PER_HR_SETUP",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BUR_PER_HR_RUN",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SERVICE_BASE_CHG",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BUR_PERCENT_SETUP",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BUR_PERCENT_RUN",
+    "data_type": "DECIMAL(6,3)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BUR_PER_OPERATION",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "CAPACITY_USAGE_MAX",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "CAPACITY_USAGE_MIN",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SCHEDULE_TYPE",
+    "data_type": "smallint",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "MIN_SEGMENT_SIZE",
+    "data_type": "DECIMAL(14,2)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SERVICE_MIN_CHG",
+    "data_type": "DECIMAL(23,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "VENDOR_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "VENDOR_SERVICE_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SERVICE_PART_ID",
+    "data_type": "NVARCHAR(30)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "BUR_PER_UNIT_RUN",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "RUN_COST_PER_UNIT",
+    "data_type": "DECIMAL(22,8)",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "OPERATION_TYPE",
+    "column_name": "SITE_ID",
+    "data_type": "NVARCHAR(15)",
+    "is_nullable": false,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  }
+]
