@@ -8,8 +8,7 @@ MODEL (
 );
 
 SELECT
-  -- map seed 'field_id' to expected 'id'
-  field_id AS id,
+  id,
   NULL AS table_name,
   field_name,
   concept_id,
