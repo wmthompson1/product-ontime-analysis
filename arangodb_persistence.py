@@ -38,7 +38,7 @@ class ArangoDBConfig:
         password: Optional[str] = None,
         database_name: Optional[str] = None
     ):
-        self.host = host or os.getenv("ARANGO_HOST") or os.getenv("DATABASE_HOST", "http://localhost:8529")
+        self.host = (host or os.getenv("ARANGO_HOST") or os.getenv("DATABASE_HOST", "http://localhost:8529")).strip()
         self.username = username or os.getenv("ARANGO_USER") or os.getenv("DATABASE_USERNAME", "root")
         self.password = password or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("ARANGO_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
         self.database_name = database_name or os.getenv("ARANGO_DB") or os.getenv("DATABASE_NAME")
