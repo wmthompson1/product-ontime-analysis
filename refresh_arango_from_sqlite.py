@@ -17,7 +17,7 @@ Environment variables:
   ARANGO_HOST            ArangoDB URL   (default: http://localhost:8529)
   ARANGO_USER            username       (default: root)
   ARANGO_ROOT_PASSWORD   password       (default: empty)
-  ARANGO_DB              database name  (default: manufacturing_semantic_layer)
+  ARANGO_DB              database name  (default: manufacturing_graph)
 
 Safety:
   This script uses overwrite=True, which DROPS the existing named graph
@@ -42,7 +42,7 @@ SQLITE_DEFAULT = os.path.join(
     "hf-space-inventory-sqlgen", "app_schema", "manufacturing.db",
 )
 
-GRAPH_NAME = "manufacturing_semantic_layer"
+GRAPH_NAME = os.getenv("ARANGO_DB", "manufacturing_graph")
 VERTEX_COLLECTION = "semantic_node"
 EDGE_COLLECTION = "semantic_edge"
 

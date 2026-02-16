@@ -128,7 +128,7 @@ def get_arango_client():
 
 
 def get_arango_db(client):
-    db_name = os.environ.get("ARANGO_DB", "manufacturing_semantic_layer")
+    db_name = os.environ.get("ARANGO_DB")
     username = os.environ.get("ARANGO_USER", "root")
     password = os.environ.get("ARANGO_ROOT_PASSWORD", "")
 

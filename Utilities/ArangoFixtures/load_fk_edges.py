@@ -3,13 +3,13 @@
 Load Foreign Key Relationships as Binary Edges into ArangoDB
 
 Reads FK relationships from schema_catalog.db and persists them
-into the existing manufacturing_semantic_layer graph as FOREIGN_KEY edges.
+into the existing graph as FOREIGN_KEY edges.
 
 Graph structure (additive — merges into existing semantic layer):
-  - Nodes: tables (vertex collection: manufacturing_semantic_layer_node)
+  - Nodes: tables (vertex collection: {ARANGO_DB}_node)
   - Edges: FOREIGN_KEY relationships (edge collection: FOREIGN_KEY)
 
-Target graph: manufacturing_semantic_layer
+Target graph: reads from ARANGO_DB env var (default: manufacturing_graph)
 """
 
 import sys
@@ -23,8 +23,8 @@ CATALOG_DB = os.path.join(
     os.path.dirname(__file__), '..', 'SQLMesh', 'analysis', 'impact', 'output', 'schema_catalog.db'
 )
 
-GRAPH_NAME = "manufacturing_semantic_layer"
-VERTEX_COLLECTION = "manufacturing_semantic_layer_node"
+GRAPH_NAME = os.getenv("ARANGO_DB", "manufacturing_graph")
+VERTEX_COLLECTION = f"{GRAPH_NAME}_node"
 EDGE_COLLECTION = "FOREIGN_KEY"
 
 
@@ -148,7 +148,7 @@ FOR p IN ANY SHORTEST_PATH
 // FK edge to find related tables, then semantic edges for concepts
 FOR v, e IN 1..1 INBOUND '{VERTEX_COLLECTION}/table_suppliers' {EDGE_COLLECTION}
     LET concepts = (
-        FOR c, ce IN 1..2 OUTBOUND v._id manufacturing_semantic_layer_edge
+        FOR c, ce IN 1..2 OUTBOUND v._id {GRAPH_NAME}_edge
         FILTER ce.relationship IN ['CAN_MEAN', 'ELEVATES']
         RETURN c.name
     )

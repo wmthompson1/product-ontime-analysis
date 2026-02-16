@@ -20,7 +20,8 @@ def load_semantic_graph_from_sqlite():
     
     G = nx.DiGraph()
     
-    COLLECTION = "manufacturing_semantic_layer_node"
+    graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
+    COLLECTION = f"{graph_name}_node"
     
     # Load Intents as nodes
     print("Loading intents...")
@@ -171,9 +172,10 @@ def main():
     
     # Step 3: Persist to ArangoDB
     print("\n💾 Persisting graph to ArangoDB...")
+    graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
     adb_graph = persistence.persist_graph(
         graph=G,
-        name="manufacturing_semantic_layer",
+        name=graph_name,
         write_batch_size=1000,
         overwrite=True
     )
@@ -183,7 +185,7 @@ def main():
     # Step 4: Verify by loading back
     print("\n🔍 Verifying persistence by loading back...")
     loaded = persistence.load_graph(
-        name="manufacturing_semantic_layer",
+        name=graph_name,
         directed=True
     )
     print(f"   Loaded nodes: {loaded.number_of_nodes()}")
@@ -195,7 +197,7 @@ def main():
     print("\nYou can now view your graph at:")
     print(f"   {config.host}")
     print("\nAQL query to explore:")
-    print('   FOR doc IN manufacturing_semantic_layer_vertices LIMIT 10 RETURN doc')
+    print(f'   FOR doc IN {graph_name}_vertices LIMIT 10 RETURN doc')
 
 if __name__ == "__main__":
     main()

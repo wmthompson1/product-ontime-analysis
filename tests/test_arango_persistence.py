@@ -14,4 +14,4 @@ def test_persist_graph_against_service():
     proc = subprocess.run(["python", "026_Entry_Point_NCM_Elevation_ArangoDB.py"], capture_output=True, text=True)
     print(proc.stdout)
     assert proc.returncode == 0
-    assert "✅ Graph 'manufacturing_semantic_layer' persisted successfully" in proc.stdout
+    assert "✅ Graph persisted successfully" in proc.stdout

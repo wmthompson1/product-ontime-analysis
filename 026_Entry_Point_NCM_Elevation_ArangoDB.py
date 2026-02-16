@@ -93,7 +93,8 @@ def ensure_ncm_fields_exist(conn):
 def load_semantic_graph_with_elevations(conn):
     """Load semantic graph with explicit elevation weights for NCM pattern."""
     G = nx.DiGraph()
-    COLLECTION = "manufacturing_semantic_layer_node"
+    graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
+    COLLECTION = f"{graph_name}_node"
     
     print("Loading intents...")
     cursor = conn.execute("SELECT intent_id, intent_name, description FROM schema_intents")
@@ -309,9 +310,10 @@ def main():
     persistence = ArangoDBGraphPersistence(config)
     
     print("\n💾 Step 4: Persisting updated graph to ArangoDB...")
+    graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
     adb_graph = persistence.persist_graph(
         graph=G,
-        name="manufacturing_semantic_layer",
+        name=graph_name,
         write_batch_size=1000,
         overwrite=True
     )
@@ -320,7 +322,7 @@ def main():
     
     print("\n🔍 Step 5: Verifying persistence...")
     loaded = persistence.load_graph(
-        name="manufacturing_semantic_layer",
+        name=graph_name,
         directed=True
     )
     print(f"   Loaded nodes: {loaded.number_of_nodes()}")
