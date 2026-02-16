@@ -1,0 +1,16 @@
+from_table,from_column,to_table,to_column,fk_type,perspective
+corrective_actions,ncm_id,non_conformant_materials,ncm_id,integer,Which corrective action addresses which NCM?
+daily_deliveries,supplier_id,suppliers,supplier_id,integer,Who delivered this shipment?
+downtime_events,equipment_id,equipment_metrics,equipment_id,integer,Which equipment went down?
+downtime_events,line_id,production_lines,line_id,integer,Which line experienced downtime?
+equipment_metrics,line_id,production_lines,line_id,integer,Which line does this equipment belong to?
+equipment_reliability,equipment_id,equipment_metrics,equipment_id,integer,Reliability history for which equipment?
+failure_events,equipment_id,equipment_metrics,equipment_id,integer,Which equipment failed?
+non_conformant_materials,product_line,product_lines,product_line_name,semantic,Which product line had the NCM? (semantic FK)
+non_conformant_materials,supplier_id,suppliers,supplier_id,integer,Who sent us this bad material?
+product_defects,product_line,product_lines,product_line_name,semantic,Which product line has defects? (semantic FK)
+production_quality,product_line,product_lines,product_line_name,semantic,Quality metrics for which product line? (semantic FK)
+production_schedule,line_id,production_lines,line_id,integer,Which line is scheduled?
+production_schedule,product_line,product_lines,product_line_name,semantic,What are we making? (semantic FK)
+quality_costs,product_line_id,product_lines,product_line_id,integer,Cost of quality for which product line?
+quality_incidents,product_line,product_lines,product_line_name,semantic,Which product line had the incident? (semantic FK)
