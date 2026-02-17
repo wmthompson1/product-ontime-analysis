@@ -54,7 +54,7 @@ def build_column_nodes(conn):
                 "_key": f"{table}.{col_name}",
                 "table_name": table,
                 "column_name": col_name,
-                "column_type": col_type,
+                "data_type": col_type,
                 "is_primary_key": is_pk,
                 "node_type": "atomic_column",
             })
@@ -77,6 +77,7 @@ def build_fk_edges(conn, tables):
                 "_from": f"{VERTEX_COLLECTION}/{table}.{from_col}",
                 "_to": f"{VERTEX_COLLECTION}/{ref_table}.{to_col}",
                 "relationship": "FOREIGN_KEY",
+                "is_foreign_key": True,
                 "solder_type": "binary",
                 "from_table": table,
                 "from_column": from_col,
@@ -132,14 +133,16 @@ def main():
     atomic_coll = persistence._ensure_collection(ATOMIC_EDGE_COLLECTION, edge=True)
     has_col_coll = persistence._ensure_collection("HAS_COLUMN", edge=True)
 
-    result = col_coll.import_bulk(nodes, on_duplicate="ignore")
+    result = col_coll.import_bulk(nodes, on_duplicate="update")
     created_nodes = result.get("created", 0)
+    updated_nodes = result.get("updated", 0)
 
     for e in fk_edges:
         key = f"{e['from_table']}.{e['from_column']}___{e['to_table']}.{e['to_column']}"
         e["_key"] = key.replace(".", "_")
-    result = atomic_coll.import_bulk(fk_edges, on_duplicate="ignore")
+    result = atomic_coll.import_bulk(fk_edges, on_duplicate="update")
     created_fk = result.get("created", 0)
+    updated_fk = result.get("updated", 0)
 
     for e in has_col_edges:
         to_key = e["_to"].split("/")[1]
@@ -147,77 +150,94 @@ def main():
     result = has_col_coll.import_bulk(has_col_edges, on_duplicate="ignore")
     created_hc = result.get("created", 0)
 
-    print(f"\nPersisted (new only):")
-    print(f"  Column nodes : {created_nodes}")
-    print(f"  ATOMIC_FK    : {created_fk}")
-    print(f"  HAS_COLUMN   : {created_hc}")
+    print(f"\nPersisted:")
+    print(f"  Column nodes : {created_nodes} new, {updated_nodes} updated")
+    print(f"  ATOMIC_FK    : {created_fk} new, {updated_fk} updated")
+    print(f"  HAS_COLUMN   : {created_hc} new")
 
-    print("\n--- Forward Traversal Test: production_schedule columns ---")
     db = persistence._db
-    cursor = db.aql.execute(f'''
-        FOR col IN {VERTEX_COLLECTION}
-            FILTER col.table_name == "production_schedule"
+
+    forward_aql = '''
+        FOR col IN @@vertex_collection
+            FILTER col.table_name == @target_table
                AND col.node_type == "atomic_column"
-            LET solder_points = (
-                FOR v, e IN 1..1 OUTBOUND col._id GRAPH "{GRAPH_NAME}"
-                    FILTER IS_SAME_COLLECTION("{ATOMIC_EDGE_COLLECTION}", e)
-                    RETURN {{
-                        target: v._key,
-                        relationship: e.relationship,
-                        solder_type: e.solder_type
-                    }}
+
+            LET fk_solder = (
+                FOR v, e IN 1..1 OUTBOUND col._id GRAPH @graph_name
+                    FILTER e.is_foreign_key == true
+                    RETURN {
+                        target_table: v.table_name,
+                        target_column: v.column_name,
+                        perspective: e.perspective
+                    }
             )
-            RETURN {{
-                column: col._key,
-                type: col.column_type,
-                is_pk: col.is_primary_key,
-                solder_points: solder_points
-            }}
-    ''')
-    for doc in cursor:
-        sp = doc["solder_points"]
-        marker = f" -> {sp[0]['target']}" if sp else ""
-        print(f"  {doc['column']} ({doc['type']}){marker}")
 
-    print("\n--- Backward Traversal Test: What depends on production_lines.line_id? ---")
-    cursor = db.aql.execute(f'''
-        FOR col_target IN {VERTEX_COLLECTION}
-            FILTER col_target._key == "production_lines.line_id"
+            RETURN {
+                source_table: col.table_name,
+                source_column: col.column_name,
+                data_type: col.data_type,
+                is_foreign_key: LENGTH(fk_solder) > 0,
+                foreign_key_details: fk_solder[0]
+            }
+    '''
 
-            FOR v, e IN 1..1 INBOUND col_target._id GRAPH "{GRAPH_NAME}"
-                FILTER IS_SAME_COLLECTION("{ATOMIC_EDGE_COLLECTION}", e)
-                RETURN {{
-                    dependent_table: v.table_name,
-                    dependent_column: v.column_name,
-                    solder_type: e.solder_type
-                }}
-    ''')
-    results = list(cursor)
-    if results:
-        for r in results:
-            print(f"  {r['dependent_table']}.{r['dependent_column']}  --FK-->  production_lines.line_id")
-    else:
-        print("  (no inbound FK edges found)")
+    test_tables = ["production_schedule", "downtime_events"]
+    for target_table in test_tables:
+        print(f"\n{'='*60}")
+        print(f"Atomic Projection: {target_table}  (DDL Reconstruction)")
+        print(f"{'='*60}")
+        cursor = db.aql.execute(
+            forward_aql,
+            bind_vars={
+                "@vertex_collection": VERTEX_COLLECTION,
+                "target_table": target_table,
+                "graph_name": GRAPH_NAME,
+            },
+        )
+        for doc in cursor:
+            fk_str = ""
+            if doc["is_foreign_key"]:
+                fk = doc["foreign_key_details"]
+                fk_str = f"  --> {fk['target_table']}.{fk['target_column']}"
+            print(f"  {doc['source_column']:30s} {doc['data_type']:10s} FK={doc['is_foreign_key']}{fk_str}")
 
-    print("\n--- Backward Traversal Test: What depends on equipment_metrics.equipment_id? ---")
-    cursor = db.aql.execute(f'''
-        FOR col_target IN {VERTEX_COLLECTION}
-            FILTER col_target._key == "equipment_metrics.equipment_id"
+    backward_aql = '''
+        FOR col_target IN @@vertex_collection
+            FILTER col_target._key == @target_key
 
-            FOR v, e IN 1..1 INBOUND col_target._id GRAPH "{GRAPH_NAME}"
-                FILTER IS_SAME_COLLECTION("{ATOMIC_EDGE_COLLECTION}", e)
-                RETURN {{
-                    dependent_table: v.table_name,
-                    dependent_column: v.column_name,
-                    solder_type: e.solder_type
-                }}
-    ''')
-    results = list(cursor)
-    if results:
-        for r in results:
-            print(f"  {r['dependent_table']}.{r['dependent_column']}  --FK-->  equipment_metrics.equipment_id")
-    else:
-        print("  (no inbound FK edges found)")
+            FOR v, e IN 1..1 INBOUND col_target._id GRAPH @graph_name
+                FILTER e.is_foreign_key == true
+                RETURN {
+                    source_table: v.table_name,
+                    source_column: v.column_name,
+                    data_type: v.data_type
+                }
+    '''
+
+    print(f"\n{'='*60}")
+    print("Backward Trace: impact analysis")
+    print(f"{'='*60}")
+    impact_targets = [
+        "production_lines.line_id",
+        "equipment_metrics.equipment_id",
+        "suppliers.supplier_id",
+    ]
+    for target_key in impact_targets:
+        print(f"\n  What depends on {target_key}?")
+        cursor = db.aql.execute(
+            backward_aql,
+            bind_vars={
+                "@vertex_collection": VERTEX_COLLECTION,
+                "target_key": target_key,
+                "graph_name": GRAPH_NAME,
+            },
+        )
+        results = list(cursor)
+        if results:
+            for r in results:
+                print(f"    {r['source_table']}.{r['source_column']} ({r['data_type']})  --FK-->  {target_key}")
+        else:
+            print(f"    (no inbound FK edges)")
 
     print("\nDone.")
 
