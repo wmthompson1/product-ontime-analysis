@@ -170,34 +170,49 @@ def main():
     
     persistence = ArangoDBGraphPersistence(config)
     
-    # Step 3: Persist to ArangoDB
+    # Step 3: Convert NetworkX graph to dict format for persist_from_dicts
     print("\n💾 Persisting graph to ArangoDB...")
     graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
-    adb_graph = persistence.persist_graph(
-        graph=G,
+    vertex_collection = f"{graph_name}_node"
+
+    nodes = []
+    for node_id, data in G.nodes(data=True):
+        node_dict = dict(data)
+        node_dict["id"] = node_id
+        node_dict["table"] = vertex_collection
+        nodes.append(node_dict)
+
+    edges = []
+    for src, dst, data in G.edges(data=True):
+        edge_dict = dict(data)
+        edge_dict["from"] = src
+        edge_dict["to"] = dst
+        edges.append(edge_dict)
+
+    stats = persistence.persist_from_dicts(
         name=graph_name,
-        write_batch_size=1000,
-        overwrite=True
+        nodes=nodes,
+        edges=edges,
+        vertex_collection=vertex_collection,
+        edge_collection=f"{graph_name}_edge",
+        overwrite=True,
     )
-    
-    print("\n✅ Graph persisted successfully!")
-    
+
+    print(f"\n✅ Graph persisted successfully! Stats: {stats}")
+
     # Step 4: Verify by loading back
     print("\n🔍 Verifying persistence by loading back...")
-    loaded = persistence.load_graph(
-        name=graph_name,
-        directed=True
-    )
-    print(f"   Loaded nodes: {loaded.number_of_nodes()}")
-    print(f"   Loaded edges: {loaded.number_of_edges()}")
-    
+    loaded = persistence.load_graph(name=graph_name)
+    print(f"   Loaded nodes: {len(loaded['nodes'])}")
+    print(f"   Loaded edges: {len(loaded['edges'])}")
+
     print("\n" + "=" * 60)
     print("✅ SUCCESS: Semantic graph persisted to ArangoDB!")
     print("=" * 60)
     print("\nYou can now view your graph at:")
     print(f"   {config.host}")
     print("\nAQL query to explore:")
-    print(f'   FOR doc IN {graph_name}_vertices LIMIT 10 RETURN doc')
+    print(f'   FOR doc IN {vertex_collection} LIMIT 10 RETURN doc')
 
 if __name__ == "__main__":
     main()

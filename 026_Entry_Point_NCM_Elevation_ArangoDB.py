@@ -311,22 +311,37 @@ def main():
     
     print("\n💾 Step 4: Persisting updated graph to ArangoDB...")
     graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
-    adb_graph = persistence.persist_graph(
-        graph=G,
+    vertex_collection = f"{graph_name}_node"
+
+    nodes = []
+    for node_id, data in G.nodes(data=True):
+        node_dict = dict(data)
+        node_dict["id"] = node_id
+        node_dict["table"] = vertex_collection
+        nodes.append(node_dict)
+
+    edges = []
+    for src, dst, data in G.edges(data=True):
+        edge_dict = dict(data)
+        edge_dict["from"] = src
+        edge_dict["to"] = dst
+        edges.append(edge_dict)
+
+    stats = persistence.persist_from_dicts(
         name=graph_name,
-        write_batch_size=1000,
-        overwrite=True
+        nodes=nodes,
+        edges=edges,
+        vertex_collection=vertex_collection,
+        edge_collection=f"{graph_name}_edge",
+        overwrite=True,
     )
     
     print("\n✅ Graph persisted successfully!")
     
     print("\n🔍 Step 5: Verifying persistence...")
-    loaded = persistence.load_graph(
-        name=graph_name,
-        directed=True
-    )
-    print(f"   Loaded nodes: {loaded.number_of_nodes()}")
-    print(f"   Loaded edges: {loaded.number_of_edges()}")
+    loaded = persistence.load_graph(name=graph_name)
+    print(f"   Loaded nodes: {len(loaded['nodes'])}")
+    print(f"   Loaded edges: {len(loaded['edges'])}")
     
     print("\n" + "=" * 70)
     print("✅ SUCCESS: NCM elevation weights added to ArangoDB!")
