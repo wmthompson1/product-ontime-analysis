@@ -195,7 +195,7 @@ def main():
         edges=edges,
         vertex_collection=vertex_collection,
         edge_collection=f"{graph_name}_edge",
-        overwrite=True,
+        overwrite=False,
     )
 
     print(f"\n✅ Graph persisted successfully! Stats: {stats}")
