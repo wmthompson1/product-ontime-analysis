@@ -29,8 +29,14 @@ from arango import ArangoClient
 
 
 class ArangoDBConfig:
-    """Configuration manager for ArangoDB connection"""
-    
+    """Configuration manager for ArangoDB connection.
+
+    Fail-fast: raises RuntimeError when ARANGO_DB (or DATABASE_NAME) is not
+    set, preventing accidental writes to the wrong database.
+    """
+
+    ENV_VAR = "ARANGO_DB"
+
     def __init__(
         self,
         host: Optional[str] = None,
@@ -44,8 +50,15 @@ class ArangoDBConfig:
         self.host = raw_host
         self.username = username or os.getenv("ARANGO_USER") or os.getenv("DATABASE_USERNAME", "root")
         self.password = password or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("ARANGO_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
-        self.database_name = database_name or os.getenv("ARANGO_DB") or os.getenv("DATABASE_NAME")
-    
+
+        resolved = database_name or os.getenv("ARANGO_DB") or os.getenv("DATABASE_NAME")
+        if not resolved:
+            raise RuntimeError(
+                f"Required environment variable '{self.ENV_VAR}' is not set; "
+                "aborting to avoid accidental DB selection."
+            )
+        self.database_name = resolved
+
     def get_connection_info(self) -> Dict[str, str]:
         """Get connection information (safe for logging)"""
         return {
@@ -63,22 +76,26 @@ class ArangoDBGraphPersistence:
     See 020_ArangoDB_Usage_Examples.md for safety policy.
     """
 
-    def __init__(self, config: Optional[ArangoDBConfig] = None):
+    def __init__(self, config: Optional[ArangoDBConfig] = None,
+                 create_db_if_missing: bool = False):
         self.config = config or ArangoDBConfig()
         self._client = ArangoClient(hosts=self.config.host)
-        self._ensure_database_exists()
+        self._ensure_database_exists(create_if_missing=create_db_if_missing)
         self._db = self._client.db(
             self.config.database_name,
             username=self.config.username,
             password=self.config.password
         )
 
-    def _ensure_database_exists(self):
-        """Create the database if it doesn't exist.
+    def _ensure_database_exists(self, *, create_if_missing: bool = False):
+        """Fail-fast if the target database does not exist.
 
-        On cloud instances (ArangoDB Oasis/Cloud), _system access is typically
-        restricted.  In that case we skip auto-creation and assume the database
-        was pre-created via the cloud console.
+        Args:
+            create_if_missing: When True, create the database via _system.
+                When False (default), raise RuntimeError if absent.
+
+        On cloud instances where _system access is restricted, we skip the
+        check and assume the database was pre-created via the console.
         """
         try:
             sys_db = self._client.db(
@@ -87,9 +104,17 @@ class ArangoDBGraphPersistence:
                 password=self.config.password
             )
             if not sys_db.has_database(self.config.database_name):
-                print(f"Creating database '{self.config.database_name}'...")
-                sys_db.create_database(self.config.database_name)
-                print(f"Database created")
+                if create_if_missing:
+                    print(f"Creating database '{self.config.database_name}'...")
+                    sys_db.create_database(self.config.database_name)
+                    print(f"Database created")
+                else:
+                    raise RuntimeError(
+                        f"ArangoDB database '{self.config.database_name}' not found; "
+                        "aborting. Pass create_db_if_missing=True to auto-create."
+                    )
+        except RuntimeError:
+            raise
         except Exception as e:
             if "401" in str(e) or "not authorized" in str(e).lower():
                 print(f"Skipping _system check (cloud instance): will connect directly to '{self.config.database_name}'")
@@ -103,11 +128,29 @@ class ArangoDBGraphPersistence:
             self._db.create_collection(name, edge=edge)
         return self._db.collection(name)
 
-    def _ensure_graph(self, name: str, edge_definitions: List[Dict]) -> Any:
-        """Ensure an ArangoDB named graph exists"""
+    def _ensure_graph(self, name: str, edge_definitions: List[Dict],
+                      create_if_missing: bool = True) -> Any:
+        """Ensure an ArangoDB named graph exists.
+
+        Args:
+            name: Graph name.
+            edge_definitions: Edge definitions for graph creation.
+            create_if_missing: When True (default for backward compat), create
+                the graph. When False, raise RuntimeError if absent.
+        """
         if self._db.has_graph(name):
-            return self._db.graph(name)
-        return self._db.create_graph(name, edge_definitions=edge_definitions)
+            graph = self._db.graph(name)
+            existing = {e['edge_collection'] for e in graph.edge_definitions()}
+            for edef in edge_definitions:
+                if edef['edge_collection'] not in existing:
+                    graph.create_edge_definition(**edef)
+            return graph
+        if create_if_missing:
+            return self._db.create_graph(name, edge_definitions=edge_definitions)
+        raise RuntimeError(
+            f"Arango graph '{name}' not found in database "
+            f"'{self._db.name}'; aborting."
+        )
 
     @staticmethod
     def _sanitize_key(raw: str) -> str:
