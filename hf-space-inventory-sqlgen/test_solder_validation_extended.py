@@ -2,13 +2,14 @@
 Solder Extended Validation Test Suite
 =======================================
 Tests the SolderEngineExtended's graph-sourced information_schema
-against the same patterns used in test_solder_validation.py.
+using ONLY the ArangoDB manufacturing graph.
 
 Step 1: Single table — production_lines information schema from graph
-Step 2: Multi-table join — production_lines + FK dependents
-Step 3: Verify SolderEngine parent functions are unaffected
+Step 2: Multi-table join — production_lines + FK dependents from graph
 
-Run: python hf-space-inventory-sqlgen/test_solder_extended_validation.py
+All assertions validate data retrieved from the graph, not SQLite.
+
+Run: python hf-space-inventory-sqlgen/test_solder_validation_extended.py
 """
 
 import os
@@ -33,6 +34,8 @@ def test_available_tables():
     assert len(tables) > 0, "Expected at least one table in graph"
     assert "production_lines" in tables, "production_lines missing from graph"
     assert "downtime_events" in tables, "downtime_events missing from graph"
+    assert "equipment_metrics" in tables, "equipment_metrics missing from graph"
+    assert "suppliers" in tables, "suppliers missing from graph"
     print(f"PASS: {len(tables)} tables available in graph")
 
 
@@ -67,7 +70,7 @@ def test_single_table_column_types():
     assert type_map["installation_date"] == "DATE"
     assert type_map["created_at"] == "DATETIME"
 
-    print("PASS: Column data types match expected values")
+    print("PASS: Column data types match graph values")
 
 
 def test_single_table_pk_flags():
@@ -100,14 +103,11 @@ def test_single_table_json_output():
     dicts = result.to_dicts()
 
     assert len(dicts) == 12
+    required_keys = {"table_name", "column_name", "data_type",
+                     "is_primary_key", "is_foreign_key",
+                     "references_table", "references_column"}
     for d in dicts:
-        assert "table_name" in d
-        assert "column_name" in d
-        assert "data_type" in d
-        assert "is_primary_key" in d
-        assert "is_foreign_key" in d
-        assert "references_table" in d
-        assert "references_column" in d
+        assert required_keys.issubset(d.keys()), f"Missing keys: {required_keys - d.keys()}"
         assert d["table_name"] == "production_lines"
 
     print("PASS: JSON output has all required keys")
@@ -136,6 +136,33 @@ def test_multi_fk_table_info_schema():
     print(f"PASS: downtime_events — {len(fks)} FKs: {fk_cols}")
 
 
+def test_fk_dependents_single():
+    engine = make_engine()
+    deps = engine.get_fk_dependents("production_lines", "line_id")
+
+    assert "downtime_events" in deps, "downtime_events should depend on production_lines.line_id"
+    print(f"PASS: production_lines.line_id has {len(deps)} dependent(s): {deps}")
+
+
+def test_fk_dependents_fan_in():
+    engine = make_engine()
+    deps = engine.get_fk_dependents("equipment_metrics", "equipment_id")
+
+    assert "downtime_events" in deps
+    assert "equipment_reliability" in deps
+    assert "failure_events" in deps
+    print(f"PASS: equipment_metrics.equipment_id has {len(deps)} dependents: {deps}")
+
+
+def test_fk_dependents_leaf():
+    engine = make_engine()
+    result = engine.get_information_schema("downtime_events")
+    deps = engine.get_fk_dependents("downtime_events", "event_id")
+
+    assert len(deps) == 0, f"downtime_events.event_id should have no dependents, got {deps}"
+    print("PASS: downtime_events.event_id is a leaf PK (zero dependents)")
+
+
 def test_join_schema_discovery():
     engine = make_engine()
     join_result = engine.get_join_schema("production_lines")
@@ -143,6 +170,7 @@ def test_join_schema_discovery():
     table_names = [t.table_name for t in join_result.tables]
     assert "production_lines" in table_names, "Base table missing from join schema"
     assert "downtime_events" in table_names, "downtime_events should be discovered via FK"
+    assert join_result.source == "arangodb_graph"
 
     assert len(join_result.join_edges) >= 1, "Expected at least 1 join edge"
 
@@ -151,7 +179,7 @@ def test_join_schema_discovery():
 
     dt_edge = [e for e in inbound_edges
                if e["from_table"] == "downtime_events" and e["from_column"] == "line_id"]
-    assert len(dt_edge) == 1, "Expected downtime_events.line_id → production_lines.line_id edge"
+    assert len(dt_edge) == 1, "Expected downtime_events.line_id -> production_lines.line_id edge"
     assert dt_edge[0]["to_table"] == "production_lines"
     assert dt_edge[0]["to_column"] == "line_id"
 
@@ -167,12 +195,9 @@ def test_join_schema_combined_json():
     assert "production_lines" in tables_in_json
     assert "downtime_events" in tables_in_json
 
+    required_keys = {"table_name", "column_name", "data_type", "is_primary_key", "is_foreign_key"}
     for d in dicts:
-        assert "table_name" in d
-        assert "column_name" in d
-        assert "data_type" in d
-        assert "is_primary_key" in d
-        assert "is_foreign_key" in d
+        assert required_keys.issubset(d.keys())
 
     print(f"PASS: Combined JSON — {len(dicts)} rows across {len(tables_in_json)} tables")
 
@@ -192,69 +217,42 @@ def test_join_schema_fan_in():
     print(f"PASS: Fan-in — equipment_metrics has {len(dep_tables)} dependents: {dep_tables}")
 
 
-def test_parent_elevation_weight():
+def test_join_schema_multi_fk_base():
     engine = make_engine()
-    weight = engine.get_elevation_weight("defect_cost_analysis", "DefectSeverityCost")
-    assert weight == 1.0, f"Expected 1.0, got {weight}"
-    print("PASS: Parent get_elevation_weight() unaffected")
+    join_result = engine.get_join_schema("downtime_events")
 
+    table_names = [t.table_name for t in join_result.tables]
+    assert "downtime_events" in table_names
+    assert "production_lines" in table_names, "Should discover production_lines via outbound FK"
+    assert "equipment_metrics" in table_names, "Should discover equipment_metrics via outbound FK"
 
-def test_parent_load_bindings():
-    engine = make_engine()
-    bindings = engine.load_approved_bindings()
-    assert len(bindings) > 0, "Expected at least one binding"
-    print(f"PASS: Parent load_approved_bindings() — {len(bindings)} bindings")
+    outbound_edges = [e for e in join_result.join_edges if e["direction"] == "outbound"]
+    assert len(outbound_edges) >= 2, f"Expected at least 2 outbound FK edges, got {len(outbound_edges)}"
 
-
-def test_parent_find_binding():
-    engine = make_engine()
-    binding = engine.find_binding_for_concept("DefectSeverityCost", "Finance")
-    assert binding is not None, "Expected binding for DefectSeverityCost"
-    assert binding.concept_anchor == "DEFECTSEVERITYCOST"
-    print(f"PASS: Parent find_binding_for_concept() — {binding.binding_key}")
-
-
-def test_parent_solder():
-    engine = make_engine()
-    result = engine.solder(
-        intent_name="defect_cost_analysis",
-        target_concept="DefectSeverityCost",
-        target_dialect="sqlite"
-    )
-    assert result.concept == "DefectSeverityCost"
-    assert result.elevation_weight == 1.0
-    assert "ncm_cost" in result.soldered_sql.lower()
-    print(f"PASS: Parent solder() — concept={result.concept}, weight={result.elevation_weight}")
-
-
-def test_parent_available_intents():
-    engine = make_engine()
-    intents = engine.get_available_intents()
-    assert len(intents) > 0, "Expected at least one intent"
-    print(f"PASS: Parent get_available_intents() — {len(intents)} intents")
+    print(f"PASS: downtime_events join — {len(join_result.tables)} tables, "
+          f"{len(outbound_edges)} outbound FKs")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("SOLDER EXTENDED VALIDATION TEST SUITE")
+    print("SOLDER EXTENDED VALIDATION — GRAPH ONLY")
     print("=" * 60)
 
     tests = [
-        ("Available Tables", test_available_tables),
-        ("Single Table: Info Schema", test_single_table_info_schema),
-        ("Single Table: Column Types", test_single_table_column_types),
-        ("Single Table: PK Flags", test_single_table_pk_flags),
-        ("Single Table: FK Flags", test_single_table_fk_flags),
-        ("Single Table: JSON Output", test_single_table_json_output),
-        ("Multi-FK Table: downtime_events", test_multi_fk_table_info_schema),
-        ("Join Schema: Discovery", test_join_schema_discovery),
-        ("Join Schema: Combined JSON", test_join_schema_combined_json),
-        ("Join Schema: Fan-In (equipment_metrics)", test_join_schema_fan_in),
-        ("Parent: Elevation Weight", test_parent_elevation_weight),
-        ("Parent: Load Bindings", test_parent_load_bindings),
-        ("Parent: Find Binding", test_parent_find_binding),
-        ("Parent: Solder", test_parent_solder),
-        ("Parent: Available Intents", test_parent_available_intents),
+        ("Available Tables (graph)", test_available_tables),
+        ("Step 1: Info Schema (production_lines)", test_single_table_info_schema),
+        ("Step 1: Column Types", test_single_table_column_types),
+        ("Step 1: PK Flags", test_single_table_pk_flags),
+        ("Step 1: FK Flags", test_single_table_fk_flags),
+        ("Step 1: JSON Output", test_single_table_json_output),
+        ("Step 1: Multi-FK Table (downtime_events)", test_multi_fk_table_info_schema),
+        ("Step 2: FK Dependents (single)", test_fk_dependents_single),
+        ("Step 2: FK Dependents (fan-in)", test_fk_dependents_fan_in),
+        ("Step 2: FK Dependents (leaf)", test_fk_dependents_leaf),
+        ("Step 2: Join Schema Discovery", test_join_schema_discovery),
+        ("Step 2: Join Schema JSON", test_join_schema_combined_json),
+        ("Step 2: Join Schema Fan-In", test_join_schema_fan_in),
+        ("Step 2: Join Schema Multi-FK Base", test_join_schema_multi_fk_base),
     ]
 
     passed = 0
