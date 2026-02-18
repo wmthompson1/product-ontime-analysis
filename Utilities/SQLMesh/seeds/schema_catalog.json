@@ -1,0 +1,2567 @@
+[
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "action_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "incident_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "action_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "assigned_to",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "open_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "due_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "close_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "status",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "effectiveness_score",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_corrective_actions",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "delivery_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "supplier_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "delivery_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "planned_quantity",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "actual_quantity",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "ontime_rate",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "quality_score",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_daily_deliveries",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "event_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "line_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "equipment_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "event_start_time",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "event_end_time",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "downtime_duration_minutes",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "downtime_category",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "downtime_reason",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "impact_severity",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "production_loss_units",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "cost_impact",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "resolution_method",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "reported_by",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_downtime_events",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "metric_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "action_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "metric_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "baseline_value",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "target_value",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "actual_value",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "improvement_pct",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "measurement_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "verified_by",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_effectiveness_metrics",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "equipment_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "line_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "equipment_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "equipment_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "measurement_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "availability_rate",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "performance_rate",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "quality_rate",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "oee_score",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "downtime_hours",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_metrics",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "reliability_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "equipment_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "measurement_period",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "mtbf_hours",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "target_mtbf",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "failure_count",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "operating_hours",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "reliability_score",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_equipment_reliability",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "failure_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "equipment_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "failure_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "failure_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "failure_mode",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "severity_level",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "downtime_hours",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "repair_cost",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "parts_replaced",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "technician_assigned",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "failure_description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "root_cause_analysis",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "preventive_action",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "mtbf_impact",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_failure_events",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "impact_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "source_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "source_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "impact_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "impact_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "direct_cost",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "indirect_cost",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "recovery_amount",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "approved_by",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_financial_impact",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "benchmark_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "metric_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "benchmark_level",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "benchmark_value",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "industry_segment",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "source",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "year",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_industry_benchmarks",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "target_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "equipment_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "target_year",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "target_mtbf",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "target_availability",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "target_oee",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "pm_interval_days",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_maintenance_targets",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_manufacturing_acronyms",
+    "column_name": "acronym_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_manufacturing_acronyms",
+    "column_name": "acronym",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_manufacturing_acronyms",
+    "column_name": "full_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_manufacturing_acronyms",
+    "column_name": "category",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_manufacturing_acronyms",
+    "column_name": "description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_manufacturing_acronyms",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "ncm_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "incident_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "product_line",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "supplier_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "material_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "defect_description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "quantity_affected",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "severity",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "root_cause",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "cost_impact",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "status",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_non_conformant_materials",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "defect_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "product_line",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "production_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "defect_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "defect_count",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "total_produced",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "defect_rate",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "severity",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "root_cause",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_defects",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "product_line_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "product_line_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "product_category",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "target_volume",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "unit_price",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "profit_margin",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "launch_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "lifecycle_stage",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "primary_market",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "complexity_rating",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "regulatory_requirements",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_product_lines",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "line_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "line_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "facility_location",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "line_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "theoretical_capacity",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "actual_capacity",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "efficiency_rating",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "installation_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "last_maintenance_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "status",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "supervisor",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "shift_pattern",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_lines",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "quality_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "line_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "measurement_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "total_produced",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "passed_inspection",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "failed_inspection",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "first_pass_yield",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "rework_count",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "scrap_count",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_quality",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "schedule_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "line_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "product_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "scheduled_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "shift",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "planned_quantity",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "actual_quantity",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "completion_rate",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "status",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_production_schedule",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "product_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "product_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "product_category",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "unit_cost",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "unit_price",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "weight_kg",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "lead_time_days",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "min_order_qty",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "status",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_products",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "cost_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "cost_category",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "cost_period",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "amount",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "budget",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "variance_pct",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_costs",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "incident_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "product_line",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "incident_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "incident_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "severity_level",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "affected_units",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "cost_impact",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "detection_method",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "status",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "assigned_to",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "resolution_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "root_cause",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_quality_incidents",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "table_name",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "field_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "concept_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "is_primary_meaning",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "context_hint",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "id",
+    "data_type": "BIGINT",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "table_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "field_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "concept_id",
+    "data_type": "BIGINT",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "is_primary_meaning",
+    "data_type": "BOOLEAN",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "context_hint",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concept_fields",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "concept_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "concept_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "concept_type",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "domain",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "parent_concept_id",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "concept_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "concept_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "concept_type",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "domain",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "parent_concept_id",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_concepts",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "edge_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "from_table",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "to_table",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "relationship_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "join_column",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "weight",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "join_column_description",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "natural_language_alias",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "few_shot_example",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "context",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "edge_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "from_table",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "to_table",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "relationship_type",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "join_column",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "weight",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "join_column_description",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "natural_language_alias",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "few_shot_example",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_edges",
+    "column_name": "context",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "table_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "table_type",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "table_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "table_type",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "description",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_schema_nodes",
+    "column_name": "created_at",
+    "data_type": "TIMESTAMP WITH TIME ZONE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "supplier_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "supplier_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "contact_email",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "phone",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "address",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "performance_rating",
+    "data_type": "DOUBLE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "certification_level",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "lead_time_days",
+    "data_type": "INTEGER",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "payment_terms",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_suppliers",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "user_id",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": true,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "username",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "first_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "last_name",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "email",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "role",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "department",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "hire_date",
+    "data_type": "DATE",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "is_active",
+    "data_type": "VARCHAR",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  },
+  {
+    "table_name": "stg_users",
+    "column_name": "created_date",
+    "data_type": "TIMESTAMP",
+    "is_nullable": true,
+    "is_primary_key": false,
+    "is_shadow_key": null,
+    "semantic_concept": null
+  }
+]
