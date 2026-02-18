@@ -218,6 +218,31 @@ class SolderEngineExtended(SolderEngine):
 
         return JoinSchemaResult(tables=all_schemas, join_edges=join_edges)
 
+    def get_raw_graph_nodes(self, table_name: str) -> List[Dict[str, Any]]:
+        db = self._get_arango_db()
+        rows = list(db.aql.execute(
+            INFO_SCHEMA_AQL,
+            bind_vars={
+                "@vertex_collection": VERTEX_COLLECTION,
+                "target_table": table_name,
+                "graph_name": GRAPH_NAME,
+            },
+        ))
+        return rows
+
+    def get_raw_graph_edges(self, table_name: str, pk_column: str) -> List[Dict[str, Any]]:
+        db = self._get_arango_db()
+        target_key = f"{table_name}.{pk_column}"
+        rows = list(db.aql.execute(
+            FK_DEPENDENTS_AQL,
+            bind_vars={
+                "@vertex_collection": VERTEX_COLLECTION,
+                "target_key": target_key,
+                "graph_name": GRAPH_NAME,
+            },
+        ))
+        return rows
+
     def get_available_tables(self) -> List[str]:
         db = self._get_arango_db()
         rows = list(db.aql.execute(
