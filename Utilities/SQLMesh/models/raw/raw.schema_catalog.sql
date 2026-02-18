@@ -1,7 +1,7 @@
 MODEL (
   name raw.schema_catalog,
   kind SEED (
-    path '$root/seeds/schema_catalog.csv'
+    path '$root/seeds/raw_schema_catalog.csv'
   ),
   columns (
     table_name TEXT,
