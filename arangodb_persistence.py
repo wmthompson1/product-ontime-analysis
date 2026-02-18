@@ -37,26 +37,29 @@ class ArangoDBConfig:
 
     ENV_VAR = "ARANGO_DB"
 
-    def __init__(
-        self,
-        host: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        database_name: Optional[str] = None
-    ):
-        raw_host = (host or os.getenv("ARANGO_HOST") or os.getenv("DATABASE_HOST", "http://localhost:8529")).strip()
-        if "arangodb.cloud" in raw_host and ":" not in raw_host.split("//", 1)[-1]:
+    def __init__(self,
+                 host: Optional[str] = None,
+                 username: Optional[str] = None,
+                 password: Optional[str] = None,
+                 database_name: Optional[str] = None):
+        raw_host = (host or os.getenv("ARANGO_HOST") or os.getenv(
+            "DATABASE_HOST", "http://localhost:8529")).strip()
+        if "arangodb.cloud" in raw_host and ":" not in raw_host.split("//",
+                                                                      1)[-1]:
             raw_host = f"{raw_host}:8529"
         self.host = raw_host
-        self.username = username or os.getenv("ARANGO_USER") or os.getenv("DATABASE_USERNAME", "root")
-        self.password = password or os.getenv("ARANGO_ROOT_PASSWORD") or os.getenv("ARANGO_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
+        self.username = username or os.getenv("ARANGO_USER") or os.getenv(
+            "DATABASE_USERNAME", "root")
+        self.password = password or os.getenv(
+            "ARANGO_ROOT_PASSWORD") or os.getenv(
+                "ARANGO_PASSWORD") or os.getenv("DATABASE_PASSWORD", "")
 
-        resolved = database_name or os.getenv("ARANGO_DB") or os.getenv("DATABASE_NAME")
+        resolved = database_name or os.getenv("ARANGO_DB") or os.getenv(
+            "DATABASE_NAME")
         if not resolved:
             raise RuntimeError(
                 f"Required environment variable '{self.ENV_VAR}' is not set; "
-                "aborting to avoid accidental DB selection."
-            )
+                "aborting to avoid accidental DB selection.")
         self.database_name = resolved
 
     def get_connection_info(self) -> Dict[str, str]:
@@ -76,16 +79,15 @@ class ArangoDBGraphPersistence:
     See 020_ArangoDB_Usage_Examples.md for safety policy.
     """
 
-    def __init__(self, config: Optional[ArangoDBConfig] = None,
+    def __init__(self,
+                 config: Optional[ArangoDBConfig] = None,
                  create_db_if_missing: bool = False):
         self.config = config or ArangoDBConfig()
         self._client = ArangoClient(hosts=self.config.host)
         self._ensure_database_exists(create_if_missing=create_db_if_missing)
-        self._db = self._client.db(
-            self.config.database_name,
-            username=self.config.username,
-            password=self.config.password
-        )
+        self._db = self._client.db(self.config.database_name,
+                                   username=self.config.username,
+                                   password=self.config.password)
 
     def _ensure_database_exists(self, *, create_if_missing: bool = False):
         """Fail-fast if the target database does not exist.
@@ -98,14 +100,13 @@ class ArangoDBGraphPersistence:
         check and assume the database was pre-created via the console.
         """
         try:
-            sys_db = self._client.db(
-                "_system",
-                username=self.config.username,
-                password=self.config.password
-            )
+            sys_db = self._client.db("_system",
+                                     username=self.config.username,
+                                     password=self.config.password)
             if not sys_db.has_database(self.config.database_name):
                 if create_if_missing:
-                    print(f"Creating database '{self.config.database_name}'...")
+                    print(
+                        f"Creating database '{self.config.database_name}'...")
                     sys_db.create_database(self.config.database_name)
                     print(f"Database created")
                 else:
@@ -117,9 +118,13 @@ class ArangoDBGraphPersistence:
             raise
         except Exception as e:
             if "401" in str(e) or "not authorized" in str(e).lower():
-                print(f"Skipping _system check (cloud instance): will connect directly to '{self.config.database_name}'")
+                print(
+                    f"Skipping _system check (cloud instance): will connect directly to '{self.config.database_name}'"
+                )
             else:
-                print(f"Could not verify/create database '{self.config.database_name}': {e}")
+                print(
+                    f"Could not verify/create database '{self.config.database_name}': {e}"
+                )
                 raise
 
     def _ensure_collection(self, name: str, edge: bool = False):
@@ -128,7 +133,9 @@ class ArangoDBGraphPersistence:
             self._db.create_collection(name, edge=edge)
         return self._db.collection(name)
 
-    def _ensure_graph(self, name: str, edge_definitions: List[Dict],
+    def _ensure_graph(self,
+                      name: str,
+                      edge_definitions: List[Dict],
                       create_if_missing: bool = True) -> Any:
         """Ensure an ArangoDB named graph exists.
 
@@ -146,11 +153,10 @@ class ArangoDBGraphPersistence:
                     graph.create_edge_definition(**edef)
             return graph
         if create_if_missing:
-            return self._db.create_graph(name, edge_definitions=edge_definitions)
-        raise RuntimeError(
-            f"Arango graph '{name}' not found in database "
-            f"'{self._db.name}'; aborting."
-        )
+            return self._db.create_graph(name,
+                                         edge_definitions=edge_definitions)
+        raise RuntimeError(f"Arango graph '{name}' not found in database "
+                           f"'{self._db.name}'; aborting.")
 
     @staticmethod
     def _sanitize_key(raw: str) -> str:
@@ -206,7 +212,8 @@ class ArangoDBGraphPersistence:
         print(f"   Nodes: {len(nodes)}, Edges: {len(edges)}")
 
         if overwrite and self._db.has_graph(name):
-            print(f"  Overwrite requested: dropping existing graph '{name}'...")
+            print(
+                f"  Overwrite requested: dropping existing graph '{name}'...")
             self._db.delete_graph(name, drop_collections=True)
             print(f"  Dropped existing graph '{name}'")
 
@@ -216,23 +223,22 @@ class ArangoDBGraphPersistence:
         for node in nodes:
             table = node.get(node_collection_field, vertex_collection)
             if table not in vertex_collections:
-                vertex_collections[table] = self._ensure_collection(table, edge=False)
+                vertex_collections[table] = self._ensure_collection(table,
+                                                                    edge=False)
 
         for edge in edges:
             rel = edge.get(edge_relationship_field, edge_collection)
             if rel not in edge_collections_map:
-                edge_collections_map[rel] = self._ensure_collection(rel, edge=True)
+                edge_collections_map[rel] = self._ensure_collection(rel,
+                                                                    edge=True)
 
         from_collections = list(vertex_collections.keys())
         to_collections = list(vertex_collections.keys())
-        edge_definitions = [
-            {
-                "edge_collection": ecoll_name,
-                "from_vertex_collections": from_collections,
-                "to_vertex_collections": to_collections,
-            }
-            for ecoll_name in edge_collections_map
-        ]
+        edge_definitions = [{
+            "edge_collection": ecoll_name,
+            "from_vertex_collections": from_collections,
+            "to_vertex_collections": to_collections,
+        } for ecoll_name in edge_collections_map]
         if edge_definitions:
             self._ensure_graph(name, edge_definitions)
 
@@ -270,7 +276,8 @@ class ArangoDBGraphPersistence:
             for n in nodes:
                 nid = self._sanitize_key(n.get(node_id_field, ""))
                 if nid == from_id:
-                    from_table = n.get(node_collection_field, vertex_collection)
+                    from_table = n.get(node_collection_field,
+                                       vertex_collection)
                 if nid == to_id:
                     to_table = n.get(node_collection_field, vertex_collection)
 
@@ -285,7 +292,9 @@ class ArangoDBGraphPersistence:
                 coll.insert(edge_doc)
                 edges_inserted += 1
             except Exception as e:
-                print(f"  Warning: Could not persist edge '{from_id}' -> '{to_id}': {e}")
+                print(
+                    f"  Warning: Could not persist edge '{from_id}' -> '{to_id}': {e}"
+                )
 
         stats = {
             "graph_name": name,
@@ -295,7 +304,9 @@ class ArangoDBGraphPersistence:
             "vertex_collections": list(vertex_collections.keys()),
             "edge_collections": list(edge_collections_map.keys()),
         }
-        print(f"  Graph '{name}' persisted: {nodes_inserted} inserted, {nodes_updated} updated, {edges_inserted} edges")
+        print(
+            f"  Graph '{name}' persisted: {nodes_inserted} inserted, {nodes_updated} updated, {edges_inserted} edges"
+        )
         return stats
 
     def load_graph(
