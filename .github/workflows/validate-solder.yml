@@ -97,7 +97,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install python-arango networkx
+          pip install python-arango
           
           # Install additional dependencies if needed
           if [ -f scripts/modules/manufacturing_semantics/requirements.txt ]; then
@@ -218,7 +218,7 @@ jobs:
           SQLITE_PATH: ${{ env.SQLITE_PATH }}
           # ArangoDB connection
           DATABASE_HOST: http://localhost:8529
-          DATABASE_NAME: networkx_graphs
+          ARANGO_DB: manufacturing_graph
           DATABASE_USERNAME: root
           ENABLE_PERSIST: "true"
         #  DATABASE_PASSWORD: ""
@@ -229,12 +229,10 @@ jobs:
           python -m unittest scripts/modules/manufacturing_semantics/026_Entry_Point_NCM2_Unit_Test.py
         env:
           # ArangoDB connection for tests
-          ARANGO_HOST: localhost
-          ARANGO_PORT: 8529
-          DATABASE_HOST: http://localhost:8529
-          DATABASE_NAME: networkx_graphs
-          DATABASE_USERNAME: root
-          DATABASE_PASSWORD: ""
+          ARANGO_HOST: http://localhost:8529
+          ARANGO_USER: root
+          ARANGO_ROOT_PASSWORD: ""
+          ARANGO_DB: manufacturing_graph
 
       - name: Validate Solder Pattern Integration
         run: |
@@ -249,10 +247,10 @@ jobs:
           fi
         continue-on-error: true
         env:
-          DATABASE_HOST: http://localhost:8529
-          DATABASE_NAME: networkx_graphs
-          DATABASE_USERNAME: root
-          DATABASE_PASSWORD: ""
+          ARANGO_HOST: http://localhost:8529
+          ARANGO_USER: root
+          ARANGO_ROOT_PASSWORD: ""
+          ARANGO_DB: manufacturing_graph
 
       - name: Upload Test Results
         if: always()

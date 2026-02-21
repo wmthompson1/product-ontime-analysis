@@ -23,8 +23,9 @@ import pickle
 try:
     import networkx as nx
 except ImportError:
-    print("❌ NetworkX not installed. Please install: pip install networkx")
-    sys.exit(1)
+    nx = None
+    print("Warning: NetworkX not installed. LineageGraphBuilder will not be available.")
+    print("Install with: pip install networkx (only needed for SQLMesh lineage analysis)")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -41,6 +42,11 @@ class LineageGraphBuilder:
         Args:
             lineage_file: Path to table_lineage.json file
         """
+        if nx is None:
+            raise RuntimeError(
+                "NetworkX is required for LineageGraphBuilder. "
+                "Install with: pip install networkx"
+            )
         self.lineage_file = lineage_file
         self.graph = nx.DiGraph()
         self.file_nodes = set()
