@@ -4,7 +4,7 @@
 Example: Persist Entry Point 018 schema graph to ArangoDB
 """
 
-import networkx as nx
+from simple_digraph import shortest_path
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 from schema_graph import SchemaGraphManager
 
@@ -37,9 +37,8 @@ adb_graph = persistence.load_graph(
 # Step 5: Run deterministic join pathfinding on persisted graph
 # Convert to undirected for pathfinding
 try:
-    # ArangoDB graphs need to be converted to undirected for shortest_path
     adb_undirected = adb_graph.to_undirected()
-    path = nx.shortest_path(adb_undirected, "equipment", "supplier")
+    path = shortest_path(adb_undirected, "equipment", "supplier")
     print(f"Join path: {' → '.join(path)}")
 except Exception as e:
     print(f"⚠️  Path calculation: {e}")

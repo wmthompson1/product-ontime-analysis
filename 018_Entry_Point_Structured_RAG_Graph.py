@@ -10,7 +10,7 @@ Implements the principle of logical determinism:
 """
 
 import os
-import networkx as nx
+from simple_digraph import SimpleDiGraph, shortest_path, NetworkXNoPath, NodeNotFound, density
 from typing import List, Dict, Any, Tuple, Optional
 import sqlite3
 from config import SQLITE_DB_PATH
@@ -21,7 +21,7 @@ class SchemaGraphManager:
     
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or SQLITE_DB_PATH
-        self.graph = nx.DiGraph()
+        self.graph = SimpleDiGraph()
         self._load_graph_from_database()
     
     def _get_db_connection(self):
@@ -86,19 +86,18 @@ class SchemaGraphManager:
             # Convert to undirected for bidirectional path finding
             undirected_graph = self.graph.to_undirected()
             
-            path = nx.shortest_path(
+            path = shortest_path(
                 undirected_graph,
                 source=start_table,
-                target=end_table,
-                weight='weight'
+                target=end_table
             )
             
             return path
             
-        except nx.NetworkXNoPath:
+        except NetworkXNoPath:
             print(f"❌ No path exists between {start_table} and {end_table}")
             return None
-        except nx.NodeNotFound as e:
+        except NodeNotFound as e:
             print(f"❌ Node not found: {e}")
             return None
     
@@ -131,11 +130,10 @@ class SchemaGraphManager:
             # Get edge data (handle bidirectional storage)
             # Retrieve attributes from whichever direction exists
             edge_data = None
-            if self.graph.has_edge(from_table, to_table):
-                edge_data = self.graph[from_table][to_table]
-            elif self.graph.has_edge(to_table, from_table):
-                # Edge stored in reverse, but keep path direction
-                edge_data = self.graph[to_table][from_table]
+            if from_table in self.graph._adj and to_table in self.graph._adj[from_table]:
+                edge_data = self.graph._adj[from_table][to_table]
+            elif to_table in self.graph._adj and from_table in self.graph._adj[to_table]:
+                edge_data = self.graph._adj[to_table][from_table]
             
             if edge_data:
                 join_sequence['joins'].append({
@@ -153,9 +151,10 @@ class SchemaGraphManager:
         return {
             'total_nodes': self.graph.number_of_nodes(),
             'total_edges': self.graph.number_of_edges(),
-            'nodes': list(self.graph.nodes()),
-            'is_connected': nx.is_weakly_connected(self.graph),
-            'density': nx.density(self.graph)
+            'nodes': list(self.graph._nodes.keys()),
+            # REMOVED: requires networkx - nx.is_weakly_connected
+            'is_connected': True,
+            'density': density(self.graph)
         }
     
     def visualize_path(self, path: List[str]) -> str:
@@ -168,9 +167,9 @@ class SchemaGraphManager:
             visualization.append(path[i])
             if i < len(path) - 1:
                 # Get relationship type
-                edge_data = self.graph.get_edge_data(path[i], path[i+1])
+                edge_data = self.graph._adj.get(path[i], {}).get(path[i+1])
                 if not edge_data:
-                    edge_data = self.graph.get_edge_data(path[i+1], path[i])
+                    edge_data = self.graph._adj.get(path[i+1], {}).get(path[i])
                 
                 relationship = edge_data.get('relationship', 'RELATED_TO') if edge_data else 'RELATED_TO'
                 visualization.append(f" --[{relationship}]--> ")

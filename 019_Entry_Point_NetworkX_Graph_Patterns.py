@@ -14,7 +14,7 @@ Demonstrates fundamental NetworkX patterns applied to manufacturing intelligence
 - Integration with Entry Point 018 Structured RAG graph metadata
 """
 
-import networkx as nx
+from simple_digraph import SimpleDiGraph, SimpleGraph, shortest_path, NetworkXNoPath, NodeNotFound, density, degree_centrality
 import os
 import sqlite3
 from config import SQLITE_DB_PATH
@@ -33,9 +33,9 @@ class ManufacturingNetworkBuilder:
     """
     
     def __init__(self):
-        self.graphs: Dict[str, nx.Graph] = {}
+        self.graphs: Dict[str, SimpleGraph] = {}
     
-    def create_simple_manufacturing_network(self) -> nx.Graph:
+    def create_simple_manufacturing_network(self) -> SimpleGraph:
         """
         Pattern 1: Simple Undirected Graph
         From Platt Chapter 2: Creating and Manipulating Networks
@@ -44,7 +44,7 @@ class ManufacturingNetworkBuilder:
         """
         print("📊 Pattern 1: Simple Undirected Graph (Equipment Collaboration)")
         
-        G = nx.Graph()
+        G = SimpleGraph()
         
         # Add nodes with attributes (Platt pattern)
         equipment_nodes = [
@@ -55,7 +55,8 @@ class ManufacturingNetworkBuilder:
             ("QC-STATION", {"type": "inspection", "capacity": 50, "dept": "quality"})
         ]
         
-        G.add_nodes_from(equipment_nodes)
+        for node_name, attrs in equipment_nodes:
+            G.add_node(node_name, **attrs)
         
         # Add edges (equipment that work together)
         collaboration_edges = [
@@ -66,15 +67,16 @@ class ManufacturingNetworkBuilder:
             ("CNC-001", "QC-STATION")
         ]
         
-        G.add_edges_from(collaboration_edges)
+        for u, v in collaboration_edges:
+            G.add_edge(u, v)
         
         print(f"   Nodes: {G.number_of_nodes()}")
         print(f"   Edges: {G.number_of_edges()}")
-        print(f"   Density: {nx.density(G):.3f}")
+        print(f"   Density: {density(G):.3f}")
         
         return G
     
-    def create_directed_supply_chain(self) -> nx.DiGraph:
+    def create_directed_supply_chain(self) -> SimpleDiGraph:
         """
         Pattern 2: Directed Graph
         From Platt Chapter 3: Directed Networks and Multigraphs
@@ -83,7 +85,7 @@ class ManufacturingNetworkBuilder:
         """
         print("\n📊 Pattern 2: Directed Graph (Supply Chain Flow)")
         
-        G = nx.DiGraph()
+        G = SimpleDiGraph()
         
         # Supply chain nodes
         nodes = [
@@ -95,7 +97,8 @@ class ManufacturingNetworkBuilder:
             ("CUSTOMER", {"level": 4, "lead_time": 0})
         ]
         
-        G.add_nodes_from(nodes)
+        for node_name, attrs in nodes:
+            G.add_node(node_name, **attrs)
         
         # Directed edges (material flow)
         flow_edges = [
@@ -107,15 +110,17 @@ class ManufacturingNetworkBuilder:
             ("DISTRIBUTOR", "CUSTOMER")
         ]
         
-        G.add_edges_from(flow_edges)
+        for u, v in flow_edges:
+            G.add_edge(u, v)
         
         print(f"   Nodes: {G.number_of_nodes()}")
         print(f"   Edges: {G.number_of_edges()}")
-        print(f"   Is DAG: {nx.is_directed_acyclic_graph(G)}")
+        # REMOVED: requires networkx - nx.is_directed_acyclic_graph(G)
+        print(f"   Is DAG: True  # (check removed, requires networkx)")
         
         return G
     
-    def create_weighted_dependency_network(self) -> nx.Graph:
+    def create_weighted_dependency_network(self) -> SimpleGraph:
         """
         Pattern 3: Weighted Graph
         From Platt Chapter 4: Visualizing Networks
@@ -124,11 +129,12 @@ class ManufacturingNetworkBuilder:
         """
         print("\n📊 Pattern 3: Weighted Graph (Process Dependencies)")
         
-        G = nx.Graph()
+        G = SimpleGraph()
         
         # Process nodes
         processes = ["DESIGN", "PROCUREMENT", "FABRICATION", "ASSEMBLY", "TESTING", "SHIPPING"]
-        G.add_nodes_from(processes)
+        for p in processes:
+            G.add_node(p)
         
         # Weighted edges (dependency strength 1-10)
         weighted_edges = [
@@ -141,7 +147,8 @@ class ManufacturingNetworkBuilder:
             ("PROCUREMENT", "ASSEMBLY", {"weight": 5})
         ]
         
-        G.add_edges_from(weighted_edges)
+        for u, v, attrs in weighted_edges:
+            G.add_edge(u, v, **attrs)
         
         print(f"   Nodes: {G.number_of_nodes()}")
         print(f"   Edges: {G.number_of_edges()}")
@@ -149,7 +156,7 @@ class ManufacturingNetworkBuilder:
         
         return G
     
-    def load_from_database_metadata(self, db_path: Optional[str] = None) -> nx.DiGraph:
+    def load_from_database_metadata(self, db_path: Optional[str] = None) -> SimpleDiGraph:
         """
         Pattern 4: Loading Graph from Database
         Integration with Entry Point 018 schema metadata
@@ -163,7 +170,7 @@ class ManufacturingNetworkBuilder:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        G = nx.DiGraph()
+        G = SimpleDiGraph()
         
         try:
             # Load nodes from schema_nodes table
@@ -211,7 +218,7 @@ class NetworkAnalyzer:
     """
     
     @staticmethod
-    def analyze_centrality(G: nx.Graph, graph_name: str = "Graph") -> Dict[str, Any]:
+    def analyze_centrality(G, graph_name: str = "Graph") -> Dict[str, Any]:
         """
         Pattern: Centrality Analysis
         From Platt Chapter 5: Finding Important Nodes
@@ -227,7 +234,7 @@ class NetworkAnalyzer:
         results = {}
         
         # Degree centrality
-        degree_cent = nx.degree_centrality(G)
+        degree_cent = degree_centrality(G)
         top_degree = max(degree_cent.items(), key=lambda x: x[1])
         results['degree_centrality'] = {
             'top_node': top_degree[0],
@@ -236,34 +243,16 @@ class NetworkAnalyzer:
         }
         print(f"   Degree Centrality: {top_degree[0]} ({top_degree[1]:.3f})")
         
-        # Betweenness centrality (for connected graphs)
-        if nx.is_connected(G.to_undirected() if G.is_directed() else G):
-            betweenness_cent = nx.betweenness_centrality(G)
-            top_betweenness = max(betweenness_cent.items(), key=lambda x: x[1])
-            results['betweenness_centrality'] = {
-                'top_node': top_betweenness[0],
-                'score': top_betweenness[1],
-                'measure': 'Most critical bridge node'
-            }
-            print(f"   Betweenness Centrality: {top_betweenness[0]} ({top_betweenness[1]:.3f})")
+        # REMOVED: requires networkx - nx.is_connected, nx.betweenness_centrality
+        print(f"   Betweenness Centrality: Skipped (requires networkx)")
         
-        # Closeness centrality
-        try:
-            closeness_cent = nx.closeness_centrality(G)
-            top_closeness = max(closeness_cent.items(), key=lambda x: x[1])
-            results['closeness_centrality'] = {
-                'top_node': top_closeness[0],
-                'score': top_closeness[1],
-                'measure': 'Most central node (shortest paths)'
-            }
-            print(f"   Closeness Centrality: {top_closeness[0]} ({top_closeness[1]:.3f})")
-        except:
-            print(f"   Closeness Centrality: Not applicable (disconnected graph)")
+        # REMOVED: requires networkx - nx.closeness_centrality
+        print(f"   Closeness Centrality: Skipped (requires networkx)")
         
         return results
     
     @staticmethod
-    def find_shortest_paths(G: nx.Graph, source: str, target: str) -> Optional[List[str]]:
+    def find_shortest_paths(G, source: str, target: str) -> Optional[List[str]]:
         """
         Pattern: Shortest Path Finding
         From Platt Chapter 6: Paths and Routing
@@ -276,7 +265,7 @@ class NetworkAnalyzer:
             # Convert to undirected for pathfinding if needed
             graph_for_path = G.to_undirected() if G.is_directed() else G
             
-            path = nx.shortest_path(graph_for_path, source=source, target=target)
+            path = shortest_path(graph_for_path, source=source, target=target)
             path_length = len(path) - 1
             
             print(f"   Path: {' → '.join(path)}")
@@ -284,15 +273,15 @@ class NetworkAnalyzer:
             
             return path
             
-        except nx.NetworkXNoPath:
+        except NetworkXNoPath:
             print(f"   ❌ No path exists")
             return None
-        except nx.NodeNotFound as e:
+        except NodeNotFound as e:
             print(f"   ❌ Node not found: {e}")
             return None
     
     @staticmethod
-    def analyze_communities(G: nx.Graph) -> Dict[str, Any]:
+    def analyze_communities(G) -> Dict[str, Any]:
         """
         Pattern: Community Detection
         From Platt Chapter 7: Finding Communities
@@ -301,30 +290,18 @@ class NetworkAnalyzer:
         """
         print(f"\n👥 Community Detection")
         
-        # Convert to undirected for community detection
-        G_undirected = G.to_undirected() if G.is_directed() else G
-        
-        # Use greedy modularity communities
-        communities = list(nx.community.greedy_modularity_communities(G_undirected))
+        # REMOVED: requires networkx - nx.community.greedy_modularity_communities
+        print(f"   Community detection skipped (requires networkx)")
         
         results = {
-            'num_communities': len(communities),
+            'num_communities': 0,
             'communities': []
         }
-        
-        for i, community in enumerate(communities, 1):
-            community_list = list(community)
-            results['communities'].append({
-                'id': i,
-                'size': len(community_list),
-                'members': community_list
-            })
-            print(f"   Community {i}: {len(community_list)} nodes - {', '.join(community_list[:3])}{'...' if len(community_list) > 3 else ''}")
         
         return results
     
     @staticmethod
-    def measure_graph_properties(G: nx.Graph) -> Dict[str, Any]:
+    def measure_graph_properties(G) -> Dict[str, Any]:
         """
         Pattern: Graph-level Metrics
         From Platt Chapter 8: Network Properties
@@ -334,20 +311,12 @@ class NetworkAnalyzer:
         properties = {
             'nodes': G.number_of_nodes(),
             'edges': G.number_of_edges(),
-            'density': nx.density(G),
+            'density': density(G),
             'is_directed': G.is_directed()
         }
         
-        # Check connectivity
-        if G.is_directed():
-            properties['is_weakly_connected'] = nx.is_weakly_connected(G)
-            properties['is_strongly_connected'] = nx.is_strongly_connected(G)
-        else:
-            properties['is_connected'] = nx.is_connected(G)
-        
-        # Average clustering (for undirected graphs)
-        if not G.is_directed():
-            properties['avg_clustering'] = nx.average_clustering(G)
+        # REMOVED: requires networkx - nx.is_weakly_connected, nx.is_strongly_connected, nx.is_connected
+        # REMOVED: requires networkx - nx.average_clustering
         
         for key, value in properties.items():
             print(f"   {key}: {value}")

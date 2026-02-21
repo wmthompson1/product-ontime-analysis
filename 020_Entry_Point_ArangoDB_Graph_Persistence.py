@@ -15,7 +15,7 @@ Demonstrates production-ready graph persistence patterns:
 """
 
 import os
-import networkx as nx
+from simple_digraph import SimpleDiGraph, SimpleGraph, shortest_path, degree_centrality
 from typing import Optional, Dict, Any, Union, TYPE_CHECKING
 import json
 
@@ -105,7 +105,7 @@ class ArangoDBGraphPersistence:
     
     def persist_graph(
         self,
-        graph: Union[nx.Graph, nx.DiGraph],
+        graph: Union[SimpleGraph, SimpleDiGraph],
         name: str,
         write_batch_size: int = 50000,
         overwrite: bool = False
@@ -139,7 +139,7 @@ class ArangoDBGraphPersistence:
         
         try:
             # Choose appropriate ArangoDB graph type
-            if isinstance(graph, nx.DiGraph):
+            if isinstance(graph, SimpleDiGraph):
                 adb_graph = nxadb.DiGraph(
                     name=name,
                     incoming_graph_data=graph,
@@ -221,9 +221,9 @@ class ArangoDBGraphPersistence:
     def convert_to_networkx(
         self,
         adb_graph: Any
-    ) -> Union[nx.Graph, nx.DiGraph]:
+    ) -> Union[SimpleGraph, SimpleDiGraph]:
         """
-        Convert ArangoDB graph to in-memory NetworkX graph
+        Convert ArangoDB graph to in-memory SimpleDiGraph/SimpleGraph
         
         Useful for local analysis or algorithm execution
         
@@ -231,14 +231,18 @@ class ArangoDBGraphPersistence:
             adb_graph: nx-arangodb Graph or DiGraph
         
         Returns:
-            NetworkX Graph or DiGraph
+            SimpleDiGraph or SimpleGraph
         """
-        print(f"🔄 Converting ArangoDB graph to NetworkX...")
+        print(f"🔄 Converting ArangoDB graph to SimpleDiGraph...")
         
         if isinstance(adb_graph, nxadb.DiGraph):
-            nx_graph = nx.DiGraph(adb_graph)
+            nx_graph = SimpleDiGraph()
         else:
-            nx_graph = nx.Graph(adb_graph)
+            nx_graph = SimpleGraph()
+        for node_id, data in adb_graph.nodes(data=True):
+            nx_graph.add_node(node_id, **data)
+        for u, v, data in adb_graph.edges(data=True):
+            nx_graph.add_edge(u, v, **data)
         
         print(f"✅ Conversion complete")
         print(f"   Nodes: {nx_graph.number_of_nodes()}")
@@ -298,7 +302,7 @@ adb_graph = persistence.load_graph(
 )
 
 # Run shortest path on persisted graph
-path = nx.shortest_path(adb_graph, "equipment", "supplier")
+path = shortest_path(adb_graph, "equipment", "supplier")
 print(f"Join path: {' → '.join(path)}")
         """)
         
@@ -320,7 +324,7 @@ adb_graph = persistence.persist_graph(
 
 # Team member can now load and analyze
 adb_graph = persistence.load_graph("supply_chain_2025_q1")
-centrality = nx.degree_centrality(adb_graph)
+centrality = degree_centrality(adb_graph)
 print(f"Most connected: {max(centrality.items(), key=lambda x: x[1])}")
         """)
         
@@ -334,15 +338,16 @@ adb_graph = persistence.load_graph(
 )
 
 # Run GPU-accelerated algorithm (if NVIDIA GPU available)
-result = nx.betweenness_centrality(
-    adb_graph,
-    k=100,
-    backend="cugraph"  # Uses GPU acceleration
-)
+# REMOVED: requires networkx - nx.betweenness_centrality
+# result = nx.betweenness_centrality(
+#     adb_graph,
+#     k=100,
+#     backend="cugraph"  # Uses GPU acceleration
+# )
 
 # Save results back to ArangoDB
-for node, score in result.items():
-    adb_graph.nodes[node]['betweenness'] = score
+# for node, score in result.items():
+#     adb_graph.nodes[node]['betweenness'] = score
         """)
         
         print("\n🎯 Key Benefits from NVIDIA Blog:")

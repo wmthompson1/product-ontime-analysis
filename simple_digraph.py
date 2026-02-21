@@ -10,6 +10,32 @@ from collections import deque
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 
+class _NodeView:
+    """Dict-like accessor for graph nodes: graph.nodes[node_id] -> attrs."""
+
+    def __init__(self, nodes: Dict[str, Dict[str, Any]]):
+        self._nodes = nodes
+
+    def __getitem__(self, key):
+        return self._nodes[key]
+
+    def __contains__(self, key):
+        return key in self._nodes
+
+    def __iter__(self):
+        return iter(self._nodes)
+
+    def __len__(self):
+        return len(self._nodes)
+
+    def __call__(self, data=True):
+        for n, a in self._nodes.items():
+            yield (n, a) if data else n
+
+    def items(self):
+        return self._nodes.items()
+
+
 class SimpleDiGraph:
     """Lightweight in-memory directed graph shim to replace NetworkX for CI."""
 
@@ -18,6 +44,7 @@ class SimpleDiGraph:
         self._edges: List[Tuple[str, str, Dict[str, Any]]] = []
         self._adj: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self._pred: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        self.nodes = _NodeView(self._nodes)
 
     def add_node(self, node, **attrs):
         self._nodes[node] = attrs
@@ -33,9 +60,8 @@ class SimpleDiGraph:
         self._adj[u][v] = attrs
         self._pred[v][u] = attrs
 
-    def nodes(self, data=True):
-        for n, a in self._nodes.items():
-            yield (n, a) if data else n
+    def __contains__(self, node):
+        return node in self._nodes
 
     def edges(self, data=True):
         for u, v, a in self._edges:
@@ -50,11 +76,17 @@ class SimpleDiGraph:
     def has_node(self, node) -> bool:
         return node in self._nodes
 
+    def has_edge(self, u, v) -> bool:
+        return v in self._adj.get(u, {})
+
     def successors(self, node) -> Iterator[str]:
         return iter(self._adj.get(node, {}))
 
     def predecessors(self, node) -> Iterator[str]:
         return iter(self._pred.get(node, {}))
+
+    def neighbors(self, node) -> Iterator[str]:
+        return self.successors(node)
 
     def degree(self, node=None):
         if node is not None:
@@ -81,6 +113,7 @@ class SimpleGraph:
         self._nodes: Dict[str, Dict[str, Any]] = {}
         self._edges: List[Tuple[str, str, Dict[str, Any]]] = []
         self._adj: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        self.nodes = _NodeView(self._nodes)
 
     def add_node(self, node, **attrs):
         self._nodes[node] = attrs
@@ -95,9 +128,8 @@ class SimpleGraph:
         self._adj[u][v] = attrs
         self._adj[v][u] = attrs
 
-    def nodes(self, data=True):
-        for n, a in self._nodes.items():
-            yield (n, a) if data else n
+    def __contains__(self, node):
+        return node in self._nodes
 
     def edges(self, data=True):
         for u, v, a in self._edges:
@@ -111,6 +143,17 @@ class SimpleGraph:
 
     def has_node(self, node) -> bool:
         return node in self._nodes
+
+    def has_edge(self, u, v) -> bool:
+        return v in self._adj.get(u, {})
+
+    def neighbors(self, node) -> Iterator[str]:
+        return iter(self._adj.get(node, {}))
+
+    def degree(self, node=None):
+        if node is not None:
+            return len(self._adj.get(node, {}))
+        return [(n, len(self._adj.get(n, {}))) for n in self._nodes]
 
     def is_directed(self) -> bool:
         return False

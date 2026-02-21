@@ -21,13 +21,15 @@ import json
 import argparse
 from typing import Dict, List, Any
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from simple_digraph import SimpleDiGraph, density, degree_centrality
+
 try:
     import psycopg2
-    import networkx as nx
-    print("✅ NetworkX and psycopg2 loaded successfully")
+    print("✅ SimpleDiGraph shim and psycopg2 loaded successfully")
 except ImportError as e:
     print(f"❌ Missing required library: {e}")
-    print("Install with: pip install networkx psycopg2-binary")
+    print("Install with: pip install psycopg2-binary")
     sys.exit(1)
 
 # Matplotlib availability will be checked lazily in the visualization function
@@ -43,7 +45,7 @@ DB_CONFIG = {
 }
 
 
-def build_supply_chain_graph(cursor) -> nx.DiGraph:
+def build_supply_chain_graph(cursor) -> SimpleDiGraph:
     """
     Build a directed graph representing the supply chain.
     
@@ -52,7 +54,7 @@ def build_supply_chain_graph(cursor) -> nx.DiGraph:
     """
     print("\n🔨 Building supply chain graph...")
     
-    graph = nx.DiGraph()
+    graph = SimpleDiGraph()
     
     # Add supplier nodes
     print("  📦 Adding supplier nodes...")
@@ -141,7 +143,7 @@ def build_supply_chain_graph(cursor) -> nx.DiGraph:
     return graph
 
 
-def analyze_graph(graph: nx.DiGraph) -> Dict[str, Any]:
+def analyze_graph(graph: SimpleDiGraph) -> Dict[str, Any]:
     """
     Perform graph analytics and return metrics.
     """
@@ -150,8 +152,8 @@ def analyze_graph(graph: nx.DiGraph) -> Dict[str, Any]:
     print(f"  Edges: {graph.number_of_edges()}")
     
     if graph.number_of_nodes() > 1:
-        density = nx.density(graph)
-        print(f"  Density: {density:.4f}")
+        graph_density = density(graph)
+        print(f"  Density: {graph_density:.4f}")
     
     # Count by node type
     node_types = {}
@@ -166,26 +168,23 @@ def analyze_graph(graph: nx.DiGraph) -> Dict[str, Any]:
     # Calculate centrality metrics
     print("\n  🎯 Calculating centrality metrics...")
     try:
-        degree_centrality = nx.degree_centrality(graph)
+        deg_centrality = degree_centrality(graph)
         
         # Find top nodes by degree centrality
-        top_nodes = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_nodes = sorted(deg_centrality.items(), key=lambda x: x[1], reverse=True)[:5]
         
         print("  Top 5 most connected nodes:")
         for node_id, centrality_score in top_nodes:
-            attrs = graph.nodes[node_id]
+            attrs = graph._nodes[node_id]
             print(f"    {attrs.get('label', node_id)} ({attrs.get('type', 'unknown')}): {centrality_score:.4f}")
         
-        # Calculate betweenness centrality for critical supply chain points
-        print("\n  🎯 Calculating betweenness centrality...")
-        betweenness = nx.betweenness_centrality(graph)
-        top_betweenness = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)[:5]
-        
-        print("  Top 5 critical supply chain nodes (betweenness):")
-        for node_id, betweenness_score in top_betweenness:
-            if betweenness_score > 0:
-                attrs = graph.nodes[node_id]
-                print(f"    {attrs.get('label', node_id)} ({attrs.get('type', 'unknown')}): {betweenness_score:.4f}")
+        # REMOVED: requires networkx - betweenness = nx.betweenness_centrality(graph)
+        # REMOVED: requires networkx - top_betweenness = sorted(betweenness.items(), key=lambda x: x[1], reverse=True)[:5]
+        # REMOVED: requires networkx - print("  Top 5 critical supply chain nodes (betweenness):")
+        # REMOVED: requires networkx - for node_id, betweenness_score in top_betweenness:
+        # REMOVED: requires networkx -     if betweenness_score > 0:
+        # REMOVED: requires networkx -         attrs = graph._nodes[node_id]
+        # REMOVED: requires networkx -         print(f"    {attrs.get('label', node_id)} ({attrs.get('type', 'unknown')}): {betweenness_score:.4f}")
         
     except Exception as e:
         print(f"  ⚠️  Centrality calculation error: {e}")
@@ -193,12 +192,12 @@ def analyze_graph(graph: nx.DiGraph) -> Dict[str, Any]:
     return {
         'nodes': graph.number_of_nodes(),
         'edges': graph.number_of_edges(),
-        'density': nx.density(graph) if graph.number_of_nodes() > 1 else 0,
+        'density': density(graph) if graph.number_of_nodes() > 1 else 0,
         'node_types': node_types
     }
 
 
-def export_to_json(graph: nx.DiGraph) -> str:
+def export_to_json(graph: SimpleDiGraph) -> str:
     """
     Export graph to JSON format.
     """
@@ -225,73 +224,48 @@ def export_to_json(graph: nx.DiGraph) -> str:
     return json.dumps(data, indent=2)
 
 
-def visualize_graph(graph: nx.DiGraph, output_file: str = 'graph_visualization.png'):
+def visualize_graph(graph: SimpleDiGraph, output_file: str = 'graph_visualization.png'):
     """
     Create a visualization of the graph (requires matplotlib).
     """
-    # Lazy import matplotlib only when visualization is needed
-    global MATPLOTLIB_AVAILABLE
-    if MATPLOTLIB_AVAILABLE is None:
-        try:
-            import matplotlib.pyplot as plt
-            from matplotlib.patches import Patch
-            MATPLOTLIB_AVAILABLE = True
-        except ImportError:
-            MATPLOTLIB_AVAILABLE = False
-    
-    if not MATPLOTLIB_AVAILABLE:
-        print("⚠️  Matplotlib not installed. Skipping visualization.")
-        print("    Install with: pip install matplotlib")
-        return
-    
-    # Import matplotlib modules here after availability check
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-    
-    print(f"\n📊 Creating visualization...")
-    
-    # Create figure
-    plt.figure(figsize=(16, 12))
-    
-    # Use hierarchical layout
-    pos = nx.spring_layout(graph, k=2, iterations=50)
-    
-    # Color nodes by type
-    node_colors = []
-    for node in graph.nodes():
-        node_type = graph.nodes[node].get('type', 'unknown')
-        if node_type == 'supplier':
-            node_colors.append('#3498db')  # Blue
-        elif node_type == 'part':
-            node_colors.append('#2ecc71')  # Green
-        elif node_type == 'product':
-            node_colors.append('#e74c3c')  # Red
-        else:
-            node_colors.append('#95a5a6')  # Gray
-    
-    # Draw graph
-    nx.draw(graph, pos,
-           node_color=node_colors,
-           node_size=800,
-           with_labels=False,
-           arrows=True,
-           arrowsize=10,
-           edge_color='#7f8c8d',
-           alpha=0.7)
-    
-    # Add legend
-    legend_elements = [
-        Patch(facecolor='#3498db', label='Supplier'),
-        Patch(facecolor='#2ecc71', label='Part'),
-        Patch(facecolor='#e74c3c', label='Product')
-    ]
-    plt.legend(handles=legend_elements, loc='upper right')
-    
-    plt.title('Supply Chain Graph', fontsize=16, fontweight='bold')
-    plt.axis('off')
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    print(f"✅ Visualization saved to {output_file}")
+    # REMOVED: requires networkx - visualization depends on nx.spring_layout and nx.draw
+    print("⚠️  Visualization requires networkx. Skipping.")
+    # REMOVED: requires networkx - global MATPLOTLIB_AVAILABLE
+    # REMOVED: requires networkx - if MATPLOTLIB_AVAILABLE is None:
+    # REMOVED: requires networkx -     try:
+    # REMOVED: requires networkx -         import matplotlib.pyplot as plt
+    # REMOVED: requires networkx -         from matplotlib.patches import Patch
+    # REMOVED: requires networkx -         MATPLOTLIB_AVAILABLE = True
+    # REMOVED: requires networkx -     except ImportError:
+    # REMOVED: requires networkx -         MATPLOTLIB_AVAILABLE = False
+    # REMOVED: requires networkx - if not MATPLOTLIB_AVAILABLE:
+    # REMOVED: requires networkx -     print("⚠️  Matplotlib not installed. Skipping visualization.")
+    # REMOVED: requires networkx -     print("    Install with: pip install matplotlib")
+    # REMOVED: requires networkx -     return
+    # REMOVED: requires networkx - import matplotlib.pyplot as plt
+    # REMOVED: requires networkx - from matplotlib.patches import Patch
+    # REMOVED: requires networkx - print(f"\n📊 Creating visualization...")
+    # REMOVED: requires networkx - plt.figure(figsize=(16, 12))
+    # REMOVED: requires networkx - pos = nx.spring_layout(graph, k=2, iterations=50)
+    # REMOVED: requires networkx - node_colors = []
+    # REMOVED: requires networkx - for node in graph.nodes():
+    # REMOVED: requires networkx -     node_type = graph.nodes[node].get('type', 'unknown')
+    # REMOVED: requires networkx -     if node_type == 'supplier':
+    # REMOVED: requires networkx -         node_colors.append('#3498db')
+    # REMOVED: requires networkx -     elif node_type == 'part':
+    # REMOVED: requires networkx -         node_colors.append('#2ecc71')
+    # REMOVED: requires networkx -     elif node_type == 'product':
+    # REMOVED: requires networkx -         node_colors.append('#e74c3c')
+    # REMOVED: requires networkx -     else:
+    # REMOVED: requires networkx -         node_colors.append('#95a5a6')
+    # REMOVED: requires networkx - nx.draw(graph, pos, node_color=node_colors, node_size=800, with_labels=False, arrows=True, arrowsize=10, edge_color='#7f8c8d', alpha=0.7)
+    # REMOVED: requires networkx - legend_elements = [Patch(facecolor='#3498db', label='Supplier'), Patch(facecolor='#2ecc71', label='Part'), Patch(facecolor='#e74c3c', label='Product')]
+    # REMOVED: requires networkx - plt.legend(handles=legend_elements, loc='upper right')
+    # REMOVED: requires networkx - plt.title('Supply Chain Graph', fontsize=16, fontweight='bold')
+    # REMOVED: requires networkx - plt.axis('off')
+    # REMOVED: requires networkx - plt.tight_layout()
+    # REMOVED: requires networkx - plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    # REMOVED: requires networkx - print(f"✅ Visualization saved to {output_file}")
 
 
 def main():
@@ -332,11 +306,14 @@ def main():
             with open(args.output, 'w') as f:
                 f.write(graph_data)
         elif args.format == 'gexf':
-            nx.write_gexf(graph, args.output)
+            # REMOVED: requires networkx - nx.write_gexf(graph, args.output)
+            print("⚠️  GEXF export requires networkx. Skipping.")
         elif args.format == 'graphml':
-            nx.write_graphml(graph, args.output)
+            # REMOVED: requires networkx - nx.write_graphml(graph, args.output)
+            print("⚠️  GraphML export requires networkx. Skipping.")
         elif args.format == 'pickle':
-            nx.write_gpickle(graph, args.output)
+            # REMOVED: requires networkx - nx.write_gpickle(graph, args.output)
+            print("⚠️  Pickle export requires networkx. Skipping.")
         
         print(f"✅ Graph exported successfully")
         print(f"   File: {os.path.abspath(args.output)}")
