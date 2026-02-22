@@ -3193,11 +3193,20 @@ Check that perspective-concept and intent-concept relationships are seeded.
         with gr.Tab("🎨 Query Palette"):
             gr.Markdown("### SQLMesh Query Palette\nRun SQL against the SQLMesh virtual layer. Queries resolve through masked/hashed physical tables automatically.")
 
+            SQLMESH_PROJECT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Utilities', 'SQLMesh'))
+
+            def _sqlmesh_ctx():
+                from sqlmesh import Context as SMContext
+                orig_cwd = os.getcwd()
+                try:
+                    os.chdir(SQLMESH_PROJECT)
+                    return SMContext(paths=SQLMESH_PROJECT)
+                finally:
+                    os.chdir(orig_cwd)
+
             def get_sqlmesh_models():
                 try:
-                    from sqlmesh import Context as SMContext
-                    sqlmesh_path = os.path.join(os.path.dirname(__file__), '..', 'Utilities', 'SQLMesh')
-                    ctx = SMContext(paths=sqlmesh_path)
+                    ctx = _sqlmesh_ctx()
                     clean = []
                     for m in ctx.models:
                         parts = m.replace('"', '').split('.')
@@ -3240,11 +3249,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
             def run_palette_query(query):
                 if not query or not query.strip():
                     return "Enter a query above.", None, ""
+                orig_cwd = os.getcwd()
                 try:
-                    from sqlmesh import Context as SMContext
-                    import pandas as pd
-                    sqlmesh_path = os.path.join(os.path.dirname(__file__), '..', 'Utilities', 'SQLMesh')
-                    ctx = SMContext(paths=sqlmesh_path)
+                    os.chdir(SQLMESH_PROJECT)
+                    ctx = _sqlmesh_ctx()
                     df = ctx.fetchdf(query)
                     dim_msg = ""
                     if 'vendor_id' in df.columns:
@@ -3253,6 +3261,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     return f"Returned **{len(df)}** rows, **{len(df.columns)}** columns.", df, dim_msg
                 except Exception as e:
                     return f"**Error:** {e}", None, ""
+                finally:
+                    os.chdir(orig_cwd)
 
             generate_btn.click(fn=gen_select, inputs=[model_dropdown], outputs=[palette_query])
             run_palette_btn.click(fn=run_palette_query, inputs=[palette_query], outputs=[palette_status, palette_results, palette_dim_check])
