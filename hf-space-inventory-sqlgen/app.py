@@ -3198,7 +3198,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     from sqlmesh import Context as SMContext
                     sqlmesh_path = os.path.join(os.path.dirname(__file__), '..', 'Utilities', 'SQLMesh')
                     ctx = SMContext(paths=sqlmesh_path)
-                    return sorted(m for m in ctx.models)
+                    clean = []
+                    for m in ctx.models:
+                        parts = m.replace('"', '').split('.')
+                        if len(parts) == 3:
+                            clean.append(f"{parts[1]}.{parts[2]}")
+                        else:
+                            clean.append('.'.join(parts))
+                    return sorted(set(clean))
                 except Exception:
                     return []
 
