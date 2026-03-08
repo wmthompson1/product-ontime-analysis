@@ -1827,6 +1827,61 @@ async def api_validate_model():
     }
 
 
+@app.post("/api/arango-sync")
+async def api_arango_sync(
+    dry_run: bool = False,
+    x_api_key: Optional[str] = Header(None, alias="X-API-Key")
+):
+    """
+    Trigger an ArangoDB semantic graph sync.
+
+    Synchronizes intents, perspectives, concepts, and bindings from the
+    SQLite semantic layer into ArangoDB as a named graph.
+
+    Query params:
+      dry_run=true  — validate and count without writing to ArangoDB
+
+    Auth:
+      X-API-Key header required (matches QUERY_API_KEY env var).
+    """
+    if not QUERY_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Sync endpoint not configured. Set QUERY_API_KEY environment variable."
+        )
+    if not x_api_key or x_api_key != QUERY_API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key. Include X-API-Key header."
+        )
+    try:
+        from graph_sync import sync_graph
+        report = sync_graph(dry_run=dry_run)
+        total_vertices = sum(report.vertices_synced.values()) if isinstance(report.vertices_synced, dict) else 0
+        total_edges = sum(report.edges_synced.values()) if isinstance(report.edges_synced, dict) else 0
+        return {
+            "status": "ok" if not report.errors else "error",
+            "timestamp": report.timestamp,
+            "dry_run": dry_run,
+            "vertices": {
+                "synced": report.vertices_synced,
+                "new": report.vertices_new,
+                "updated": report.vertices_updated,
+                "total": total_vertices,
+            },
+            "edges": {
+                "synced": report.edges_synced,
+                "new": report.edges_new,
+                "updated": report.edges_updated,
+                "total": total_edges,
+            },
+            "errors": report.errors,
+            "warnings": report.warnings,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
