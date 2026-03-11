@@ -1785,14 +1785,15 @@ def convert_csv_to_schema():
 GRADIO_BACKEND = "http://127.0.0.1:8080"
 
 
-@app.route('/api/arango-sync', methods=['POST'])
+@app.route('/api/arango-sync', methods=['GET', 'POST'])
 def proxy_arango_sync():
     """Proxy to HF Space FastAPI endpoint for ArangoDB semantic graph sync."""
     target_url = f"{GRADIO_BACKEND}/api/arango-sync"
     if request.query_string:
         target_url += f"?{request.query_string.decode()}"
     try:
-        resp = http_requests.post(
+        resp = http_requests.request(
+            method=request.method,
             url=target_url,
             headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
             data=request.get_data(),

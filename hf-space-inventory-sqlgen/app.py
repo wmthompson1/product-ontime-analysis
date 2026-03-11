@@ -1827,9 +1827,10 @@ async def api_validate_model():
     }
 
 
-@app.post("/api/arango-sync")
+@app.api_route("/api/arango-sync", methods=["GET", "POST"])
 async def api_arango_sync(
     dry_run: bool = False,
+    api_key: Optional[str] = None,
     x_api_key: Optional[str] = Header(None, alias="X-API-Key")
 ):
     """
@@ -1849,10 +1850,11 @@ async def api_arango_sync(
             status_code=503,
             detail="Sync endpoint not configured. Set QUERY_API_KEY environment variable."
         )
-    if not x_api_key or x_api_key != QUERY_API_KEY:
+    resolved_key = x_api_key or api_key
+    if not resolved_key or resolved_key != QUERY_API_KEY:
         raise HTTPException(
             status_code=401,
-            detail="Invalid or missing API key. Include X-API-Key header."
+            detail="Invalid or missing API key. Include X-API-Key header or api_key query param."
         )
     try:
         from graph_sync import sync_graph
