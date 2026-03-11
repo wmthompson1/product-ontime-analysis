@@ -1784,6 +1784,26 @@ def convert_csv_to_schema():
 
 GRADIO_BACKEND = "http://127.0.0.1:8080"
 
+
+@app.route('/api/arango-sync', methods=['POST'])
+def proxy_arango_sync():
+    """Proxy to HF Space FastAPI endpoint for ArangoDB semantic graph sync."""
+    target_url = f"{GRADIO_BACKEND}/api/arango-sync"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+    try:
+        resp = http_requests.post(
+            url=target_url,
+            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
+            data=request.get_data(),
+            timeout=60,
+        )
+        return Response(resp.content, status=resp.status_code,
+                        content_type=resp.headers.get('content-type', 'application/json'))
+    except http_requests.exceptions.ConnectionError:
+        return jsonify({"error": "HF Space service unavailable. Ensure it is running on port 8080."}), 503
+
+
 @app.route('/gradio')
 def proxy_gradio_root():
     from flask import redirect
