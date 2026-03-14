@@ -6,6 +6,11 @@ source .venv/bin/activate
 cd root
 sqlmesh info -p Utilities/SQLMesh
 
+# url - post
+Invoke-RestMethod -Method POST `
+  -Uri "https://9885a95f-5ab2-441a-b79a-7fe6a57d2320-00-133f632yjz64j.riker.replit.dev/api/arango-sync" `
+  -Headers @{ "X-API-Key" = "GMIN" } | ConvertTo-Json -Depth 5
+
 # Run 
 cd Utilities/SQLMesh && . venv/bin/sqlmesh info (WITHOUT the -p flag). SQLMesh expects to run FROM the project directory where config.yaml lives, not with a -p path to it.
 

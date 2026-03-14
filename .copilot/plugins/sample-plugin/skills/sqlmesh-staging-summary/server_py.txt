@@ -1,0 +1,128 @@
+"""
+hashed_data MCP skill
+
+Provides read-only access to SQLMesh-materialized hashed/aggregated tables.
+This is the only data-access skill the SQLMesh DevOps agent should use.
+
+Security guarantees:
+- Connects only to the hashed/agg database (HASHED_SQL_CONN).
+- Enforces an allowlist of tables (hashed.* and agg.*).
+- No raw PII columns should exist in these tables by design.
+"""
+
+import os
+from typing import List, Union, Optional, Dict, Any
+
+import pyodbc
+from pydantic import BaseModel, Field
+
+from mcp import tool, Skill  # Adjust import to your MCP framework
+
+
+# You can move this to a config file if you prefer.
+ALLOWED_HASHED_TABLES = {
+    "hashed.customer_profile",
+    "hashed.account_profile",
+    "agg.customer_behavior_daily",
+    "agg.order_stats_daily",
+}
+
+
+def get_hashed_connection():
+    conn_str = os.getenv("HASHED_SQL_CONN")
+    if not conn_str:
+        raise RuntimeError("HASHED_SQL_CONN not set")
+    return pyodbc.connect(conn_str)
+
+
+class ListTablesOutput(BaseModel):
+    tables: List[str]
+
+
+class HashedQueryInput(BaseModel):
+    table: str = Field(..., description="Fully qualified hashed/agg table name.")
+    where_clause: Optional[str] = Field(
+        None,
+        description=(
+            "Optional WHERE clause using only hashed keys or bucketed columns. "
+            "Do not reference raw PII columns."
+        ),
+    )
+    max_rows: int = Field(500, description="Maximum rows to return (hard capped in code).")
+
+
+class HashedRow(BaseModel):
+    values: Dict[str, Any]
+
+
+class HashedQueryOutput(BaseModel):
+    success: bool
+    row_count: int
+    rows: List[HashedRow]
+    message: Optional[str] = None
+
+
+class HashedQueryError(BaseModel):
+    success: bool = False
+    error_type: str
+    message: str
+    hint: Optional[str] = None
+
+
+@tool(name="list_hashed_tables", description="List the allowed hashed/aggregated tables.")
+def list_hashed_tables() -> ListTablesOutput:
+    """
+    Returns the allowlisted tables that the agent is permitted to query.
+    """
+    return ListTablesOutput(tables=sorted(ALLOWED_HASHED_TABLES))
+
+
+@tool(name="hashed_select", description="Query pre-staged hashed/aggregated tables only.")
+def hashed_select(input: HashedQueryInput) -> Union[HashedQueryOutput, HashedQueryError]:
+    """
+    Executes a read-only SELECT against an allowlisted hashed/agg table.
+
+    The agent must never attempt to query raw tables or PII columns.
+    """
+    if input.table not in ALLOWED_HASHED_TABLES:
+        return HashedQueryError(
+            error_type="AccessDenied",
+            message=f"Table {input.table} is not in the allowed hashed/agg list.",
+            hint="Use list_hashed_tables to see the approved tables.",
+        )
+
+    # Hard cap max_rows to avoid abuse
+    max_rows = min(input.max_rows, 2000)
+
+    try:
+        conn = get_hashed_connection()
+        with conn.cursor() as cur:
+            base_sql = f"SELECT TOP ({max_rows}) * FROM {input.table}"
+            if input.where_clause:
+                base_sql += f" WHERE {input.where_clause}"
+
+            cur.execute(base_sql)
+            columns = [c[0] for c in cur.description]
+            rows: List[HashedRow] = []
+            for row in cur.fetchall():
+                rows.append(HashedRow(values=dict(zip(columns, row))))
+
+            return HashedQueryOutput(
+                success=True,
+                row_count=len(rows),
+                rows=rows,
+                message="Hashed query executed successfully.",
+            )
+    except Exception as ex:
+        return HashedQueryError(
+            error_type=type(ex).__name__,
+            message=str(ex),
+            hint="Check HASHED_SQL_CONN, table name, or WHERE clause.",
+        )
+
+
+skill = Skill(
+    name="hashed_data",
+    description="Read-only access to SQLMesh-materialized hashed/aggregated tables.",
+    tools=[list_hashed_tables, hashed_select],
+)

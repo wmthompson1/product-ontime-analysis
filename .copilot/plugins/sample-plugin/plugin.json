@@ -1,0 +1,9 @@
+{
+  "name": "Sample Repo Plugin",
+  "version": "1.0.0",
+  "description": "A collection of repository-specific skills for product-ontime-analysis.",
+  "author": "GitHub Copilot",
+  "capabilities": {
+    "skills": true
+  }
+}

@@ -5,6 +5,7 @@ flask-sqlalchemy>=3.1.1
 lxml>=5.4.0
 nltk>=3.9.1
 openai>=1.93.0
+psycopg2-binary>=2.9.10
 requests>=2.32.3
 sqlalchemy>=2.0.41
 trafilatura>=2.0.0
@@ -38,7 +39,5 @@ typing-extensions
 
 # Synthetic Data Generation
 Faker>=23.0.0
+python-arango>=8.0.0
 pyyaml
-psycopg2-binary
-sqlglot
-python-arango
