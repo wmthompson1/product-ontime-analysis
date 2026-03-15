@@ -139,7 +139,7 @@ agent_activity:
     agent: Manufacturing Assistant (014)
     action: Accepted
     details: "Co-assigned for manufacturing schema design"
-  - timestamp: "2026-03-15T05:16:34.000Z"
-    agent: documentation-writer
-    action: Task Completed
-    details: "Migrated to directory-per-plan layout — plan.yaml + tasks.yaml split"
+  - timestamp: "2026-03-15T09:40:36.000Z"
+    agent: Herald
+    action: Delegated
+    details: "Opened plan-001-2-tiered-masking (phase 2) — Live Tiered Masking Execution. Pre-flight parity gate cleared (12/12, exit 0). BFS data ready. task-003 pending on mask_pii.py."

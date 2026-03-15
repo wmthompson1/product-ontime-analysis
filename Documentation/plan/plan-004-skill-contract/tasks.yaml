@@ -1,0 +1,135 @@
+plan_id: plan-004-skill-contract
+
+# Mutable work board — all tasks completed (retrospective plan)
+# status: pending | in_progress | delegated | completed | failed
+
+tasks:
+  - id: task-001
+    title: "Create agents/ directory with MCP Protocol Actor definitions"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T08:12:57Z"
+    artifact: agents/intent-mapping-agent.md
+
+  - id: task-002
+    title: "Create agents/schema-traversal-agent.md"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T08:12:57Z"
+    artifact: agents/schema-traversal-agent.md
+
+  - id: task-003
+    title: "Create skills/ directory tree (masking_engine, parity_verifier, hierarchy_crawler)"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T08:18:00Z"
+    artifact: skills/
+
+  - id: task-004
+    title: "Create skills/parity_verifier/skill.json MCP contract"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: [task-003]
+    completed_at: "2026-03-15T08:18:00Z"
+    artifact: skills/parity_verifier/skill.json
+
+  - id: task-005
+    title: "Create verify_parity.py — live schema/model/docs auditor"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: [task-004]
+    completed_at: "2026-03-15T08:20:00Z"
+    artifact: verify_parity.py
+    notes: >
+      Fixed live defect: schema_catalog.db uses table name 'schema_catalog',
+      not 'tables' or 'columns'. Fallback query block replaced with direct query.
+
+  - id: task-006
+    title: "Create skills/masking_engine/skill.json MCP contract"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 2
+    depends_on: [task-003]
+    completed_at: "2026-03-15T08:22:00Z"
+    artifact: skills/masking_engine/skill.json
+
+  - id: task-007
+    title: "Create skills/hierarchy_crawler/skill.json MCP contract"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 2
+    depends_on: [task-003]
+    completed_at: "2026-03-15T08:22:00Z"
+    artifact: skills/hierarchy_crawler/skill.json
+
+  - id: task-008
+    title: "Create copilot-config.yaml — root MCP registry with safety gates"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 2
+    depends_on: [task-001, task-002, task-006, task-007]
+    completed_at: "2026-03-15T08:22:00Z"
+    artifact: copilot-config.yaml
+
+  - id: task-009
+    title: "Create orchestrator_handshake.py — Herald→Agent→Skill chain"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 2
+    depends_on: [task-008, task-005]
+    completed_at: "2026-03-15T08:25:00Z"
+    artifact: orchestrator_handshake.py
+
+  - id: task-010
+    title: "Verify all pod5-9 scripts run end-to-end (pod9 validation)"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 3
+    depends_on: [task-009]
+    completed_at: "2026-03-15T08:28:52Z"
+    notes: >
+      verify_parity.py: WARNING (20 discrepancies — 8 missing models + 12 missing docs).
+      orchestrator_handshake.py --skip-parity: contract validated, ready to invoke.
+
+  - id: task-011
+    title: "Create 8 pod901 workflow staging models (stg_operation_work_centers etc.)"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 4
+    depends_on: [task-010]
+    completed_at: "2026-03-15T08:50:00Z"
+    artifact: Utilities/SQLMesh/models/staging/stg_operation_work_centers.sql
+
+  - id: task-012
+    title: "Create 8 ERP catalog staging models from schema_catalog.db (stg_operation, stg_operation_audit, etc.)"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 4
+    depends_on: [task-010]
+    completed_at: "2026-03-15T08:55:00Z"
+    artifact: Utilities/SQLMesh/models/staging/stg_operation.sql
+    notes: >
+      Column definitions sourced directly from schema_catalog.db. OPERATION has 132 columns;
+      key business columns selected. OPERATION_BINARY BITS (image/BLOB) excluded from staging.
+      stg_operation_resource and stg_operation_resources are distinct models
+      (ERP catalog table vs pod901 workflow model).
+
+  - id: task-013
+    title: "Confirm parity audit: 0 missing models, 12/12 catalog tables verified"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 5
+    depends_on: [task-011, task-012]
+    completed_at: "2026-03-15T08:58:00Z"
+    notes: >
+      verify_parity.py final result: catalog_count=12, verified_count=12,
+      missing_models=0, missing_docs=12. Remaining 12 are documentation gaps —
+      target for plan-005.

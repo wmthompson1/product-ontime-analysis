@@ -86,3 +86,12 @@ tasks:
     wave: 1f
     depends_on: [task-001-1c]
     sub_plan: plan-001f-pragma-tests
+
+  - id: task-001-2
+    title: "Live Tiered Masking Execution (phase 2)"
+    status: delegated
+    assigned_to: Herald (Orchestrator)
+    wave: 2
+    depends_on: [task-001-1f]
+    sub_plan: plan-001-2-tiered-masking
+

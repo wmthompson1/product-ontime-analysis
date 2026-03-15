@@ -1,0 +1,134 @@
+plan_id: plan-004-skill-contract
+title: "Plan-004: MCP Skill Contract Layer"
+topic: "Runtime Execution Layer — Agents, Skills, Parity Auditor, Handshake, Staging Models"
+created: "2026-03-15"
+status: Completed
+delegated_by: Herald
+assigned_to:
+  - documentation-writer
+  - sqlmesh-devops
+
+objective: >
+  Establish the runtime execution layer that bridges Herald's persona-level agent
+  instructions (.github/agents/) with concrete Python logic. Prior to this plan,
+  agents could describe intent but had no programmatic invocation path. This plan
+  introduces: (1) root-level MCP Protocol Actor definitions in agents/, (2) three
+  skill.json contracts in skills/, (3) a MCP registry in copilot-config.yaml,
+  (4) a live orchestrator handshake script, (5) a parity auditor, and (6) sixteen
+  new SQLMesh staging models that close the schema-catalog gap.
+
+# ── Pod-by-pod steps ──────────────────────────────────────────────────────────
+steps:
+  - number: 1
+    pod: pod5
+    title: "MCP Agent Architecture — .github/agents/ vs agents/"
+    description: >
+      Documented the functional distinction between .github/agents/ (Copilot persona
+      files) and root-level agents/ (MCP Protocol Actors). Established that root agents
+      are bound to skill contracts via copilot-config.yaml and share the unified .venv.
+
+  - number: 2
+    pod: pod6
+    title: "Orchestrator Handshake Logic"
+    description: >
+      Implemented orchestrator_handshake.py — a live Python script that loads
+      copilot-config.yaml, resolves the masking_engine_001 skill contract, runs the
+      parity_verifier_001 safety gate, validates required parameters (gemin_salt),
+      and reports readiness before invoking mask_pii.py.
+
+  - number: 3
+    pod: pod7
+    title: "Parity Verifier Skill + verify_parity.py"
+    description: >
+      Created skills/parity_verifier/skill.json (MCP contract) and verify_parity.py
+      (live auditor). The script queries schema_catalog.db, compares to staging model
+      filenames and Documentation/models Markdown content, and returns structured
+      JSON output. Fixed live defect: catalog table is 'schema_catalog', not 'tables'.
+
+  - number: 4
+    pod: pod8
+    title: "copilot-config.yaml + Remaining Skill Contracts"
+    description: >
+      Created the root MCP registry (copilot-config.yaml) registering two Protocol
+      Actors (intent-mapping-agent, schema-traversal-agent) and three skills
+      (masking_engine_001, parity_verifier_001, hierarchy_crawler_001). Added
+      safety_gates section binding parity_verifier_001 as pre-execution gate.
+      Also created skills/masking_engine/skill.json and
+      skills/hierarchy_crawler/skill.json.
+
+  - number: 5
+    pod: pod901
+    title: "SQLMesh Staging Models — ERP Operation Tables"
+    description: >
+      Created 8 pod901-recommended workflow models (stg_operation_work_centers,
+      stg_operation_routings, stg_operation_labor_codes, stg_operation_shifts,
+      stg_operation_resources, stg_operation_maintenance_logs,
+      stg_operation_downtime_reasons, stg_operation_production_metrics) and
+      8 ERP catalog-sourced models (stg_operation, stg_operation_audit,
+      stg_operation_binary, stg_operation_resource, stg_operation_resource_dispatch,
+      stg_operation_sched, stg_operation_summary, stg_operation_type). All 8 catalog
+      tables now have matching staging models; verify_parity.py reports 12/12 verified.
+
+# ── Architecture sections ─────────────────────────────────────────────────────
+sections:
+  - id: sec-001
+    title: "MCP Layer Architecture"
+    content: >
+      The skill contract layer introduces four directories that together form the
+      MCP runtime: agents/ (Who), skills/ (How), Utilities/ (What), .venv/ (Where).
+      copilot-config.yaml is the solder that binds them. The safety_gates section
+      ensures parity_verifier_001 runs before any masking operation.
+
+  - id: sec-002
+    title: "Parity Audit Result (as of 2026-03-15)"
+    content: >
+      verify_parity.py output: catalog_count=12, verified_count=12,
+      missing_models=0, missing_docs=12. The 12 documentation gaps target
+      Documentation/models/ entries for operation*, stg_non_conformant_materials,
+      stg_production_schedule, stg_products, stg_suppliers. These are the input
+      for plan-005.
+
+  - id: sec-003
+    title: "Skill Contract Schema"
+    content: >
+      Each skill.json defines: mcp_version, skill_id, name, description, runtime,
+      entry_point, parameters (JSON Schema with required[] list), output schema.
+      The orchestrator validates mission parameters against required[] before invoking
+      the entry_point. Validation failure exits with code 3.
+
+  - id: sec-004
+    title: "Handshake Exit Codes"
+    content: >
+      orchestrator_handshake.py exit codes: 0=success (contract valid, ready),
+      1=parity warning (discrepancies found, execution halted), 2=parity error
+      (audit script failed), 3=contract validation failed (missing required params).
+
+# ── Agent activity (immutable audit log) ─────────────────────────────────────
+agent_activity:
+  - timestamp: "2026-03-15T08:12:57Z"
+    agent: sqlmesh-devops
+    action: pod5 — Created agents/intent-mapping-agent.md and agents/schema-traversal-agent.md
+
+  - timestamp: "2026-03-15T08:15:00Z"
+    agent: sqlmesh-devops
+    action: pod6 — Created orchestrator_handshake.py (Herald→Agent→Skill chain)
+
+  - timestamp: "2026-03-15T08:18:00Z"
+    agent: sqlmesh-devops
+    action: pod7 — Created skills/parity_verifier/skill.json and verify_parity.py; fixed schema_catalog table name defect
+
+  - timestamp: "2026-03-15T08:22:00Z"
+    agent: sqlmesh-devops
+    action: pod8 — Created copilot-config.yaml, skills/masking_engine/skill.json, skills/hierarchy_crawler/skill.json
+
+  - timestamp: "2026-03-15T08:28:52Z"
+    agent: sqlmesh-devops
+    action: pod9 — Verified all pod5-8 scripts run: parity audit live (12 discrepancies), handshake validates contract
+
+  - timestamp: "2026-03-15T08:43:45Z"
+    agent: sqlmesh-devops
+    action: pod901 — Created 8 pod901 workflow staging models (stg_operation_work_centers etc.)
+
+  - timestamp: "2026-03-15T08:52:00Z"
+    agent: sqlmesh-devops
+    action: pod901 — Created 8 ERP catalog staging models from schema_catalog.db column definitions; parity 12/12 verified

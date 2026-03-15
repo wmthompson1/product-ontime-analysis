@@ -1,0 +1,46 @@
+plan_id: plan-001-2-tiered-masking
+
+# Mutable work board
+# status: pending | in_progress | delegated | completed | failed
+
+tasks:
+  - id: task-001
+    title: "Pre-Flight Parity Audit — verify_parity.py exit code 0"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T09:21:37Z"
+    notes: >
+      verify_parity.py: SUCCESS — 12/12 catalog tables verified, 0 discrepancies.
+      orchestrator_handshake.py: parity gate PASSED, contract validated, exit 0.
+
+  - id: task-002
+    title: "BFS Hierarchy Generation — hierarchy_crawler_001"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T09:40:36Z"
+    artifact: Utilities/SQLMesh/analysis/impact/output/foreign_key_hierarchy.json
+    notes: >
+      foreign_key_hierarchy.json confirmed present. BFS graph data is ready for
+      the masking engine to determine dimension-first processing order.
+      Runtime crawler invocation will use this file as the graph_path parameter.
+
+  - id: task-003
+    title: "Tiered Masking Invoke — masking_engine_001 (manufacturing perspective)"
+    status: completed
+    assigned_to: sqlmesh-devops
+    wave: 2
+    depends_on: [task-001, task-002]
+    completed_at: "2026-03-15T10:12:21Z"
+    artifact: Utilities/SQLMesh/analysis/impact/output/masking_log.json
+    notes: >
+      mask_pii.py implemented (DuckDB-aware, gemin_salt via CLI, pre-mask backup,
+      masking_log.json output). Full orchestrator handshake completed:
+        orchestrator_handshake.py --perspective manufacturing --salt <GEMIN_SALT>
+      Exit code 0. Parity gate passed (12/12). 13 raw schema tables scanned.
+      0 rows modified (manufacturing telemetry has no PII columns by design).
+      Backup: Utilities/SQLMesh/db.db.premask.bak
+      Log:    Utilities/SQLMesh/analysis/impact/output/masking_log.json

@@ -1,0 +1,8 @@
+{
+  "status": "success",
+  "perspective": "manufacturing",
+  "tables_processed": 0,
+  "timestamp": "2026-03-15T10:16:43.024900+00:00",
+  "backup": "C:\\Users\\Clovi\\source\\product-ontime-analysis\\Utilities\\SQLMesh\\db.db.premask.bak",
+  "log": []
+}

@@ -44,6 +44,20 @@ plans:
       - Herald
     created: "2026-03-13"
 
+  - id: plan-004-skill-contract
+    dir: plan-004-skill-contract
+    plan_file: plan-004-skill-contract/plan.yaml
+    tasks_file: plan-004-skill-contract/tasks.yaml
+    title: "MCP Skill Contract Layer"
+    domain: mcp
+    status: Completed
+    parent: null
+    children: []
+    assigned_to:
+      - sqlmesh-devops
+      - documentation-writer
+    created: "2026-03-15"
+
   - id: plan-003-herald-dashboard
     dir: plan-003-herald-dashboard
     plan_file: plan-003-herald-dashboard/plan.yaml
@@ -63,6 +77,15 @@ plans:
 # ── Sub-plans (registered when created, directories may not exist yet) ────────
 
 sub_plans:
+  - id: plan-001-2-tiered-masking
+    parent: plan-001-sql-semantic-layer
+    title: "Live Tiered Masking Execution — Level 1 & 2"
+    dir: plan-001-2-tiered-masking
+    plan_file: plan-001-2-tiered-masking/plan.yaml
+    tasks_file: plan-001-2-tiered-masking/tasks.yaml
+    status: In Progress
+    assigned_to: Herald (Orchestrator)
+
   - id: plan-001a-tables-columns
     parent: plan-001-sql-semantic-layer
     title: "Tables & Columns — INFORMATION_SCHEMA discovery"

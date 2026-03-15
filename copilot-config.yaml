@@ -1,0 +1,47 @@
+version: "1.0"
+
+runtime:
+  python_path: "./.venv/Scripts/python.exe"   # Windows; swap to .venv/bin/python on Linux/Mac
+
+# ─── Agents ──────────────────────────────────────────────────────────────────
+# Root-level MCP Protocol Actors (distinct from .github/agents/ persona files)
+agents:
+  - name: "intent-mapping-agent"
+    description: "Semantic Overlay Architect for Manufacturing/Finance Perspectives"
+    definition_path: "agents/intent-mapping-agent.md"
+    skills:
+      - "masking_engine_001"
+      - "parity_verifier_001"
+
+  - name: "schema-traversal-agent"
+    description: "Graph Topology Specialist for Foreign Key Facets"
+    definition_path: "agents/schema-traversal-agent.md"
+    skills:
+      - "hierarchy_crawler_001"
+
+# ─── Skills ──────────────────────────────────────────────────────────────────
+# Contract-bound logic modules; each has a skill.json entry-point definition
+skills:
+  - name: "masking_engine_001"
+    path: "skills/masking_engine/skill.json"
+
+  - name: "parity_verifier_001"
+    path: "skills/parity_verifier/skill.json"
+
+  - name: "hierarchy_crawler_001"
+    path: "skills/hierarchy_crawler/skill.json"
+
+# ─── Orchestration ───────────────────────────────────────────────────────────
+orchestration:
+  plan_reference: "plan-001-sql-semantic-layer"
+  plan_index: "Documentation/plan/plan-index.yaml"
+  default_perspective: "manufacturing"
+  safety_gates:
+    - pre_execution_audit: "parity_verifier_001"   # blocks masking if discrepancies found
+
+# ─── Paths ───────────────────────────────────────────────────────────────────
+paths:
+  schema_catalog: "Utilities/SQLMesh/analysis/impact/output/schema_catalog.db"
+  models_staging:  "Utilities/SQLMesh/models/staging"
+  docs_models:     "Documentation/models"
+  sqlmesh_root:    "Utilities/SQLMesh"

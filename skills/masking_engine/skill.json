@@ -1,0 +1,43 @@
+{
+  "mcp_version": "1.0",
+  "skill_id": "masking_engine_001",
+  "name": "PII Masking Engine",
+  "description": "Applies perspective-aware PII masking to the SQLMesh database. Requires a validated BFS hierarchy path from the Schema Traversal Agent.",
+  "runtime": "python3",
+  "entry_point": "./mask_pii.py",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "perspective": {
+        "type": "string",
+        "enum": ["manufacturing", "finance"],
+        "description": "Semantic perspective to apply when selecting masking rules.",
+        "default": "manufacturing"
+      },
+      "gemin_salt": {
+        "type": "string",
+        "description": "Cryptographic salt for deterministic pseudonymization. Required."
+      },
+      "db_path": {
+        "type": "string",
+        "description": "Path to the SQLMesh SQLite database.",
+        "default": "Utilities/SQLMesh/db.db"
+      },
+      "bfs_path": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Ordered dimension->transaction table path from hierarchy_crawler. Optional; defaults to full catalog order.",
+        "default": []
+      }
+    },
+    "required": ["gemin_salt"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "status": { "type": "string", "enum": ["success", "error"] },
+      "tables_processed": { "type": "integer" },
+      "perspective": { "type": "string" }
+    }
+  }
+}

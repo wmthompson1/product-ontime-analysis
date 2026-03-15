@@ -1,0 +1,46 @@
+{
+  "mcp_version": "1.0",
+  "skill_id": "hierarchy_crawler_001",
+  "name": "Foreign Key Hierarchy Crawler",
+  "description": "Performs BFS traversal of the foreign key graph to produce ordered dimension->transaction table paths for use by the Intent Mapping Agent.",
+  "runtime": "python3",
+  "entry_point": "./Utilities/SQLMesh/analysis/impact/output/foreign_key_hierarchy.json",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "start_table": {
+        "type": "string",
+        "description": "Root table name for BFS traversal."
+      },
+      "max_depth": {
+        "type": "integer",
+        "description": "Maximum BFS depth. Prevents runaway traversal on cyclical keys.",
+        "default": 5
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["json", "csv", "dot"],
+        "description": "Format for returned path object.",
+        "default": "json"
+      },
+      "graph_path": {
+        "type": "string",
+        "description": "Path to the foreign key hierarchy JSON.",
+        "default": "Utilities/SQLMesh/analysis/impact/output/foreign_key_hierarchy.json"
+      }
+    },
+    "required": ["start_table"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "status": { "type": "string", "enum": ["success", "error"] },
+      "path": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Ordered BFS path: dimensions first, transactions last."
+      },
+      "depth": { "type": "integer" }
+    }
+  }
+}

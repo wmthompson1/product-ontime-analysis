@@ -1,0 +1,43 @@
+{
+  "mcp_version": "1.0",
+  "skill_id": "parity_verifier_001",
+  "name": "Code-Documentation Parity Auditor",
+  "description": "Audits alignment between the SQLite schema catalog, SQLMesh .sql staging models, and Markdown lineage documentation.",
+  "runtime": "python3",
+  "entry_point": "./verify_parity.py",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "catalog_path": {
+        "type": "string",
+        "description": "Path to the authoritative schema_catalog.db.",
+        "default": "Utilities/SQLMesh/analysis/impact/output/schema_catalog.db"
+      },
+      "models_dir": {
+        "type": "string",
+        "description": "Directory containing SQLMesh staging models (.sql files).",
+        "default": "Utilities/SQLMesh/models/staging"
+      },
+      "docs_dir": {
+        "type": "string",
+        "description": "Directory containing narrative Markdown documentation.",
+        "default": "Documentation/models"
+      }
+    },
+    "required": ["catalog_path", "models_dir", "docs_dir"]
+  },
+  "output": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["success", "warning", "error"]
+      },
+      "verified_count": { "type": "integer" },
+      "discrepancies": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}
