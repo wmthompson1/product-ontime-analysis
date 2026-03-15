@@ -1,0 +1,296 @@
+plan_id: plan-003-herald-dashboard
+title: "Plan-003: Herald Multi-Agent Orchestration Dashboard"
+topic: "System Architecture — Dashboard, Agent Topology, and Tech Stack"
+created: "2026-03-13"
+status: In Progress
+delegated_by: Herald
+assigned_to:
+  - documentation-writer
+  - sqlmesh-devops
+
+objective: >
+  Document the full architecture of the Herald orchestration dashboard — a React+Vite
+  application that visualizes a multi-agent AI system for managing Manufacturing ERP
+  SQL semantic layer plans. This plan covers agent topology, UI layout, API design,
+  monorepo structure, shared libraries, and the delegation model that connects agents
+  to plan documents.
+
+steps:
+  - number: 1
+    title: Define agent topology
+    description: >
+      Establish the four-agent system with Herald as orchestrator and three specialized
+      subagents, each with defined roles, capabilities, and Python entry points.
+  - number: 2
+    title: Build dashboard UI
+    description: >
+      Implement the React+Vite single-page dashboard with Herald panel, agent cards grid,
+      plans viewer, and plan detail modal with Document and Steps & Log tabs.
+  - number: 3
+    title: Implement API server
+    description: >
+      Build the Express API serving agent metadata, plan listings, and plan detail from
+      the documentation/plan/ folder with Zod validation and resilience handlers.
+  - number: 4
+    title: Structure monorepo
+    description: >
+      Organize the pnpm workspace with artifact packages, shared libraries, and workspace
+      scripts for type-safe cross-package development.
+  - number: 5
+    title: Create shared libraries
+    description: >
+      Build api-zod for shared Zod schemas, api-client-react for Orval-generated hooks,
+      and configure React Query for state management on the frontend.
+  - number: 6
+    title: Establish delegation model
+    description: >
+      Define the plan file conventions (YAML + directory-per-plan) that connect Herald's
+      orchestration to subagent assignments, with status tracking and activity logging.
+
+sections:
+  - name: Agent Topology
+    content: >
+      The system consists of four agents organized in a hub-and-spoke pattern with Herald
+      at the center.
+
+
+      Herald (Orchestrator) — ID: herald-001. Primary orchestration agent responsible for
+      coordinating all subagents, managing task distribution, and maintaining the documentation
+      plan folder with plan IDs and topics. Capabilities: Task orchestration, Agent coordination,
+      Plan management, Status monitoring, Documentation generation, DDL metadata delegation.
+
+
+      Manufacturing Assistant (Subagent 014) — ID: agent-014. Official Manufacturing Assistant
+      agent focused on ERP schema analysis, entity mapping, and building the SQL semantic layer
+      foundation. Source file: 014_Entry_Point_Official_Manufacturing_Assistant.py. Capabilities:
+      Schema analysis, Entity mapping, SQL semantic modeling, Manufacturing domain expertise,
+      INFORMATION_SCHEMA.TABLES discovery, INFORMATION_SCHEMA.COLUMNS enumeration, DDL
+      reconstruction, View definition analysis, Schema dependency graphing, Hierarchy chain
+      validation.
+
+
+      Queue Router (Subagent 015) — ID: agent-015. Manufacturing Queue Router agent handling
+      query routing, metric definitions, and workload distribution. Source file:
+      015_Entry_Point_Manufacturing_Queue_Router.py. Capabilities: Query routing, Metric
+      definitions, Workload distribution, Priority queue management, Pipeline orchestration,
+      TABLE_CONSTRAINTS extraction, KEY_COLUMN_USAGE mapping, REFERENTIAL_CONSTRAINTS analysis,
+      Join-path catalog generation, Relationship graph construction, FK parent-child hierarchy
+      detection, Recursive CTE traversal patterns, Diamond pattern analysis.
+
+
+      Ambient Agent (Subagent 007) — ID: agent-007. Ambient monitoring agent providing continuous
+      validation, anomaly detection, and background quality assurance. Source file:
+      007_Entry_Point_Ambient_Agents.py. Capabilities: Continuous monitoring, Anomaly detection,
+      Quality validation, Background analysis, Alert generation, SQLite PRAGMA metadata
+      extraction, Unit test validation.
+
+
+      Agent Status Model: Each agent reports one of four statuses — active (operational and
+      processing), idle (available but not currently tasked), processing (actively executing
+      a delegation), or error (encountered a failure requiring attention).
+
+  - name: Dashboard UI Layout
+    content: >
+      The Herald dashboard is a single-page React application with a dark terminal-inspired
+      aesthetic using monospace typography and cyan/emerald accent colors.
+
+
+      Sticky Header: Displays "HERALD | ORCHESTRATION" with a global refresh button in the
+      top-right corner. The header persists across all scroll positions.
+
+
+      Context Banner: Sits below the header showing real-time system counts — number of active
+      agents and total plans. Provides jump links (Herald, Agents, Plans) for smooth scrolling
+      to each dashboard section. Includes a global search bar triggered by Cmd+K (or Ctrl+K)
+      that filters across agents and plans.
+
+
+      Herald Panel (Section 1): A full-width (max-w-2xl) card showcasing the orchestrator agent.
+      Features a gradient glow background (primary to emerald) with backdrop blur. Displays a
+      large CPU icon with an animated status dot, the agent description, a capabilities list
+      rendered as pill badges, and a dedicated System Status box showing the current operational
+      state.
+
+
+      Agent Cards Grid (Section 2): A responsive grid (1 to 3 columns depending on viewport)
+      displaying one card per subagent. Each card has a status-colored accent border at the top,
+      an icon specific to the agent type (Box for Manufacturing, GitBranch for Queue Router,
+      Terminal for Ambient), the agent name and ID, a description, capabilities as pill badges,
+      and a footer showing the truncated Python source file name.
+
+
+      Plans Viewer (Section 3): A repository-style list titled "Documentation / Plans". Each
+      row displays the plan ID, full title, a color-coded status badge (Draft, Delegated,
+      In Progress, Completed), and the associated file name. Includes a search/filter input
+      for narrowing the plan list.
+
+  - name: Plans Viewer Detail
+    content: >
+      Clicking a plan row opens the PlanDetailModal, a full-screen overlay with two viewing tabs.
+
+
+      Document Tab: Renders the plan's raw content as formatted text using react-markdown with
+      the remark-gfm plugin for GitHub Flavored Markdown support (tables, strikethrough, task
+      lists). For YAML plan files, the content is reconstructed into readable markdown before
+      rendering — including plan metadata, objective, steps, SQL patterns, and agent activity.
+
+
+      Steps & Log Tab: Displays plan content in a structured format with two sub-sections.
+      Implementation Steps shows a numbered list with each step's title and detailed description.
+      Agent Activity Log shows a chronological table (desktop) or list (mobile) of timestamped
+      entries recording which agent performed what action and when, providing a full audit trail
+      of the plan's delegation and execution history.
+
+
+      The plans system supports directory-per-plan layout: each plan lives in its own folder
+      with plan.yaml (metadata + narrative + audit log) and tasks.yaml (mutable work board).
+
+  - name: API Server
+    content: >
+      The API server is a TypeScript Express application running on the PORT environment variable
+      with CORS enabled for cross-origin dashboard requests.
+
+
+      GET /api/agents — Returns the full list of registered agents. Response is validated through
+      the ListAgentsResponse Zod schema before sending, ensuring type safety between server and
+      client.
+
+
+      GET /api/plans — Lists all plan directories found in the documentation/plan/ directory.
+      Each plan entry includes planId, title, topic, status, createdAt, and directoryName.
+
+
+      GET /api/plans/:planId — Returns the full detail for a specific plan, including rawContent
+      (the rendered document text), parsed steps array, tasks array, and agentActivity log entries.
+      Reads from plan.yaml + tasks.yaml within the plan directory.
+
+
+      GET /api/healthz — Simple health check endpoint returning server status.
+
+
+      Resilience: The server registers process-level handlers for uncaughtException and
+      unhandledRejection to prevent crashes from propagating. Express catch-all error middleware
+      returns 500 responses for unhandled route errors.
+
+  - name: Monorepo Structure
+    content: >
+      The project is a pnpm monorepo defined by pnpm-workspace.yaml with a catalog feature
+      for shared dependency versions across packages.
+
+
+      artifacts/ — Deployable application packages. api-server (Express backend serving the
+      agent and plan APIs), herald-dashboard (React+Vite frontend rendering the orchestration
+      dashboard), and mockup-sandbox (secondary frontend for UI component experimentation and
+      prototyping).
+
+
+      lib/ — Shared library packages consumed by artifacts. api-zod (Zod schema definitions
+      shared between server and client for type-safe API contracts), api-client-react
+      (Orval-generated React hooks and custom fetch logic for consuming the API), api-spec
+      (OpenAPI specification defining the API contract), and db (Drizzle ORM database schema
+      definitions).
+
+
+      scripts/ — Internal workspace scripts for tooling, type checking, and build orchestration.
+
+
+      documentation/plan/ — The plan directory read by the API server. Contains per-plan
+      subdirectories, each with plan.yaml and tasks.yaml. plan-index.yaml at the root
+      serves as the central registry for Herald.
+
+  - name: Shared Libraries
+    content: >
+      api-zod (@workspace/api-zod): The source of truth for all API data structures. Defines
+      Zod schemas for Agent (id, name, role, description, status, sourceFile, capabilities),
+      AgentStatus (active/idle/processing/error), AgentRole (orchestrator/subagent),
+      ListAgentsResponse (array of Agent), GetPlanResponse (planId, title, topic, status,
+      rawContent, steps, tasks, agentActivity), and ListPlansResponse. These schemas are imported
+      by both the API server (for response validation) and the client library (for type generation).
+
+
+      api-client-react (@workspace/api-client-react): Contains React hooks generated by Orval
+      from the OpenAPI spec — including useListAgents and useGetPlan. Uses a customFetch utility
+      that handles standard fetch requests, JSON parsing, and ApiError class for structured
+      error handling. These hooks are consumed directly by dashboard components.
+
+
+      React Query (@tanstack/react-query): Configured in the dashboard's App.tsx as the
+      QueryClientProvider. Manages the lifecycle of all API requests with automatic caching,
+      background refetching, and loading/error state management.
+
+  - name: Agent-to-Plan Delegation Model
+    content: >
+      The delegation model connects Herald's orchestration role to subagent work assignments
+      through the plan file system in documentation/plan/.
+
+
+      Directory-Per-Plan Layout: Each plan occupies its own subdirectory (e.g.,
+      plan-003-herald-dashboard/). plan.yaml holds metadata, objective, steps, sections, and
+      the immutable agent_activity audit log. tasks.yaml is the mutable work board — Herald
+      and agents update task statuses here without touching the audit log.
+
+
+      Plan Hierarchy: Plan-001 (SQL Semantic Layer Foundation) serves as the parent plan with
+      six sub-plans (plan-001a through plan-001f) that decompose the schema analysis work.
+      Plan-002 (Agent Coordination Protocol) defines multi-agent communication standards.
+      Plan-003 (this document) describes the dashboard architecture itself.
+
+
+      Status Lifecycle: Plans progress through four states — Draft (initial creation, not yet
+      assigned), Delegated (Herald has assigned the plan to a specific subagent), In Progress
+      (the assigned agent is actively working), and Completed (all steps finished and validated).
+
+
+      Activity Logging: Each plan's plan.yaml maintains an agent_activity log — a chronological
+      list of timestamped entries. tasks.yaml tracks per-task status separately, keeping the
+      audit log immutable while the work board stays current.
+
+agent_activity:
+  - timestamp: "2026-03-13T04:23:38.922Z"
+    agent: Herald
+    action: Plan Created
+    details: "Initialized plan-003 for dashboard architecture documentation"
+  - timestamp: "2026-03-15T00:00:00.000Z"
+    agent: Herald
+    action: Expanded
+    details: "Converted plan-003 to YAML with 7 architecture sections covering agent topology, UI, API, monorepo, libraries, and delegation model"
+  - timestamp: "2026-03-15T01:53:36.000Z"
+    agent: Herald
+    action: Delegated
+    details: "task-pod1-build-01 — Delegated to documentation-writer: build .agent.md suite and multi_agent_dashboard.html per pod1.md"
+  - timestamp: "2026-03-15T01:53:36.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "task-pod1-build-01 — Created herald.agent.md, sqlmesh-devops.agent.md, hashed-data-inspector.agent.md, documentation-writer.agent.md, test-data-synthesizer.agent.md, multi_agent_dashboard.html, pod1.md"
+  - timestamp: "2026-03-15T03:44:07.000Z"
+    agent: Herald
+    action: Delegated
+    details: "task-pod2-agent-01 — Delegated to documentation-writer: update documentation-writer.agent.md per pod2.md and upstream gem-documentation-writer"
+  - timestamp: "2026-03-15T03:44:07.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "task-pod2-agent-01 — Rewrote documentation-writer.agent.md to match upstream gem-documentation-writer with project-specific adaptations"
+  - timestamp: "2026-03-15T04:00:44.000Z"
+    agent: Herald
+    action: Delegated
+    details: "task-input-contract-01 — Delegated to documentation-writer: establish Herald→documentation-writer input contract for Documentation/plan/ folder"
+  - timestamp: "2026-03-15T04:00:44.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "task-input-contract-01 — Rewrote <input_format_guide> with concrete path conventions and 3 examples; added Delegation Protocol to herald.agent.md"
+  - timestamp: "2026-03-15T04:06:33.000Z"
+    agent: Herald
+    action: Delegated
+    details: "task-readme-01 — Delegated to documentation-writer: create Documentation/plan/README.md"
+  - timestamp: "2026-03-15T04:06:33.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "task-readme-01 — Created Documentation/plan/README.md covering folder structure, plan formats, lifecycle, and task completion convention"
+  - timestamp: "2026-03-15T04:40:01.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "task-008 — Applied plan organization schema: renamed files with descriptive slugs, added tasks arrays, created plan-index.yaml"
+  - timestamp: "2026-03-15T05:16:34.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "task-009 — Migrated to directory-per-plan layout: plan.yaml + tasks.yaml per plan directory, updated all references"

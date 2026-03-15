@@ -1,0 +1,41 @@
+plan_id: plan-002-agent-coordination
+title: "Plan-002: Agent Coordination Protocol"
+topic: "Multi-Agent Communication Standards"
+created: "2026-03-13"
+status: Draft
+delegated_by: Herald
+assigned_to:
+  - Herald
+
+objective: >
+  Establish communication protocols between Herald and the three subagents for
+  coordinated semantic layer development.
+
+steps:
+  - number: 1
+    title: Define message format
+    description: >
+      Standardize the message schema for inter-agent communication including task
+      assignments, status updates, and results.
+  - number: 2
+    title: Implement task queue
+    description: >
+      Create a shared task queue that Herald manages for distributing work to subagents.
+  - number: 3
+    title: Set up status reporting
+    description: >
+      Each agent reports progress back to Herald at defined intervals.
+  - number: 4
+    title: Error handling protocol
+    description: >
+      Define how agents communicate failures and request assistance.
+
+agent_activity:
+  - timestamp: "2026-03-13T04:23:38.922Z"
+    agent: Herald
+    action: Plan Created
+    details: "Initialized plan-002 for agent coordination"
+  - timestamp: "2026-03-15T05:16:34.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "Migrated to directory-per-plan layout — plan.yaml + tasks.yaml split"

@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Herald — Multi-Agent Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --muted: #8b949e;
+      --text: #e6edf3;
+      --herald: #bc8cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--herald);
+    }
+    header .logo span { font-size: 22px; }
+    .header-meta {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .status-pill {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+    .pill-online { background: #1a3a1f; color: var(--accent2); border: 1px solid var(--accent2); }
+    .pill-idle   { background: #2a2010; color: var(--warn);    border: 1px solid var(--warn); }
+    .pill-busy   { background: #1a2a3a; color: var(--accent);  border: 1px solid var(--accent); }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      height: calc(100vh - 57px);
+    }
+    .main-col {
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .sidebar {
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Herald Panel ── */
+    .herald-panel {
+      background: var(--surface);
+      border: 1px solid #6e40c9;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .herald-panel h2 {
+      color: var(--herald);
+      font-size: 15px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .herald-input {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .herald-input input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .herald-input input:focus { border-color: var(--herald); }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-herald { background: #6e40c9; color: white; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-primary { background: var(--accent); color: #0d1117; }
+    .btn-success { background: var(--accent2); color: #0d1117; }
+    .btn-warn    { background: var(--warn);    color: #0d1117; }
+    .btn-danger  { background: var(--danger);  color: white; }
+    .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+    .routing-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .routing-arrow { color: var(--herald); font-size: 16px; }
+    .routing-target {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      color: var(--text);
+      font-family: monospace;
+    }
+
+    /* ── Plan & Task Reviewer ── */
+    .plan-reviewer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .reviewer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .reviewer-title {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--herald);
+    }
+    .reviewer-summary {
+      display: flex;
+      gap: 8px;
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+    .sum-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .sum-completed { background:#1a3a1f; color:var(--accent2); }
+    .sum-progress  { background:#1a2a3a; color:var(--accent);  }
+    .sum-pending   { background:#2a2418; color:var(--warn);    }
+    .sum-delegated { background:#2a1a3a; color:var(--herald);  }
+    .sum-failed    { background:#3a1a1a; color:var(--danger);  }
+    .plan-list { display:flex; flex-direction:column; }
+    .plan-row { border-bottom: 1px solid var(--surface2); }
+    .plan-row:last-child { border-bottom: none; }
+    .plan-header-row {
+      display: grid;
+      grid-template-columns: 18px 90px 1fr 110px 90px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s;
+    }
+    .plan-header-row:hover { background: var(--surface2); }
+    .plan-chevron { color: var(--muted); font-size: 10px; transition: transform .2s; }
+    .plan-chevron.open { transform: rotate(90deg); }
+    .plan-id-badge {
+      font-family: monospace;
+      font-size: 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--muted);
+    }
+    .plan-title-text { font-size: 12px; font-weight: 500; }
+    .plan-agent-tag  { font-size: 10px; color: var(--muted); text-align:right; }
+    .task-list {
+      display: none;
+      flex-direction: column;
+      background: #0a0f14;
+      border-top: 1px solid var(--surface2);
+    }
+    .task-list.open { display: flex; }
+    .task-row {
+      display: grid;
+      grid-template-columns: 28px 1fr 110px 120px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 16px 6px 36px;
+      border-bottom: 1px solid #11161c;
+      font-size: 11px;
+    }
+    .task-row:last-child { border-bottom: none; }
+    .task-row:hover { background: #0d1219; }
+    .task-num  { color: var(--muted); font-family: monospace; text-align:right; }
+    .task-name { color: var(--text); }
+    .task-agent-label { font-size: 10px; color: var(--muted); font-family: monospace; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .3px;
+      white-space: nowrap;
+    }
+    .s-completed  { background:#1a3a1f; color:var(--accent2); border:1px solid #2a5a2f; }
+    .s-in_progress{ background:#1a2a3a; color:var(--accent);  border:1px solid #2a4a6a; }
+    .s-delegated  { background:#2a1a3a; color:var(--herald);  border:1px solid #4a2a6a; }
+    .s-pending    { background:#2a2418; color:var(--warn);    border:1px solid #4a3a28; }
+    .s-failed     { background:#3a1a1a; color:var(--danger);  border:1px solid #6a2a2a; }
+
+    /* ── Agent Cards ── */
+    .section-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color .2s;
+    }
+    .agent-card:hover { border-color: var(--accent); }
+    .agent-card.active { border-color: var(--accent2); }
+    .agent-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .agent-name {
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .agent-icon { font-size: 18px; }
+    .agent-role {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    .agent-skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin: 10px 0;
+    }
+    .skill-tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--accent);
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .skill-tag:hover { background: #1c3a5e; }
+    .agent-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+    .last-run { font-size: 11px; color: var(--muted); }
+    .run-count {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* ── Sidebar: Skills Panel ── */
+    .sidebar-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-section:last-child { border-bottom: none; flex: 1; overflow-y: auto; }
+    .sidebar-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .skill-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--surface2);
+    }
+    .skill-row:last-child { border-bottom: none; }
+    .skill-info { flex: 1; }
+    .skill-name {
+      font-family: monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+    .skill-agent {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── Activity Log ── */
+    .log-entries {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      max-height: 100%;
+    }
+    .log-entry {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--surface2);
+      display: grid;
+      grid-template-columns: 60px 90px 1fr;
+      gap: 8px;
+      align-items: start;
+      font-size: 11px;
+    }
+    .log-entry:hover { background: var(--surface2); }
+    .log-time { color: var(--muted); font-family: monospace; }
+    .log-agent { font-weight: 600; }
+    .log-agent.herald    { color: var(--herald); }
+    .log-agent.sqlmesh   { color: #ff7b72; }
+    .log-agent.inspector { color: #ffa657; }
+    .log-agent.docwriter { color: var(--accent); }
+    .log-agent.synth     { color: var(--accent2); }
+    .log-msg { color: var(--text); line-height: 1.4; }
+    .log-msg .ok     { color: var(--accent2); }
+    .log-msg .warn   { color: var(--warn); }
+    .log-msg .err    { color: var(--danger); }
+
+    /* ── Misc ── */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <span>🏛️</span> Herald Multi-Agent Dashboard
+  </div>
+  <div class="header-meta">
+    <span>Manufacturing Analytics · SQLMesh</span>
+    <span class="status-pill pill-online" id="system-status">● ONLINE</span>
+    <span id="clock" style="font-family:monospace"></span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- ── Main Column ── -->
+  <div class="main-col">
+
+    <!-- Herald Control Panel -->
+    <div class="herald-panel">
+      <h2><span>🏛️</span> Herald — Orchestrator</h2>
+      <div class="herald-input">
+        <input type="text" id="task-input" placeholder="Describe a task… Herald will route it to the right agent" />
+        <button class="btn btn-herald" onclick="routeTask()">Route Task ›</button>
+      </div>
+      <div class="routing-row" id="routing-display" style="display:none">
+        <span>Routing to</span>
+        <span class="routing-arrow">→</span>
+        <span class="routing-target" id="routing-target">—</span>
+        <span class="routing-arrow">→</span>
+        <span class="routing-target" id="routing-skill">—</span>
+      </div>
+    </div>
+
+    <!-- Plan & Task Reviewer -->
+    <div class="plan-reviewer">
+      <div class="reviewer-header">
+        <div class="reviewer-title">
+          <span>📋</span> Plan &amp; Task Reviewer
+          <span style="font-size:11px;color:var(--muted);font-weight:400">Herald · Documentation/plan/</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="reviewer-summary" id="task-summary"></div>
+          <button class="btn btn-sm btn-herald" onclick="runHeraldCheck()">▶ Run Herald Check</button>
+        </div>
+      </div>
+      <div class="plan-list" id="plan-list"></div>
+    </div>
+
+    <!-- Specialist Agents -->
+    <div>
+      <div class="section-title">Specialist Agents</div>
+      <div class="agent-grid" id="agent-grid">
+
+        <!-- SQLMesh DevOps -->
+        <div class="agent-card" id="card-sqlmesh">
+          <div class="agent-header">
+            <div>
+              <div class="agent-name"><span class="agent-icon">⚙️</span> sqlmesh-devops</div>
+              <div class="agent-role">SQLMesh operations, environment repair, schema impact</div>
+            </div>
+            <span class="status-pill pill-idle">IDLE</span>
+          </div>
+          <div class="agent-skills">
+            <span class="skill-tag" onclick="triggerSkill('sqlmesh-devops','environment_fix')">environment_fix</span>
+            <span class="skill-tag" onclick="triggerSkill('sqlmesh-devops','surgical_purge')">surgical_purge</span>
+            <span class="skill-tag" onclick="triggerSkill('sqlmesh-devops','pii_masking')">pii_masking</span>
+            <span class="skill-tag" onclick="triggerSkill('sqlmesh-devops','schema_impact')">schema_impact</span>
+          </div>
+          <div class="agent-footer">
+            <span class="last-run" id="lr-sqlmesh">Last run: —</span>
+            <span class="run-count" id="rc-sqlmesh">0 runs</span>
+          </div>
+        </div>
+
+        <!-- Hashed Data Inspector -->
+        <div class="agent-card" id="card-inspector">
+          <div class="agent-header">
+            <div>
+              <div class="agent-name"><span class="agent-icon">🔍</span> hashed-data-inspector</div>
+              <div class="agent-role">Column profiling, PII detection, hash verification</div>
+            </div>
+            <span class="status-pill pill-idle">IDLE</span>
+          </div>
+          <div class="agent-skills">
+            <span class="skill-tag" onclick="triggerSkill('hashed-data-inspector','column_profile')">column_profile</span>
+            <span class="skill-tag" onclick="triggerSkill('hashed-data-inspector','pii_detect')">pii_detect</span>
+            <span class="skill-tag" onclick="triggerSkill('hashed-data-inspector','hash_verify')">hash_verify</span>
+          </div>
+          <div class="agent-footer">
+            <span class="last-run" id="lr-inspector">Last run: —</span>
+            <span class="run-count" id="rc-inspector">0 runs</span>
+          </div>
+        </div>
+
+        <!-- Documentation Writer -->
+        <div class="agent-card" id="card-docwriter">
+          <div class="agent-header">
+            <div>
+              <div class="agent-name"><span class="agent-icon">📝</span> documentation-writer</div>
+              <div class="agent-role">Auto-generates model docs, plan files, READMEs</div>
+            </div>
+            <span class="status-pill pill-idle">IDLE</span>
+          </div>
+          <div class="agent-skills">
+            <span class="skill-tag" onclick="triggerSkill('documentation-writer','auto_docs')">auto_docs</span>
+            <span class="skill-tag" onclick="triggerSkill('documentation-writer','parity_check')">parity_check</span>
+            <span class="skill-tag" onclick="triggerSkill('documentation-writer','gen_plan')">gen_plan</span>
+          </div>
+          <div class="agent-footer">
+            <span class="last-run" id="lr-docwriter">Last run: —</span>
+            <span class="run-count" id="rc-docwriter">0 runs</span>
+          </div>
+        </div>
+
+        <!-- Test Data Synthesizer -->
+        <div class="agent-card" id="card-synth">
+          <div class="agent-header">
+            <div>
+              <div class="agent-name"><span class="agent-icon">🧪</span> test-data-synthesizer</div>
+              <div class="agent-role">Faker-based seed CSV generation, referential integrity</div>
+            </div>
+            <span class="status-pill pill-idle">IDLE</span>
+          </div>
+          <div class="agent-skills">
+            <span class="skill-tag" onclick="triggerSkill('test-data-synthesizer','gen_seeds')">gen_seeds</span>
+            <span class="skill-tag" onclick="triggerSkill('test-data-synthesizer','gen_timeseries')">gen_timeseries</span>
+            <span class="skill-tag" onclick="triggerSkill('test-data-synthesizer','validate_fk')">validate_fk</span>
+          </div>
+          <div class="agent-footer">
+            <span class="last-run" id="lr-synth">Last run: —</span>
+            <span class="run-count" id="rc-synth">0 runs</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /main-col -->
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+
+    <!-- MCP Skills -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">MCP Skills · sqlmesh.yaml</div>
+      <div class="skill-row">
+        <div class="skill-info">
+          <div class="skill-name">environment_fix</div>
+          <div class="skill-agent">→ sqlmesh-devops</div>
+        </div>
+        <button class="btn btn-sm btn-warn" onclick="triggerSkill('sqlmesh-devops','environment_fix')">Run</button>
+      </div>
+      <div class="skill-row">
+        <div class="skill-info">
+          <div class="skill-name">surgical_purge</div>
+          <div class="skill-agent">→ sqlmesh-devops</div>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="triggerSkill('sqlmesh-devops','surgical_purge')">Run</button>
+      </div>
+      <div class="skill-row">
+        <div class="skill-info">
+          <div class="skill-name">pii_masking</div>
+          <div class="skill-agent">→ sqlmesh-devops</div>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="triggerSkill('sqlmesh-devops','pii_masking')">Run</button>
+      </div>
+      <div class="skill-row">
+        <div class="skill-info">
+          <div class="skill-name">schema_impact</div>
+          <div class="skill-agent">→ sqlmesh-devops</div>
+        </div>
+        <button class="btn btn-sm btn-ghost" onclick="triggerSkill('sqlmesh-devops','schema_impact')">Run</button>
+      </div>
+      <div class="skill-row">
+        <div class="skill-info">
+          <div class="skill-name">auto_docs</div>
+          <div class="skill-agent">→ documentation-writer</div>
+        </div>
+        <button class="btn btn-sm btn-success" onclick="triggerSkill('documentation-writer','auto_docs')">Run</button>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="sidebar-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+      <div class="sidebar-title">Activity Log</div>
+      <div class="log-entries" id="log-entries">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          <div>No activity yet.<br/>Route a task or trigger a skill.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+</div><!-- /layout -->
+
+<script>
+  // ── Clock ──────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-US', { hour12: false });
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // ── State ──────────────────────────────────────────────
+  const runCounts = { 'sqlmesh-devops': 0, 'hashed-data-inspector': 0, 'documentation-writer': 0, 'test-data-synthesizer': 0 };
+  const agentKeys = {
+    'sqlmesh-devops':       { key: 'sqlmesh',   cls: 'sqlmesh',   icon: '⚙️'  },
+    'hashed-data-inspector':{ key: 'inspector', cls: 'inspector', icon: '🔍'  },
+    'documentation-writer': { key: 'docwriter', cls: 'docwriter', icon: '📝'  },
+    'test-data-synthesizer':{ key: 'synth',     cls: 'synth',     icon: '🧪'  },
+  };
+
+  // ── Routing logic (keyword → agent) ───────────────────
+  const routingRules = [
+    { keywords: ['pycache','pydantic','purge','env','environment','venv','install','reinstall','duplicate','uniquekey','schema impact','ddl','alter','drop column','rename'], agent: 'sqlmesh-devops', skill: 'environment_fix' },
+    { keywords: ['pii','mask','hash','salt','gemin','vendor id','employee id','sensitive'], agent: 'sqlmesh-devops', skill: 'pii_masking' },
+    { keywords: ['profile','inspect','null','cardinality','distribution','anomaly','quality','detect'], agent: 'hashed-data-inspector', skill: 'column_profile' },
+    { keywords: ['document','doc','readme','plan','markdown','write','update docs','auto_docs'], agent: 'documentation-writer', skill: 'auto_docs' },
+    { keywords: ['seed','csv','fake','faker','synthetic','generate data','test data','referential'], agent: 'test-data-synthesizer', skill: 'gen_seeds' },
+    { keywords: ['time series','timeseries','daily','oee','defect','on-time','delivery'], agent: 'test-data-synthesizer', skill: 'gen_timeseries' },
+  ];
+
+  function detectRoute(text) {
+    const t = text.toLowerCase();
+    for (const rule of routingRules) {
+      if (rule.keywords.some(k => t.includes(k))) return rule;
+    }
+    return { agent: 'sqlmesh-devops', skill: 'schema_impact' }; // default
+  }
+
+  // ── Log helper ─────────────────────────────────────────
+  let logEmpty = true;
+  function addLog(agentKey, agentCls, msg, type = '') {
+    const el = document.getElementById('log-entries');
+    if (logEmpty) { el.innerHTML = ''; logEmpty = false; }
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const typeClass = type ? ` class="${type}"` : '';
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `
+      <span class="log-time">${now}</span>
+      <span class="log-agent ${agentCls}">${agentKey}</span>
+      <span class="log-msg"${typeClass}>${msg}</span>`;
+    el.prepend(entry);
+  }
+
+  // ── Set agent card status ──────────────────────────────
+  function setCardStatus(agent, status) {
+    const k = agentKeys[agent];
+    if (!k) return;
+    const card = document.getElementById('card-' + k.key);
+    const pill = card.querySelector('.status-pill');
+    pill.className = 'status-pill';
+    if (status === 'BUSY') { pill.classList.add('pill-busy'); pill.textContent = '● BUSY'; card.classList.add('active'); }
+    else                   { pill.classList.add('pill-idle'); pill.textContent = 'IDLE';  card.classList.remove('active'); }
+  }
+
+  // ── Trigger a skill ────────────────────────────────────
+  function triggerSkill(agent, skill) {
+    const k = agentKeys[agent];
+    if (!k) return;
+    runCounts[agent]++;
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    // Herald routes
+    addLog('herald', 'herald', `Routing → <strong>${agent}</strong> · skill: <code>${skill}</code>`);
+
+    // Mark busy
+    setCardStatus(agent, 'BUSY');
+
+    // Simulate execution
+    const duration = 800 + Math.random() * 1400;
+    setTimeout(() => {
+      setCardStatus(agent, 'IDLE');
+      document.getElementById('lr-' + k.key).textContent = 'Last run: ' + now;
+      document.getElementById('rc-' + k.key).textContent = runCounts[agent] + ' run' + (runCounts[agent] !== 1 ? 's' : '');
+      addLog(k.key, k.cls, `<span class="ok">✔</span> <code>${skill}</code> completed successfully`, 'ok');
+    }, duration);
+
+    addLog(k.key, k.cls, `Executing skill: <code>${skill}</code>…`);
+  }
+
+  // ── Route task (Herald input) ──────────────────────────
+  function routeTask() {
+    const input = document.getElementById('task-input');
+    const text = input.value.trim();
+    if (!text) return;
+
+    const route = detectRoute(text);
+    const display = document.getElementById('routing-display');
+    document.getElementById('routing-target').textContent = route.agent;
+    document.getElementById('routing-skill').textContent  = route.skill;
+    display.style.display = 'flex';
+
+    addLog('herald', 'herald', `Received: "${text}"`);
+    addLog('herald', 'herald', `Detected intent → <strong>${route.agent}</strong> · <code>${route.skill}</code>`);
+
+    input.value = '';
+    setTimeout(() => triggerSkill(route.agent, route.skill), 400);
+  }
+
+  // Enter key on input
+  document.getElementById('task-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') routeTask();
+  });
+
+  // ── Plan & Task Data (from Documentation/plan/) ───────
+  const PLANS = [
+    {
+      plan_id: 'plan-001-sql-semantic-layer',
+      title: 'SQL Semantic Layer Foundation',
+      status: 'in_progress',
+      file: 'plan-001-sql-semantic-layer/plan.yaml',
+      tasks: [
+        { id:'task-001',  name:'Analyze existing ERP schema',                                       status:'in_progress', agent:'agent-014' },
+        { id:'task-002',  name:'Define semantic models',                                            status:'pending',     agent:'agent-014' },
+        { id:'task-003',  name:'Build metric definitions',                                          status:'pending',     agent:'agent-015' },
+        { id:'task-004',  name:'Create dimension tables',                                           status:'pending',     agent:'agent-014' },
+        { id:'task-005',  name:'Validate with sample queries',                                      status:'pending',     agent:'agent-007' },
+        { id:'task-001-1a', name:'Tables & Columns — INFORMATION_SCHEMA discovery',                status:'delegated',   agent:'agent-014' },
+        { id:'task-001-1b', name:'Constraints & Relationships — PKs, FKs, referential integrity',  status:'delegated',   agent:'agent-015' },
+        { id:'task-001-1c', name:'Index Metadata & Schema Overlay — ArangoDB graph',               status:'delegated',   agent:'agent-007' },
+        { id:'task-001-1d', name:'Views, Routines & Dependencies — dependency graph',              status:'delegated',   agent:'agent-014, agent-015' },
+        { id:'task-001-1e', name:'FK Parent-Child Hierarchy — recursive traversal',                status:'delegated',   agent:'agent-015, agent-014' },
+        { id:'task-001-1f', name:'SQLite PRAGMA Test Module — unit tests vs sample schema',        status:'delegated',   agent:'agent-007, agent-014' },
+      ]
+    },
+    {
+      plan_id: 'plan-002-agent-coordination',
+      title: 'Agent Coordination Protocol',
+      status: 'pending',
+      file: 'plan-002-agent-coordination/plan.yaml',
+      tasks: [
+        { id:'task-001', name:'Define message format — inter-agent JSON schema',          status:'pending', agent:'Herald' },
+        { id:'task-002', name:'Implement task queue — Herald-managed work distribution',  status:'pending', agent:'Herald' },
+        { id:'task-003', name:'Set up status reporting — agent progress callbacks',       status:'pending', agent:'Herald' },
+        { id:'task-004', name:'Error handling protocol — failure + escalation paths',     status:'pending', agent:'Herald' },
+      ]
+    },
+    {
+      plan_id: 'plan-003-herald-dashboard',
+      title: 'Herald Multi-Agent Orchestration Dashboard',
+      status: 'in_progress',
+      file: 'plan-003-herald-dashboard/plan.yaml',
+      tasks: [
+        { id:'task-001', name:'Define agent topology — Herald + 4 specialist agents',     status:'completed',   agent:'Herald' },
+        { id:'task-002', name:'Build dashboard UI — React+Vite / standalone HTML',        status:'completed',   agent:'documentation-writer' },
+        { id:'task-003', name:'Establish delegation model — plan.yaml + agent_activity',  status:'completed',   agent:'documentation-writer' },
+        { id:'task-004', name:'Document plan lifecycle (README.md)',                      status:'completed',   agent:'documentation-writer' },
+        { id:'task-005', name:'Implement API server — Express + plan endpoints',          status:'pending',     agent:'sqlmesh-devops' },
+        { id:'task-006', name:'Structure monorepo — pnpm workspace',                     status:'pending',     agent:'sqlmesh-devops' },
+        { id:'task-007', name:'Create shared libraries — api-zod, api-client-react',     status:'pending',     agent:'sqlmesh-devops' },
+        { id:'task-008', name:'Apply plan organization schema (slugs + tasks + index)',   status:'completed',   agent:'documentation-writer' },
+      ]
+    }
+  ];
+
+  // ── Status helpers ─────────────────────────────────────
+  const STATUS_META = {
+    completed:   { cls:'s-completed',   icon:'✔', label:'Completed'   },
+    in_progress: { cls:'s-in_progress', icon:'◉', label:'In Progress' },
+    delegated:   { cls:'s-delegated',   icon:'→', label:'Delegated'   },
+    pending:     { cls:'s-pending',     icon:'○', label:'Pending'     },
+    failed:      { cls:'s-failed',      icon:'✖', label:'Failed'      },
+  };
+
+  function statusBadge(s) {
+    const m = STATUS_META[s] || STATUS_META.pending;
+    return `<span class="status-badge ${m.cls}">${m.icon} ${m.label}</span>`;
+  }
+
+  function planStatusBadge(s) {
+    const map = { in_progress:'in_progress', pending:'pending', completed:'completed', delegated:'delegated', failed:'failed' };
+    return statusBadge(map[s] || 'pending');
+  }
+
+  // ── Render plan list ───────────────────────────────────
+  function renderPlans() {
+    const container = document.getElementById('plan-list');
+    container.innerHTML = '';
+    PLANS.forEach((plan, pi) => {
+      const div = document.createElement('div');
+      div.className = 'plan-row';
+      div.innerHTML = `
+        <div class="plan-header-row" onclick="togglePlan(${pi})">
+          <span class="plan-chevron" id="chev-${pi}">▶</span>
+          <span class="plan-id-badge">${plan.plan_id}</span>
+          <span class="plan-title-text">${plan.title}</span>
+          ${planStatusBadge(plan.status)}
+          <span class="plan-agent-tag">${plan.file}</span>
+        </div>
+        <div class="task-list" id="tasks-${pi}">
+          ${plan.tasks.map((t,ti) => `
+            <div class="task-row" id="task-${pi}-${ti}">
+              <span class="task-num">${t.id}</span>
+              <span class="task-name">${t.name}</span>
+              <span id="badge-${pi}-${ti}">${statusBadge(t.status)}</span>
+              <span class="task-agent-label">${t.agent}</span>
+            </div>`).join('')}
+        </div>`;
+      container.appendChild(div);
+    });
+    updateSummary();
+  }
+
+  function togglePlan(pi) {
+    const list = document.getElementById('tasks-' + pi);
+    const chev = document.getElementById('chev-' + pi);
+    list.classList.toggle('open');
+    chev.classList.toggle('open');
+  }
+
+  // ── Summary pills ──────────────────────────────────────
+  function updateSummary() {
+    const counts = { completed:0, in_progress:0, delegated:0, pending:0, failed:0 };
+    PLANS.forEach(p => p.tasks.forEach(t => { if(counts[t.status]!==undefined) counts[t.status]++; }));
+    const total = Object.values(counts).reduce((a,b)=>a+b,0);
+    document.getElementById('task-summary').innerHTML = `
+      <span class="sum-pill sum-completed">✔ ${counts.completed} done</span>
+      <span class="sum-pill sum-progress">◉ ${counts.in_progress} active</span>
+      <span class="sum-pill sum-delegated">→ ${counts.delegated} delegated</span>
+      <span class="sum-pill sum-pending">○ ${counts.pending} pending</span>
+      ${counts.failed ? `<span class="sum-pill sum-failed">✖ ${counts.failed} failed</span>` : ''}
+      <span style="color:var(--muted);font-size:11px;">${total} total</span>`;
+  }
+
+  // ── Herald Check (unit test runner) ───────────────────
+  function runHeraldCheck() {
+    addLog('herald', 'herald', '▶ Running Herald task status check across all plans…');
+    let delay = 200;
+    PLANS.forEach((plan, pi) => {
+      // auto-open plan
+      setTimeout(() => {
+        const list = document.getElementById('tasks-' + pi);
+        const chev = document.getElementById('chev-' + pi);
+        if (!list.classList.contains('open')) { list.classList.add('open'); chev.classList.add('open'); }
+      }, delay);
+      delay += 100;
+
+      plan.tasks.forEach((task, ti) => {
+        setTimeout(() => {
+          const badge = document.getElementById(`badge-${pi}-${ti}`);
+          if (badge) badge.innerHTML = statusBadge(task.status);
+
+          const icon = STATUS_META[task.status]?.icon || '○';
+          const label = STATUS_META[task.status]?.label || task.status;
+          const agentCls = task.agent.includes('documentation') ? 'docwriter'
+                         : task.agent.includes('agent-014')     ? 'sqlmesh'
+                         : task.agent.includes('agent-015')     ? 'inspector'
+                         : task.agent.includes('agent-007')     ? 'synth'
+                         : 'herald';
+          addLog(task.agent.split(',')[0].trim(), agentCls,
+            `${icon} [${plan.plan_id}·${task.id}] ${task.name} — <strong>${label}</strong>`);
+        }, delay);
+        delay += 120;
+      });
+    });
+
+    setTimeout(() => {
+      updateSummary();
+      const allTasks = PLANS.flatMap(p => p.tasks);
+      const done = allTasks.filter(t => t.status==='completed').length;
+      const active = allTasks.filter(t => ['in_progress','delegated'].includes(t.status)).length;
+      const blocked = allTasks.filter(t => t.status==='failed').length;
+      addLog('herald', 'herald',
+        `<span class="ok">✔ Herald check complete.</span> ${done} completed · ${active} active · ${allTasks.filter(t=>t.status==='pending').length} pending${blocked ? ` · <span class="err">${blocked} failed</span>` : ''}`);
+    }, delay + 100);
+  }
+
+  // ── Boot ───────────────────────────────────────────────
+  renderPlans();
+  setTimeout(() => {
+    addLog('herald', 'herald', '🏛️ Herald orchestrator online. Waiting for tasks.');
+    addLog('sqlmesh',   'sqlmesh',   '<span class="ok">✔</span> sqlmesh-devops agent ready');
+    addLog('inspector', 'inspector', '<span class="ok">✔</span> hashed-data-inspector ready');
+    addLog('docwriter', 'docwriter', '<span class="ok">✔</span> documentation-writer ready');
+    addLog('synth',     'synth',     '<span class="ok">✔</span> test-data-synthesizer ready');
+  }, 300);
+</script>
+
+</body>
+</html>

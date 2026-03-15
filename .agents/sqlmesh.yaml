@@ -1,0 +1,27 @@
+# .agents/skills/sqlmesh.yaml
+project_metadata:
+  path: "Utilities/SQLMesh/"
+  python_interpreter: ".venv/Scripts/python.exe" # Windows path for local agent
+
+skills:
+  environment_fix:
+    agent: "sqlmesh-devops"
+    action: "Nuke __pycache__ and force-reinstall pydantic-core"
+  
+  pii_masking:
+    agent: "sqlmesh-devops"
+    logic: "Apply GEMIN salt to Vendor/Employee IDs via Faker"
+
+  schema_impact:
+    agent: "impact-analysis"
+    source: "Documentation/ERP_Schemas/"
+
+  auto_docs:
+    agent: "gem-documentation-writer"
+    output_path: "Documentation/plan/"
+    parity_check: true
+  
+  surgical_purge:
+    description: "Clears __pycache__ and .sqlmesh state to resolve DuplicateKey/UniqueKeyDict errors."
+    command: "Get-ChildItem -Path . -Include '__pycache__', '.sqlmesh' -Recurse -Force | Remove-Item -Recurse -Force"
+    post_action: "sqlmesh -p Utilities/SQLMesh info"

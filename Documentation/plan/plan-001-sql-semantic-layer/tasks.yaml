@@ -1,0 +1,88 @@
+plan_id: plan-001-sql-semantic-layer
+
+# Tasks are the mutable work board. agent_activity in plan.yaml is the immutable audit log.
+# status: pending | in_progress | delegated | completed | failed
+
+tasks:
+  - id: task-001
+    title: Analyze existing ERP schema
+    status: in_progress
+    assigned_to: Manufacturing Assistant (014)
+    wave: 1
+    depends_on: []
+
+  - id: task-002
+    title: Define semantic models
+    status: pending
+    assigned_to: Manufacturing Assistant (014)
+    wave: 2
+    depends_on: [task-001]
+
+  - id: task-003
+    title: Build metric definitions
+    status: pending
+    assigned_to: Queue Router (015)
+    wave: 2
+    depends_on: [task-001]
+
+  - id: task-004
+    title: Create dimension tables
+    status: pending
+    assigned_to: Manufacturing Assistant (014)
+    wave: 3
+    depends_on: [task-002]
+
+  - id: task-005
+    title: Validate with sample queries
+    status: pending
+    assigned_to: Ambient Agent (007)
+    wave: 4
+    depends_on: [task-003, task-004]
+
+  - id: task-001-1a
+    title: "Tables & Columns — INFORMATION_SCHEMA discovery"
+    status: delegated
+    assigned_to: Manufacturing Assistant (014)
+    wave: 1a
+    depends_on: [task-001]
+    sub_plan: plan-001a-tables-columns
+
+  - id: task-001-1b
+    title: "Constraints & Relationships"
+    status: delegated
+    assigned_to: Queue Router (015)
+    wave: 1b
+    depends_on: [task-001]
+    sub_plan: plan-001b-constraints-relationships
+
+  - id: task-001-1c
+    title: "Index Metadata & Schema Overlay"
+    status: delegated
+    assigned_to: Ambient Agent (007)
+    wave: 1c
+    depends_on: [task-001]
+    sub_plan: plan-001c-index-metadata
+
+  - id: task-001-1d
+    title: "Views, Routines & Dependencies"
+    status: delegated
+    assigned_to: [Manufacturing Assistant (014), Queue Router (015)]
+    wave: 1d
+    depends_on: [task-001-1a, task-001-1b]
+    sub_plan: plan-001d-views-dependencies
+
+  - id: task-001-1e
+    title: "Foreign Key Parent-Child Hierarchy"
+    status: delegated
+    assigned_to: [Queue Router (015), Manufacturing Assistant (014)]
+    wave: 1e
+    depends_on: [task-001-1b]
+    sub_plan: plan-001e-fk-hierarchy
+
+  - id: task-001-1f
+    title: "SQLite PRAGMA Test Module"
+    status: delegated
+    assigned_to: [Ambient Agent (007), Manufacturing Assistant (014)]
+    wave: 1f
+    depends_on: [task-001-1c]
+    sub_plan: plan-001f-pragma-tests

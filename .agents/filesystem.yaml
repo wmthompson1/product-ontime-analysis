@@ -1,0 +1,24 @@
+name: filesystem
+version: 1.0.0
+description: |
+  Read‑only filesystem access for GitHub Copilot agents.
+  Provides safe inspection of project files without modification.
+
+capabilities:
+  read:
+    description: Read file contents safely.
+    parameters:
+      path:
+        type: string
+        description: Absolute or relative path to the file.
+
+  list:
+    description: List files and directories.
+    parameters:
+      path:
+        type: string
+        description: Directory to list.
+
+permissions:
+  filesystem:
+    - read

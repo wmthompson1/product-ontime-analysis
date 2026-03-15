@@ -1,0 +1,149 @@
+index_version: "1.1"
+description: >
+  Central registry of all Herald orchestration plans. Herald consults this file
+  to list available plans, resolve parent-child relationships, and route tasks to
+  the correct plan directory. Update this file whenever a new plan is created.
+
+  Directory convention: plan-{NNN}-{slug}/
+    plan.yaml   — metadata, objective, steps, sections, agent_activity (immutable audit log)
+    tasks.yaml  — mutable work board (task id, title, status, assigned_to, wave, depends_on)
+  Sub-plan convention: plan-{NNN}{letter}-{slug}/ (e.g., plan-001a-tables-columns/)
+
+plans:
+  - id: plan-001-sql-semantic-layer
+    dir: plan-001-sql-semantic-layer
+    plan_file: plan-001-sql-semantic-layer/plan.yaml
+    tasks_file: plan-001-sql-semantic-layer/tasks.yaml
+    title: "SQL Semantic Layer Foundation"
+    domain: sqlmesh
+    status: In Progress
+    parent: null
+    children:
+      - plan-001a-tables-columns
+      - plan-001b-constraints-relationships
+      - plan-001c-index-metadata
+      - plan-001d-views-dependencies
+      - plan-001e-fk-hierarchy
+      - plan-001f-pragma-tests
+    assigned_to:
+      - Manufacturing Assistant (014)
+      - Queue Router (015)
+      - Ambient Agent (007)
+    created: "2026-03-13"
+
+  - id: plan-002-agent-coordination
+    dir: plan-002-agent-coordination
+    plan_file: plan-002-agent-coordination/plan.yaml
+    tasks_file: plan-002-agent-coordination/tasks.yaml
+    title: "Agent Coordination Protocol"
+    domain: herald
+    status: Draft
+    parent: null
+    children: []
+    assigned_to:
+      - Herald
+    created: "2026-03-13"
+
+  - id: plan-003-herald-dashboard
+    dir: plan-003-herald-dashboard
+    plan_file: plan-003-herald-dashboard/plan.yaml
+    tasks_file: plan-003-herald-dashboard/tasks.yaml
+    title: "Herald Multi-Agent Orchestration Dashboard"
+    domain: herald
+    status: In Progress
+    parent: null
+    children:
+      - plan-003a-api-server
+      - plan-003b-monorepo
+    assigned_to:
+      - documentation-writer
+      - sqlmesh-devops
+    created: "2026-03-13"
+
+# ── Sub-plans (registered when created, directories may not exist yet) ────────
+
+sub_plans:
+  - id: plan-001a-tables-columns
+    parent: plan-001-sql-semantic-layer
+    title: "Tables & Columns — INFORMATION_SCHEMA discovery"
+    dir: plan-001a-tables-columns
+    plan_file: plan-001a-tables-columns/plan.yaml
+    tasks_file: plan-001a-tables-columns/tasks.yaml
+    status: Delegated
+    assigned_to: Manufacturing Assistant (014)
+
+  - id: plan-001b-constraints-relationships
+    parent: plan-001-sql-semantic-layer
+    title: "Constraints & Relationships"
+    dir: plan-001b-constraints-relationships
+    plan_file: plan-001b-constraints-relationships/plan.yaml
+    tasks_file: plan-001b-constraints-relationships/tasks.yaml
+    status: Delegated
+    assigned_to: Queue Router (015)
+
+  - id: plan-001c-index-metadata
+    parent: plan-001-sql-semantic-layer
+    title: "Index Metadata & Schema Overlay"
+    dir: plan-001c-index-metadata
+    plan_file: plan-001c-index-metadata/plan.yaml
+    tasks_file: plan-001c-index-metadata/tasks.yaml
+    status: Delegated
+    assigned_to: Ambient Agent (007)
+
+  - id: plan-001d-views-dependencies
+    parent: plan-001-sql-semantic-layer
+    title: "Views, Routines & Dependencies"
+    dir: plan-001d-views-dependencies
+    plan_file: plan-001d-views-dependencies/plan.yaml
+    tasks_file: plan-001d-views-dependencies/tasks.yaml
+    status: Delegated
+    assigned_to:
+      - Manufacturing Assistant (014)
+      - Queue Router (015)
+
+  - id: plan-001e-fk-hierarchy
+    parent: plan-001-sql-semantic-layer
+    title: "Foreign Key Parent-Child Hierarchy"
+    dir: plan-001e-fk-hierarchy
+    plan_file: plan-001e-fk-hierarchy/plan.yaml
+    tasks_file: plan-001e-fk-hierarchy/tasks.yaml
+    status: Delegated
+    assigned_to:
+      - Queue Router (015)
+      - Manufacturing Assistant (014)
+
+  - id: plan-001f-pragma-tests
+    parent: plan-001-sql-semantic-layer
+    title: "SQLite PRAGMA Test Module"
+    dir: plan-001f-pragma-tests
+    plan_file: plan-001f-pragma-tests/plan.yaml
+    tasks_file: plan-001f-pragma-tests/tasks.yaml
+    status: Delegated
+    assigned_to:
+      - Ambient Agent (007)
+      - Manufacturing Assistant (014)
+
+  - id: plan-003a-api-server
+    parent: plan-003-herald-dashboard
+    title: "Express API Server"
+    dir: plan-003a-api-server
+    plan_file: plan-003a-api-server/plan.yaml
+    tasks_file: plan-003a-api-server/tasks.yaml
+    status: Pending
+    assigned_to: sqlmesh-devops
+
+  - id: plan-003b-monorepo
+    parent: plan-003-herald-dashboard
+    title: "pnpm Monorepo Structure & Shared Libraries"
+    dir: plan-003b-monorepo
+    plan_file: plan-003b-monorepo/plan.yaml
+    tasks_file: plan-003b-monorepo/tasks.yaml
+    status: Pending
+    assigned_to: sqlmesh-devops
+
+# ── Status reference ──────────────────────────────────────────────────────────
+# Draft      — created, not yet assigned
+# Delegated  — Herald has assigned to a subagent; agent has not started
+# In Progress — agent is actively working
+# Completed  — all tasks finished and validated
+# Pending    — sub-plan registered but not yet delegated

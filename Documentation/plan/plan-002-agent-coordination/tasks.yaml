@@ -1,0 +1,33 @@
+plan_id: plan-002-agent-coordination
+
+# Tasks are the mutable work board. agent_activity in plan.yaml is the immutable audit log.
+# status: pending | in_progress | delegated | completed | failed
+
+tasks:
+  - id: task-001
+    title: Define message format
+    status: pending
+    assigned_to: Herald
+    wave: 1
+    depends_on: []
+
+  - id: task-002
+    title: Implement task queue
+    status: pending
+    assigned_to: Herald
+    wave: 2
+    depends_on: [task-001]
+
+  - id: task-003
+    title: Set up status reporting
+    status: pending
+    assigned_to: All Agents
+    wave: 2
+    depends_on: [task-001]
+
+  - id: task-004
+    title: Error handling protocol
+    status: pending
+    assigned_to: Herald
+    wave: 3
+    depends_on: [task-002, task-003]

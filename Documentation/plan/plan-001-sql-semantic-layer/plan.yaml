@@ -1,0 +1,145 @@
+plan_id: plan-001-sql-semantic-layer
+title: "Plan-001: SQL Semantic Layer Foundation"
+topic: "SQL Semantic Layer for Manufacturing ERP"
+created: "2026-03-13"
+status: In Progress
+delegated_by: Herald
+assigned_to:
+  - Manufacturing Assistant (014)
+  - Queue Router (015)
+  - Ambient Agent (007)
+
+objective: >
+  Build a comprehensive SQL semantic layer for the manufacturing ERP system, covering core
+  data domains including work orders, inventory, production scheduling, and quality control.
+
+steps:
+  - number: 1
+    title: Analyze existing ERP schema
+    description: >
+      Review the manufacturing database structure, identify key tables, relationships,
+      and business rules from the imported Python agent codebase.
+  - number: 2
+    title: Define semantic models
+    description: >
+      Create semantic model definitions for core manufacturing entities (work orders,
+      BOMs, inventory, production lines).
+  - number: 3
+    title: Build metric definitions
+    description: >
+      Define key manufacturing KPIs (OTD rate, cycle time, scrap rate, utilization)
+      as reusable metric layers.
+  - number: 4
+    title: Create dimension tables
+    description: >
+      Establish shared dimension definitions (time, product, facility, supplier)
+      for consistent reporting.
+  - number: 5
+    title: Validate with sample queries
+    description: >
+      Test semantic layer definitions against representative business questions.
+
+sub_plans:
+  - id: plan-001a-tables-columns
+    file: plan-001a-tables-columns/plan.yaml
+    title: "Tables & Columns — INFORMATION_SCHEMA.TABLES and COLUMNS discovery"
+    assigned_to: Manufacturing Assistant (014)
+    status: Delegated
+
+  - id: plan-001b-constraints-relationships
+    file: plan-001b-constraints-relationships/plan.yaml
+    title: "Constraints & Relationships — Primary keys, foreign keys, referential integrity"
+    assigned_to: Queue Router (015)
+    status: Delegated
+
+  - id: plan-001c-index-metadata
+    file: plan-001c-index-metadata/plan.yaml
+    title: "Index Metadata & Schema Overlay — Perspective and Intent Mapping from ArangoDB graph"
+    assigned_to: Ambient Agent (007)
+    status: Delegated
+
+  - id: plan-001d-views-dependencies
+    file: plan-001d-views-dependencies/plan.yaml
+    title: "Views, Routines & Dependencies — Views, stored procedures, dependency graph"
+    assigned_to:
+      - Manufacturing Assistant (014)
+      - Queue Router (015)
+    status: Delegated
+
+  - id: plan-001e-fk-hierarchy
+    file: plan-001e-fk-hierarchy/plan.yaml
+    title: "Foreign Key Parent-Child Hierarchy — Root/leaf detection, adjacency list, recursive traversal, diamond patterns"
+    assigned_to:
+      - Queue Router (015)
+      - Manufacturing Assistant (014)
+    status: Delegated
+
+  - id: plan-001f-pragma-tests
+    file: plan-001f-pragma-tests/plan.yaml
+    title: "SQLite PRAGMA Test Module — INFORMATION_SCHEMA equivalents via PRAGMA, unit tests against sample schema"
+    assigned_to:
+      - Ambient Agent (007)
+      - Manufacturing Assistant (014)
+    status: Delegated
+
+agent_activity:
+  - timestamp: "2026-03-13T04:23:38.922Z"
+    agent: Herald
+    action: Plan Created
+    details: "Initialized plan-001 for SQL semantic layer work"
+  - timestamp: "2026-03-13T04:23:38.922Z"
+    agent: Manufacturing Assistant (014)
+    action: Assigned
+    details: "Schema analysis and entity mapping"
+  - timestamp: "2026-03-13T04:23:38.922Z"
+    agent: Queue Router (015)
+    action: Assigned
+    details: "Query routing and metric definitions"
+  - timestamp: "2026-03-13T04:23:38.922Z"
+    agent: Ambient Agent (007)
+    action: Assigned
+    details: "Continuous monitoring and validation"
+  - timestamp: "2026-03-13T05:35:00.000Z"
+    agent: Herald
+    action: Delegated
+    details: "Expanded plan-001 with 6 sub-plans (plan-001a through 001f) for INFORMATION_SCHEMA DDL metadata"
+  - timestamp: "2026-03-13T05:35:00.000Z"
+    agent: Manufacturing Assistant (014)
+    action: Accepted
+    details: "Assigned plan-001a (Tables & Columns) and plan-001d (Views & Dependencies)"
+  - timestamp: "2026-03-13T05:35:00.000Z"
+    agent: Queue Router (015)
+    action: Accepted
+    details: "Assigned plan-001b (Constraints & Relationships) and plan-001d (Dependencies)"
+  - timestamp: "2026-03-13T05:35:00.000Z"
+    agent: Ambient Agent (007)
+    action: Accepted
+    details: "Assigned plan-001c (Index Metadata & Schema Overlay)"
+  - timestamp: "2026-03-13T06:10:00.000Z"
+    agent: Herald
+    action: Delegated
+    details: "Created plan-001e — Foreign key parent-child hierarchy pattern"
+  - timestamp: "2026-03-13T06:10:00.000Z"
+    agent: Queue Router (015)
+    action: Accepted
+    details: "Lead on FK hierarchy construction, adjacency list, recursive CTE patterns"
+  - timestamp: "2026-03-13T06:10:00.000Z"
+    agent: Manufacturing Assistant (014)
+    action: Accepted
+    details: "Co-assigned for manufacturing domain hierarchy chain validation"
+  - timestamp: "2026-03-13T06:30:00.000Z"
+    agent: Herald
+    action: Delegated
+    details: "Created plan-001f — SQLite PRAGMA test module for INFORMATION_SCHEMA equivalents"
+  - timestamp: "2026-03-13T06:30:00.000Z"
+    agent: Ambient Agent (007)
+    action: Accepted
+    details: "Lead on unit test creation and validation"
+  - timestamp: "2026-03-13T06:30:00.000Z"
+    agent: Manufacturing Assistant (014)
+    action: Accepted
+    details: "Co-assigned for manufacturing schema design"
+  - timestamp: "2026-03-15T05:16:34.000Z"
+    agent: documentation-writer
+    action: Task Completed
+    details: "Migrated to directory-per-plan layout — plan.yaml + tasks.yaml split"

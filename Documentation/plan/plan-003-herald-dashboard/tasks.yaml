@@ -1,0 +1,74 @@
+plan_id: plan-003-herald-dashboard
+
+# Tasks are the mutable work board. agent_activity in plan.yaml is the immutable audit log.
+# status: pending | in_progress | delegated | completed | failed
+
+tasks:
+  - id: task-001
+    title: Define agent topology
+    status: completed
+    assigned_to: documentation-writer
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T01:53:36Z"
+
+  - id: task-002
+    title: Build dashboard UI (standalone HTML)
+    status: completed
+    assigned_to: documentation-writer
+    wave: 1
+    depends_on: []
+    completed_at: "2026-03-15T01:53:36Z"
+
+  - id: task-003
+    title: Establish delegation model and input contract
+    status: completed
+    assigned_to: documentation-writer
+    wave: 2
+    depends_on: [task-001]
+    completed_at: "2026-03-15T04:00:44Z"
+
+  - id: task-004
+    title: Document plan lifecycle (README.md)
+    status: completed
+    assigned_to: documentation-writer
+    wave: 2
+    depends_on: [task-001]
+    completed_at: "2026-03-15T04:06:33Z"
+
+  - id: task-005
+    title: Implement Express API server
+    status: pending
+    assigned_to: sqlmesh-devops
+    wave: 3
+    depends_on: [task-003]
+
+  - id: task-006
+    title: Structure pnpm monorepo
+    status: pending
+    assigned_to: sqlmesh-devops
+    wave: 4
+    depends_on: [task-005]
+
+  - id: task-007
+    title: Create shared libraries (api-zod, api-client-react)
+    status: pending
+    assigned_to: sqlmesh-devops
+    wave: 4
+    depends_on: [task-005]
+
+  - id: task-008
+    title: Apply plan organization schema (slugs + tasks array + index)
+    status: completed
+    assigned_to: documentation-writer
+    wave: 2
+    depends_on: [task-004]
+    completed_at: "2026-03-15T04:40:01Z"
+
+  - id: task-009
+    title: Migrate to directory-per-plan layout (plan.yaml + tasks.yaml)
+    status: completed
+    assigned_to: documentation-writer
+    wave: 2
+    depends_on: [task-008]
+    completed_at: "2026-03-15T05:16:34Z"
