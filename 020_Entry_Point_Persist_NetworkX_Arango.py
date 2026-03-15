@@ -1,16 +1,14 @@
 # 020_Entry_Point_Persist_NetworkX_Arango.py
-import networkx as nx
+from simple_digraph import SimpleDiGraph, shortest_path
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 
 # networkx over arangodb for graph persistence
 
 # Step 1: Create your NetworkX graph (any way you like)
-G = nx.DiGraph()
-G.add_edges_from([
-    ("equipment", "product"),
-    ("product", "order"),
-    ("order", "customer")
-])
+G = SimpleDiGraph()
+G.add_edge("equipment", "product")
+G.add_edge("product", "order")
+G.add_edge("order", "customer")
 
 # Step 2: Set up ArangoDB connection
 # Make sure you have these environment variables set:
@@ -40,18 +38,20 @@ print(f"\n📊 Loaded graph analysis:")
 print(f"   Nodes: {list(loaded_graph.nodes())[:10]}")  # Show first 10 nodes
 print(f"   Edges: {list(loaded_graph.edges())[:10]}")  # Show first 10 edges
 
-# Convert to regular NetworkX graph for full compatibility
-nx_graph = nx.DiGraph()
-nx_graph.add_nodes_from(loaded_graph.nodes(data=True))
-nx_graph.add_edges_from(loaded_graph.edges(data=True))
+# Convert to regular SimpleDiGraph for full compatibility
+nx_graph = SimpleDiGraph()
+for node_id, data in loaded_graph.nodes(data=True):
+    nx_graph.add_node(node_id, **data)
+for u, v, data in loaded_graph.edges(data=True):
+    nx_graph.add_edge(u, v, **data)
 
-print(f"\n✅ Converted to NetworkX DiGraph:")
-print(f"   Nodes: {list(nx_graph.nodes())}")
-print(f"   Edges: {list(nx_graph.edges())}")
+print(f"\n✅ Converted to SimpleDiGraph:")
+print(f"   Nodes: {[n for n, _ in nx_graph.nodes(data=True)]}")
+print(f"   Edges: {[(u, v) for u, v, _ in nx_graph.edges(data=True)]}")
 
-# Now run NetworkX algorithms
-if "equipment" in nx_graph and "customer" in nx_graph:
-    path = nx.shortest_path(nx_graph.to_undirected(), "equipment", "customer")
+# Now run algorithms
+if nx_graph.has_node("equipment") and nx_graph.has_node("customer"):
+    path = shortest_path(nx_graph.to_undirected(), "equipment", "customer")
     print(f"\n🔍 Shortest path: {' → '.join(path)}")
 else:
     print(f"\n⚠️  Note: Node names may be transformed during persistence.")

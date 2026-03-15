@@ -8,7 +8,7 @@ Provides SchemaGraphManager for building database schema graphs
 import os
 import sqlite3
 from config import SQLITE_DB_PATH
-import networkx as nx
+from simple_digraph import SimpleDiGraph, shortest_path, NodeNotFound, NetworkXNoPath
 from typing import List, Dict, Any, Tuple, Optional
 
 
@@ -21,7 +21,7 @@ class SchemaGraphManager:
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or SQLITE_DB_PATH
     
-    def build_graph_from_database(self) -> nx.DiGraph:
+    def build_graph_from_database(self) -> SimpleDiGraph:
         """
         Build schema graph from database metadata tables
         
@@ -34,7 +34,7 @@ class SchemaGraphManager:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        G = nx.DiGraph()
+        G = SimpleDiGraph()
         
         try:
             cursor.execute("SELECT table_name, table_type, description FROM schema_nodes")
@@ -70,7 +70,7 @@ class SchemaGraphManager:
         
         return G
     
-    def find_join_path(self, graph: nx.DiGraph, source: str, target: str) -> Optional[List[str]]:
+    def find_join_path(self, graph: SimpleDiGraph, source: str, target: str) -> Optional[List[str]]:
         """
         Find shortest join path between two tables
         
@@ -84,9 +84,9 @@ class SchemaGraphManager:
         """
         try:
             graph_undirected = graph.to_undirected()
-            path = nx.shortest_path(graph_undirected, source=source, target=target)
+            path = shortest_path(graph_undirected, source=source, target=target)
             return path
-        except nx.NetworkXNoPath:
+        except NetworkXNoPath:
             return None
-        except nx.NodeNotFound:
+        except NodeNotFound:
             return None

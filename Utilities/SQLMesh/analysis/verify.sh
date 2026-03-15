@@ -17,7 +17,7 @@ echo ""
 
 # Check dependencies
 echo "📦 Checking dependencies..."
-python3 -c "import sqlglot; import networkx; import pandas; import gradio; import yaml; print('✅ All dependencies installed')" 2>&1
+python3 -c "import sqlglot; import pandas; import gradio; import yaml; print('✅ All dependencies installed')" 2>&1
 echo ""
 
 # Check file structure

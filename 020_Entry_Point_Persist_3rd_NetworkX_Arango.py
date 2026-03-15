@@ -10,7 +10,7 @@ Workflow:
 3. Verify metadata preservation
 """
 
-import networkx as nx
+from simple_digraph import SimpleDiGraph
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 
 print("=" * 75)
@@ -47,9 +47,11 @@ print(f"✅ Graph loaded: {loaded_graph.number_of_nodes()} nodes, {loaded_graph.
 print("\n📊 Step 3: Verify metadata preservation")
 print("-" * 75)
 
-nx_graph = nx.DiGraph()
-nx_graph.add_nodes_from(loaded_graph.nodes(data=True))
-nx_graph.add_edges_from(loaded_graph.edges(data=True))
+nx_graph = SimpleDiGraph()
+for node_id, data in loaded_graph.nodes(data=True):
+    nx_graph.add_node(node_id, **data)
+for u, v, data in loaded_graph.edges(data=True):
+    nx_graph.add_edge(u, v, **data)
 
 print(f"\n✅ Node metadata verification:")
 for node, data in nx_graph.nodes(data=True):
@@ -62,8 +64,8 @@ for node, data in nx_graph.nodes(data=True):
 print(f"✅ Enhanced Edge Metadata (Ready for Semantic Layer):")
 print("=" * 75)
 for source, target, data in nx_graph.edges(data=True):
-    source_label = nx_graph.nodes[source].get('label', source)
-    target_label = nx_graph.nodes[target].get('label', target)
+    source_label = nx_graph._nodes.get(source, {}).get('label', source)
+    target_label = nx_graph._nodes.get(target, {}).get('label', target)
     print(f"\n   {source_label} → {target_label}")
     print(f"   {'─' * 70}")
     print(f"   Relationship: {data.get('relationship_type', 'N/A')}")

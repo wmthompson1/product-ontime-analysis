@@ -10,7 +10,7 @@ Workflow:
 3. Persist to ArangoDB with metadata preservation
 """
 
-import networkx as nx
+from simple_digraph import SimpleDiGraph
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 import os
 import sqlite3
@@ -52,7 +52,7 @@ conn.close()
 print("\n📊 Step 2: Build NetworkX graph with metadata")
 print("-" * 75)
 
-G = nx.DiGraph()
+G = SimpleDiGraph()
 COLLECTION = "manufacturing_schema_node"
 
 # Add nodes with metadata preservation

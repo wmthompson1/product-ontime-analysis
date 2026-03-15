@@ -17,7 +17,7 @@ The Solder Pattern:
 
 import os
 import sqlite3
-import networkx as nx
+from simple_digraph import SimpleDiGraph
 from arangodb_persistence import ArangoDBConfig, ArangoDBGraphPersistence
 
 SQLITE_PATH = "hf-space-inventory-sqlgen/app_schema/manufacturing.db"
@@ -92,7 +92,7 @@ def ensure_ncm_fields_exist(conn):
 
 def load_semantic_graph_with_elevations(conn):
     """Load semantic graph with explicit elevation weights for NCM pattern."""
-    G = nx.DiGraph()
+    G = SimpleDiGraph()
     graph_name = os.getenv("ARANGO_DB", "manufacturing_graph")
     COLLECTION = f"{graph_name}_node"
     

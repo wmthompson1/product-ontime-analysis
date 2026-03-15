@@ -5,7 +5,7 @@ Writes `data/schema_018.graphml` and prints a summary.
 """
 import os
 import sqlite3
-import networkx as nx
+from simple_digraph import SimpleDiGraph
 
 DB = os.environ.get('DATABASE_URL', 'sqlite:///data/manufacturing_analytics.sqlite3')
 
@@ -43,7 +43,7 @@ def main():
     except sqlite3.OperationalError:
         print('No schema_edges table found; aborting')
 
-    G = nx.DiGraph()
+    G = SimpleDiGraph()
     for n in nodes:
         G.add_node(n['table_name'], table_type=n['table_type'], description=n['description'])
 
@@ -53,11 +53,8 @@ def main():
     print(f'Built graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges')
 
     out = os.path.join('data', 'schema_018.graphml')
-    try:
-        nx.write_graphml(G, out)
-        print('Wrote graph to', out)
-    except Exception as exc:
-        print('Failed to write graph:', exc)
+    # REMOVED: requires networkx - nx.write_graphml(G, out)
+    print('GraphML export skipped (requires networkx); graph built in memory only')
 
     conn.close()
 

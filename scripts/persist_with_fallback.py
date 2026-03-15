@@ -11,7 +11,7 @@ import os
 import traceback
 import sqlite3
 import json
-import networkx as nx
+from simple_digraph import SimpleDiGraph, SimpleGraph
 
 # import your existing persist function; adjust import to actual module
 try:
@@ -21,11 +21,11 @@ except Exception:
 
 from arango.exceptions import ArangoClientError, ConnectionAbortedError
 
-def write_graphml(G: nx.Graph, path: str):
-    nx.write_graphml(G, path)
-    print(f"Wrote GraphML to {path}")
+def write_graphml(G, path: str):
+    # REMOVED: requires networkx - nx.write_graphml(G, path)
+    print(f"GraphML export skipped (requires networkx) for {path}")
 
-def write_schema_edges_sqlite(G: nx.DiGraph, sqlite_path: str):
+def write_schema_edges_sqlite(G: SimpleDiGraph, sqlite_path: str):
     # create or append schema_edges table: source, target, child_column, parent_column, attrs (JSON)
     if os.path.exists(sqlite_path) and os.path.getsize(sqlite_path) > 0:
         conn = sqlite3.connect(sqlite_path)
@@ -54,10 +54,8 @@ def write_schema_edges_sqlite(G: nx.DiGraph, sqlite_path: str):
     print(f"Wrote {G.number_of_edges()} edges to SQLite {sqlite_path}")
 
 def load_graph(graph_path):
-    if os.path.exists(graph_path):
-        return nx.read_graphml(graph_path)
-    # alternatively, if you have networkx graph in memory builder code, call that
-    raise FileNotFoundError(graph_path)
+    # REMOVED: requires networkx - return nx.read_graphml(graph_path)
+    raise NotImplementedError("GraphML loading requires networkx; build graph in memory instead")
 
 def main():
     p = argparse.ArgumentParser()

@@ -3190,6 +3190,83 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[sync_status, sync_report_output]
             )
         
+        with gr.Tab("🎨 Query Palette"):
+            gr.Markdown("### SQLMesh Query Palette\nRun SQL against the SQLMesh virtual layer. Queries resolve through masked/hashed physical tables automatically.")
+
+            SQLMESH_PROJECT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Utilities', 'SQLMesh'))
+
+            def _sqlmesh_ctx():
+                from sqlmesh import Context as SMContext
+                orig_cwd = os.getcwd()
+                try:
+                    os.chdir(SQLMESH_PROJECT)
+                    return SMContext(paths=SQLMESH_PROJECT)
+                finally:
+                    os.chdir(orig_cwd)
+
+            def get_sqlmesh_models():
+                try:
+                    ctx = _sqlmesh_ctx()
+                    clean = []
+                    for m in ctx.models:
+                        parts = m.replace('"', '').split('.')
+                        if len(parts) == 3:
+                            clean.append(f"{parts[1]}.{parts[2]}")
+                        else:
+                            clean.append('.'.join(parts))
+                    return sorted(set(clean))
+                except Exception:
+                    return []
+
+            palette_models = get_sqlmesh_models()
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("**Virtual Layer Explorer**")
+                    model_dropdown = gr.Dropdown(
+                        choices=palette_models,
+                        label="Quick Select Model",
+                        interactive=True,
+                    )
+                    generate_btn = gr.Button("Generate SELECT *")
+                with gr.Column(scale=3):
+                    palette_query = gr.Textbox(
+                        label="SQL Query",
+                        value="SELECT * FROM staging.stg_suppliers LIMIT 10",
+                        lines=6,
+                        interactive=True,
+                    )
+                    run_palette_btn = gr.Button("Run Query", variant="primary")
+
+            palette_status = gr.Markdown("")
+            palette_results = gr.Dataframe(label="Query Results", wrap=True)
+            palette_dim_check = gr.Markdown("")
+
+            def gen_select(model_name):
+                if not model_name:
+                    return "SELECT * FROM staging.stg_suppliers LIMIT 10"
+                return f"SELECT * FROM {model_name} LIMIT 100"
+
+            def run_palette_query(query):
+                if not query or not query.strip():
+                    return "Enter a query above.", None, ""
+                orig_cwd = os.getcwd()
+                try:
+                    os.chdir(SQLMESH_PROJECT)
+                    ctx = _sqlmesh_ctx()
+                    df = ctx.fetchdf(query)
+                    dim_msg = ""
+                    if 'vendor_id' in df.columns:
+                        unique_vendors = df['vendor_id'].unique()
+                        dim_msg = f"**Dimensionality Check:** Detected `vendor_id` — {len(unique_vendors)} unique masked vendors: {', '.join(map(str, unique_vendors[:20]))}"
+                    return f"Returned **{len(df)}** rows, **{len(df.columns)}** columns.", df, dim_msg
+                except Exception as e:
+                    return f"**Error:** {e}", None, ""
+                finally:
+                    os.chdir(orig_cwd)
+
+            generate_btn.click(fn=gen_select, inputs=[model_dropdown], outputs=[palette_query])
+            run_palette_btn.click(fn=run_palette_query, inputs=[palette_query], outputs=[palette_status, palette_results, palette_dim_check])
+
         with gr.Tab("🔌 MCP Endpoints"):
             gr.Markdown("""
             ### Model Context Protocol API

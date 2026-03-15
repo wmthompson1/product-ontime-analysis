@@ -4,7 +4,7 @@ NetworkX RAG Example - Graph-based Retrieval-Augmented Generation
 Building on your existing vector similarity approach with graph relationships
 """
 
-import networkx as nx
+from simple_digraph import SimpleGraph, number_connected_components
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List, Dict, Tuple
@@ -12,7 +12,7 @@ import json
 
 class GraphRAG:
     def __init__(self):
-        self.graph = nx.Graph()
+        self.graph = SimpleGraph()
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
         self.embeddings = {}
         
@@ -117,7 +117,7 @@ class GraphRAG:
                                  if self.graph.nodes[n]['type'] == 'document']),
             'entity_nodes': len([n for n in self.graph.nodes() 
                                if self.graph.nodes[n]['type'] == 'entity']),
-            'connected_components': nx.number_connected_components(self.graph)
+            'connected_components': number_connected_components(self.graph)
         }
     
     def visualize_connections(self, doc_id: str) -> Dict:

@@ -29,8 +29,10 @@ except ImportError:
 
 load_dotenv()
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from simple_digraph import SimpleDiGraph
+
 try:
-    import networkx as nx
     from arango.client import ArangoClient
 except ImportError as e:
     print(f"Error: Missing dependency - {e}")
@@ -82,7 +84,7 @@ def get_config():
     return config
 
 
-def load_schema_graph_from_sqlite(db_path: str | None = None) -> nx.DiGraph:
+def load_schema_graph_from_sqlite(db_path: str | None = None) -> SimpleDiGraph:
     """Load schema graph from SQLite schema_edges table"""
     import sqlite3
     
@@ -94,7 +96,7 @@ def load_schema_graph_from_sqlite(db_path: str | None = None) -> nx.DiGraph:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    G = nx.DiGraph()
+    G = SimpleDiGraph()
     
     cursor.execute("""
         SELECT from_table, to_table, relationship_type, join_column, weight,
@@ -123,7 +125,7 @@ def load_schema_graph_from_sqlite(db_path: str | None = None) -> nx.DiGraph:
     return G
 
 
-def persist_with_nx_arangodb(G: nx.DiGraph, config: dict, graph_name: str):
+def persist_with_nx_arangodb(G: SimpleDiGraph, config: dict, graph_name: str):
     """Persist using nx-arangodb library"""
     # Attempt to use nx_arangodb if it exposes the expected API; otherwise fall back
     if not HAS_NX_ARANGO:
@@ -155,7 +157,7 @@ def persist_with_nx_arangodb(G: nx.DiGraph, config: dict, graph_name: str):
         return persist_manual(G, config, graph_name)
 
 
-def persist_manual(G: nx.DiGraph, config: dict, graph_name: str):
+def persist_manual(G: SimpleDiGraph, config: dict, graph_name: str):
     """Manual persistence using python-arango directly"""
     client = ArangoClient(hosts=config['host'])
     

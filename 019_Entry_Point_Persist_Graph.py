@@ -1,5 +1,5 @@
 from arangodb_persistence import ArangoDBGraphPersistence
-import networkx as nx
+from simple_digraph import degree_centrality
 
 # Import the pattern builder from Entry Point 019 by loading the file directly
 import sys
@@ -29,9 +29,7 @@ adb_graph = persistence.persist_graph(
 adb_graph = persistence.load_graph("supply_chain_2025_q1")
 
 # Step 4: Run centrality analysis on persisted graph
-import networkx as nx
-
-centrality = nx.degree_centrality(adb_graph)
+centrality = degree_centrality(adb_graph)
 most_connected = max(centrality.items(), key=lambda x: x[1])
 
 print(f"Most connected node: {most_connected[0]} (score: {most_connected[1]:.3f})")

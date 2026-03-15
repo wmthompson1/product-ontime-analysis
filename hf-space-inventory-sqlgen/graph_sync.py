@@ -122,8 +122,13 @@ class SyncReport:
 def get_arango_client():
     from arango import ArangoClient
 
-    host = os.environ.get("ARANGO_HOST", "http://localhost:8529")
-    client = ArangoClient(hosts=host)
+    raw_host = (
+        os.environ.get("ARANGO_HOST")
+        or os.environ.get("DATABASE_HOST", "http://localhost:8529")
+    ).strip()
+    if "arangodb.cloud" in raw_host and ":" not in raw_host.split("//", 1)[-1]:
+        raw_host = f"{raw_host}:8529"
+    client = ArangoClient(hosts=raw_host)
     return client
 
 
