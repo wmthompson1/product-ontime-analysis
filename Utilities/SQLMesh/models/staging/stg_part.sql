@@ -30,7 +30,7 @@ MODEL (
 SELECT
   p.part_no,
   p.description,
-  SHA256(p.pref_vendor) AS pref_vendor_id,
+  LOWER(HEX(SHA256(CAST(p.pref_vendor AS VARCHAR)))) AS pref_vendor_id,
   p.unit_cost,
   p.buyer_email,
   '1.2' AS _dag_no,
@@ -38,4 +38,4 @@ SELECT
 FROM raw.raw_part AS p
 /* Guard: only promote parts whose vendor has been certified in stg_vendor */
 INNER JOIN staging.stg_vendor AS v
-  ON SHA256(p.pref_vendor) = v.vendor_id
+  ON LOWER(HEX(SHA256(CAST(p.pref_vendor AS VARCHAR)))) = v.vendor_id
