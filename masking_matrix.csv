@@ -1,0 +1,3 @@
+dag_no,table_name,column_name,parent_table,parent_column,masking_rule,masking_type,pre_stage_server,status
+1.1,vendor,id,,,"hash_sha256(id)","deterministic_hash","prestage-sql-01","active"
+1.2,part,pref_vendor,vendor,id (1.1),"hash_sha256(pref_vendor)","deterministic_hash","prestage-sql-01","active"

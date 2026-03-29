@@ -5,10 +5,16 @@ on:
     branches: [main, master]
     paths:
       - "Utilities/SQLMesh/**"
+      - "masking_matrix.csv"
+      - "certificate/**"
+      - "test_sqlmesh_masking_policy.py"
   pull_request:
     branches: [main, master]
     paths:
       - "Utilities/SQLMesh/**"
+      - "masking_matrix.csv"
+      - "certificate/**"
+      - "test_sqlmesh_masking_policy.py"
   workflow_dispatch:
 
 env:
@@ -33,7 +39,7 @@ jobs:
       - name: Install SQLMesh
         run: |
           python -m pip install --upgrade pip
-          pip install sqlmesh
+          pip install sqlmesh faker pytest
 
       - name: Validate SQLMesh project
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
@@ -46,6 +52,11 @@ jobs:
         run: |
           echo "Running unit tests..."
           sqlmesh test --verbose
+
+      - name: Run masking policy tests (pytest)
+        run: |
+          echo "Running two-key masking governance tests (34 cases)..."
+          pytest test_sqlmesh_masking_policy.py -v
 
       # Note: Audits are executed automatically during 'sqlmesh plan' and 'sqlmesh run'
       # No separate audit step is needed as they are part of the validation and execution phases
