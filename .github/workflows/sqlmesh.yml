@@ -85,6 +85,8 @@ jobs:
       - name: Plan dev environment
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
+          echo "Migrating state database to installed SQLMesh version..."
+          sqlmesh migrate
           echo "Planning changes for dev environment..."
           sqlmesh plan dev --auto-apply --skip-backfill
 
@@ -112,6 +114,8 @@ jobs:
       - name: Plan and apply production
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
+          echo "Migrating state database to installed SQLMesh version..."
+          sqlmesh migrate
           echo "Deploying to production..."
           sqlmesh plan --auto-apply --create-from prod --no-prompts
 
