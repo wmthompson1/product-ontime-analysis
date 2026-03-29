@@ -87,8 +87,12 @@ jobs:
         run: |
           echo "Migrating state database to installed SQLMesh version..."
           sqlmesh migrate
-          echo "Planning changes for dev environment..."
-          sqlmesh plan dev --auto-apply --skip-backfill
+          echo "Planning new masking models for dev environment..."
+          sqlmesh plan dev --auto-apply --skip-backfill \
+            --select-model "raw.raw_vendor" \
+            --select-model "raw.raw_part" \
+            --select-model "staging.stg_vendor" \
+            --select-model "staging.stg_part"
 
   deploy-prod:
     name: Deploy to Production
