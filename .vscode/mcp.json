@@ -2,7 +2,18 @@
 	"servers": {
 		"io.github.github/github-mcp-server": {
 			"url": "https://api.githubcopilot.com/mcp/",
-			"type": "http"
+			"type": "http",
+			"headers": {
+				"Authorization": "Bearer ${input:github_token}"
+			}
 		}
-	}
+	},
+	"inputs": [
+		{
+			"id": "github_token",
+			"type": "promptString",
+			"description": "GitHub Personal Access Token (PAT) for MCP server authentication",
+			"password": true
+		}
+	]
 }
