@@ -21,7 +21,7 @@ MODEL (
 );
 
 SELECT
-  LOWER(HEX(SHA256(CAST(id AS VARCHAR)))) AS vendor_id,
+  LOWER(SHA256(CAST(id AS VARCHAR))) AS vendor_id,
   name,
   contact_email,
   country,
