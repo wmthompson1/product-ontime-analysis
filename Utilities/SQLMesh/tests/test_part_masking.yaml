@@ -29,6 +29,7 @@ test_part_pref_vendor_is_hashed:
           unit_cost: 42.00
           buyer_email: "buyer@example.com"
   outputs:
+    partial: true
     query:
       rows:
         - part_no: "PT-FIXTURE"
@@ -62,6 +63,7 @@ test_part_with_unregistered_vendor_is_excluded:
           unit_cost: 99.00
           buyer_email: "orphan@example.com"
   outputs:
+    partial: true
     query:
       rows:
         - part_no: "PT-VALID"

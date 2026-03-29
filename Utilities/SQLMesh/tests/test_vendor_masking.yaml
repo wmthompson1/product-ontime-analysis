@@ -18,6 +18,7 @@ test_vendor_id_is_hashed:
           contact_email: "contact@acme-corp.example"
           country: "US"
   outputs:
+    partial: true
     query:
       rows:
         - vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
@@ -40,6 +41,7 @@ test_vendor_two_rows_produce_distinct_hashes:
           contact_email: "b@b.com"
           country: "DE"
   outputs:
+    partial: true
     query:
       rows:
         - vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
