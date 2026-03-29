@@ -10,14 +10,17 @@ MODEL (
     unit_cost DOUBLE,
     unit_price DOUBLE,
     weight_kg DOUBLE,
-    lead_time_days INTEGER,
-    min_order_qty INTEGER,
+    lead_time_days INT,
+    min_order_qty INT,
     status TEXT,
     created_date TIMESTAMP
   ),
-  grain (product_id),
-  audits (
-    UNIQUE_VALUES(columns = (product_id)),
-    NOT_NULL(columns = (product_id))
-  )
-);
+  grain (
+    product_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      product_id
+    )), NOT_NULL(columns = (
+      product_id
+  )))
+)

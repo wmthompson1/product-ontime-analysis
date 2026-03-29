@@ -10,12 +10,18 @@ MODEL (
     benchmark_value DOUBLE,
     industry_segment TEXT,
     source TEXT,
-    year INTEGER,
+    year INT,
     created_date TIMESTAMP
   ),
-  grain (benchmark_id),
+  grain (
+    benchmark_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (benchmark_id)),
-    NOT_NULL(columns = (benchmark_id))
+    UNIQUE_VALUES(columns = (
+      benchmark_id
+    )),
+    NOT_NULL(columns = (
+      benchmark_id
+    ))
   )
-);
+)

@@ -12,4 +12,4 @@ SELECT
   to_column,
   fk_type,
   perspective
-FROM raw.foreign_key_relationships;
+FROM raw.foreign_key_relationships

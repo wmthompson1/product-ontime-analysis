@@ -3,4 +3,4 @@ MODEL (
   kind SEED (
     path '$root/seeds/schema_nodes.csv'
   )
-);
+)

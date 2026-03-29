@@ -16,9 +16,12 @@ MODEL (
     effectiveness_score DOUBLE,
     created_date TIMESTAMP
   ),
-  grain (action_id),
-  audits (
-    UNIQUE_VALUES(columns = (action_id)),
-    NOT_NULL(columns = (action_id))
-  )
-);
+  grain (
+    action_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      action_id
+    )), NOT_NULL(columns = (
+      action_id
+  )))
+)

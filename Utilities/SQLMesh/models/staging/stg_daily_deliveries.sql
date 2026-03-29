@@ -7,15 +7,21 @@ MODEL (
     delivery_id TEXT,
     supplier_id TEXT,
     delivery_date DATE,
-    planned_quantity INTEGER,
-    actual_quantity INTEGER,
+    planned_quantity INT,
+    actual_quantity INT,
     ontime_rate DOUBLE,
     quality_score DOUBLE,
     created_date TIMESTAMP
   ),
-  grain (delivery_id),
+  grain (
+    delivery_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (delivery_id)),
-    NOT_NULL(columns = (delivery_id))
+    UNIQUE_VALUES(columns = (
+      delivery_id
+    )),
+    NOT_NULL(columns = (
+      delivery_id
+    ))
   )
-);
+)

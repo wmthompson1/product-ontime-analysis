@@ -6,15 +6,13 @@ MODEL (
 
 SELECT
   concept_id,
-  -- map seed 'name' to expected 'concept_name'
-  name AS concept_name,
-  -- placeholder when seed doesn't include this field
-  NULL AS concept_type,
+  name AS concept_name, /* map seed 'name' to expected 'concept_name' */
+  NULL AS concept_type, /* placeholder when seed doesn't include this field */
   description,
   NULL AS domain,
   NULL AS parent_concept_id,
   COALESCE(
-    CASE WHEN created_at LIKE '____-%' THEN CAST(created_at AS TIMESTAMP) ELSE NULL END,
+    CASE WHEN created_at LIKE '____-%' THEN created_at::TIMESTAMP ELSE NULL END,
     CURRENT_TIMESTAMP
   ) AS created_at
-FROM raw.schema_concepts;
+FROM raw.schema_concepts

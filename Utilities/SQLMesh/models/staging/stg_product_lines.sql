@@ -7,7 +7,7 @@ MODEL (
     product_line_id TEXT,
     product_line_name TEXT,
     product_category TEXT,
-    target_volume INTEGER,
+    target_volume INT,
     unit_price DOUBLE,
     profit_margin DOUBLE,
     launch_date DATE,
@@ -17,9 +17,15 @@ MODEL (
     regulatory_requirements TEXT,
     created_at TIMESTAMP
   ),
-  grain (product_line_id),
+  grain (
+    product_line_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (product_line_id)),
-    NOT_NULL(columns = (product_line_id))
+    UNIQUE_VALUES(columns = (
+      product_line_id
+    )),
+    NOT_NULL(columns = (
+      product_line_id
+    ))
   )
-);
+)

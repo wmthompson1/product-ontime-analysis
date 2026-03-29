@@ -4,18 +4,24 @@ MODEL (
   cron '@daily',
   columns (
     reason_code TEXT,
-    category    TEXT,
+    category TEXT,
     description TEXT
   ),
-  grain (reason_code),
+  grain (
+    reason_code
+  ),
   audits (
-    UNIQUE_VALUES(columns = (reason_code)),
-    NOT_NULL(columns = (reason_code))
+    UNIQUE_VALUES(columns = (
+      reason_code
+    )),
+    NOT_NULL(columns = (
+      reason_code
+    ))
   )
 );
 
 SELECT
-  CAST(ReasonCode  AS TEXT) AS reason_code,
-  CAST(Category    AS TEXT) AS category,
-  CAST(Description AS TEXT) AS description
-FROM raw.operation_downtime_reasons;
+  ReasonCode::TEXT AS reason_code,
+  Category::TEXT AS category,
+  Description::TEXT AS description
+FROM raw.operation_downtime_reasons

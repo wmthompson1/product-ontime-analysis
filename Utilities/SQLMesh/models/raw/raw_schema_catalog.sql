@@ -15,6 +15,4 @@ MODEL (
   grain (table_name, column_name)
 );
 
--- Schema Catalog Seed
--- Column-level metadata extracted from SQLMesh physical layer
--- Used for semantic layer binding, type validation, and join safety checks
+/* Schema Catalog Seed */ /* Column-level metadata extracted from SQLMesh physical layer */ /* Used for semantic layer binding, type validation, and join safety checks */

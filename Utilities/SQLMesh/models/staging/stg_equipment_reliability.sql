@@ -9,14 +9,20 @@ MODEL (
     measurement_period DATE,
     mtbf_hours DOUBLE,
     target_mtbf DOUBLE,
-    failure_count INTEGER,
+    failure_count INT,
     operating_hours DOUBLE,
     reliability_score DOUBLE,
     created_date TIMESTAMP
   ),
-  grain (reliability_id),
+  grain (
+    reliability_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (reliability_id)),
-    NOT_NULL(columns = (reliability_id))
+    UNIQUE_VALUES(columns = (
+      reliability_id
+    )),
+    NOT_NULL(columns = (
+      reliability_id
+    ))
   )
-);
+)

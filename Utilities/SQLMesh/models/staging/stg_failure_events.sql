@@ -20,9 +20,12 @@ MODEL (
     mtbf_impact DOUBLE,
     created_at TIMESTAMP
   ),
-  grain (failure_id),
-  audits (
-    UNIQUE_VALUES(columns = (failure_id)),
-    NOT_NULL(columns = (failure_id))
-  )
-);
+  grain (
+    failure_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      failure_id
+    )), NOT_NULL(columns = (
+      failure_id
+  )))
+)

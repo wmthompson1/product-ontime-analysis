@@ -3,7 +3,9 @@ MODEL (
   kind FULL,
   grain (id, concept_id),
   audits (
-    NOT_NULL(columns = (concept_id))
+    NOT_NULL(columns = (
+      concept_id
+    ))
   )
 );
 
@@ -15,7 +17,7 @@ SELECT
   NULL AS is_primary_meaning,
   NULL AS context_hint,
   COALESCE(
-    CASE WHEN created_at LIKE '____-%' THEN CAST(created_at AS TIMESTAMP) ELSE NULL END,
+    CASE WHEN created_at LIKE '____-%' THEN created_at::TIMESTAMP ELSE NULL END,
     CURRENT_TIMESTAMP
   ) AS created_at
-FROM raw.schema_concept_fields;
+FROM raw.schema_concept_fields

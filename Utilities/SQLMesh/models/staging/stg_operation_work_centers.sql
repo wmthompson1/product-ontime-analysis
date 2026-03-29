@@ -3,23 +3,29 @@ MODEL (
   kind FULL,
   cron '@daily',
   columns (
-    work_center_id   TEXT,
+    work_center_id TEXT,
     work_center_name TEXT,
-    department_id    TEXT,
-    capacity         DOUBLE,
-    is_active        INTEGER
+    department_id TEXT,
+    capacity DOUBLE,
+    is_active INT
   ),
-  grain (work_center_id),
+  grain (
+    work_center_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (work_center_id)),
-    NOT_NULL(columns = (work_center_id))
+    UNIQUE_VALUES(columns = (
+      work_center_id
+    )),
+    NOT_NULL(columns = (
+      work_center_id
+    ))
   )
 );
 
 SELECT
-  CAST(WorkCenterID   AS TEXT)    AS work_center_id,
-  CAST(WorkCenterName AS TEXT)    AS work_center_name,
-  CAST(DepartmentID   AS TEXT)    AS department_id,
-  CAST(Capacity       AS DOUBLE)  AS capacity,
-  CAST(IsActive       AS INTEGER) AS is_active
-FROM raw.operation_work_centers;
+  WorkCenterID::TEXT AS work_center_id,
+  WorkCenterName::TEXT AS work_center_name,
+  DepartmentID::TEXT AS department_id,
+  Capacity::DOUBLE AS capacity,
+  IsActive::INT AS is_active
+FROM raw.operation_work_centers

@@ -6,16 +6,19 @@ MODEL (
   columns (
     target_id TEXT,
     equipment_id TEXT,
-    target_year INTEGER,
+    target_year INT,
     target_mtbf DOUBLE,
     target_availability DOUBLE,
     target_oee DOUBLE,
-    pm_interval_days INTEGER,
+    pm_interval_days INT,
     created_date TIMESTAMP
   ),
-  grain (target_id),
-  audits (
-    UNIQUE_VALUES(columns = (target_id)),
-    NOT_NULL(columns = (target_id))
-  )
-);
+  grain (
+    target_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      target_id
+    )), NOT_NULL(columns = (
+      target_id
+  )))
+)

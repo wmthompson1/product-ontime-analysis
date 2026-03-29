@@ -16,8 +16,12 @@ MODEL (
     downtime_hours DOUBLE,
     created_date TIMESTAMP
   ),
-  grain (equipment_id),
+  grain (
+    equipment_id
+  ),
   audits (
-    NOT_NULL(columns = (equipment_id))
+    NOT_NULL(columns = (
+      equipment_id
+    ))
   )
-);
+)

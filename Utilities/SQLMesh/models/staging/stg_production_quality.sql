@@ -7,17 +7,20 @@ MODEL (
     quality_id TEXT,
     line_id TEXT,
     measurement_date DATE,
-    total_produced INTEGER,
-    passed_inspection INTEGER,
-    failed_inspection INTEGER,
+    total_produced INT,
+    passed_inspection INT,
+    failed_inspection INT,
     first_pass_yield DOUBLE,
-    rework_count INTEGER,
-    scrap_count INTEGER,
+    rework_count INT,
+    scrap_count INT,
     created_date TIMESTAMP
   ),
-  grain (quality_id),
-  audits (
-    UNIQUE_VALUES(columns = (quality_id)),
-    NOT_NULL(columns = (quality_id))
-  )
-);
+  grain (
+    quality_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      quality_id
+    )), NOT_NULL(columns = (
+      quality_id
+  )))
+)

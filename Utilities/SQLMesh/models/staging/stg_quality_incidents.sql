@@ -9,7 +9,7 @@ MODEL (
     incident_date DATE,
     incident_type TEXT,
     severity_level TEXT,
-    affected_units INTEGER,
+    affected_units INT,
     cost_impact DOUBLE,
     detection_method TEXT,
     status TEXT,
@@ -18,9 +18,15 @@ MODEL (
     root_cause TEXT,
     created_at TIMESTAMP
   ),
-  grain (incident_id),
+  grain (
+    incident_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (incident_id)),
-    NOT_NULL(columns = (incident_id))
+    UNIQUE_VALUES(columns = (
+      incident_id
+    )),
+    NOT_NULL(columns = (
+      incident_id
+    ))
   )
-);
+)

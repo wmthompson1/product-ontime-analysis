@@ -3,19 +3,25 @@ MODEL (
   kind FULL,
   cron '@daily',
   columns (
-    resource_id   TEXT,
+    resource_id TEXT,
     resource_type TEXT,
-    status        TEXT
+    status TEXT
   ),
-  grain (resource_id),
+  grain (
+    resource_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (resource_id)),
-    NOT_NULL(columns = (resource_id))
+    UNIQUE_VALUES(columns = (
+      resource_id
+    )),
+    NOT_NULL(columns = (
+      resource_id
+    ))
   )
 );
 
 SELECT
-  CAST(ResourceID   AS TEXT) AS resource_id,
-  CAST(ResourceType AS TEXT) AS resource_type,
-  CAST(Status       AS TEXT) AS status
-FROM raw.operation_resources;
+  ResourceID::TEXT AS resource_id,
+  ResourceType::TEXT AS resource_type,
+  Status::TEXT AS status
+FROM raw.operation_resources

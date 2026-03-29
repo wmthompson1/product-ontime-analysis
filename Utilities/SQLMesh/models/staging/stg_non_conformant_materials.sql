@@ -10,16 +10,19 @@ MODEL (
     supplier_id TEXT,
     material_type TEXT,
     defect_description TEXT,
-    quantity_affected INTEGER,
+    quantity_affected INT,
     severity TEXT,
     root_cause TEXT,
     cost_impact DOUBLE,
     status TEXT,
     created_date TIMESTAMP
   ),
-  grain (ncm_id),
-  audits (
-    UNIQUE_VALUES(columns = (ncm_id)),
-    NOT_NULL(columns = (ncm_id))
-  )
-);
+  grain (
+    ncm_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      ncm_id
+    )), NOT_NULL(columns = (
+      ncm_id
+  )))
+)

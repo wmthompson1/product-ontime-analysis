@@ -15,9 +15,12 @@ MODEL (
     approved_by TEXT,
     created_date TIMESTAMP
   ),
-  grain (impact_id),
-  audits (
-    UNIQUE_VALUES(columns = (impact_id)),
-    NOT_NULL(columns = (impact_id))
-  )
-);
+  grain (
+    impact_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      impact_id
+    )), NOT_NULL(columns = (
+      impact_id
+  )))
+)

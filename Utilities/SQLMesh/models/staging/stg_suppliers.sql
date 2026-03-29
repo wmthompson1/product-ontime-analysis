@@ -11,13 +11,19 @@ MODEL (
     address TEXT,
     performance_rating DOUBLE,
     certification_level TEXT,
-    lead_time_days INTEGER,
+    lead_time_days INT,
     payment_terms TEXT,
     created_date TIMESTAMP
   ),
-  grain (supplier_id),
+  grain (
+    supplier_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (supplier_id)),
-    NOT_NULL(columns = (supplier_id))
+    UNIQUE_VALUES(columns = (
+      supplier_id
+    )),
+    NOT_NULL(columns = (
+      supplier_id
+    ))
   )
-);
+)

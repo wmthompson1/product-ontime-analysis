@@ -12,9 +12,12 @@ MODEL (
     variance_pct DOUBLE,
     created_date TIMESTAMP
   ),
-  grain (cost_id),
-  audits (
-    UNIQUE_VALUES(columns = (cost_id)),
-    NOT_NULL(columns = (cost_id))
-  )
-);
+  grain (
+    cost_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      cost_id
+    )), NOT_NULL(columns = (
+      cost_id
+  )))
+)

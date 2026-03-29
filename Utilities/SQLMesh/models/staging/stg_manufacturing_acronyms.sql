@@ -11,9 +11,12 @@ MODEL (
     description TEXT,
     created_date TIMESTAMP
   ),
-  grain (acronym_id),
-  audits (
-    UNIQUE_VALUES(columns = (acronym_id)),
-    NOT_NULL(columns = (acronym_id))
-  )
-);
+  grain (
+    acronym_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      acronym_id
+    )), NOT_NULL(columns = (
+      acronym_id
+  )))
+)

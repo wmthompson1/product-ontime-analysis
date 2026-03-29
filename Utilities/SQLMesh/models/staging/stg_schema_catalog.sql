@@ -9,8 +9,8 @@ SELECT
   table_name,
   column_name,
   data_type,
-  CAST(is_nullable AS BOOLEAN) AS is_nullable,
-  CAST(is_primary_key AS BOOLEAN) AS is_primary_key,
-  COALESCE(CAST(is_shadow_key AS BOOLEAN), FALSE) AS is_shadow_key,
+  is_nullable::BOOLEAN AS is_nullable,
+  is_primary_key::BOOLEAN AS is_primary_key,
+  COALESCE(is_shadow_key::BOOLEAN, FALSE) AS is_shadow_key,
   semantic_concept
-FROM raw.schema_catalog;
+FROM raw.schema_catalog

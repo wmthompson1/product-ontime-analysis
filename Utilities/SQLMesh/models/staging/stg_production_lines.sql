@@ -8,8 +8,8 @@ MODEL (
     line_name TEXT,
     facility_location TEXT,
     line_type TEXT,
-    theoretical_capacity INTEGER,
-    actual_capacity INTEGER,
+    theoretical_capacity INT,
+    actual_capacity INT,
     efficiency_rating DOUBLE,
     installation_date DATE,
     last_maintenance_date DATE,
@@ -18,9 +18,12 @@ MODEL (
     shift_pattern TEXT,
     created_at TIMESTAMP
   ),
-  grain (line_id),
-  audits (
-    UNIQUE_VALUES(columns = (line_id)),
-    NOT_NULL(columns = (line_id))
-  )
-);
+  grain (
+    line_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      line_id
+    )), NOT_NULL(columns = (
+      line_id
+  )))
+)

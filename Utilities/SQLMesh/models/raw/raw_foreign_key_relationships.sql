@@ -3,4 +3,4 @@ MODEL (
   kind SEED (
     path '$root/seeds/foreign_key_relationships.csv'
   )
-);
+)

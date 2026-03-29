@@ -15,9 +15,12 @@ MODEL (
     verified_by TEXT,
     created_date TIMESTAMP
   ),
-  grain (metric_id),
-  audits (
-    UNIQUE_VALUES(columns = (metric_id)),
-    NOT_NULL(columns = (metric_id))
-  )
-);
+  grain (
+    metric_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      metric_id
+    )), NOT_NULL(columns = (
+      metric_id
+  )))
+)

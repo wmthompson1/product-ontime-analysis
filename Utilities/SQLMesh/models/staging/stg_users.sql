@@ -15,9 +15,12 @@ MODEL (
     is_active TEXT,
     created_date TIMESTAMP
   ),
-  grain (user_id),
-  audits (
-    UNIQUE_VALUES(columns = (user_id)),
-    NOT_NULL(columns = (user_id))
-  )
-);
+  grain (
+    user_id
+  ),
+  audits (UNIQUE_VALUES(columns = (
+      user_id
+    )), NOT_NULL(columns = (
+      user_id
+  )))
+)

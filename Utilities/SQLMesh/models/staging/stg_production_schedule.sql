@@ -9,15 +9,21 @@ MODEL (
     product_id TEXT,
     scheduled_date DATE,
     shift TEXT,
-    planned_quantity INTEGER,
-    actual_quantity INTEGER,
+    planned_quantity INT,
+    actual_quantity INT,
     completion_rate DOUBLE,
     status TEXT,
     created_date TIMESTAMP
   ),
-  grain (schedule_id),
+  grain (
+    schedule_id
+  ),
   audits (
-    UNIQUE_VALUES(columns = (schedule_id)),
-    NOT_NULL(columns = (schedule_id))
+    UNIQUE_VALUES(columns = (
+      schedule_id
+    )),
+    NOT_NULL(columns = (
+      schedule_id
+    ))
   )
-);
+)
