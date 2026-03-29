@@ -1,0 +1,56 @@
+# test_vendor_masking.yaml
+# --------------------------
+# Verifies Rule 1 + Rule 3 from pod908.md §4:
+#   - masking_matrix row 1.1 is applied (sha256(vendor.id))
+#   - original id never surfaces in the output
+#   - non-PII columns pass through unchanged
+#
+# Fixture hash (computed by scripts/generate_masking_seeds.py):
+#   sha256("vendor-test-001") = 6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c
+
+test_vendor_id_is_hashed:
+  model: staging.stg_vendor
+  inputs:
+    raw.raw_vendor:
+      rows:
+        - id: "vendor-test-001"
+          name: "Acme Corp"
+          contact_email: "contact@acme-corp.example"
+          country: "US"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
+          name: "Acme Corp"
+          contact_email: "contact@acme-corp.example"
+          country: "US"
+          _dag_no: "1.1"
+
+test_vendor_two_rows_produce_distinct_hashes:
+  model: staging.stg_vendor
+  inputs:
+    raw.raw_vendor:
+      rows:
+        - id: "vendor-test-001"
+          name: "Acme Corp"
+          contact_email: "a@a.com"
+          country: "US"
+        - id: "vendor-test-002"
+          name: "Beta Supplies"
+          contact_email: "b@b.com"
+          country: "DE"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
+          name: "Acme Corp"
+          contact_email: "a@a.com"
+          country: "US"
+          _dag_no: "1.1"
+        - vendor_id: "1cdb684e51369ee98624117aa6259933274822a5c81786635273115519bfa649"
+          name: "Beta Supplies"
+          contact_email: "b@b.com"
+          country: "DE"
+          _dag_no: "1.1"

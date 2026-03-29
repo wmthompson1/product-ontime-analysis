@@ -1,0 +1,74 @@
+# test_part_masking.yaml
+# -----------------------
+# Verifies Rule 1 + Rule 3 from pod908.md §4 for DAG 1.2:
+#   - masking_matrix row 1.2 is applied (sha256(part.pref_vendor))
+#   - pref_vendor_id matches the sha256 of the vendor's raw id (referential integrity)
+#   - buyer_email is NOT masked — it is unregistered until DAG 1.3 is certified
+#   - parts whose vendor is not in stg_vendor are excluded (inner-join guard)
+#
+# Fixture hashes (scripts/generate_masking_seeds.py):
+#   sha256("vendor-test-001") = 6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c
+
+test_part_pref_vendor_is_hashed:
+  model: staging.stg_part
+  inputs:
+    # stg_part joins staging.stg_vendor directly — provide the already-masked rows
+    staging.stg_vendor:
+      rows:
+        - vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
+          name: "Acme Corp"
+          contact_email: "contact@acme-corp.example"
+          country: "US"
+          _dag_no: "1.1"
+          _masked_at: "2026-03-29 00:00:00"
+    raw.raw_part:
+      rows:
+        - part_no: "PT-FIXTURE"
+          description: "Widget Assembly Unit"
+          pref_vendor: "vendor-test-001"
+          unit_cost: 42.00
+          buyer_email: "buyer@example.com"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - part_no: "PT-FIXTURE"
+          description: "Widget Assembly Unit"
+          pref_vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
+          unit_cost: 42.0
+          buyer_email: "buyer@example.com"
+          _dag_no: "1.2"
+
+test_part_with_unregistered_vendor_is_excluded:
+  model: staging.stg_part
+  inputs:
+    staging.stg_vendor:
+      rows:
+        - vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
+          name: "Acme Corp"
+          contact_email: "contact@acme-corp.example"
+          country: "US"
+          _dag_no: "1.1"
+          _masked_at: "2026-03-29 00:00:00"
+    raw.raw_part:
+      rows:
+        - part_no: "PT-VALID"
+          description: "Good Part"
+          pref_vendor: "vendor-test-001"
+          unit_cost: 10.00
+          buyer_email: "good@example.com"
+        - part_no: "PT-ORPHAN"
+          description: "Orphan Part — vendor not in stg_vendor"
+          pref_vendor: "vendor-unknown-999"
+          unit_cost: 99.00
+          buyer_email: "orphan@example.com"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - part_no: "PT-VALID"
+          description: "Good Part"
+          pref_vendor_id: "6e890f636bd6fb774cec795520dd42e67b7f27691af024a5cd2a5afadf9b0c4c"
+          unit_cost: 10.0
+          buyer_email: "good@example.com"
+          _dag_no: "1.2"

@@ -1,0 +1,29 @@
+{
+  "certificate_version": "1.2",
+  "issued_at": "2026-03-28T23:30:55Z",
+  "pre_stage_server": "prestage-sql-01",
+  "receiving_id": "RECV-2026-03-28-001",
+  "masking_matrix_ref": {
+    "file": "../masking_matrix.csv",
+    "dag_lines": [
+      {
+        "dag_no": "1.1",
+        "table_name": "vendor",
+        "column_name": "id",
+        "masking_rule": "hash_sha256(id)"
+      },
+      {
+        "dag_no": "1.2",
+        "table_name": "part",
+        "column_name": "pref_vendor",
+        "masking_rule": "hash_sha256(pref_vendor)",
+        "parent_table": "vendor",
+        "parent_column": "id"
+      }
+    ]
+  },
+  "receiver_id_agent": "sqlmesh-receiving-agent-v1",
+  "trust_boundary": "pre_stage_to_receiving",
+  "status": "certified",
+  "notes": "PII masking applied per corpus policy before downstream model ingestion. SQLMesh plan validated DAG traversal from vendor (1.1) through part (1.2)."
+}
