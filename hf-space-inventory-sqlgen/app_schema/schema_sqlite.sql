@@ -1,7 +1,7 @@
 -- SQLite Schema for Manufacturing Analytics
 -- Generated from PostgreSQL schema
 
-CREATE TABLE corrective_actions (
+CREATE TABLE IF NOT EXISTS corrective_actions (
     capa_id INTEGER NOT NULL,
     ncm_id INTEGER,
     action_description text,
@@ -12,7 +12,7 @@ CREATE TABLE corrective_actions (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE daily_deliveries (
+CREATE TABLE IF NOT EXISTS daily_deliveries (
     delivery_id INTEGER NOT NULL,
     supplier_id INTEGER,
     delivery_date DATE NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE daily_deliveries (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE downtime_events (
+CREATE TABLE IF NOT EXISTS downtime_events (
     event_id INTEGER NOT NULL,
     line_id INTEGER,
     equipment_id INTEGER,
@@ -40,7 +40,7 @@ CREATE TABLE downtime_events (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE effectiveness_metrics (
+CREATE TABLE IF NOT EXISTS effectiveness_metrics (
     metric_id INTEGER NOT NULL,
     measurement_date DATE NOT NULL,
     metric_type TEXT NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE effectiveness_metrics (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE equipment_metrics (
+CREATE TABLE IF NOT EXISTS equipment_metrics (
     equipment_id INTEGER NOT NULL,
     line_id TEXT NOT NULL,
     equipment_type TEXT,
@@ -69,7 +69,7 @@ CREATE TABLE equipment_metrics (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE equipment_reliability (
+CREATE TABLE IF NOT EXISTS equipment_reliability (
     reliability_id INTEGER NOT NULL,
     equipment_id INTEGER,
     measurement_period DATE NOT NULL,
@@ -81,7 +81,7 @@ CREATE TABLE equipment_reliability (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE failure_events (
+CREATE TABLE IF NOT EXISTS failure_events (
     failure_id INTEGER NOT NULL,
     equipment_id INTEGER NOT NULL,
     failure_date DATETIME NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE failure_events (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE financial_impact (
+CREATE TABLE IF NOT EXISTS financial_impact (
     impact_id INTEGER NOT NULL,
     event_date DATE NOT NULL,
     impact_type TEXT NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE financial_impact (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE industry_benchmarks (
+CREATE TABLE IF NOT EXISTS industry_benchmarks (
     benchmark_id INTEGER NOT NULL,
     metric_name TEXT NOT NULL,
     industry_sector TEXT,
@@ -128,7 +128,7 @@ CREATE TABLE industry_benchmarks (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE maintenance_targets (
+CREATE TABLE IF NOT EXISTS maintenance_targets (
     target_id INTEGER NOT NULL,
     equipment_type TEXT NOT NULL,
     target_mtbf REAL,
@@ -141,7 +141,7 @@ CREATE TABLE maintenance_targets (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE manufacturing_acronyms (
+CREATE TABLE IF NOT EXISTS manufacturing_acronyms (
     acronym_id INTEGER NOT NULL,
     acronym TEXT NOT NULL,
     definition text NOT NULL,
@@ -151,7 +151,7 @@ CREATE TABLE manufacturing_acronyms (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE non_conformant_materials (
+CREATE TABLE IF NOT EXISTS non_conformant_materials (
     ncm_id INTEGER NOT NULL,
     incident_date DATE NOT NULL,
     product_line TEXT,
@@ -166,7 +166,7 @@ CREATE TABLE non_conformant_materials (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE product_defects (
+CREATE TABLE IF NOT EXISTS product_defects (
     defect_id INTEGER NOT NULL,
     product_line TEXT NOT NULL,
     production_date DATE NOT NULL,
@@ -179,7 +179,7 @@ CREATE TABLE product_defects (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE product_lines (
+CREATE TABLE IF NOT EXISTS product_lines (
     product_line_id INTEGER NOT NULL,
     product_line_name TEXT NOT NULL,
     product_category TEXT,
@@ -194,7 +194,7 @@ CREATE TABLE product_lines (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE production_lines (
+CREATE TABLE IF NOT EXISTS production_lines (
     line_id INTEGER NOT NULL,
     line_name TEXT NOT NULL,
     facility_location TEXT,
@@ -209,7 +209,7 @@ CREATE TABLE production_lines (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE production_quality (
+CREATE TABLE IF NOT EXISTS production_quality (
     quality_id INTEGER NOT NULL,
     product_line TEXT NOT NULL,
     production_date DATE NOT NULL,
@@ -221,7 +221,7 @@ CREATE TABLE production_quality (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE production_schedule (
+CREATE TABLE IF NOT EXISTS production_schedule (
     schedule_id INTEGER NOT NULL,
     line_id TEXT NOT NULL,
     product_line TEXT,
@@ -235,12 +235,12 @@ CREATE TABLE production_schedule (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
     id INTEGER NOT NULL,
     description text NOT NULL
 );
 
-CREATE TABLE quality_costs (
+CREATE TABLE IF NOT EXISTS quality_costs (
     cost_id INTEGER NOT NULL,
     product_line_id INTEGER,
     cost_date DATE NOT NULL,
@@ -255,7 +255,7 @@ CREATE TABLE quality_costs (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE quality_incidents (
+CREATE TABLE IF NOT EXISTS quality_incidents (
     incident_id INTEGER NOT NULL,
     product_line TEXT NOT NULL,
     incident_date DATE NOT NULL,
@@ -271,7 +271,7 @@ CREATE TABLE quality_incidents (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE schema_edges (
+CREATE TABLE IF NOT EXISTS schema_edges (
     edge_id INTEGER NOT NULL,
     from_table TEXT,
     to_table TEXT,
@@ -285,14 +285,14 @@ CREATE TABLE schema_edges (
     context text
 );
 
-CREATE TABLE schema_nodes (
+CREATE TABLE IF NOT EXISTS schema_nodes (
     table_name TEXT NOT NULL,
     table_type TEXT,
     description text,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE suppliers (
+CREATE TABLE IF NOT EXISTS suppliers (
     supplier_id INTEGER NOT NULL,
     supplier_name TEXT NOT NULL,
     contact_email TEXT,
@@ -303,7 +303,7 @@ CREATE TABLE suppliers (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER NOT NULL,
     name TEXT NOT NULL,
     email TEXT NOT NULL
@@ -315,7 +315,7 @@ CREATE TABLE users (
 -- =============================================================================
 
 -- Schema Concepts: Multiple interpretations of ambiguous fields
-CREATE TABLE schema_concepts (
+CREATE TABLE IF NOT EXISTS schema_concepts (
     concept_id INTEGER PRIMARY KEY AUTOINCREMENT,
     concept_name TEXT NOT NULL UNIQUE,
     concept_type TEXT NOT NULL,  -- 'state', 'metric', 'classification', 'outcome'
@@ -327,7 +327,7 @@ CREATE TABLE schema_concepts (
 );
 
 -- Links fields to concepts (CAN_MEAN relationship)
-CREATE TABLE schema_concept_fields (
+CREATE TABLE IF NOT EXISTS schema_concept_fields (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     table_name TEXT NOT NULL,
     field_name TEXT NOT NULL,
@@ -397,7 +397,7 @@ INSERT INTO schema_concept_fields (table_name, field_name, concept_id, is_primar
 ('daily_deliveries', 'quality_score', 8, 1, 'Default: supplier scorecard');
 
 -- Schema Perspectives: Organizational viewpoints that constrain valid meanings
-CREATE TABLE schema_perspectives (
+CREATE TABLE IF NOT EXISTS schema_perspectives (
     perspective_id INTEGER PRIMARY KEY AUTOINCREMENT,
     perspective_name TEXT NOT NULL UNIQUE,
     description TEXT,
@@ -407,7 +407,7 @@ CREATE TABLE schema_perspectives (
 );
 
 -- Junction table: Which concepts each perspective uses or suppresses
-CREATE TABLE schema_perspective_concepts (
+CREATE TABLE IF NOT EXISTS schema_perspective_concepts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     perspective_id INTEGER NOT NULL,
     concept_id INTEGER NOT NULL,
@@ -461,7 +461,7 @@ INSERT INTO schema_perspective_concepts (perspective_id, concept_id, relationshi
 
 -- Schema Intents: Analytical goals that binary-switch concept weights
 -- Intent elevates one field interpretation to 1.0 while de-elevating alternatives to 0.0
-CREATE TABLE schema_intents (
+CREATE TABLE IF NOT EXISTS schema_intents (
     intent_id INTEGER PRIMARY KEY AUTOINCREMENT,
     intent_name TEXT NOT NULL UNIQUE,
     intent_category TEXT NOT NULL,  -- maps to query categories (quality_control, supplier_performance, etc.)
@@ -475,7 +475,7 @@ CREATE TABLE schema_intents (
 --   1 = Explicitly elevated / active (use this interpretation)
 --   0 = Neutral / not selected
 --  -1 = Explicitly suppressed (never use this interpretation)
-CREATE TABLE schema_intent_concepts (
+CREATE TABLE IF NOT EXISTS schema_intent_concepts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     intent_id INTEGER NOT NULL,
     concept_id INTEGER NOT NULL,
@@ -488,7 +488,7 @@ CREATE TABLE schema_intent_concepts (
 );
 
 -- Link intents to ground truth SQL queries
-CREATE TABLE schema_intent_queries (
+CREATE TABLE IF NOT EXISTS schema_intent_queries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     intent_id INTEGER NOT NULL,
     query_category TEXT NOT NULL,  -- maps to index.json category id
@@ -505,7 +505,7 @@ CREATE TABLE schema_intent_queries (
 --   1 = Active path (this perspective is used)
 --   0 = Neutral / not selected
 --  -1 = Explicitly suppressed path
-CREATE TABLE schema_intent_perspectives (
+CREATE TABLE IF NOT EXISTS schema_intent_perspectives (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     intent_id INTEGER NOT NULL,
     perspective_id INTEGER NOT NULL,
