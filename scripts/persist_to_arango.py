@@ -89,7 +89,7 @@ def load_schema_graph_from_sqlite(db_path: str | None = None) -> SimpleDiGraph:
     import sqlite3
     
     if db_path is None:
-        db_path = os.getenv('SQLITE_DATABASE', 'schema/manufacturing.db')
+        db_path = os.getenv('SQLITE_DATABASE', 'hf-space-inventory-sqlgen/app_schema/manufacturing.db')
     
     print(f"Loading graph from SQLite: {db_path}")
     
