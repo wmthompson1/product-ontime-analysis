@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "DTYC8-OeBSbXgDjoHh5ZL"
+uri = "file://docs/arango_graph_queries.md"
+type = "text"
+title = "ArangoDB Graph Query Reference"
