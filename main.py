@@ -1,4 +1,21 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+def _load_anchored_env():
+    """Walk up from repo root looking for a .env file (up to 3 levels).
+    Loads the first one found. Silently skips if none exists (e.g. Replit)."""
+    anchor = Path(__file__).resolve().parent
+    for _ in range(3):
+        candidate = anchor / '.env'
+        if candidate.exists():
+            load_dotenv(candidate, override=False)
+            return candidate
+        anchor = anchor.parent
+    return None
+
+_load_anchored_env()
+
 import requests as http_requests
 from flask import Flask, request, jsonify, send_from_directory, render_template, send_file, Response
 from flask_sqlalchemy import SQLAlchemy
