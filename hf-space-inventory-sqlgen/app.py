@@ -10,6 +10,23 @@ This Space demonstrates:
 """
 
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+def _load_anchored_env():
+    """Walk up from this file's directory looking for a .env file (up to 3 levels).
+    Loads the first one found. Silently skips if none exists (e.g. Replit, HF Space)."""
+    anchor = Path(__file__).resolve().parent
+    for _ in range(3):
+        candidate = anchor / '.env'
+        if candidate.exists():
+            load_dotenv(candidate, override=False)
+            return candidate
+        anchor = anchor.parent
+    return None
+
+_load_anchored_env()
+
 import json
 import csv
 import io
