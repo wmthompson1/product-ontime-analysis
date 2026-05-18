@@ -1,138 +1,211 @@
 # GitHub Copilot Instructions
 
+## The Single Most Important Rule
+
+**All SQL in this system comes from SME-approved snippets. The LLM is a classifier only — it never generates SQL.**
+
+Any suggestion that has an LLM writing, constructing, or interpolating SQL is architecturally wrong for this codebase.
+
+---
+
 ## Project Overview
-This is a Python-based project focused on data analysis, AI/LangChain applications, and product delivery/on-time analysis. The project includes various entry points for different AI workflows, data processing pipelines, and analysis tools.
 
-## Code Style and Standards
+This is a **Manufacturing SQL Semantic Layer** for aerospace manufacturing business intelligence. It routes natural language questions through a deterministic graph to SME-approved SQL snippets, assembles them via the SolderEngine, and returns governed, auditable query results.
 
-### Python Style
-- Follow PEP 8 style guidelines for Python code
-- Use type hints where appropriate to improve code clarity
-- Use descriptive variable and function names
-- Add docstrings to all functions, classes, and modules using Google-style docstrings
-- Keep functions focused and modular
+The project is organized as a **monorepo** running on Replit with three services and two SQLite databases as the canonical source of truth.
 
-### File Organization
-- Entry point files follow the naming pattern `{number}_Entry_Point_{description}.py`
-- Test files should be prefixed with `test_`
-- Keep related functionality together in appropriately named modules
+---
 
-## Dependencies and Environment
+## Architecture
 
-### Python Version
-- Requires Python >= 3.11
+### Three-Service Layout
 
-### Key Dependencies (from requirements.txt)
-- AI/ML: openai, nltk
-- Data analysis: pandas, openpyxl, xlrd
-- Web frameworks: Flask, Flask-SQLAlchemy, Flask-Migrate
-- Database: PostgreSQL (psycopg2-binary), SQLAlchemy, ArangoDB (nx-arangodb), NetworkX
-- Web scraping: requests, beautifulsoup4, trafilatura, lxml
-- Utilities: python-dotenv for environment variables
-- MCP: mcp_server_filesystem (from GitHub)
+| Service | Entry Point | Port | Role |
+|---|---|---|---|
+| Flask API gateway | `main.py` | 5000 / ext 80 | Public REST API, proxies to HF Space |
+| FastAPI + Gradio | `hf-space-inventory-sqlgen/app.py` | 8080 | Core engine, Gradio UI, MCP endpoints |
+| Astro frontend | `hello-astro/` | 4321 | Frontend shell |
 
-**Note:** The codebase uses LangChain packages (langchain_core, langchain_openai, langchain_community, langchain_experimental) that are not listed in requirements.txt. These should be added to ensure proper dependency management.
+### Routing Chain (the Solder Pattern)
 
-### Installing Dependencies
-- Use `pip install -r requirements.txt` to install dependencies
-- Environment variables should be stored in `.env` file (never commit secrets)
+```
+Natural language question
+    → ProductionDispatcher
+        LLM (Mistral-7B-Instruct via HuggingFace Inference API)
+        classifies ONLY → Intent + Concept + Perspective
+        (keyword mock fallback when no API key)
+    → ArangoDB graph traversal
+        Intent --operates_within--> Perspective
+        Intent --elevates(weight=1)--> Concept
+        Intent --bound_to--> Binding (APPROVED only)
+    → Binding resolves to an APPROVED .sql snippet file
+    → SolderEngine (SQLGlot)
+        assembles final SQL: alias renaming, table qualification,
+        CTE construction, multi-dialect transpilation
+    → Result returned — zero LLM-generated SQL ever executed
+```
 
-## Testing and Quality
+### OUT_OF_SCOPE Detection
 
-### Testing Approach
-- Test files are located in the root directory with `test_` prefix
-- Write unit tests for new functionality
-- Run tests before committing changes
+If the Dispatcher cannot map the question to a known Intent, it returns `OUT_OF_SCOPE` and no SQL is attempted. Do not bypass this check.
 
-### Documentation
-- Document complex algorithms and business logic
-- Include usage examples in docstrings
-- Keep README files up to date when adding new features
+---
 
-## AI/LangChain Development
+## Key Source Files
 
-### LangChain Patterns
-- Use structured approaches for RAG (Retrieval-Augmented Generation) implementations
-- Follow established patterns for graph-based workflows
-- Implement proper error handling and logging for AI operations
-- Use environment variables for API keys (OpenAI, etc.)
+```
+hf-space-inventory-sqlgen/
+  app.py                    FastAPI + Gradio app; init_database(); all endpoints
+  solder_engine.py          SQL assembly from approved snippets (SQLGlot)
+  production_dispatcher.py  Semantic router — LLM classifier only, never SQL
+  graph_sync.py             Syncs manufacturing.db → ArangoDB graph
+  arangodb_persistence.py   ArangoDB connection, graph persistence, config
+  semantic_reasoning.py     Graph traversal helpers
+  app_schema/
+    manufacturing.db        Authoritative SQLite — intents, concepts,
+                            perspectives, bindings, concept_fields, seed data
+    schema_sqlite.sql       DDL + seed (CREATE TABLE IF NOT EXISTS throughout)
+    ground_truth/           Approved .sql snippet files (one per binding)
 
-### Data Processing
-- Handle CSV and Excel files using pandas for consistency
-- Implement proper data validation and error handling
-- Use appropriate data cleansing techniques for manufacturing/delivery data
+main.py                     Flask gateway; _load_anchored_env() at top
+config.py                   SQLALCHEMY_DATABASE_URI
 
-## Security Best Practices
+Utilities/
+  ArangoFixtures/
+    load_fk_edges.py        FK edge loader → ArangoDB (stable, important logic)
+    load_bridge_edges.py    MAPS_TO_CONCEPT table-to-concept bridge edges
+    persist_semantic_graph_to_arango.py
+    verify_graph.py         100% table-to-semantic reachability assertion
+  SQLMesh/analysis/impact/
+    foreign_key_iterator.py Extracts FKs from ERP DDL
+    foreign_key_hierarchy.py BFS hierarchy builder
+    output/schema_catalog.db FK + column catalog (251 columns, 15 FKs)
 
-### API Keys and Secrets
-- Never hardcode API keys, tokens, or credentials
-- Always use environment variables via python-dotenv
-- Add `.env` files to `.gitignore`
+docs/
+  arango_graph_queries.md   AQL traversal reference — 6 core patterns + health check
+```
 
-### Data Handling
-- Validate and sanitize user inputs
-- Use parameterized queries for database operations
-- Be cautious with file uploads and external data sources
+---
 
-## Database Operations
+## Data Layer
 
-### SQL Best Practices
-- Use SQLAlchemy ORM for database operations when possible
-- Always use parameterized queries to prevent SQL injection
-- Implement proper transaction handling
+### Two Canonical SQLite Databases
 
-### Graph Databases
-- Use nx-arangodb for graph operations
-- Follow NetworkX patterns for graph data structures
+| Database | Path | Purpose |
+|---|---|---|
+| `manufacturing.db` | `hf-space-inventory-sqlgen/app_schema/manufacturing.db` | Production data + semantic layer (intents, concepts, perspectives, bindings) |
+| `schema_catalog.db` | `Utilities/SQLMesh/analysis/impact/output/schema_catalog.db` | ERP FK relationships + DDL column catalog |
 
-## Deployment and Configuration
+**There is no other canonical SQLite database.** Do not create or reference a third database.
 
-### Replit Deployment
-- The project includes Replit configuration files (`.replit`, `replit.md`)
-- See `Replit_Deployment_Guide_for_Business.md` for deployment instructions
-- See `Git_Setup_Guide_Replit.md` for Git integration setup
+### ArangoDB Graph (`manufacturing_graph`)
 
-### Local Setup
-- See `LOCAL_SETUP.md` and `Local_Installation_Guide.md` for local development setup
-- See `README_Local_Setup.md` for additional setup instructions
-- Use `LangChain_Academy_Setup_Guide.md` for LangChain-specific setup
+- **306 nodes, 431 edges** (current state)
+- **Two graph layers** — do not mix them:
+  - Uppercase collections (`ELEVATES`, `OPERATES_WITHIN`, etc.) — older schema layer, vertex IDs use `manufacturing_graph_node/` prefix
+  - Lowercase collections (`elevates`, `operates_within`, `intents`, `concepts`, `perspectives`, `bindings`) — **active layer**, maintained by `graph_sync.py`, use this for all new development
+- **Synced from** `manufacturing.db` via `graph_sync.py` — ArangoDB is derived, SQLite is the source of truth
+- Connection config lives in `arangodb_persistence.py` (reads `ARANGO_ROOT_PASSWORD`, `ARANGO_USER`, `ARANGO_DB` env vars)
 
-### Flask Applications
-- Use Flask best practices for web applications
-- Implement proper error handling and logging
-- Use Flask-Migrate for database migrations
+### SQLMesh / DuckDB
 
-## Common Patterns
+- 41 virtual production-layer models under `Utilities/SQLMesh/`
+- DuckDB is the SQLMesh execution engine
+- Models are read-only views over the ERP schema; do not write to them
 
-### Entry Point Scripts
-- Entry point scripts should be executable and include proper main guards
-- Include clear usage instructions in docstrings
-- Handle command-line arguments appropriately
+---
 
-### Data Analysis Scripts
-- Use pandas for data manipulation
-- Include clear statistical methods documentation
-- When creating demo/test scripts, provide sample data generation functions with realistic parameters and clear documentation
+## Semantic Graph Model
 
-## File Patterns to Note
-- `.py` files: Python source code
-- `.txt` files: Data files or documentation
-- `.csv` files: Sample data for analysis
-- `.json` files: Configuration or data files
-- `.md` files: Documentation (markdown)
+```
+Intent  --operates_within-->   Perspective
+Intent  --elevates(w=1)-->     Concept        (1=use, 0=neutral, -1=suppress)
+Intent  --bound_to-->          Binding        (→ approved .sql file)
+Perspective --uses_definition--> Concept
+Table   --FOREIGN_KEY-->       Table
+Table   --HAS_COLUMN-->        AtomicColumn
+```
 
-## Naming Conventions
-- Use snake_case for Python module files, variables, and functions
-- Use PascalCase for class names
-- Use UPPERCASE for constants
-- Configuration files and scripts may follow their respective conventions (e.g., `.md` for markdown, `.json` for JSON)
+**Elevation weights are binary switches** — 1 means select this concept for this intent, -1 suppresses it. SolderEngine reads SUPPRESSES edges and emits NULL for suppressed concepts. Do not treat weights as scores or rankings.
 
-## Error Handling
-- Use try-except blocks for operations that may fail
-- Provide meaningful error messages
-- Log errors appropriately for debugging
+### Binding States
 
-## Version Control
-- Write clear, descriptive commit messages
-- Keep commits focused on a single logical change
-- Don't commit temporary files, build artifacts, or sensitive data
+| Status | Behavior |
+|---|---|
+| `APPROVED` | SolderEngine uses this snippet |
+| `PENDING` | Skipped at runtime — awaiting SME review |
+| `REJECTED` | Never used |
+
+Currently: 17 APPROVED, 2 PENDING (`quality_ncm_cost_20260209_193816`, `gt_ncm_by_employee_20260210_230752`).
+
+---
+
+## Environment Variables
+
+Loaded via `_load_anchored_env()` at the top of `main.py` and `app.py`. This function walks up the directory tree (up to 3 levels) looking for a `.env` file, loads it with `override=False` so platform-injected secrets (Replit) are never overwritten.
+
+| Variable | Used By | Notes |
+|---|---|---|
+| `FLASK_PORT` | `main.py` | Defaults to 5000; set to 5002 locally to avoid Kestrel collision |
+| `PORT` | `app.py` (uvicorn) | Defaults to 8080 |
+| `OPENAI_API_KEY` | Embeddings, RAGAS | |
+| `TAVILY_API_KEY` | Advanced RAG | |
+| `ARANGO_ROOT_PASSWORD` | ArangoDB | |
+| `ARANGO_USER` | ArangoDB | |
+| `ARANGO_DB` | ArangoDB | Fail-fast: RuntimeError if missing |
+| `QUERY_API_KEY` | `/api/arango-sync` endpoint | Bearer token for sync endpoint |
+
+**Local triple-port cleanroom** (when running alongside .NET / DAB locally):
+- Kestrel: 5000 (ASP.NET default — do not touch)
+- DAB / MCP server: 5001 (`DAB_PORT=5001` in parent `.env`)
+- Flask: 5002 (`FLASK_PORT=5002` in parent `.env`)
+
+---
+
+## SQL Safety Rules
+
+- All SQL is read-only SELECT — no INSERT, UPDATE, DELETE, DROP, or DDL
+- SQL injection prevention is enforced in the semantic layer
+- Use parameterized queries for any direct SQLAlchemy calls
+- The SolderEngine's `execute_sql` endpoint validates operation type before execution
+
+---
+
+## Schema Conventions
+
+- All 32 ERP tables use `CREATE TABLE IF NOT EXISTS` — incremental loading is safe by design
+- Seed data uses `INSERT OR IGNORE` — re-running `init_database()` is idempotent
+- Foreign key naming: `{table}_{column}_fk` pattern
+- SQLite WAL mode is enabled on `manufacturing.db` for concurrency
+
+---
+
+## File Naming Conventions
+
+- Entry point study scripts: `{number}_Entry_Point_{topic}.py` (Frank Kane Advanced RAG series)
+- Ground truth SQL files: `{binding_key}.sql` in `app_schema/ground_truth/`
+- ArangoDB fixture loaders: `load_{edge_type}.py` in `Utilities/ArangoFixtures/`
+- Test files: `test_` prefix
+
+---
+
+## Code Style
+
+- Python >= 3.11
+- Type hints on all function signatures
+- Google-style docstrings
+- snake_case for modules, variables, functions; PascalCase for classes; UPPERCASE for constants
+- Try/except with meaningful error messages — no silent fallbacks
+- Never hardcode API keys, ports, or credentials — always read from environment
+
+---
+
+## What Not to Do
+
+- Do not suggest LLM-generated SQL — the entire architecture exists to prevent this
+- Do not write to `schema_catalog.db` — it is a derived artifact from ERP DDL analysis
+- Do not add a third SQLite database without explicit instruction
+- Do not bypass the `APPROVED` binding check in SolderEngine
+- Do not mix the uppercase and lowercase ArangoDB graph layers
+- Do not set `override=True` in `load_dotenv` — platform secrets must not be overwritten
+- Do not hardcode ports — always use the env var with a safe default
