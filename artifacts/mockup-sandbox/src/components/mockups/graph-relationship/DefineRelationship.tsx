@@ -220,7 +220,7 @@ export function DefineRelationship() {
         {/* Category pill bar */}
         <div className="px-5 py-2.5 border-b border-slate-700/40 flex items-center gap-2 flex-wrap bg-[#1e1e2e]/60">
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
-            Edge Category:
+            Category:
           </span>
           {(["ALL", ...PREDICATES] as EdgeCategory[]).map((cat) => (
             <button
