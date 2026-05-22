@@ -12,25 +12,26 @@ import {
   X,
 } from "lucide-react";
 
-type EdgeCategory =
-  | "ALL"
-  | "FOREIGN_KEY"
-  | "ELEVATES"
-  | "SUPPRESSES"
-  | "MAPS_TO_CONCEPT"
-  | "OPERATES_WITHIN"
-  | "HAS_COLUMN"
-  | "BOUND_TO";
+// Pill bar now scopes the workspace by Perspective/Category (was: edge predicate filter).
+// Picking a Category here means "I'm building relationships within this domain scope" — and the
+// active Category becomes an edge property on every relationship you create (architectural roadmap:
+// categories migrate FROM nodes TO edge properties).
+type CategoryScope = string;
 
-const CATEGORY_COLORS: Record<EdgeCategory, string> = {
+// Varied accent palette for the 11 perspectives + neutral for ALL.
+const CATEGORY_COLORS: Record<string, string> = {
   ALL: "bg-slate-600 text-slate-100",
-  FOREIGN_KEY: "bg-blue-700 text-blue-100",
-  ELEVATES: "bg-emerald-700 text-emerald-100",
-  SUPPRESSES: "bg-red-700 text-red-100",
-  MAPS_TO_CONCEPT: "bg-violet-700 text-violet-100",
-  OPERATES_WITHIN: "bg-amber-700 text-amber-100",
-  HAS_COLUMN: "bg-cyan-700 text-cyan-100",
-  BOUND_TO: "bg-rose-700 text-rose-100",
+  Customer_Order: "bg-blue-700 text-blue-100",
+  Demand_Forecast: "bg-indigo-700 text-indigo-100",
+  Engineering: "bg-cyan-700 text-cyan-100",
+  General_Ledger: "bg-emerald-700 text-emerald-100",
+  Inventory_Transactions: "bg-teal-700 text-teal-100",
+  Manufacturing: "bg-amber-700 text-amber-100",
+  Parts: "bg-orange-700 text-orange-100",
+  Payables: "bg-rose-700 text-rose-100",
+  Receivables: "bg-pink-700 text-pink-100",
+  Visual_Admin: "bg-violet-700 text-violet-100",
+  Work_Orders: "bg-fuchsia-700 text-fuchsia-100",
 };
 
 const EDGE_MEANINGS: Record<string, string> = {
@@ -185,7 +186,7 @@ function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) 
 }
 
 export function DefineRelationship() {
-  const [activeCategory, setActiveCategory] = useState<EdgeCategory>("ALL");
+  const [activeCategory, setActiveCategory] = useState<CategoryScope>("ALL");
   const [selectedSource, setSelectedSource] = useState(SOURCE_ENTITIES[0]);
   const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
   const [selectedTarget, setSelectedTarget] = useState(TARGET_ENTITIES[0]);
@@ -200,11 +201,6 @@ export function DefineRelationship() {
   const [targetSearch, setTargetSearch] = useState("");
 
   const sourceResults = searchEntities(sourceSearch, sourceMode);
-
-  const filteredPredicates =
-    activeCategory === "ALL"
-      ? PREDICATES
-      : PREDICATES.filter((p) => p === activeCategory);
 
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
@@ -356,18 +352,13 @@ export function DefineRelationship() {
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
             Category:
           </span>
-          {(["ALL", ...PREDICATES] as EdgeCategory[]).map((cat) => (
+          {(["ALL", ...CATEGORIES] as CategoryScope[]).map((cat) => (
             <button
               key={cat}
-              onClick={() => {
-                setActiveCategory(cat);
-                if (cat !== "ALL" && filteredPredicates.length > 0) {
-                  setSelectedPredicate(cat);
-                }
-              }}
+              onClick={() => setActiveCategory(cat)}
               className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide transition-all ${
                 activeCategory === cat
-                  ? CATEGORY_COLORS[cat] + " ring-1 ring-white/20"
+                  ? (CATEGORY_COLORS[cat] ?? "bg-slate-600 text-slate-100") + " ring-1 ring-white/20"
                   : "bg-slate-700/50 text-slate-400 hover:bg-slate-600/60 hover:text-slate-200"
               }`}
             >
@@ -518,13 +509,11 @@ export function DefineRelationship() {
                   onChange={(e) => setSelectedPredicate(e.target.value)}
                   className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
                 >
-                  {(activeCategory === "ALL" ? PREDICATES : filteredPredicates).map(
-                    (p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    )
-                  )}
+                  {PREDICATES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
 
                 {/* Relation meaning box */}
@@ -622,7 +611,10 @@ export function DefineRelationship() {
                   </button>
                 </div>
                 <div className="border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
-                  category: {selectedPredicate}
+                  predicate: {selectedPredicate}
+                </div>
+                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                  category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
                 </div>
                 <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-400">
                   weight: {selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}
