@@ -165,6 +165,31 @@ const GRAPH_ENTITIES: Array<{ name: string; children?: string[] }> = [
   { name: "Bindings" },
 ];
 
+// Mock intent set — three representative intents so we can demo the (intent, perspective)
+// composite identity rule. Real list comes from the intents collection in v2.
+const INTENTS = ["Avoid_Cost", "Quality_Defect", "Throughput_Boost"];
+
+// Edge ID convention (locked in conversation):
+//   {LLL}_{RRR}_{XXX}_{NNN}_{Perspective}
+//     LLL = first 3 of source table (uppercase)
+//     RRR = first 3 of target table (uppercase)
+//     XXX = first 3 of intent name  (uppercase)  ← adjacent to NNN so the counter
+//     NNN = zero-padded collision counter           clearly disambiguates intent collisions
+//     Perspective = the scoping category
+// Composite IS the identity — the bridge-table row in `Perspective_Intents` is this edge.
+function assembleEdgeId(
+  source: string,
+  target: string,
+  intent: string,
+  perspective: string,
+  seq: number = 1
+): string {
+  const seg = (s: string) => s.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  const n = String(seq).padStart(3, "0");
+  const persp = perspective === "ALL" ? "—" : perspective;
+  return `${seg(source)}_${seg(target)}_${seg(intent)}_${n}_${persp}`;
+}
+
 const DATA_TYPES = [
   "production_orders",
   "quality_events",
@@ -189,6 +214,7 @@ export function DefineRelationship() {
   const [activeCategory, setActiveCategory] = useState<CategoryScope>("ALL");
   const [selectedSource, setSelectedSource] = useState(SOURCE_ENTITIES[0]);
   const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
+  const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
   const [selectedTarget, setSelectedTarget] = useState(TARGET_ENTITIES[0]);
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
@@ -204,6 +230,7 @@ export function DefineRelationship() {
 
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
+  const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
 
   return (
     <div className="flex h-screen w-full bg-[#1e1e2e] text-sm font-['Inter'] overflow-hidden">
@@ -516,6 +543,19 @@ export function DefineRelationship() {
                   ))}
                 </select>
 
+                <p className="text-[10px] text-slate-500 mb-1 mt-2">Choose Intent</p>
+                <select
+                  value={selectedIntent}
+                  onChange={(e) => setSelectedIntent(e.target.value)}
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                >
+                  {INTENTS.map((i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </select>
+
                 {/* Relation meaning box */}
                 <div className="mt-2 border border-amber-500/60 rounded bg-amber-900/20 p-2">
                   <p className="text-[10px] font-bold text-amber-300 mb-1">
@@ -610,8 +650,20 @@ export function DefineRelationship() {
                     <X size={10} className="text-slate-500 hover:text-slate-300" />
                   </button>
                 </div>
-                <div className="border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                {/* edge_id — composite identity assembled live from selections.
+                    Scope: this is the key for rows in the `Perspective_Intents` /
+                    `Perspective_Concepts` bridge collections, NOT a universal edge key. */}
+                <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1 text-[10px] text-cyan-200 font-mono break-all">
+                  edge_id: {edgeId}
+                </div>
+                <p className="mt-0.5 text-[9px] text-cyan-300/60 leading-tight">
+                  Bridge row key (Perspective_Intents). NNN=001 mocked.
+                </p>
+                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
                   predicate: {selectedPredicate}
+                </div>
+                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                  intent: <span className="text-violet-300">{selectedIntent}</span>
                 </div>
                 <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
                   category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
