@@ -1850,6 +1850,33 @@ def proxy_gradio(path):
     except http_requests.exceptions.ConnectionError:
         return Response("The SQL Generator service is starting up. Please refresh in a moment.", status=503)
 
+MOCKUP_BACKEND = "http://127.0.0.1:23636"
+
+@app.route('/__mockup/', defaults={'path': ''})
+@app.route('/__mockup/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+def proxy_mockup(path):
+    """Proxy to mockup sandbox Vite dev server."""
+    target_url = f"{MOCKUP_BACKEND}/__mockup/{path}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+    try:
+        resp = http_requests.request(
+            method=request.method,
+            url=target_url,
+            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=30,
+            stream=True,
+        )
+        excluded = {'content-encoding', 'transfer-encoding', 'connection'}
+        headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded]
+        return Response(resp.content, status=resp.status_code, headers=headers)
+    except http_requests.exceptions.ConnectionError:
+        return Response("Mockup sandbox is not running.", status=503)
+
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('FLASK_PORT', 5000))

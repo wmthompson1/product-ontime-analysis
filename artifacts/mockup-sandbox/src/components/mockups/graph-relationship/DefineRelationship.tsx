@@ -1,0 +1,441 @@
+import { useState } from "react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Database,
+  GitBranch,
+  Search,
+  Circle,
+  RefreshCw,
+  Plus,
+  Pencil,
+  X,
+} from "lucide-react";
+
+type EdgeCategory =
+  | "ALL"
+  | "FOREIGN_KEY"
+  | "ELEVATES"
+  | "SUPPRESSES"
+  | "MAPS_TO_CONCEPT"
+  | "OPERATES_WITHIN"
+  | "HAS_COLUMN"
+  | "BOUND_TO";
+
+const CATEGORY_COLORS: Record<EdgeCategory, string> = {
+  ALL: "bg-slate-600 text-slate-100",
+  FOREIGN_KEY: "bg-blue-700 text-blue-100",
+  ELEVATES: "bg-emerald-700 text-emerald-100",
+  SUPPRESSES: "bg-red-700 text-red-100",
+  MAPS_TO_CONCEPT: "bg-violet-700 text-violet-100",
+  OPERATES_WITHIN: "bg-amber-700 text-amber-100",
+  HAS_COLUMN: "bg-cyan-700 text-cyan-100",
+  BOUND_TO: "bg-rose-700 text-rose-100",
+};
+
+const EDGE_MEANINGS: Record<string, string> = {
+  FOREIGN_KEY: "Defined as: structural referential integrity link between ERP tables. Table-Scoped. NOT GLOBAL MEANING.",
+  ELEVATES: "Defined as: Intent promotes this Concept when routing a question. Semantic weight = 1. NOT GLOBAL MEANING.",
+  SUPPRESSES: "Defined as: Intent demotes this Concept when routing a question. Semantic weight = -1. NOT GLOBAL MEANING.",
+  MAPS_TO_CONCEPT: "Defined as: ERP table is bridged to a semantic Concept node. MAPS_TO_CONCEPT bridge. NOT GLOBAL MEANING.",
+  OPERATES_WITHIN: "Defined as: Intent is scoped to a Perspective domain (e.g. quality, finance). NOT GLOBAL MEANING.",
+  HAS_COLUMN: "Defined as: Structural edge linking table node to its atomic column node. NOT GLOBAL MEANING.",
+  BOUND_TO: "Defined as: Binding resolves to an APPROVED SME SQL snippet for this Concept. NOT GLOBAL MEANING.",
+};
+
+const SOURCE_ENTITIES = [
+  "production_orders (ERP_Instance_1)",
+  "quality_events (ERP_Instance_1)",
+  "equipment_metrics (ERP_Instance_1)",
+  "downtime_events (ERP_Instance_1)",
+  "suppliers (ERP_Instance_1)",
+];
+
+const TARGET_ENTITIES = [
+  "intents (semantic_layer)",
+  "concepts (semantic_layer)",
+  "perspectives (semantic_layer)",
+  "bindings (semantic_layer)",
+  "production_lines (ERP_Instance_1)",
+];
+
+const PREDICATES = [
+  "FOREIGN_KEY",
+  "ELEVATES",
+  "SUPPRESSES",
+  "MAPS_TO_CONCEPT",
+  "OPERATES_WITHIN",
+  "HAS_COLUMN",
+  "BOUND_TO",
+];
+
+const GRAPH_ENTITIES = [
+  "Intents",
+  "Concepts",
+  "Perspectives",
+  "Bindings",
+];
+
+const DATA_TYPES = [
+  "production_orders",
+  "quality_events",
+  "equipment_metrics",
+  "downtime_events",
+  "suppliers",
+];
+
+function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) {
+  return (
+    <div
+      className={`w-10 h-10 flex items-center justify-center rounded cursor-pointer ${
+        active ? "bg-slate-600 text-white" : "text-slate-400 hover:text-slate-200"
+      }`}
+    >
+      {icon}
+    </div>
+  );
+}
+
+export function DefineRelationship() {
+  const [activeCategory, setActiveCategory] = useState<EdgeCategory>("ALL");
+  const [selectedSource, setSelectedSource] = useState(SOURCE_ENTITIES[0]);
+  const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
+  const [selectedTarget, setSelectedTarget] = useState(TARGET_ENTITIES[0]);
+  const [dataTypesOpen, setDataTypesOpen] = useState(true);
+  const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
+  const [sourceSearch, setSourceSearch] = useState("");
+  const [targetSearch, setTargetSearch] = useState("");
+
+  const filteredPredicates =
+    activeCategory === "ALL"
+      ? PREDICATES
+      : PREDICATES.filter((p) => p === activeCategory);
+
+  const sourceShort = selectedSource.split(" ")[0];
+  const targetShort = selectedTarget.split(" ")[0];
+
+  return (
+    <div className="flex h-screen w-full bg-[#1e1e2e] text-sm font-['Inter'] overflow-hidden">
+      {/* Icon sidebar */}
+      <div className="w-12 bg-[#181825] flex flex-col items-center py-3 gap-2 border-r border-slate-700/50">
+        <NavItem icon={<span className="text-xs font-bold">≡</span>} />
+        <NavItem icon={<Search size={16} />} />
+        <NavItem icon={<GitBranch size={16} />} active />
+        <NavItem icon={<Database size={16} />} />
+        <NavItem icon={<RefreshCw size={12} />} />
+        <div className="flex-1" />
+        <NavItem icon={<Circle size={14} className="text-slate-400" />} />
+      </div>
+
+      {/* Left panel */}
+      <div className="w-52 bg-[#1e1e2e] border-r border-slate-700/50 flex flex-col">
+        <div className="px-3 pt-3 pb-2">
+          <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+            Data Navigator
+          </p>
+        </div>
+
+        <div className="px-3 py-1.5 flex items-center gap-1.5">
+          <Circle size={7} className="fill-emerald-400 text-emerald-400" />
+          <span className="text-[10px] font-semibold text-emerald-400 tracking-wide">
+            SYNC STATUS: Active
+          </span>
+        </div>
+
+        <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+          <p className="text-[10px] font-bold tracking-widest text-slate-300 uppercase">
+            Managed Entities
+          </p>
+          <Plus size={13} className="text-slate-400 cursor-pointer hover:text-slate-200" />
+        </div>
+
+        {/* DATA TYPES tree */}
+        <div className="px-2">
+          <button
+            onClick={() => setDataTypesOpen(!dataTypesOpen)}
+            className="w-full flex items-center gap-1 px-1 py-0.5 text-[11px] text-slate-300 hover:text-white"
+          >
+            {dataTypesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            <Database size={11} className="text-slate-400" />
+            <span className="font-medium">DATA TYPES</span>
+          </button>
+          {dataTypesOpen && (
+            <div className="ml-4 border-l border-slate-700 pl-2 mt-0.5">
+              <p className="text-[9px] text-slate-500 mb-1">97 Columns, WORK_ORDER</p>
+              {DATA_TYPES.map((t) => (
+                <div
+                  key={t}
+                  className="py-0.5 px-1 text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer rounded hover:bg-slate-700/40"
+                >
+                  {t}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* GRAPH ENTITIES tree */}
+        <div className="px-2 mt-1">
+          <button
+            onClick={() => setGraphEntitiesOpen(!graphEntitiesOpen)}
+            className="w-full flex items-center gap-1 px-1 py-0.5 text-[11px] text-slate-300 hover:text-white"
+          >
+            {graphEntitiesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            <GitBranch size={11} className="text-slate-400" />
+            <span className="font-medium">GRAPH ENTITIES</span>
+          </button>
+          {graphEntitiesOpen && (
+            <div className="ml-4 border-l border-slate-700 pl-2 mt-0.5">
+              {GRAPH_ENTITIES.map((e) => (
+                <div
+                  key={e}
+                  className="flex items-center gap-1 py-0.5 px-1 text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer rounded hover:bg-slate-700/40"
+                >
+                  <ChevronRight size={10} />
+                  {e}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1" />
+        <div className="px-3 py-2 flex items-center gap-1.5 border-t border-slate-700/50">
+          <Circle size={7} className="fill-emerald-400 text-emerald-400" />
+          <span className="text-[10px] text-emerald-400 font-semibold tracking-wide">
+            SYNC STATUS: Active
+          </span>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-[#252535]">
+        {/* Title bar */}
+        <div className="px-5 pt-4 pb-2 border-b border-slate-700/50">
+          <h1 className="text-lg font-semibold text-slate-100">
+            Define Data Relationship
+          </h1>
+        </div>
+
+        {/* Category pill bar */}
+        <div className="px-5 py-2.5 border-b border-slate-700/40 flex items-center gap-2 flex-wrap bg-[#1e1e2e]/60">
+          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
+            Edge Category:
+          </span>
+          {(["ALL", ...PREDICATES] as EdgeCategory[]).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setActiveCategory(cat);
+                if (cat !== "ALL" && filteredPredicates.length > 0) {
+                  setSelectedPredicate(cat);
+                }
+              }}
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wide transition-all ${
+                activeCategory === cat
+                  ? CATEGORY_COLORS[cat] + " ring-1 ring-white/20"
+                  : "bg-slate-700/50 text-slate-400 hover:bg-slate-600/60 hover:text-slate-200"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {/* Workspace header */}
+          <div className="rounded border border-slate-600/60 bg-[#1e1e2e]/80 overflow-hidden">
+            <div className="px-4 py-2 bg-slate-700/40 border-b border-slate-600/60">
+              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                Relationship Definition Workspace
+              </p>
+            </div>
+            <div className="px-4 py-2.5">
+              <p className="text-[11px] text-slate-400">
+                Link an existing Entity to another Entity via a defined Relation
+              </p>
+            </div>
+
+            {/* Three-column panel */}
+            <div className="grid grid-cols-3 gap-0 border-t border-slate-600/60">
+              {/* SELECT SOURCE ENTITY */}
+              <div className="border-r border-slate-600/60 p-3">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
+                  Select Source Entity
+                </p>
+                <div className="relative mb-2">
+                  <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
+                  <input
+                    value={sourceSearch}
+                    onChange={(e) => setSourceSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
+                  />
+                </div>
+                <select
+                  value={selectedSource}
+                  onChange={(e) => setSelectedSource(e.target.value)}
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                >
+                  {SOURCE_ENTITIES.filter((e) =>
+                    e.toLowerCase().includes(sourceSearch.toLowerCase())
+                  ).map((e) => (
+                    <option key={e} value={e}>
+                      {e}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">
+                    Context:
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Table: {selectedSource.split(" ")[0].toUpperCase()}
+                  </p>
+                </div>
+              </div>
+
+              {/* DEFINE RELATIONSHIP (EDGE) */}
+              <div className="border-r border-slate-600/60 p-3">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
+                  Define Relationship (Edge)
+                </p>
+                <p className="text-[10px] text-slate-500 mb-1">Choose Predicate</p>
+                <select
+                  value={selectedPredicate}
+                  onChange={(e) => setSelectedPredicate(e.target.value)}
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                >
+                  {(activeCategory === "ALL" ? PREDICATES : filteredPredicates).map(
+                    (p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {/* Relation meaning box */}
+                <div className="mt-2 border border-amber-500/60 rounded bg-amber-900/20 p-2">
+                  <p className="text-[10px] font-bold text-amber-300 mb-1">
+                    Relation Meaning (Table-Scoped):
+                  </p>
+                  <p className="text-[10px] text-amber-200/80 leading-relaxed">
+                    {EDGE_MEANINGS[selectedPredicate] ?? "Select a predicate to see its meaning."}
+                  </p>
+                </div>
+              </div>
+
+              {/* SELECT TARGET ENTITY */}
+              <div className="p-3">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
+                  Select Target Entity
+                </p>
+                <div className="relative mb-2">
+                  <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
+                  <input
+                    value={targetSearch}
+                    onChange={(e) => setTargetSearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
+                  />
+                </div>
+                <select
+                  value={selectedTarget}
+                  onChange={(e) => setSelectedTarget(e.target.value)}
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                >
+                  {TARGET_ENTITIES.filter((e) =>
+                    e.toLowerCase().includes(targetSearch.toLowerCase())
+                  ).map((e) => (
+                    <option key={e} value={e}>
+                      {e}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">
+                    Context:
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Collection: {selectedTarget.split(" ")[0].toUpperCase()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PREVIEW & CONFIRM */}
+          <div className="rounded border border-slate-600/60 bg-[#1e1e2e]/80 overflow-hidden">
+            <div className="px-4 py-2 bg-slate-700/40 border-b border-slate-600/60">
+              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">
+                Preview &amp; Confirm Relationship
+              </p>
+            </div>
+            <div className="p-4 flex items-start justify-between gap-4">
+              {/* Graph preview */}
+              <div className="flex-1 flex items-center justify-center py-4">
+                <div className="flex items-center gap-3">
+                  <div className="border border-slate-400 rounded px-3 py-1.5 text-[11px] text-slate-200 bg-slate-700/50">
+                    {sourceShort}
+                  </div>
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <div className="w-8 h-px bg-slate-500" />
+                    <div className="border border-slate-500 rounded px-2 py-0.5 text-[9px] text-slate-400 bg-slate-800">
+                      ({selectedPredicate.toLowerCase()})
+                    </div>
+                    <div className="w-8 h-px bg-slate-500" />
+                    <svg width="8" height="10" viewBox="0 0 8 10" className="text-slate-400">
+                      <polygon points="0,0 8,5 0,10" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div className="border border-slate-400 rounded px-3 py-1.5 text-[11px] text-slate-200 bg-slate-700/50">
+                    {targetShort}
+                  </div>
+                </div>
+              </div>
+
+              {/* Relationship property panel */}
+              <div className="w-52 border border-slate-600 rounded bg-slate-800/60 p-2.5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-semibold text-slate-300">
+                    Edge Property Panel
+                  </p>
+                  <Pencil size={11} className="text-slate-500 cursor-pointer hover:text-slate-300" />
+                </div>
+                <div className="mb-1">
+                  <p className="text-[10px] text-slate-500">Attribute:</p>
+                  <button className="absolute ml-20 -mt-3">
+                    <X size={10} className="text-slate-500 hover:text-slate-300" />
+                  </button>
+                </div>
+                <div className="border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                  category: {selectedPredicate}
+                </div>
+                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-400">
+                  weight: {selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}
+                </div>
+                <div className="mt-2 text-[9px] text-slate-600 truncate">
+                  Current workspace: graph_sync.py
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom action buttons */}
+        <div className="border-t border-slate-700/50 px-4 py-3 flex items-center gap-3 bg-[#1e1e2e]">
+          <button className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
+            Add to Graph
+          </button>
+          <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
+            Store in Repo Memory (graph_sync.md)
+          </button>
+          <button className="px-6 bg-rose-700 hover:bg-rose-600 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
