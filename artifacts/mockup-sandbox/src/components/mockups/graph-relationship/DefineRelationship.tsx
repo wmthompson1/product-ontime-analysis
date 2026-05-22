@@ -139,11 +139,29 @@ const PREDICATES = [
   "BOUND_TO",
 ];
 
-const GRAPH_ENTITIES = [
-  "Intents",
-  "Concepts",
-  "Perspectives",
-  "Bindings",
+// NOTE: Categories === Perspectives === Intent Categories (same concept, UI label is "Categories").
+// Architectural roadmap: Categories will move FROM being nodes TO being edge properties.
+// Constraint: an Intent can only belong to ONE Category (single membership).
+const CATEGORIES = [
+  "Customer_Order",
+  "Demand_Forecast",
+  "Engineering",
+  "General_Ledger",
+  "Inventory_Transactions",
+  "Manufacturing",
+  "Parts",
+  "Payables",
+  "Receivables",
+  "Visual_Admin",
+  "Work_Orders",
+];
+
+// Ordered top-to-bottom: Categories first (top-level organizing concept), then the entities it scopes.
+const GRAPH_ENTITIES: Array<{ name: string; children?: string[] }> = [
+  { name: "Categories", children: CATEGORIES },
+  { name: "Intents" },
+  { name: "Concepts" },
+  { name: "Bindings" },
 ];
 
 const DATA_TYPES = [
@@ -173,6 +191,9 @@ export function DefineRelationship() {
   const [selectedTarget, setSelectedTarget] = useState(TARGET_ENTITIES[0]);
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
+  const [expandedEntities, setExpandedEntities] = useState<Record<string, boolean>>({
+    Categories: true,
+  });
   const [sourceSearch, setSourceSearch] = useState("");
   const [sourceMode, setSourceMode] = useState<MatchMode>("Contains");
   const [sourceModeOpen, setSourceModeOpen] = useState(false);
@@ -260,15 +281,54 @@ export function DefineRelationship() {
           </button>
           {graphEntitiesOpen && (
             <div className="ml-4 border-l border-slate-700 pl-2 mt-0.5">
-              {GRAPH_ENTITIES.map((e) => (
-                <div
-                  key={e}
-                  className="flex items-center gap-1 py-0.5 px-1 text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer rounded hover:bg-slate-700/40"
-                >
-                  <ChevronRight size={10} />
-                  {e}
-                </div>
-              ))}
+              {GRAPH_ENTITIES.map((e) => {
+                const isExpanded = expandedEntities[e.name];
+                const hasChildren = e.children && e.children.length > 0;
+                return (
+                  <div key={e.name}>
+                    <div
+                      onClick={() =>
+                        hasChildren &&
+                        setExpandedEntities({
+                          ...expandedEntities,
+                          [e.name]: !isExpanded,
+                        })
+                      }
+                      className="flex items-center gap-1 py-0.5 px-1 text-[10px] text-slate-300 hover:text-slate-100 cursor-pointer rounded hover:bg-slate-700/40"
+                    >
+                      {hasChildren ? (
+                        isExpanded ? (
+                          <ChevronDown size={10} />
+                        ) : (
+                          <ChevronRight size={10} />
+                        )
+                      ) : (
+                        <ChevronRight size={10} className="opacity-30" />
+                      )}
+                      <span className={hasChildren ? "font-semibold" : ""}>
+                        {e.name}
+                      </span>
+                      {hasChildren && (
+                        <span className="ml-auto text-[8px] text-slate-500">
+                          ({e.children!.length})
+                        </span>
+                      )}
+                    </div>
+                    {hasChildren && isExpanded && (
+                      <div className="ml-3 border-l border-slate-700/60 pl-2 mt-0.5">
+                        {e.children!.map((child) => (
+                          <div
+                            key={child}
+                            className="py-0.5 px-1 text-[9px] text-slate-400 hover:text-slate-200 cursor-pointer rounded hover:bg-slate-700/40 truncate"
+                          >
+                            {child}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
