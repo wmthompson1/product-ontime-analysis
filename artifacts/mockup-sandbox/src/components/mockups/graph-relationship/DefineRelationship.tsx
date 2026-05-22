@@ -51,6 +51,76 @@ const SOURCE_ENTITIES = [
   "suppliers (ERP_Instance_1)",
 ];
 
+type MatchMode = "Contains" | "Starts with" | "Wildcard" | "Regex";
+
+const MATCH_MODES: MatchMode[] = ["Contains", "Starts with", "Wildcard", "Regex"];
+
+type EntityRecord = { table_name: string; qualified_name: string };
+type GroupedResults = Record<string, EntityRecord[]>;
+type SearchResult = { matches_found: number; grouped_results: GroupedResults };
+
+const MOCK_SEARCH_DATA: SearchResult = {
+  matches_found: 12,
+  grouped_results: {
+    ERP_Instance_1: [
+      { table_name: "production_orders", qualified_name: "dbo.PRODUCTION_ORDERS" },
+      { table_name: "work_orders", qualified_name: "dbo.WORK_ORDERS" },
+      { table_name: "order_lines", qualified_name: "dbo.ORDER_LINES" },
+      { table_name: "quality_events", qualified_name: "dbo.QUALITY_EVENTS" },
+      { table_name: "equipment_metrics", qualified_name: "dbo.EQUIPMENT_METRICS" },
+      { table_name: "downtime_events", qualified_name: "dbo.DOWNTIME_EVENTS" },
+      { table_name: "suppliers", qualified_name: "dbo.SUPPLIERS" },
+      { table_name: "production_lines", qualified_name: "dbo.PRODUCTION_LINES" },
+    ],
+    semantic_layer: [
+      { table_name: "orders_concept", qualified_name: "concepts/orders_concept" },
+      { table_name: "quality_intent", qualified_name: "intents/quality_intent" },
+      { table_name: "downtime_perspective", qualified_name: "perspectives/downtime_perspective" },
+      { table_name: "suppliers_binding", qualified_name: "bindings/suppliers_binding" },
+    ],
+  },
+};
+
+function searchEntities(query: string, mode: MatchMode = "Contains"): SearchResult {
+  if (!query) return MOCK_SEARCH_DATA;
+  const normalized = query.toLowerCase();
+  const filteredGroups: GroupedResults = {};
+  let total = 0;
+
+  for (const [source, records] of Object.entries(MOCK_SEARCH_DATA.grouped_results)) {
+    const matched = records.filter((item) => {
+      const target = item.table_name.toLowerCase();
+      switch (mode) {
+        case "Starts with":
+          return target.startsWith(normalized);
+        case "Wildcard": {
+          const escaped = normalized.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+          const pattern = "^" + escaped.replace(/\*/g, ".*") + "$";
+          try {
+            return new RegExp(pattern).test(target);
+          } catch {
+            return false;
+          }
+        }
+        case "Regex":
+          try {
+            return new RegExp(query).test(item.table_name);
+          } catch {
+            return false;
+          }
+        case "Contains":
+        default:
+          return target.includes(normalized);
+      }
+    });
+    if (matched.length > 0) {
+      filteredGroups[source] = matched;
+      total += matched.length;
+    }
+  }
+  return { matches_found: total, grouped_results: filteredGroups };
+}
+
 const TARGET_ENTITIES = [
   "intents (semantic_layer)",
   "concepts (semantic_layer)",
@@ -104,7 +174,11 @@ export function DefineRelationship() {
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
   const [sourceSearch, setSourceSearch] = useState("");
+  const [sourceMode, setSourceMode] = useState<MatchMode>("Contains");
+  const [sourceModeOpen, setSourceModeOpen] = useState(false);
   const [targetSearch, setTargetSearch] = useState("");
+
+  const sourceResults = searchEntities(sourceSearch, sourceMode);
 
   const filteredPredicates =
     activeCategory === "ALL"
@@ -263,28 +337,106 @@ export function DefineRelationship() {
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
                   Select Source Entity
                 </p>
-                <div className="relative mb-2">
-                  <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
-                  <input
-                    value={sourceSearch}
-                    onChange={(e) => setSourceSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
-                  />
+
+                {/* Search + Match Mode toggle */}
+                <div className="flex items-stretch gap-1 mb-1.5">
+                  <div className="relative flex-1">
+                    <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
+                    <input
+                      value={sourceSearch}
+                      onChange={(e) => setSourceSearch(e.target.value)}
+                      placeholder={
+                        sourceMode === "Wildcard"
+                          ? "*_orders, quality_*"
+                          : sourceMode === "Regex"
+                          ? "^quality_.*$"
+                          : "Search..."
+                      }
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
+                    />
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={() => setSourceModeOpen(!sourceModeOpen)}
+                      className="h-full bg-slate-700/50 border border-slate-600 rounded text-[10px] text-slate-300 px-2 hover:bg-slate-600/60 flex items-center gap-1"
+                    >
+                      {sourceMode}
+                      <ChevronDown size={10} />
+                    </button>
+                    {sourceModeOpen && (
+                      <div className="absolute right-0 mt-1 z-10 bg-[#1e1e2e] border border-slate-600 rounded shadow-lg min-w-[110px]">
+                        {MATCH_MODES.map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => {
+                              setSourceMode(m);
+                              setSourceModeOpen(false);
+                            }}
+                            className={`block w-full text-left px-2 py-1 text-[10px] hover:bg-slate-700/60 ${
+                              m === sourceMode ? "text-emerald-300" : "text-slate-300"
+                            }`}
+                          >
+                            {m}
+                            {m === "Regex" && (
+                              <span className="ml-1 text-[8px] text-slate-500">advanced</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <select
-                  value={selectedSource}
-                  onChange={(e) => setSelectedSource(e.target.value)}
-                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
-                >
-                  {SOURCE_ENTITIES.filter((e) =>
-                    e.toLowerCase().includes(sourceSearch.toLowerCase())
-                  ).map((e) => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ))}
-                </select>
+
+                {/* Match count */}
+                <p className="text-[9px] text-slate-500 mb-1.5">
+                  {sourceResults.matches_found} match{sourceResults.matches_found === 1 ? "" : "es"}
+                  {sourceSearch && (
+                    <span className="text-slate-600">
+                      {" "}· {sourceMode.toLowerCase()} &quot;{sourceSearch}&quot;
+                    </span>
+                  )}
+                </p>
+
+                {/* Grouped results list */}
+                <div className="border border-slate-600 rounded bg-slate-800/40 max-h-[140px] overflow-y-auto">
+                  {Object.keys(sourceResults.grouped_results).length === 0 ? (
+                    <p className="text-[10px] text-slate-500 italic px-2 py-1.5">
+                      No matches
+                    </p>
+                  ) : (
+                    Object.entries(sourceResults.grouped_results).map(([source, records]) => (
+                      <div key={source}>
+                        <div className="px-2 py-0.5 bg-slate-700/40 border-b border-slate-700 flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            {source}
+                          </span>
+                          <span className="text-[9px] text-slate-500">({records.length})</span>
+                        </div>
+                        {records.map((rec) => {
+                          const display = `${rec.table_name} (${source})`;
+                          const isSelected = selectedSource === display;
+                          return (
+                            <button
+                              key={rec.qualified_name}
+                              onClick={() => setSelectedSource(display)}
+                              className={`block w-full text-left px-2 py-0.5 text-[10px] border-l-2 ${
+                                isSelected
+                                  ? "bg-slate-700/60 text-emerald-300 border-emerald-400"
+                                  : "text-slate-300 border-transparent hover:bg-slate-700/40 hover:text-slate-100"
+                              }`}
+                            >
+                              <span className="font-medium">▸ {rec.table_name}</span>
+                              <span className="ml-1 text-[8px] text-slate-500">
+                                {rec.qualified_name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))
+                  )}
+                </div>
+
                 <div className="mt-2">
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide">
                     Context:
