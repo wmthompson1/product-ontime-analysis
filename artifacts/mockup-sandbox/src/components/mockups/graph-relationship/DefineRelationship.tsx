@@ -169,6 +169,11 @@ const GRAPH_ENTITIES: Array<{ name: string; children?: string[] }> = [
 // composite identity rule. Real list comes from the intents collection in v2.
 const INTENTS = ["Avoid_Cost", "Quality_Defect", "Throughput_Boost"];
 
+// Mock concept set — base concept names (perspective suffix emerges from the composite).
+// Real list comes from `schema_concepts` / reviewer_manifest.json (e.g. DEFECTSEVERITYCOST,
+// DEFECTSEVERITYQUALITY → same concept "DefectSeverity" resolved per perspective).
+const CONCEPTS = ["DefectSeverity", "DeliveryPerformance", "OEE"];
+
 // Edge ID convention (locked in conversation):
 //   {LLL}_{RRR}_{XXX}_{NNN}_{Perspective}
 //     LLL = first 3 of source table (uppercase)
@@ -188,6 +193,22 @@ function assembleEdgeId(
   const n = String(seq).padStart(3, "0");
   const persp = perspective === "ALL" ? "—" : perspective;
   return `${seg(source)}_${seg(target)}_${seg(intent)}_${n}_${persp}`;
+}
+
+// Concept bridge rows have a simpler 3-segment shape — no source/target tables, because
+// a Concept is an abstract definition scoped by Perspective only:
+//   {CCC}_{NNN}_{Perspective}
+// e.g. DEF_001_Engineering   (DefectSeverity, in Engineering perspective)
+// This is the row key for `Perspective_Concepts`.
+function assembleConceptEdgeId(
+  concept: string,
+  perspective: string,
+  seq: number = 1
+): string {
+  const seg = (s: string) => s.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  const n = String(seq).padStart(3, "0");
+  const persp = perspective === "ALL" ? "—" : perspective;
+  return `${seg(concept)}_${n}_${persp}`;
 }
 
 const DATA_TYPES = [
@@ -215,6 +236,7 @@ export function DefineRelationship() {
   const [selectedSource, setSelectedSource] = useState(SOURCE_ENTITIES[0]);
   const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
   const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
+  const [selectedConcept, setSelectedConcept] = useState(CONCEPTS[0]);
   const [selectedTarget, setSelectedTarget] = useState(TARGET_ENTITIES[0]);
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
@@ -231,6 +253,14 @@ export function DefineRelationship() {
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
+  const conceptEdgeId = assembleConceptEdgeId(selectedConcept, activeCategory);
+  // Bridge row keys — strictly composite, no source/target tables.
+  // Perspective_Intents (perspective, intent) → 3-char intent + counter + perspective
+  // Perspective_Concepts (perspective, concept) → same shape, different collection
+  const seg3 = (s: string) => s.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  const persistable = activeCategory !== "ALL";
+  const intentBridgeKey = persistable ? `${seg3(selectedIntent)}_001_${activeCategory}` : null;
+  const conceptBridgeKey = persistable ? `${seg3(selectedConcept)}_001_${activeCategory}` : null;
 
   return (
     <div className="flex h-screen w-full bg-[#1e1e2e] text-sm font-['Inter'] overflow-hidden">
@@ -556,6 +586,21 @@ export function DefineRelationship() {
                   ))}
                 </select>
 
+                <p className="text-[10px] text-slate-500 mb-1 mt-2">
+                  Choose Concept <span className="text-slate-600">(elevated by intent)</span>
+                </p>
+                <select
+                  value={selectedConcept}
+                  onChange={(e) => setSelectedConcept(e.target.value)}
+                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                >
+                  {CONCEPTS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+
                 {/* Relation meaning box */}
                 <div className="mt-2 border border-amber-500/60 rounded bg-amber-900/20 p-2">
                   <p className="text-[10px] font-bold text-amber-300 mb-1">
@@ -650,20 +695,38 @@ export function DefineRelationship() {
                     <X size={10} className="text-slate-500 hover:text-slate-300" />
                   </button>
                 </div>
-                {/* edge_id — composite identity assembled live from selections.
-                    Scope: this is the key for rows in the `Perspective_Intents` /
-                    `Perspective_Concepts` bridge collections, NOT a universal edge key. */}
+                {/* Relationship edge key — directional edge between source & target,
+                    scoped by (intent, perspective). 5-segment format the user designed. */}
                 <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1 text-[10px] text-cyan-200 font-mono break-all">
-                  edge_id: {edgeId}
+                  rel_edge_id: {edgeId}
                 </div>
                 <p className="mt-0.5 text-[9px] text-cyan-300/60 leading-tight">
-                  Bridge row key (Perspective_Intents). NNN=001 mocked.
+                  Directional edge key (source→target, scoped by intent+perspective).
+                </p>
+
+                {/* TRUE Perspective_Intents bridge row key — composite (perspective, intent) only */}
+                <div className={`mt-1.5 border rounded px-2 py-1 text-[10px] font-mono break-all ${persistable ? "border-violet-500/60 bg-violet-900/20 text-violet-200" : "border-slate-600 bg-slate-800/40 text-slate-500 italic"}`}>
+                  Perspective_Intents: {intentBridgeKey ?? "— pick a category to persist —"}
+                </div>
+                <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-violet-300/60" : "text-slate-600"}`}>
+                  Bridge row key: composite (perspective, intent).
+                </p>
+
+                {/* TRUE Perspective_Concepts bridge row key — composite (perspective, concept) only */}
+                <div className={`mt-1.5 border rounded px-2 py-1 text-[10px] font-mono break-all ${persistable ? "border-fuchsia-500/60 bg-fuchsia-900/20 text-fuchsia-200" : "border-slate-600 bg-slate-800/40 text-slate-500 italic"}`}>
+                  Perspective_Concepts: {conceptBridgeKey ?? "— pick a category to persist —"}
+                </div>
+                <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-fuchsia-300/60" : "text-slate-600"}`}>
+                  Bridge row key: composite (perspective, concept).
                 </p>
                 <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
                   predicate: {selectedPredicate}
                 </div>
                 <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
                   intent: <span className="text-violet-300">{selectedIntent}</span>
+                </div>
+                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                  concept: <span className="text-fuchsia-300">{selectedConcept}</span>
                 </div>
                 <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
                   category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
