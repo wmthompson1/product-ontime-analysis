@@ -707,85 +707,49 @@ export function DefineRelationship() {
                 Preview &amp; Confirm Relationship
               </p>
             </div>
-            <div className="p-4 flex items-start justify-between gap-4">
-              {/* Graph preview */}
-              <div className="flex-1 flex items-center justify-center py-4">
-                <div className="flex items-center gap-3">
-                  <div className="border border-slate-400 rounded px-3 py-1.5 text-[11px] text-slate-200 bg-slate-700/50">
-                    {sourceShort}
+            {/* Compact single-row layout: graph preview (left) + horizontal context chip strip (right).
+                Identity rows live in the Live Identity Preview strip up top — not duplicated here. */}
+            <div className="p-3 flex items-center gap-4">
+              {/* Graph preview — shrunk vertically */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="border border-slate-400 rounded px-2.5 py-1 text-[11px] text-slate-200 bg-slate-700/50">
+                  {sourceShort}
+                </div>
+                <div className="flex items-center gap-1 text-slate-400">
+                  <div className="w-5 h-px bg-slate-500" />
+                  <div className="border border-slate-500 rounded px-1.5 py-0.5 text-[9px] text-slate-400 bg-slate-800">
+                    ({selectedPredicate.toLowerCase()})
                   </div>
-                  <div className="flex items-center gap-1 text-slate-400">
-                    <div className="w-8 h-px bg-slate-500" />
-                    <div className="border border-slate-500 rounded px-2 py-0.5 text-[9px] text-slate-400 bg-slate-800">
-                      ({selectedPredicate.toLowerCase()})
-                    </div>
-                    <div className="w-8 h-px bg-slate-500" />
-                    <svg width="8" height="10" viewBox="0 0 8 10" className="text-slate-400">
-                      <polygon points="0,0 8,5 0,10" fill="currentColor" />
-                    </svg>
-                  </div>
-                  <div className="border border-slate-400 rounded px-3 py-1.5 text-[11px] text-slate-200 bg-slate-700/50">
-                    {targetShort}
-                  </div>
+                  <div className="w-5 h-px bg-slate-500" />
+                  <svg width="8" height="10" viewBox="0 0 8 10" className="text-slate-400">
+                    <polygon points="0,0 8,5 0,10" fill="currentColor" />
+                  </svg>
+                </div>
+                <div className="border border-slate-400 rounded px-2.5 py-1 text-[11px] text-slate-200 bg-slate-700/50">
+                  {targetShort}
                 </div>
               </div>
 
-              {/* Relationship property panel */}
-              <div className="w-52 border border-slate-600 rounded bg-slate-800/60 p-2.5">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-semibold text-slate-300">
-                    Edge Property Panel
-                  </p>
-                  <Pencil size={11} className="text-slate-500 cursor-pointer hover:text-slate-300" />
-                </div>
-                <div className="mb-1">
-                  <p className="text-[10px] text-slate-500">Attribute:</p>
-                  <button className="absolute ml-20 -mt-3">
-                    <X size={10} className="text-slate-500 hover:text-slate-300" />
-                  </button>
-                </div>
-                {/* Relationship edge key — directional edge between source & target,
-                    scoped by (intent, perspective). 5-segment format the user designed. */}
-                <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1 text-[10px] text-cyan-200 font-mono break-all">
-                  rel_edge_id: {edgeId}
-                </div>
-                <p className="mt-0.5 text-[9px] text-cyan-300/60 leading-tight">
-                  Directional edge key (source→target, scoped by intent+perspective).
-                </p>
-
-                {/* TRUE Perspective_Intents bridge row key — composite (perspective, intent) only */}
-                <div className={`mt-1.5 border rounded px-2 py-1 text-[10px] font-mono break-all ${persistable ? "border-violet-500/60 bg-violet-900/20 text-violet-200" : "border-slate-600 bg-slate-800/40 text-slate-500 italic"}`}>
-                  Perspective_Intents: {intentBridgeKey ?? "— pick a category to persist —"}
-                </div>
-                <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-violet-300/60" : "text-slate-600"}`}>
-                  Bridge row key: composite (perspective, intent).
-                </p>
-
-                {/* TRUE Perspective_Concepts bridge row key — composite (perspective, concept) only */}
-                <div className={`mt-1.5 border rounded px-2 py-1 text-[10px] font-mono break-all ${persistable ? "border-fuchsia-500/60 bg-fuchsia-900/20 text-fuchsia-200" : "border-slate-600 bg-slate-800/40 text-slate-500 italic"}`}>
-                  Perspective_Concepts: {conceptBridgeKey ?? "— pick a category to persist —"}
-                </div>
-                <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-fuchsia-300/60" : "text-slate-600"}`}>
-                  Bridge row key: composite (perspective, concept).
-                </p>
-                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
-                  predicate: {selectedPredicate}
-                </div>
-                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+              {/* Horizontal context strip — replaces the old vertical sidebar Edge Property Panel.
+                  Just the supporting attributes; identities live in the strip above. */}
+              <div className="flex-1 flex items-center gap-1.5 flex-wrap justify-end">
+                <span className="text-[9px] uppercase tracking-widest text-slate-500 mr-1">Attrs:</span>
+                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
+                  predicate: <span className="text-slate-200">{selectedPredicate}</span>
+                </span>
+                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
                   intent: <span className="text-violet-300">{selectedIntent}</span>
-                </div>
-                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                </span>
+                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
                   concept: <span className="text-fuchsia-300">{selectedConcept}</span>
-                </div>
-                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-300">
+                </span>
+                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
                   category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
-                </div>
-                <div className="mt-1.5 border border-slate-600 rounded bg-slate-700/50 px-2 py-1 text-[10px] text-slate-400">
-                  weight: {selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}
-                </div>
-                <div className="mt-2 text-[9px] text-slate-600 truncate">
-                  Current workspace: graph_sync.py
-                </div>
+                </span>
+                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">
+                  weight: <span className="text-slate-200">{selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}</span>
+                </span>
+                <Pencil size={11} className="text-slate-500 cursor-pointer hover:text-slate-300 ml-1" />
               </div>
             </div>
           </div>
