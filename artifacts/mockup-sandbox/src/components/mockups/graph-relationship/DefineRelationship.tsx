@@ -438,6 +438,55 @@ export function DefineRelationship() {
               </p>
             </div>
 
+            {/* IDENTITY STRIP — three live-assembled keys above the fold.
+                Hoisted out of the Edge Property Panel so the demo punchline
+                (one edge, two bridge-row composite keys) is visible without scrolling. */}
+            <div className="px-4 pb-3 pt-1 border-t border-slate-600/60 bg-slate-900/30">
+              <p className="text-[9px] font-bold tracking-widest text-slate-500 uppercase mb-1.5">
+                Live Identity Preview
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {/* Directional edge — always shown, scoped by intent+perspective */}
+                <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
+                  <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
+                    rel_edge_id
+                  </p>
+                  <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
+                    {edgeId}
+                  </p>
+                  <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
+                    Directional edge (source→target)
+                  </p>
+                </div>
+
+                {/* Perspective_Intents bridge row key — composite (perspective, intent) */}
+                <div className={`border rounded px-2 py-1.5 ${persistable ? "border-violet-500/60 bg-violet-900/20" : "border-slate-600 bg-slate-800/40"}`}>
+                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${persistable ? "text-violet-300/70" : "text-slate-500"}`}>
+                    Perspective_Intents
+                  </p>
+                  <p className={`text-[11px] font-mono break-all leading-tight ${persistable ? "text-violet-200" : "text-slate-500 italic"}`}>
+                    {intentBridgeKey ?? "— pick a category to persist —"}
+                  </p>
+                  <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-violet-300/50" : "text-slate-600"}`}>
+                    Bridge row: (perspective, intent)
+                  </p>
+                </div>
+
+                {/* Perspective_Concepts bridge row key — composite (perspective, concept) */}
+                <div className={`border rounded px-2 py-1.5 ${persistable ? "border-fuchsia-500/60 bg-fuchsia-900/20" : "border-slate-600 bg-slate-800/40"}`}>
+                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${persistable ? "text-fuchsia-300/70" : "text-slate-500"}`}>
+                    Perspective_Concepts
+                  </p>
+                  <p className={`text-[11px] font-mono break-all leading-tight ${persistable ? "text-fuchsia-200" : "text-slate-500 italic"}`}>
+                    {conceptBridgeKey ?? "— pick a category to persist —"}
+                  </p>
+                  <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-fuchsia-300/50" : "text-slate-600"}`}>
+                    Bridge row: (perspective, concept)
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Three-column panel */}
             <div className="grid grid-cols-3 gap-0 border-t border-slate-600/60">
               {/* SELECT SOURCE ENTITY */}
