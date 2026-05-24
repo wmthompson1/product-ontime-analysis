@@ -44,13 +44,8 @@ const EDGE_MEANINGS: Record<string, string> = {
   BOUND_TO: "Defined as: Binding resolves to an APPROVED SME SQL snippet for this Concept. NOT GLOBAL MEANING.",
 };
 
-const SOURCE_ENTITIES = [
-  "production_orders (ERP_Instance_1)",
-  "quality_events (ERP_Instance_1)",
-  "equipment_metrics (ERP_Instance_1)",
-  "downtime_events (ERP_Instance_1)",
-  "suppliers (ERP_Instance_1)",
-];
+// SOURCE_ENTITIES static list retired — selectedSource now derives from MOCK_SEARCH_DATA
+// so the initial highlight always matches the live grouped-results list.
 
 type MatchMode = "Contains" | "Starts with" | "Wildcard" | "Regex";
 
@@ -326,7 +321,13 @@ function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) 
 
 export function DefineRelationship() {
   const [activeCategory, setActiveCategory] = useState<CategoryScope>("ALL");
-  const [selectedSource, setSelectedSource] = useState(SOURCE_ENTITIES[0]);
+  const [selectedSource, setSelectedSource] = useState(
+    (() => {
+      const firstSource = Object.keys(MOCK_SEARCH_DATA.grouped_results)[0];
+      const firstRec = MOCK_SEARCH_DATA.grouped_results[firstSource][0];
+      return `${firstRec.table_name} (${firstSource})`;
+    })()
+  );
   const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
   const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
   const [selectedConcept, setSelectedConcept] = useState(CONCEPTS[0]);
