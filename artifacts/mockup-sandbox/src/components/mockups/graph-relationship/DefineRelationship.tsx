@@ -240,22 +240,33 @@ async function fetchEntityNamespaces(): Promise<SearchResult> {
 }
 
 // M2 — Load intent list (Choose Intent dropdown)
-// Real: FOR i IN intents SORT i.intent_name RETURN i.intent_name
+// Live: GET /mcp/tools/get_intents → {intents: [{intent_name, ...}]}
 async function fetchIntents(): Promise<string[]> {
-  return ["Avoid_Cost", "Quality_Defect", "Throughput_Boost"];
+  const res = await fetch("/mcp/tools/get_intents");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data.intents)) throw new Error("Unexpected response shape");
+  return data.intents.map((i: { intent_name: string }) => i.intent_name).sort();
 }
 
 // M3 — Load concept list (Choose Concept dropdown)
-// Real: FOR c IN concepts SORT c.concept_name RETURN c.concept_name
+// Live: GET /mcp/tools/get_concepts → {concepts: [{concept_name, ...}]}
 async function fetchConcepts(): Promise<string[]> {
-  return ["DefectSeverity", "DeliveryPerformance", "OEE"];
+  const res = await fetch("/mcp/tools/get_concepts");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data.concepts)) throw new Error("Unexpected response shape");
+  return data.concepts.map((c: { concept_name: string }) => c.concept_name).sort();
 }
 
 // M4 — Load category/perspective list (pill bar)
-// Real: FOR row IN Perspective_Intents COLLECT perspective = row.perspective RETURN perspective
-// Alt:  SELECT DISTINCT perspective_name FROM schema_perspectives (SQLite source of truth)
+// Live: GET /mcp/tools/get_perspectives → {perspectives: [{perspective_name, ...}]}
 async function fetchCategories(): Promise<string[]> {
-  return CATEGORIES;
+  const res = await fetch("/mcp/tools/get_perspectives");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data.perspectives)) throw new Error("Unexpected response shape");
+  return ["ALL", ...data.perspectives.map((p: { perspective_name: string }) => p.perspective_name).sort()];
 }
 
 // M5 — Resolve Perspective_Intents bridge key for (intent, perspective)
@@ -275,18 +286,28 @@ async function fetchConceptBridgeKey(concept: string, perspective: string): Prom
 }
 
 // M7 — Commit new edge ("Add to Graph" button)
-// Real: predicate-routing table in docs/arango_graph_queries_new.md → Query M7
-// Returns a promise so the caller can await and show a success/error toast.
+// Live: POST /mcp/tools/commit_edge with predicate-routing (docs/arango_graph_queries_new.md § M7)
 async function commitEdge(
-  _predicate: string,
-  _sourceId: string,
-  _targetId: string,
-  _intent: string,
-  _perspective: string,
+  predicate: string,
+  sourceId: string,
+  targetId: string,
+  intent: string,
+  perspective: string,
 ): Promise<{ ok: boolean; message: string }> {
-  // TODO: POST to /mcp/tools/commit_edge with the payload; use M7 routing table
-  console.log("[DRAFT] commitEdge called — not yet connected to Arango");
-  return { ok: false, message: "Not yet connected to ArangoDB" };
+  const res = await fetch("/mcp/tools/commit_edge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      predicate,
+      source_id: sourceId,
+      target_id: targetId,
+      intent: intent || null,
+      perspective: perspective === "ALL" ? null : perspective,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) return { ok: false, message: data.detail ?? data.error ?? `HTTP ${res.status}` };
+  return { ok: true, message: data.message ?? `Edge committed: ${data.edge_id ?? "ok"}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -364,9 +385,9 @@ export function DefineRelationship() {
       })
       .finally(() => setIsLoadingEntities(false));
 
-    fetchIntents().then(setIntents);
-    fetchConcepts().then(setConcepts);
-    fetchCategories().then(setCategories);
+    fetchIntents().then(setIntents).catch(() => { /* keep mock fallback */ });
+    fetchConcepts().then(setConcepts).catch(() => { /* keep mock fallback */ });
+    fetchCategories().then(setCategories).catch(() => { /* keep mock fallback */ });
   }, []);
 
   const sourceResults = searchEntities(sourceSearch, sourceMode, entityNamespaces);

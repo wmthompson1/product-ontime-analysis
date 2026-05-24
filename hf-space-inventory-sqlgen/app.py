@@ -1736,6 +1736,161 @@ async def get_intent_perspectives(intent_name: Optional[str] = None):
         return {"error": str(e), "count": 0}
 
 
+class CommitEdgeRequest(BaseModel):
+    predicate: str
+    source_id: str
+    target_id: str
+    intent: Optional[str] = None
+    perspective: Optional[str] = None
+    explanation: Optional[str] = None
+    binding_key: Optional[str] = None
+    concept_anchor: Optional[str] = None
+    from_column: Optional[str] = None
+    to_column: Optional[str] = None
+
+
+@app.post("/mcp/tools/commit_edge")
+async def commit_edge(req: CommitEdgeRequest):
+    """Write a new edge (or bridge document) to ArangoDB using the M7 predicate routing table.
+
+    Predicate routing:
+      ELEVATES      → elevates edge collection  (weight=+1)
+      SUPPRESSES    → elevates edge collection  (weight=-1)
+      BOUND_TO      → bound_to edge collection
+      HAS_COLUMN    → HAS_COLUMN edge collection
+      FOREIGN_KEY   → FOREIGN_KEY edge collection
+      MAPS_TO_CONCEPT / CAN_MEAN → CAN_MEAN edge collection
+      OPERATES_WITHIN → Perspective_Intents bridge-row document (bridge model)
+
+    Returns {ok, edge_id, message} on success; raises HTTP 400/422 on bad input,
+    HTTP 503 if ArangoDB is unreachable.
+    """
+    import sys
+    import importlib
+    try:
+        gs = importlib.import_module("graph_sync")
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"graph_sync unavailable: {e}")
+
+    try:
+        client = gs.get_arango_client()
+        db = gs.get_arango_db(client)
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"ArangoDB connection failed: {e}")
+
+    predicate = req.predicate.upper().strip()
+
+    try:
+        if predicate in ("ELEVATES", "SUPPRESSES"):
+            weight = 1 if predicate == "ELEVATES" else -1
+            aql = """
+            INSERT {
+                _from:       @source,
+                _to:         @target,
+                weight:      @weight,
+                intent_name: @intent,
+                explanation: @explanation,
+                created_by:  'define_relationship_ui'
+            } INTO elevates RETURN NEW
+            """
+            result = list(db.aql.execute(aql, bind_vars={
+                "source": req.source_id,
+                "target": req.target_id,
+                "weight": weight,
+                "intent": req.intent or "",
+                "explanation": req.explanation or f"{predicate} via UI",
+            }))
+            doc = result[0]
+            return {"ok": True, "edge_id": doc["_id"], "message": f"{predicate} edge created"}
+
+        elif predicate == "BOUND_TO":
+            aql = """
+            INSERT {
+                _from:          @source,
+                _to:            @target,
+                binding_key:    @binding_key,
+                concept_anchor: @concept_anchor,
+                created_by:     'define_relationship_ui'
+            } INTO bound_to RETURN NEW
+            """
+            result = list(db.aql.execute(aql, bind_vars={
+                "source": req.source_id,
+                "target": req.target_id,
+                "binding_key": req.binding_key or "",
+                "concept_anchor": req.concept_anchor or "",
+            }))
+            doc = result[0]
+            return {"ok": True, "edge_id": doc["_id"], "message": "BOUND_TO edge created"}
+
+        elif predicate == "HAS_COLUMN":
+            aql = """
+            INSERT { _from: @source, _to: @target, created_by: 'define_relationship_ui' }
+            INTO HAS_COLUMN RETURN NEW
+            """
+            result = list(db.aql.execute(aql, bind_vars={
+                "source": req.source_id, "target": req.target_id,
+            }))
+            doc = result[0]
+            return {"ok": True, "edge_id": doc["_id"], "message": "HAS_COLUMN edge created"}
+
+        elif predicate == "FOREIGN_KEY":
+            aql = """
+            INSERT {
+                _from:       @source,
+                _to:         @target,
+                from_column: @from_column,
+                to_column:   @to_column,
+                created_by:  'define_relationship_ui'
+            } INTO FOREIGN_KEY RETURN NEW
+            """
+            result = list(db.aql.execute(aql, bind_vars={
+                "source": req.source_id, "target": req.target_id,
+                "from_column": req.from_column or "",
+                "to_column": req.to_column or "",
+            }))
+            doc = result[0]
+            return {"ok": True, "edge_id": doc["_id"], "message": "FOREIGN_KEY edge created"}
+
+        elif predicate in ("MAPS_TO_CONCEPT", "CAN_MEAN"):
+            aql = """
+            INSERT { _from: @source, _to: @target, created_by: 'define_relationship_ui' }
+            INTO CAN_MEAN RETURN NEW
+            """
+            result = list(db.aql.execute(aql, bind_vars={
+                "source": req.source_id, "target": req.target_id,
+            }))
+            doc = result[0]
+            return {"ok": True, "edge_id": doc["_id"], "message": "MAPS_TO_CONCEPT (CAN_MEAN) edge created"}
+
+        elif predicate == "OPERATES_WITHIN":
+            if not (req.intent and req.perspective):
+                from fastapi import HTTPException
+                raise HTTPException(status_code=422, detail="OPERATES_WITHIN requires intent and perspective")
+            seg3 = lambda s: "".join(c for c in s if c.isalpha())[:3].upper()
+            key = f"{seg3(req.intent)}_001_{req.perspective}"
+            doc = {
+                "_key": key,
+                "perspective": req.perspective,
+                "intent": req.intent,
+                "created_by": "define_relationship_ui",
+            }
+            db.collection("Perspective_Intents").insert(doc, overwrite=True)
+            return {"ok": True, "edge_id": f"Perspective_Intents/{key}", "message": "Perspective_Intents bridge row upserted"}
+
+        else:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=f"Unknown predicate: {req.predicate!r}. "
+                "Supported: ELEVATES, SUPPRESSES, BOUND_TO, HAS_COLUMN, FOREIGN_KEY, MAPS_TO_CONCEPT, OPERATES_WITHIN")
+
+    except Exception as e:
+        if "HTTPException" in type(e).__name__:
+            raise
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"ArangoDB write failed: {e}")
+
+
 @app.get("/mcp/tools/resolve_semantic_path")
 async def resolve_semantic_path(table_name: str, field_name: str, intent_name: str):
     """Resolve (Intent, Field) → Concept via the perspective bridge rows.
