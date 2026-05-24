@@ -30,12 +30,15 @@ Exit codes:
 """
 
 import argparse
+import json
 import logging
 import os
 import signal
 import sqlite3
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -88,25 +91,28 @@ def _queue_table_exists(conn: sqlite3.Connection) -> bool:
     return conn.execute(QUEUE_EXISTS_SQL).fetchone() is not None
 
 
-def run_sync(dry_run: bool, logger: logging.Logger) -> bool:
+def run_sync(dry_run: bool, logger: logging.Logger, pending: int | None = None) -> bool:
     """
     Import and call graph_sync.sync_graph().
     Returns True on success, False on failure.
     Logs a concise alert summary to stderr on failure.
+
+    pending — number of unprocessed queue rows at the time this sync was
+              triggered; forwarded into _alert() for richer notifications.
     """
     sys.path.insert(0, SCRIPT_DIR)
     try:
         import graph_sync
     except ImportError as exc:
         logger.error("Cannot import graph_sync: %s", exc)
-        _alert("IMPORT ERROR", str(exc))
+        _alert("IMPORT ERROR", str(exc), pending=pending)
         return False
 
     try:
         report = graph_sync.sync_graph(dry_run=dry_run)
     except Exception as exc:
         logger.error("Unhandled exception in sync_graph: %s", exc, exc_info=True)
-        _alert("UNHANDLED EXCEPTION", str(exc))
+        _alert("UNHANDLED EXCEPTION", str(exc), pending=pending)
         return False
 
     if report.success:
@@ -124,21 +130,61 @@ def run_sync(dry_run: bool, logger: logging.Logger) -> bool:
         logger.error("Sync FAILED:")
         for err in report.errors:
             logger.error("  %s", err)
-        _alert("SYNC FAILED", "\n".join(report.errors))
+        _alert("SYNC FAILED", "\n".join(report.errors), pending=pending)
         return False
 
 
-def _alert(title: str, body: str) -> None:
+def _alert(title: str, body: str, pending: int | None = None) -> None:
     """
-    Failure alerting hook.  Writes a structured line to stderr so that
-    log-shipping pipelines (Datadog, CloudWatch, etc.) can pick it up.
-    Extend this function to send Slack / PagerDuty / email notifications.
+    Failure alerting hook.
+
+    Always writes a structured line to stderr so that log-shipping pipelines
+    (Datadog, CloudWatch, etc.) can pick it up.
+
+    When GRAPH_SYNC_ALERT_WEBHOOK is set, also POSTs a Slack-compatible
+    incoming-webhook message containing:
+      - timestamp (UTC ISO-8601)
+      - alert title and error text
+      - count of pending queue rows (when available)
+
+    Leave GRAPH_SYNC_ALERT_WEBHOOK empty (or unset) to keep the current
+    silent / stderr-only behaviour.
     """
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(
-        f"[GRAPH_SYNC_ALERT] {ts} | {title} | {body}",
-        file=sys.stderr,
+    pending_str = f"{pending} pending queue row(s)" if pending is not None else "pending count unavailable"
+
+    stderr_line = f"[GRAPH_SYNC_ALERT] {ts} | {title} | pending={pending_str} | {body}"
+    print(stderr_line, file=sys.stderr)
+
+    webhook_url = os.environ.get("GRAPH_SYNC_ALERT_WEBHOOK", "").strip()
+    if not webhook_url:
+        return
+
+    slack_text = (
+        f":rotating_light: *Graph Sync Alert — {title}*\n"
+        f"*Time:* {ts}\n"
+        f"*Pending queue rows:* {pending_str}\n"
+        f"*Details:*\n```{body}```"
     )
+    payload = json.dumps({"text": slack_text}).encode("utf-8")
+    req = urllib.request.Request(
+        webhook_url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status not in (200, 204):
+                print(
+                    f"[GRAPH_SYNC_ALERT] Webhook POST returned HTTP {resp.status}",
+                    file=sys.stderr,
+                )
+    except urllib.error.URLError as exc:
+        print(
+            f"[GRAPH_SYNC_ALERT] Webhook POST failed: {exc}",
+            file=sys.stderr,
+        )
 
 
 def watch(poll_interval: int, dry_run: bool, once: bool, logger: logging.Logger) -> int:
@@ -178,7 +224,7 @@ def watch(poll_interval: int, dry_run: bool, once: bool, logger: logging.Logger)
                         logger.info(
                             "%d pending change(s) detected — running sync.", count
                         )
-                        ok = run_sync(dry_run=dry_run, logger=logger)
+                        ok = run_sync(dry_run=dry_run, logger=logger, pending=count)
                         outcome = "SUCCESS" if ok else "FAILED"
                         if not dry_run:
                             _mark_processed(conn, outcome)

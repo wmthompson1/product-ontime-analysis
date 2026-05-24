@@ -73,3 +73,35 @@ jobs:
           echo "  ARANGO_HOST set: ${{ env.ARANGO_HOST != '' }}"
           echo "Set ARANGO_HOST, ARANGO_DB, ARANGO_USER, ARANGO_ROOT_PASSWORD"
           echo "as repository secrets to enable live sync."
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          GRAPH_SYNC_ALERT_WEBHOOK: ${{ secrets.GRAPH_SYNC_ALERT_WEBHOOK }}
+        run: |
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Write a GitHub Actions step summary visible in the workflow UI
+          {
+            echo "## :rotating_light: Graph Sync Failed"
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| **Time (UTC)** | ${TS} |"
+            echo "| **Workflow run** | [View logs](${RUN_URL}) |"
+            echo "| **Branch** | \`${{ github.ref_name }}\` |"
+            echo "| **Triggered by** | ${{ github.actor }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Optionally POST to Slack webhook if secret is configured
+          if [ -n "${GRAPH_SYNC_ALERT_WEBHOOK}" ]; then
+            PAYLOAD=$(printf '{"text":":rotating_light: *Graph Sync CI Failed*\n*Time:* %s\n*Branch:* `%s`\n*Triggered by:* %s\n*Logs:* <%s|View run>"}' \
+              "${TS}" \
+              "${{ github.ref_name }}" \
+              "${{ github.actor }}" \
+              "${RUN_URL}")
+            curl -sS -o /dev/null -w "Slack webhook HTTP status: %{http_code}\n" \
+              -X POST -H "Content-Type: application/json" \
+              -d "${PAYLOAD}" \
+              "${GRAPH_SYNC_ALERT_WEBHOOK}"
+          fi
