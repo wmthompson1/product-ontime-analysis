@@ -1749,38 +1749,231 @@ class CommitEdgeRequest(BaseModel):
     to_column: Optional[str] = None
 
 
+def _parse_entity_name(label: str) -> str:
+    """Strip the ' (source_label)' suffix from a UI display label.
+
+    'production_orders (ERP_Instance_1)' → 'production_orders'
+    'defect_quality_trending'            → 'defect_quality_trending'
+    """
+    return label.split(" (")[0].strip()
+
+
+def _resolve_arango_handle(label: str, db, graph_name: str) -> str:
+    """Translate a UI display label to an ArangoDB document handle.
+
+    If label already contains '/' it is returned unchanged (already a handle).
+    Otherwise the entity name is extracted and the known vertex collections are
+    searched in priority order:
+      1. intents
+      2. concepts
+      3. bindings
+      4. {graph_name}_node  (atomic column / table nodes)
+
+    Raises ValueError when the entity cannot be resolved.
+    """
+    if "/" in label:
+        return label
+
+    entity_name = _parse_entity_name(label)
+
+    priority_collections = [
+        "intents",
+        "concepts",
+        "bindings",
+        f"{graph_name}_node",
+    ]
+
+    for coll_name in priority_collections:
+        try:
+            coll = db.collection(coll_name)
+            if coll.has(entity_name):
+                return f"{coll_name}/{entity_name}"
+            # Also try table_ prefixed key for atomic node collection
+            if coll_name == f"{graph_name}_node":
+                table_key = f"table_{entity_name}"
+                if coll.has(table_key):
+                    return f"{coll_name}/{table_key}"
+        except Exception:
+            continue
+
+    raise ValueError(
+        f"Entity {entity_name!r} not found in any vertex collection "
+        f"(intents, concepts, bindings, {graph_name}_node). "
+        "Pass a fully-qualified ArangoDB handle (collection/key) to skip resolution."
+    )
+
+
 @app.post("/mcp/tools/commit_edge")
 async def commit_edge(req: CommitEdgeRequest):
-    """Write a new edge (or bridge document) to ArangoDB using the M7 predicate routing table.
+    """Write a new edge (or bridge document) using predicate-based routing.
 
     Predicate routing:
-      ELEVATES      → elevates edge collection  (weight=+1)
-      SUPPRESSES    → elevates edge collection  (weight=-1)
-      BOUND_TO      → bound_to edge collection
-      HAS_COLUMN    → HAS_COLUMN edge collection
-      FOREIGN_KEY   → FOREIGN_KEY edge collection
-      MAPS_TO_CONCEPT / CAN_MEAN → CAN_MEAN edge collection
-      OPERATES_WITHIN → Perspective_Intents bridge-row document (bridge model)
+      ELEVATES / SUPPRESSES  → ArangoDB elevates edge collection (weight +1 / -1)
+      BOUND_TO               → ArangoDB bound_to edge collection
+      HAS_COLUMN             → ArangoDB HAS_COLUMN edge collection
+      FOREIGN_KEY            → ArangoDB FOREIGN_KEY edge collection
+      MAPS_TO_CONCEPT / CAN_MEAN → ArangoDB CAN_MEAN edge collection
+      OPERATES_WITHIN        → SQLite schema_intent_perspectives (source of truth)
+                               then ArangoDB Perspective_Intents (best-effort sync)
+      USES_DEFINITION        → SQLite schema_perspective_concepts (source of truth)
+                               then ArangoDB Perspective_Concepts (best-effort sync)
 
     Returns {ok, edge_id, message} on success; raises HTTP 400/422 on bad input,
-    HTTP 503 if ArangoDB is unreachable.
+    HTTP 503 if ArangoDB is unreachable for Arango-routed predicates.
     """
-    import sys
+    import sqlite3 as _sqlite3
     import importlib
+    from fastapi import HTTPException
+
+    predicate = req.predicate.upper().strip()
+
+    # ── Bridge predicates: SQLite is source of truth ─────────────────────────
+    if predicate == "OPERATES_WITHIN":
+        if not (req.intent and req.perspective):
+            raise HTTPException(status_code=422,
+                detail="OPERATES_WITHIN requires intent and perspective")
+        try:
+            conn = _sqlite3.connect(SQLITE_DB_PATH)
+            conn.row_factory = _sqlite3.Row
+            intent_row = conn.execute(
+                "SELECT intent_id FROM schema_intents WHERE intent_name = ?",
+                (req.intent,),
+            ).fetchone()
+            if intent_row is None:
+                raise HTTPException(status_code=422,
+                    detail=f"Intent not found in SQLite: {req.intent!r}")
+            perspective_row = conn.execute(
+                "SELECT perspective_id FROM schema_perspectives WHERE perspective_name = ?",
+                (req.perspective,),
+            ).fetchone()
+            if perspective_row is None:
+                raise HTTPException(status_code=422,
+                    detail=f"Perspective not found in SQLite: {req.perspective!r}")
+            conn.execute(
+                """INSERT INTO schema_intent_perspectives
+                       (intent_id, perspective_id, intent_factor_weight, explanation)
+                   VALUES (?, ?, 1, ?)
+                   ON CONFLICT(intent_id, perspective_id) DO UPDATE SET
+                       intent_factor_weight = excluded.intent_factor_weight,
+                       explanation = excluded.explanation""",
+                (intent_row["intent_id"], perspective_row["perspective_id"],
+                 req.explanation or "Added via Define Relationship UI"),
+            )
+            conn.commit()
+            edge_id = f"sqlite:schema_intent_perspectives/{req.intent}__{req.perspective}"
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"SQLite write failed: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        # Best-effort ArangoDB sync — never blocks the response
+        arango_note = ""
+        try:
+            gs = importlib.import_module("graph_sync")
+            client = gs.get_arango_client()
+            db = gs.get_arango_db(client)
+            seg3 = lambda s: "".join(c for c in s if c.isalpha())[:3].upper()
+            key = f"{seg3(req.intent)}_001_{req.perspective}"
+            db.collection("Perspective_Intents").insert(
+                {"_key": key, "perspective": req.perspective,
+                 "intent": req.intent, "created_by": "define_relationship_ui"},
+                overwrite=True,
+            )
+            arango_note = "; synced to ArangoDB Perspective_Intents"
+        except Exception:
+            arango_note = "; ArangoDB sync skipped (offline)"
+
+        return {"ok": True, "edge_id": edge_id,
+                "message": f"OPERATES_WITHIN bridge row saved to SQLite{arango_note}"}
+
+    if predicate == "USES_DEFINITION":
+        if not (req.perspective and req.concept_anchor):
+            raise HTTPException(status_code=422,
+                detail="USES_DEFINITION requires perspective and concept_anchor (concept name)")
+        try:
+            conn = _sqlite3.connect(SQLITE_DB_PATH)
+            conn.row_factory = _sqlite3.Row
+            perspective_row = conn.execute(
+                "SELECT perspective_id FROM schema_perspectives WHERE perspective_name = ?",
+                (req.perspective,),
+            ).fetchone()
+            if perspective_row is None:
+                raise HTTPException(status_code=422,
+                    detail=f"Perspective not found in SQLite: {req.perspective!r}")
+            concept_row = conn.execute(
+                "SELECT concept_id FROM schema_concepts WHERE concept_name = ?",
+                (req.concept_anchor,),
+            ).fetchone()
+            if concept_row is None:
+                raise HTTPException(status_code=422,
+                    detail=f"Concept not found in SQLite: {req.concept_anchor!r}")
+            conn.execute(
+                """INSERT INTO schema_perspective_concepts
+                       (perspective_id, concept_id, relationship_type, priority_weight)
+                   VALUES (?, ?, 'USES_DEFINITION', 1)
+                   ON CONFLICT(perspective_id, concept_id) DO UPDATE SET
+                       relationship_type = excluded.relationship_type,
+                       priority_weight   = excluded.priority_weight""",
+                (perspective_row["perspective_id"], concept_row["concept_id"]),
+            )
+            conn.commit()
+            edge_id = f"sqlite:schema_perspective_concepts/{req.perspective}__{req.concept_anchor}"
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"SQLite write failed: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        # Best-effort ArangoDB sync
+        arango_note = ""
+        try:
+            gs = importlib.import_module("graph_sync")
+            client = gs.get_arango_client()
+            db = gs.get_arango_db(client)
+            seg3 = lambda s: "".join(c for c in s if c.isalpha())[:3].upper()
+            key = f"{seg3(req.perspective)}_001_{req.concept_anchor}"
+            db.collection("Perspective_Concepts").insert(
+                {"_key": key, "perspective": req.perspective,
+                 "concept": req.concept_anchor, "created_by": "define_relationship_ui"},
+                overwrite=True,
+            )
+            arango_note = "; synced to ArangoDB Perspective_Concepts"
+        except Exception:
+            arango_note = "; ArangoDB sync skipped (offline)"
+
+        return {"ok": True, "edge_id": edge_id,
+                "message": f"USES_DEFINITION bridge row saved to SQLite{arango_note}"}
+
+    # ── ArangoDB-routed predicates ────────────────────────────────────────────
     try:
         gs = importlib.import_module("graph_sync")
     except Exception as e:
-        from fastapi import HTTPException
         raise HTTPException(status_code=503, detail=f"graph_sync unavailable: {e}")
 
     try:
         client = gs.get_arango_client()
         db = gs.get_arango_db(client)
     except Exception as e:
-        from fastapi import HTTPException
         raise HTTPException(status_code=503, detail=f"ArangoDB connection failed: {e}")
 
-    predicate = req.predicate.upper().strip()
+    graph_name = gs.GRAPH_NAME
+
+    # Resolve display labels to real ArangoDB document handles.
+    # If source_id / target_id are already handles (contain '/') they pass through.
+    try:
+        source_handle = _resolve_arango_handle(req.source_id, db, graph_name)
+        target_handle = _resolve_arango_handle(req.target_id, db, graph_name)
+    except ValueError as ve:
+        raise HTTPException(status_code=422, detail=str(ve))
 
     try:
         if predicate in ("ELEVATES", "SUPPRESSES"):
@@ -1796,8 +1989,8 @@ async def commit_edge(req: CommitEdgeRequest):
             } INTO elevates RETURN NEW
             """
             result = list(db.aql.execute(aql, bind_vars={
-                "source": req.source_id,
-                "target": req.target_id,
+                "source": source_handle,
+                "target": target_handle,
                 "weight": weight,
                 "intent": req.intent or "",
                 "explanation": req.explanation or f"{predicate} via UI",
@@ -1816,8 +2009,8 @@ async def commit_edge(req: CommitEdgeRequest):
             } INTO bound_to RETURN NEW
             """
             result = list(db.aql.execute(aql, bind_vars={
-                "source": req.source_id,
-                "target": req.target_id,
+                "source": source_handle,
+                "target": target_handle,
                 "binding_key": req.binding_key or "",
                 "concept_anchor": req.concept_anchor or "",
             }))
@@ -1830,7 +2023,7 @@ async def commit_edge(req: CommitEdgeRequest):
             INTO HAS_COLUMN RETURN NEW
             """
             result = list(db.aql.execute(aql, bind_vars={
-                "source": req.source_id, "target": req.target_id,
+                "source": source_handle, "target": target_handle,
             }))
             doc = result[0]
             return {"ok": True, "edge_id": doc["_id"], "message": "HAS_COLUMN edge created"}
@@ -1846,7 +2039,7 @@ async def commit_edge(req: CommitEdgeRequest):
             } INTO FOREIGN_KEY RETURN NEW
             """
             result = list(db.aql.execute(aql, bind_vars={
-                "source": req.source_id, "target": req.target_id,
+                "source": source_handle, "target": target_handle,
                 "from_column": req.from_column or "",
                 "to_column": req.to_column or "",
             }))
@@ -1859,35 +2052,20 @@ async def commit_edge(req: CommitEdgeRequest):
             INTO CAN_MEAN RETURN NEW
             """
             result = list(db.aql.execute(aql, bind_vars={
-                "source": req.source_id, "target": req.target_id,
+                "source": source_handle, "target": target_handle,
             }))
             doc = result[0]
             return {"ok": True, "edge_id": doc["_id"], "message": "MAPS_TO_CONCEPT (CAN_MEAN) edge created"}
 
-        elif predicate == "OPERATES_WITHIN":
-            if not (req.intent and req.perspective):
-                from fastapi import HTTPException
-                raise HTTPException(status_code=422, detail="OPERATES_WITHIN requires intent and perspective")
-            seg3 = lambda s: "".join(c for c in s if c.isalpha())[:3].upper()
-            key = f"{seg3(req.intent)}_001_{req.perspective}"
-            doc = {
-                "_key": key,
-                "perspective": req.perspective,
-                "intent": req.intent,
-                "created_by": "define_relationship_ui",
-            }
-            db.collection("Perspective_Intents").insert(doc, overwrite=True)
-            return {"ok": True, "edge_id": f"Perspective_Intents/{key}", "message": "Perspective_Intents bridge row upserted"}
-
         else:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=400, detail=f"Unknown predicate: {req.predicate!r}. "
-                "Supported: ELEVATES, SUPPRESSES, BOUND_TO, HAS_COLUMN, FOREIGN_KEY, MAPS_TO_CONCEPT, OPERATES_WITHIN")
+            raise HTTPException(status_code=400,
+                detail=f"Unknown predicate: {req.predicate!r}. "
+                "Supported: ELEVATES, SUPPRESSES, BOUND_TO, HAS_COLUMN, FOREIGN_KEY, "
+                "MAPS_TO_CONCEPT, OPERATES_WITHIN, USES_DEFINITION")
 
     except Exception as e:
         if "HTTPException" in type(e).__name__:
             raise
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=f"ArangoDB write failed: {e}")
 
 

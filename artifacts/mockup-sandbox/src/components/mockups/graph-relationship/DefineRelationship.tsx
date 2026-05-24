@@ -288,6 +288,7 @@ async function commitEdge(
   targetId: string,
   intent: string,
   perspective: string,
+  conceptAnchor?: string,
 ): Promise<{ ok: boolean; message: string }> {
   const res = await fetch("/mcp/tools/commit_edge", {
     method: "POST",
@@ -298,6 +299,7 @@ async function commitEdge(
       target_id: targetId,
       intent: intent || null,
       perspective: perspective === "ALL" ? null : perspective,
+      concept_anchor: conceptAnchor || null,
     }),
   });
   const data = await res.json();
@@ -360,6 +362,10 @@ export function DefineRelationship() {
   // Loading / API reachability state for entity panels.
   const [isLoadingEntities, setIsLoadingEntities] = useState(true);
   const [apiWarning, setApiWarning] = useState<string | null>(null);
+
+  // Commit-edge feedback state.
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [commitResult, setCommitResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setIsLoadingEntities(true);
@@ -1020,14 +1026,48 @@ export function DefineRelationship() {
         </div>
 
         {/* Bottom action buttons */}
-        <div className="border-t border-slate-700/50 px-4 py-3 flex items-center gap-3 bg-[#1e1e2e]">
+        <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 flex flex-col gap-2 bg-[#1e1e2e]">
+          {commitResult && (
+            <div
+              className={`text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 ${
+                commitResult.ok
+                  ? "bg-emerald-900/60 border border-emerald-600/50 text-emerald-300"
+                  : "bg-rose-900/60 border border-rose-600/50 text-rose-300"
+              }`}
+            >
+              <span>{commitResult.ok ? "✓" : "✗"}</span>
+              <span>{commitResult.message}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
           <button
-            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors"
-            onClick={() =>
-              commitEdge(selectedPredicate, selectedSource, selectedTarget, selectedIntent, activeCategory)
-            }
+            className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors"
+            disabled={isCommitting}
+            onClick={async () => {
+              setIsCommitting(true);
+              setCommitResult(null);
+              try {
+                const result = await commitEdge(
+                  selectedPredicate,
+                  selectedSource,
+                  selectedTarget,
+                  selectedIntent,
+                  activeCategory,
+                  selectedConcept,
+                );
+                setCommitResult(result);
+                if (result.ok) {
+                  setTimeout(() => setCommitResult(null), 4000);
+                }
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                setCommitResult({ ok: false, message: msg });
+              } finally {
+                setIsCommitting(false);
+              }
+            }}
           >
-            Add to Graph
+            {isCommitting ? "Saving…" : "Add to Graph"}
           </button>
           <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
             Store in Repo Memory (graph_sync.md)
@@ -1035,6 +1075,7 @@ export function DefineRelationship() {
           <button className="px-6 bg-rose-700 hover:bg-rose-600 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
             Cancel
           </button>
+          </div>
         </div>
       </div>
     </div>
