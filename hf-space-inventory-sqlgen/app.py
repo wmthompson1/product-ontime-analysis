@@ -2635,8 +2635,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
             |----------|---------|
             | `GET /mcp/tools/get_perspectives` | List organizational perspectives |
             | `GET /mcp/tools/get_intents` | List analytical intents |
-            | `GET /mcp/tools/get_intent_perspectives` | View Perspective_Intents bridge rows (legacy alias: OPERATES_WITHIN edges) |
-            | `GET /mcp/tools/get_perspective_concepts` | View Perspective_Concepts bridge rows (legacy alias: USES_DEFINITION edges) |
+            | `GET /mcp/tools/get_intent_perspectives` | View Perspective_Intents bridge rows |
+            | `GET /mcp/tools/get_perspective_concepts` | View Perspective_Concepts bridge rows |
             | `GET /mcp/tools/resolve_semantic_path` | Resolve (Intent, Field) → Concept via the bridge rows |
             """)
         
