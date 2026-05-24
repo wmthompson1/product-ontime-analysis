@@ -126,13 +126,9 @@ function searchEntities(
   return { matches_found: total, grouped_results: filteredGroups };
 }
 
-const TARGET_ENTITIES = [
-  "intents (semantic_layer)",
-  "concepts (semantic_layer)",
-  "perspectives (semantic_layer)",
-  "bindings (semantic_layer)",
-  "production_lines (ERP_Instance_1)",
-];
+// TARGET_ENTITIES removed — superseded by MOCK_SEARCH_DATA.grouped_results.
+// The grouped results list renders items as `"${rec.table_name} (${source})"`,
+// so selectedTarget must use that same format (see useState initializer below).
 
 const PREDICATES = [
   "FOREIGN_KEY",
@@ -308,7 +304,13 @@ export function DefineRelationship() {
   const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
   const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
   const [selectedConcept, setSelectedConcept] = useState(CONCEPTS[0]);
-  const [selectedTarget, setSelectedTarget] = useState(TARGET_ENTITIES[0]);
+  const [selectedTarget, setSelectedTarget] = useState(
+    (() => {
+      const firstSource = Object.keys(MOCK_SEARCH_DATA.grouped_results)[0];
+      const firstRec = MOCK_SEARCH_DATA.grouped_results[firstSource][0];
+      return `${firstRec.table_name} (${firstSource})`;
+    })()
+  );
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
   const [expandedEntities, setExpandedEntities] = useState<Record<string, boolean>>({
