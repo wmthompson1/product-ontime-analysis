@@ -1053,6 +1053,26 @@ async def mcp_discover():
     )
 
 
+@app.get("/mcp/config")
+async def get_mcp_config():
+    """Return active runtime configuration so operators can verify settings without reading logs.
+
+    Response fields:
+      - erp_instance_name: value of ERP_INSTANCE_NAME env var (default "ERP_Instance_1")
+      - erp_instance_name_source: "env" if set explicitly, "default" if falling back
+      - sqlite_db_path: resolved path to the SQLite database file
+      - query_api_key_set: boolean – true when QUERY_API_KEY is non-empty
+    """
+    raw = os.environ.get("ERP_INSTANCE_NAME")
+    erp_instance_name = raw if raw else "ERP_Instance_1"
+    return {
+        "erp_instance_name": erp_instance_name,
+        "erp_instance_name_source": "env" if raw else "default",
+        "sqlite_db_path": SQLITE_DB_PATH,
+        "query_api_key_set": bool(QUERY_API_KEY),
+    }
+
+
 @app.post("/mcp/tools/generate_sql", response_model=SQLGenerationResponse)
 async def generate_sql(request: SQLGenerationRequest):
     """Generate SQL from natural language query"""

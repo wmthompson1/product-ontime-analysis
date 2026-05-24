@@ -39,10 +39,42 @@ Open http://localhost:7860 in your browser.
 3. Upload all files from this repository
 4. Your Space will auto-deploy!
 
+## ⚙️ Configuration
+
+Set these environment variables before starting the server (copy `.env.example` to `.env` for local development; use Space Secrets on Hugging Face).
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ERP_INSTANCE_NAME` | `ERP_Instance_1` | Display name for this ERP system. Shown as the group key in `/mcp/tools/list_schema_tables` and in the Gradio Schema tab. Set to your actual system name (e.g. `SAP_S4`, `Oracle_EBS`, `NetSuite`). |
+| `QUERY_API_KEY` | _(none)_ | Optional bearer-token guard for write endpoints. Leave blank in development. |
+| `OPENAI_API_KEY` | _(none)_ | Required for embedding-based semantic search and RAG features. |
+| `TAVILY_API_KEY` | _(none)_ | Required for advanced RAG with live web retrieval. |
+| `ARANGO_HOST` / `ARANGO_DB` | _(none)_ | Required for graph persistence to ArangoDB. |
+
+### Verifying your configuration
+
+After starting the server, hit the config endpoint to confirm the active values without reading logs:
+
+```bash
+curl http://localhost:7860/mcp/config
+```
+
+```json
+{
+  "erp_instance_name": "SAP_S4",
+  "erp_instance_name_source": "env",
+  "sqlite_db_path": "/path/to/manufacturing.db",
+  "query_api_key_set": false
+}
+```
+
+`erp_instance_name_source` is `"env"` when the variable was explicitly set, or `"default"` when the fallback value is in use.
+
 ## 📡 MCP API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
+| `/mcp/config` | GET | Returns active runtime configuration (ERP name, DB path, auth status) |
 | `/mcp/discover` | GET | Discovery endpoint - lists all tools |
 | `/mcp/tools/generate_sql` | POST | Convert natural language to SQL |
 | `/mcp/tools/get_schema` | GET | Get database schema |
