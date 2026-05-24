@@ -11,6 +11,8 @@ import {
   Pencil,
   X,
 } from "lucide-react";
+import { getFirstEntityDisplay } from "./entityDisplay";
+import type { EntityRecord, GroupedResults, SearchResult } from "./entityDisplay";
 
 // Pill bar now scopes the workspace by Perspective/Category (was: edge predicate filter).
 // Picking a Category here means "I'm building relationships within this domain scope" — and the
@@ -50,10 +52,6 @@ const EDGE_MEANINGS: Record<string, string> = {
 type MatchMode = "Contains" | "Starts with" | "Wildcard" | "Regex";
 
 const MATCH_MODES: MatchMode[] = ["Contains", "Starts with", "Wildcard", "Regex"];
-
-type EntityRecord = { table_name: string; qualified_name: string };
-type GroupedResults = Record<string, EntityRecord[]>;
-type SearchResult = { matches_found: number; grouped_results: GroupedResults };
 
 const MOCK_SEARCH_DATA: SearchResult = {
   matches_found: 12,
@@ -347,21 +345,13 @@ function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) 
 export function DefineRelationship() {
   const [activeCategory, setActiveCategory] = useState<CategoryScope>("ALL");
   const [selectedSource, setSelectedSource] = useState(
-    (() => {
-      const firstSource = Object.keys(MOCK_SEARCH_DATA.grouped_results)[0];
-      const firstRec = MOCK_SEARCH_DATA.grouped_results[firstSource][0];
-      return `${firstRec.table_name} (${firstSource})`;
-    })()
+    getFirstEntityDisplay(MOCK_SEARCH_DATA)
   );
   const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
   const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
   const [selectedConcept, setSelectedConcept] = useState(CONCEPTS[0]);
   const [selectedTarget, setSelectedTarget] = useState(
-    (() => {
-      const firstSource = Object.keys(MOCK_SEARCH_DATA.grouped_results)[0];
-      const firstRec = MOCK_SEARCH_DATA.grouped_results[firstSource][0];
-      return `${firstRec.table_name} (${firstSource})`;
-    })()
+    getFirstEntityDisplay(MOCK_SEARCH_DATA)
   );
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
