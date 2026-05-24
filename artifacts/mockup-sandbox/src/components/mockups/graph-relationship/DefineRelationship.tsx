@@ -434,6 +434,12 @@ export function DefineRelationship() {
   const sourceResults = searchEntities(sourceSearch, sourceMode, entityNamespaces);
   const targetResults = searchEntities(targetSearch, targetMode, entityNamespaces);
 
+  // Derive the ERP instance name from the first group key that isn't "semantic_layer".
+  // This automatically reflects whatever ERP_INSTANCE_NAME the server is using.
+  const erpInstanceName = Object.keys(entityNamespaces.grouped_results).find(
+    (k) => k !== "semantic_layer"
+  ) ?? "ERP_Instance_1";
+
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
@@ -582,10 +588,14 @@ export function DefineRelationship() {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden bg-[#252535]">
         {/* Title bar */}
-        <div className="px-5 pt-4 pb-2 border-b border-slate-700/50">
+        <div className="px-5 pt-4 pb-2 border-b border-slate-700/50 flex items-center gap-3">
           <h1 className="text-lg font-semibold text-slate-100">
             Define Data Relationship
           </h1>
+          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-900/50 border border-emerald-600/50 text-[10px] font-semibold text-emerald-300 tracking-wide">
+            <Database size={10} className="shrink-0" />
+            {erpInstanceName}
+          </span>
         </div>
 
         {/* API warning banner — shown when live schema is unreachable */}

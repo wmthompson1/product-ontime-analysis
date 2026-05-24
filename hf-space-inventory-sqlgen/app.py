@@ -2954,8 +2954,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
             )
         
         with gr.Tab("📊 Schema"):
-            gr.Markdown("### Database Schema Resources")
-            
+            _erp_instance_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
+            gr.Markdown(
+                f"### Database Schema Resources\n\n"
+                f"**ERP Source:** `{_erp_instance_name}`"
+            )
+
             initial_table_list = get_all_tables()
             gr.Markdown(f"**{len(initial_table_list)} tables available**")
             
