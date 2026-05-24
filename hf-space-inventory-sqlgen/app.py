@@ -3999,7 +3999,150 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 fn=lambda: run_graph_sync(dry_run=False),
                 outputs=[sync_status, sync_report_output]
             )
-        
+
+        with gr.Tab("🩺 Bridge Health"):
+            gr.Markdown("""
+            ### Bridge Collection Health Check
+
+            Compares ArangoDB bridge document counts against the SQLite source-of-truth tables.
+            A mismatch means `graph_sync.py` left ArangoDB partially synced — run **Sync to ArangoDB**
+            on the Graph Sync tab to fix it.
+
+            | ArangoDB Collection | SQLite Table |
+            |---------------------|--------------|
+            | `Perspective_Intents` | `schema_intent_perspectives` |
+            | `Perspective_Concepts` | `schema_perspective_concepts` |
+            """)
+
+            health_check_btn = gr.Button("Check Now", variant="primary")
+
+            with gr.Row():
+                health_status = gr.Textbox(
+                    label="Overall Status",
+                    interactive=False,
+                    value="Not checked yet — click Check Now",
+                )
+                health_timestamp = gr.Textbox(
+                    label="Last Checked",
+                    interactive=False,
+                    value="—",
+                )
+
+            health_detail = gr.Code(label="Count Comparison", language=None, lines=14)
+
+            _BRIDGE_MAP = {
+                "Perspective_Intents": "schema_intent_perspectives",
+                "Perspective_Concepts": "schema_perspective_concepts",
+            }
+
+            def run_bridge_health_check():
+                import sqlite3 as _sqlite3
+                import datetime as _dt
+
+                timestamp = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                if not os.path.exists(SQLITE_DB_PATH):
+                    return (
+                        "⚠️  SKIP — SQLite DB not found",
+                        timestamp,
+                        f"SQLite DB not found at: {SQLITE_DB_PATH}",
+                    )
+
+                conn = _sqlite3.connect(SQLITE_DB_PATH)
+                sqlite_counts: dict = {}
+                try:
+                    for sqlite_table in _BRIDGE_MAP.values():
+                        try:
+                            row = conn.execute(
+                                f"SELECT COUNT(*) FROM {sqlite_table}"
+                            ).fetchone()
+                            sqlite_counts[sqlite_table] = row[0] if row else 0
+                        except Exception as exc:
+                            sqlite_counts[sqlite_table] = f"ERROR: {exc}"
+                finally:
+                    conn.close()
+
+                if not os.environ.get("ARANGO_HOST"):
+                    lines = ["ArangoDB: NOT CONFIGURED (ARANGO_HOST not set)", ""]
+                    lines.append(f"{'Collection':<28} {'ArangoDB':>12} {'SQLite':>12} {'Match':>8}")
+                    lines.append("-" * 64)
+                    for arango_coll, sqlite_table in _BRIDGE_MAP.items():
+                        sqlite_n = sqlite_counts.get(sqlite_table, "?")
+                        lines.append(
+                            f"{arango_coll:<28} {'N/A':>12} {str(sqlite_n):>12} {'—':>8}"
+                        )
+                    lines.append("")
+                    lines.append("Set ARANGO_HOST to enable the ArangoDB side of this check.")
+                    return (
+                        "⚠️  SKIP — ARANGO_HOST not set",
+                        timestamp,
+                        "\n".join(lines),
+                    )
+
+                try:
+                    from graph_sync import get_arango_client, get_arango_db
+                    client = get_arango_client()
+                    db = get_arango_db(client)
+                except Exception as exc:
+                    return (
+                        f"⚠️  SKIP — ArangoDB connection failed: {exc}",
+                        timestamp,
+                        f"Could not connect to ArangoDB:\n{exc}",
+                    )
+
+                arango_counts: dict = {}
+                for coll_name in _BRIDGE_MAP:
+                    try:
+                        if db.has_collection(coll_name):
+                            arango_counts[coll_name] = db.collection(coll_name).count()
+                        else:
+                            arango_counts[coll_name] = -1
+                    except Exception as exc:
+                        arango_counts[coll_name] = f"ERROR: {exc}"
+
+                lines = []
+                lines.append(f"{'Collection':<28} {'ArangoDB':>12} {'SQLite':>12} {'Match':>8}")
+                lines.append("-" * 64)
+
+                all_ok = True
+                for arango_coll, sqlite_table in _BRIDGE_MAP.items():
+                    arango_n = arango_counts.get(arango_coll)
+                    sqlite_n = sqlite_counts.get(sqlite_table, "?")
+
+                    if isinstance(arango_n, str):
+                        match_icon = "ERROR"
+                        all_ok = False
+                    elif arango_n == -1:
+                        match_icon = "MISSING"
+                        all_ok = False
+                    elif arango_n == sqlite_n:
+                        match_icon = "✅"
+                    else:
+                        match_icon = "❌"
+                        all_ok = False
+
+                    arango_display = "MISSING" if arango_n == -1 else str(arango_n)
+                    lines.append(
+                        f"{arango_coll:<28} {arango_display:>12} {str(sqlite_n):>12} {match_icon:>8}"
+                    )
+
+                lines.append("")
+                if all_ok:
+                    lines.append("All bridge collection counts match the SQLite source data.")
+                    overall = "✅  IN SYNC — all counts match"
+                else:
+                    lines.append(
+                        "Count mismatch detected. Re-run 'Sync to ArangoDB' on the Graph Sync tab."
+                    )
+                    overall = "❌  OUT OF SYNC — counts differ (see details below)"
+
+                return overall, timestamp, "\n".join(lines)
+
+            health_check_btn.click(
+                fn=run_bridge_health_check,
+                outputs=[health_status, health_timestamp, health_detail],
+            )
+
         with gr.Tab("🎨 Query Palette"):
             gr.Markdown("### SQLMesh Query Palette\nRun SQL against the SQLMesh virtual layer. Queries resolve through masked/hashed physical tables automatically.")
 
