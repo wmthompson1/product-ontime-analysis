@@ -60,6 +60,11 @@ jobs:
         working-directory: hf-space-inventory-sqlgen
         run: python graph_sync.py
 
+      - name: Health check — bridge collection counts match SQLite
+        if: ${{ github.event.inputs.dry_run != 'true' && env.ARANGO_HOST != '' }}
+        working-directory: hf-space-inventory-sqlgen
+        run: python tests/test_bridge_collection_health.py
+
       - name: Skip live sync (no ArangoDB secrets or dry-run requested)
         if: ${{ github.event.inputs.dry_run == 'true' || env.ARANGO_HOST == '' }}
         run: |
