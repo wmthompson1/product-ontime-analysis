@@ -171,7 +171,7 @@ def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name:
                 perspective=perspective,
                 status='resolved',
                 candidate_concepts=unique_concepts,
-                explanation=f"Resolved via path: {intent_name} → {perspective} → {unique_concepts[0]}"
+                explanation=f"Resolved via bridge rows: {intent_name} -[Perspective_Intents]-> {perspective} -[Perspective_Concepts]-> {unique_concepts[0]}"
             )
         elif len(unique_concepts) > 1:
             # ERROR: Modeling error (too many)
@@ -182,7 +182,8 @@ def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name:
                 perspective=perspective,
                 status='ambiguous',
                 candidate_concepts=unique_concepts,
-                explanation=f"MODELING ERROR: {len(unique_concepts)} concepts resolved. "
+                explanation=f"MODELING ERROR: {len(unique_concepts)} concepts resolved via bridge rows "
+                           f"({intent_name} -[Perspective_Intents]-> {perspective} -[Perspective_Concepts]-> …). "
                            f"Intent must elevate exactly one: {unique_concepts}"
             )
         else:
