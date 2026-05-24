@@ -527,6 +527,19 @@ def get_cypher_traversal(intent_name: str, table_name: str, field_name: str) -> 
     return f"""// Neo4j Cypher - Semantic Path Resolution
 // Resolves: {table_name}.{field_name} under intent '{intent_name}'
 
+// ─── IMPORTANT: Perspective vertex does not exist in the current model ───────
+// The (perspective:Perspective) node below is a CONCEPTUAL PLACEHOLDER only.
+// In the production bridge-row model, Perspective is stored as a plain string
+// property on two document collections in ArangoDB, not as a vertex:
+//   • Perspective_Intents  (key = perspective__intent)
+//   • Perspective_Concepts (key = perspective__concept)
+// Running this MATCH clause as-is against ArangoDB will produce a runtime error
+// because the 'perspectives' vertex collection and the OPERATES_WITHIN /
+// USES_DEFINITION edge collections were retired. Use the bridge-row collections
+// or the SQLite source tables (schema_intent_perspectives /
+// schema_perspective_concepts) for live resolution.
+// ─────────────────────────────────────────────────────────────────────────────
+
 MATCH path = (intent:Intent {{name: '{intent_name}'}})
   -[:OPERATES_WITHIN]->(perspective:Perspective)
   -[:USES_DEFINITION]->(concept:Concept)
@@ -581,6 +594,19 @@ LET intent = FIRST(
     FILTER i.intent_name == '{intent_name}'
     RETURN i
 )
+
+// ─── IMPORTANT: Perspective vertex does not exist in the current model ───────
+// The traversal below filters on 'schema_perspectives/%' vertices, which were
+// retired in the bridge-row model refactor. Perspective is now stored as a
+// plain string property on two ArangoDB document collections:
+//   • Perspective_Intents  (key = perspective__intent)  ← replaces OPERATES_WITHIN
+//   • Perspective_Concepts (key = perspective__concept) ← replaces USES_DEFINITION
+// The 'perspectives' vertex collection no longer exists; running this FOR …
+// OUTBOUND block as-is will return zero results (or error on missing collection).
+// For live resolution, query Perspective_Intents / Perspective_Concepts directly,
+// or use the SQLite source tables schema_intent_perspectives /
+// schema_perspective_concepts which are the authoritative source of truth.
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Traverse via bridge-row model: Perspective_Intents -> Perspective_Concepts -> CAN_MEAN <- Field
 // (Legacy edge aliases used in AQL: OPERATES_WITHIN, USES_DEFINITION)
@@ -637,6 +663,17 @@ def get_graph_syntax_examples(engine, intent_name: str, table_name: str, field_n
         "cypher": get_cypher_traversal(intent_name, table_name, field_name),
         "aql": get_aql_traversal(intent_name, table_name, field_name),
         "sql_equivalent": f"""-- SQL Equivalent (current implementation)
+-- ─── Bridge-table join strategy (Perspective is NOT a graph vertex) ──────────
+-- In the bridge-row model, Perspective is a plain string property, not a node.
+-- Resolution works by joining two bridge tables:
+--   schema_intent_perspectives  – links an Intent to a Perspective string
+--     (source of truth for Perspective_Intents ArangoDB collection)
+--   schema_perspective_concepts – links a Perspective string to a Concept
+--     (source of truth for Perspective_Concepts ArangoDB collection)
+-- There is no standalone 'perspectives' table acting as an entity; these joins
+-- provide the same path that Cypher/AQL traverse through Perspective vertices
+-- in the conceptual templates above.
+-- ─────────────────────────────────────────────────────────────────────────────
 SELECT 
     i.intent_name AS Intent,
     p.perspective_name AS Perspective,
