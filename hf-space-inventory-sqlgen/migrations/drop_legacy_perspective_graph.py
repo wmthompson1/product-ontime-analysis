@@ -64,6 +64,15 @@ def _drop_from_graph(db, graph, name: str) -> str:
         return f"  {name}: edge definition delete failed: {e}"
 
     try:
+        props = graph.properties()
+        orphans = props.get("orphan_collections", [])
+        if name in orphans:
+            graph.delete_vertex_collection(name, purge=True)
+            return f"  {name}: orphan vertex collection removed (purged)"
+    except Exception as e:
+        return f"  {name}: orphan vertex collection remove failed: {e}"
+
+    try:
         db.delete_collection(name)
         return f"  {name}: collection dropped"
     except Exception as e:
