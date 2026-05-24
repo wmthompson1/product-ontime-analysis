@@ -54,6 +54,7 @@ Weight Semantics (binary, not scalar):
 """
 
 import re
+import warnings
 from typing import Dict, List, Any, Optional, Tuple
 from sqlalchemy import text
 from dataclasses import dataclass, field as dataclass_field
@@ -525,6 +526,17 @@ def get_cypher_traversal(intent_name: str, table_name: str, field_name: str) -> 
 
     This Cypher form is provided as a graph-database reference equivalent only.
     """
+    warnings.warn(
+        "get_cypher_traversal() returns an ILLUSTRATIVE template only. "
+        "The Perspective vertex is retired; the 'perspectives' vertex collection "
+        "and OPERATES_WITHIN/USES_DEFINITION edge collections no longer exist. "
+        "Do not execute this output against a live graph database. "
+        "Use the Perspective_Intents/Perspective_Concepts bridge collections "
+        "or the SQLite source tables (schema_intent_perspectives / "
+        "schema_perspective_concepts) for live resolution.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return f"""// Neo4j Cypher - Semantic Path Resolution
 // Resolves: {table_name}.{field_name} under intent '{intent_name}'
 
@@ -586,6 +598,17 @@ def get_aql_traversal(intent_name: str, table_name: str, field_name: str) -> str
 
     This AQL form is provided as a graph-database reference equivalent only.
     """
+    warnings.warn(
+        "get_aql_traversal() returns an ILLUSTRATIVE template only. "
+        "The Perspective vertex is retired; the 'perspectives' vertex collection "
+        "and OPERATES_WITHIN/USES_DEFINITION edge collections no longer exist. "
+        "Do not execute this output against a live ArangoDB graph. "
+        "Use the Perspective_Intents/Perspective_Concepts bridge collections "
+        "or the SQLite source tables (schema_intent_perspectives / "
+        "schema_perspective_concepts) for live resolution.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return f"""// ArangoDB AQL - Semantic Path Resolution
 // Resolves: {table_name}.{field_name} under intent '{intent_name}'
 
