@@ -1,0 +1,70 @@
+name: Auto-sync graph when bridge data changes
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'hf-space-inventory-sqlgen/app_schema/manufacturing.db'
+      - 'hf-space-inventory-sqlgen/app_schema/schema_sqlite.sql'
+      - 'hf-space-inventory-sqlgen/app_schema/ground_truth/reviewer_manifest.json'
+      - 'hf-space-inventory-sqlgen/graph_sync.py'
+      - 'hf-space-inventory-sqlgen/scripts/install_sync_triggers.py'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (preview changes without writing to ArangoDB)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  graph-sync:
+    name: Sync SQLite bridge tables → ArangoDB
+    runs-on: ubuntu-latest
+    env:
+      ARANGO_HOST: ${{ secrets.ARANGO_HOST }}
+      ARANGO_DB: ${{ secrets.ARANGO_DB }}
+      ARANGO_USER: ${{ secrets.ARANGO_USER }}
+      ARANGO_ROOT_PASSWORD: ${{ secrets.ARANGO_ROOT_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: hf-space-inventory-sqlgen
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-arango
+          if [ -f requirements.txt ]; then pip install -r requirements.txt || true; fi
+
+      - name: Install SQLite sync triggers
+        working-directory: hf-space-inventory-sqlgen
+        run: python scripts/install_sync_triggers.py --verify || python scripts/install_sync_triggers.py
+
+      - name: Dry-run sync (preview)
+        working-directory: hf-space-inventory-sqlgen
+        run: python graph_sync.py --dry-run
+
+      - name: Live sync to ArangoDB
+        if: ${{ github.event.inputs.dry_run != 'true' && env.ARANGO_HOST != '' }}
+        working-directory: hf-space-inventory-sqlgen
+        run: python graph_sync.py
+
+      - name: Skip live sync (no ArangoDB secrets or dry-run requested)
+        if: ${{ github.event.inputs.dry_run == 'true' || env.ARANGO_HOST == '' }}
+        run: |
+          echo "Live sync skipped."
+          echo "  dry_run input : ${{ github.event.inputs.dry_run }}"
+          echo "  ARANGO_HOST set: ${{ env.ARANGO_HOST != '' }}"
+          echo "Set ARANGO_HOST, ARANGO_DB, ARANGO_USER, ARANGO_ROOT_PASSWORD"
+          echo "as repository secrets to enable live sync."
