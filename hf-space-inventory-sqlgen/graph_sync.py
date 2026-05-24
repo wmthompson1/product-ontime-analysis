@@ -1,20 +1,30 @@
 """
 ArangoDB Graph Sync
 ====================
-Synchronizes the SQLite semantic layer (intents, perspectives, concepts,
-elevation weights, binding keys) into ArangoDB as a named graph.
+Synchronizes the SQLite semantic layer (intents, concepts, elevation
+weights, binding keys, plus perspective bridge rows) into ArangoDB as
+a named graph.
 
 Graph structure:
-  Vertex collections: intents, perspectives, concepts, bindings
-  Edge collections:   operates_within, elevates, uses_definition, bound_to
+  Vertex collections: intents, concepts, bindings
+  Edge collections:   elevates, bound_to
+  Bridge document collections (composite-key, not graph edges):
+    Perspective_Intents   key = (perspective, intent)
+    Perspective_Concepts  key = (perspective, concept)
 
 Graph name: semantic_graph
 
-Traversal pattern:
-  (:Intent) -[:OPERATES_WITHIN]-> (:Perspective)
+The legacy `perspectives` vertex plus the `operates_within` and
+`uses_definition` edge collections have been retired. Perspective is now
+carried as a property on every bridge row in Perspective_Intents and
+Perspective_Concepts. Consumers resolve (Intent, Field) -> Concept by
+looking up bridge rows keyed by perspective, never by traversing
+through a Perspective vertex.
+
+Traversal pattern (current):
   (:Intent) -[:ELEVATES {weight}]-> (:Concept)
-  (:Perspective) -[:USES_DEFINITION]-> (:Concept)
   (:Intent) -[:BOUND_TO]-> (:Binding)
+Plus bridge-row lookups in Perspective_Intents / Perspective_Concepts.
 """
 
 import os
@@ -29,23 +39,17 @@ MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "ground_tr
 
 GRAPH_NAME = "semantic_graph"
 
-VERTEX_COLLECTIONS = ["intents", "perspectives", "concepts", "bindings"]
-EDGE_COLLECTIONS = ["operates_within", "elevates", "uses_definition", "bound_to"]
+VERTEX_COLLECTIONS = ["intents", "concepts", "bindings"]
+EDGE_COLLECTIONS = ["elevates", "bound_to"]
+BRIDGE_COLLECTIONS = ["Perspective_Intents", "Perspective_Concepts"]
+
+LEGACY_VERTEX_COLLECTIONS = ["perspectives"]
+LEGACY_EDGE_COLLECTIONS = ["operates_within", "uses_definition"]
 
 EDGE_DEFINITIONS = [
     {
-        "edge_collection": "operates_within",
-        "from_vertex_collections": ["intents"],
-        "to_vertex_collections": ["perspectives"],
-    },
-    {
         "edge_collection": "elevates",
         "from_vertex_collections": ["intents"],
-        "to_vertex_collections": ["concepts"],
-    },
-    {
-        "edge_collection": "uses_definition",
-        "from_vertex_collections": ["perspectives"],
         "to_vertex_collections": ["concepts"],
     },
     {
@@ -54,6 +58,13 @@ EDGE_DEFINITIONS = [
         "to_vertex_collections": ["bindings"],
     },
 ]
+
+
+def _composite_key(*parts: str) -> str:
+    """Build an ArangoDB-safe composite key from the bridge identity tuple."""
+    import re
+    safe = [re.sub(r"[^A-Za-z0-9_\-.]", "_", str(p)) for p in parts]
+    return "__".join(safe)
 
 
 @dataclass
@@ -152,12 +163,15 @@ def ensure_graph(db) -> None:
         for ed in EDGE_DEFINITIONS:
             if ed["edge_collection"] not in existing_edge_defs:
                 graph.create_edge_definition(**ed)
-        return
+    else:
+        db.create_graph(
+            GRAPH_NAME,
+            edge_definitions=EDGE_DEFINITIONS,
+        )
 
-    db.create_graph(
-        GRAPH_NAME,
-        edge_definitions=EDGE_DEFINITIONS,
-    )
+    for coll_name in BRIDGE_COLLECTIONS:
+        if not db.has_collection(coll_name):
+            db.create_collection(coll_name)
 
 
 def load_sqlite_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any]:
@@ -260,14 +274,13 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
         report.dry_run = True
         report.vertices_synced = {
             "intents": len(data["intents"]),
-            "perspectives": len(data["perspectives"]),
             "concepts": len(data["concepts"]),
             "bindings": len(manifest.get("approved_snippets", {})),
+            "Perspective_Intents": len(data["intent_perspectives"]),
+            "Perspective_Concepts": len(data["perspective_concepts"]),
         }
         report.edges_synced = {
-            "operates_within": len(data["intent_perspectives"]),
             "elevates": len(data["intent_concepts"]),
-            "uses_definition": len(data["perspective_concepts"]),
             "bound_to": sum(1 for i in data["intents"] if i.get("primary_binding_key")),
         }
         report.warnings.append("DRY RUN — no changes written to ArangoDB")
@@ -283,9 +296,10 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
 
     graph = db.graph(GRAPH_NAME)
 
-    v_synced = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
-    v_new = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
-    v_updated = {"intents": 0, "perspectives": 0, "concepts": 0, "bindings": 0}
+    bridge_keys = ["intents", "concepts", "bindings", "Perspective_Intents", "Perspective_Concepts"]
+    v_synced = {k: 0 for k in bridge_keys}
+    v_new = {k: 0 for k in bridge_keys}
+    v_updated = {k: 0 for k in bridge_keys}
 
     intent_coll = graph.vertex_collection("intents")
     for intent in data["intents"]:
@@ -307,26 +321,6 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
                 v_updated["intents"] += 1
         except Exception as e:
             report.warnings.append(f"Intent '{key}': {e}")
-
-    persp_coll = graph.vertex_collection("perspectives")
-    for persp in data["perspectives"]:
-        key = persp["perspective_name"]
-        doc = {
-            "perspective_name": persp["perspective_name"],
-            "description": persp.get("description", ""),
-            "stakeholder_role": persp.get("stakeholder_role", ""),
-            "priority_focus": persp.get("priority_focus", ""),
-            "synced_at": report.timestamp,
-        }
-        try:
-            is_new = _upsert_vertex(persp_coll, key, doc)
-            v_synced["perspectives"] += 1
-            if is_new:
-                v_new["perspectives"] += 1
-            else:
-                v_updated["perspectives"] += 1
-        except Exception as e:
-            report.warnings.append(f"Perspective '{key}': {e}")
 
     concept_coll = graph.vertex_collection("concepts")
     for concept in data["concepts"]:
@@ -373,33 +367,35 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
         except Exception as e:
             report.warnings.append(f"Binding '{bk}': {e}")
 
-    report.vertices_synced = v_synced
-    report.vertices_new = v_new
-    report.vertices_updated = v_updated
-
-    e_synced = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
-    e_new = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
-    e_updated = {"operates_within": 0, "elevates": 0, "uses_definition": 0, "bound_to": 0}
-
-    ow_coll = graph.edge_collection("operates_within")
+    pi_coll = db.collection("Perspective_Intents")
     for ip in data["intent_perspectives"]:
-        from_id = f"intents/{ip['intent_name']}"
-        to_id = f"perspectives/{ip['perspective_name']}"
-        key = f"{ip['intent_name']}__{ip['perspective_name']}"
+        persp = ip["perspective_name"]
+        intent = ip["intent_name"]
+        key = _composite_key(persp, intent)
         doc = {
+            "perspective": persp,
+            "intent": intent,
             "weight": ip.get("intent_factor_weight", 1),
             "explanation": ip.get("explanation", ""),
             "synced_at": report.timestamp,
         }
         try:
-            is_new = _upsert_edge(ow_coll, from_id, to_id, key, doc)
-            e_synced["operates_within"] += 1
+            is_new = _upsert_vertex(pi_coll, key, doc)
+            v_synced["Perspective_Intents"] += 1
             if is_new:
-                e_new["operates_within"] += 1
+                v_new["Perspective_Intents"] += 1
             else:
-                e_updated["operates_within"] += 1
+                v_updated["Perspective_Intents"] += 1
         except Exception as e:
-            report.warnings.append(f"operates_within '{key}': {e}")
+            report.warnings.append(f"Perspective_Intents '{key}': {e}")
+
+    report.vertices_synced = v_synced
+    report.vertices_new = v_new
+    report.vertices_updated = v_updated
+
+    e_synced = {"elevates": 0, "bound_to": 0}
+    e_new = {"elevates": 0, "bound_to": 0}
+    e_updated = {"elevates": 0, "bound_to": 0}
 
     el_coll = graph.edge_collection("elevates")
     for ic in data["intent_concepts"]:
@@ -422,25 +418,31 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
         except Exception as e:
             report.warnings.append(f"elevates '{key}': {e}")
 
-    ud_coll = graph.edge_collection("uses_definition")
+    pc_coll = db.collection("Perspective_Concepts")
     for pc in data["perspective_concepts"]:
-        from_id = f"perspectives/{pc['perspective_name']}"
-        to_id = f"concepts/{pc['concept_name']}"
-        key = f"{pc['perspective_name']}__{pc['concept_name']}"
+        persp = pc["perspective_name"]
+        concept = pc["concept_name"]
+        key = _composite_key(persp, concept)
         doc = {
+            "perspective": persp,
+            "concept": concept,
             "relationship_type": pc.get("relationship_type", "USES_DEFINITION"),
             "priority_weight": pc.get("priority_weight", 1),
             "synced_at": report.timestamp,
         }
         try:
-            is_new = _upsert_edge(ud_coll, from_id, to_id, key, doc)
-            e_synced["uses_definition"] += 1
+            is_new = _upsert_vertex(pc_coll, key, doc)
+            v_synced["Perspective_Concepts"] += 1
             if is_new:
-                e_new["uses_definition"] += 1
+                v_new["Perspective_Concepts"] += 1
             else:
-                e_updated["uses_definition"] += 1
+                v_updated["Perspective_Concepts"] += 1
         except Exception as e:
-            report.warnings.append(f"uses_definition '{key}': {e}")
+            report.warnings.append(f"Perspective_Concepts '{key}': {e}")
+
+    report.vertices_synced = v_synced
+    report.vertices_new = v_new
+    report.vertices_updated = v_updated
 
     bt_coll = graph.edge_collection("bound_to")
     for intent in data["intents"]:

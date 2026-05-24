@@ -11,11 +11,20 @@ RESOLUTION ALGORITHM (per treatise):
 =====================================
 Intent → Meaning Resolution for (Intent I, Field F):
 
+NOTE: The legacy graph traversal through a Perspective vertex
+(`Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept`)
+has been retired. Perspective now lives as a property on bridge rows:
+  - Perspective_Intents  (perspective, intent)   replaces OPERATES_WITHIN
+  - Perspective_Concepts (perspective, concept)  replaces USES_DEFINITION
+In SQLite these are the existing `schema_intent_perspectives` and
+`schema_perspective_concepts` bridge tables — already the source of truth
+and already what the queries below join against.
+
 1. Identify all Perspective P where:
-   I -[:OPERATES_WITHIN]-> P AND weight ≠ -1
+   Perspective_Intents row exists for (P, I) AND weight ≠ -1
 
 2. For each P, identify all Concept C where:
-   P -[:USES_DEFINITION|EMPHASIZES]-> C
+   Perspective_Concepts row exists for (P, C)
 
 3. Filter concepts where:
    F -[:CAN_MEAN]-> C
@@ -62,7 +71,14 @@ def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name:
     FORMAL RESOLUTION ALGORITHM
     
     For a given (Intent I, Field F), resolve to exactly one Concept C.
-    
+
+    Resolution reads from bridge-row properties only; it never traverses
+    through a Perspective vertex. (Intent, Perspective) lives in
+    Perspective_Intents and (Perspective, Concept) lives in
+    Perspective_Concepts — in SQLite these are the
+    `schema_intent_perspectives` and `schema_perspective_concepts`
+    tables joined directly below.
+
     Algorithm:
     1. Find perspectives where Intent operates (weight ≠ -1)
     2. Find concepts that perspectives use/emphasize
