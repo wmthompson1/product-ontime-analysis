@@ -1638,9 +1638,7 @@ async def get_intent_perspectives(intent_name: Optional[str] = None):
     `schema_perspective_concepts` (no Perspective vertex involved).
 
     Each returned row includes a `relationship` field set to
-    `"PERSPECTIVE_INTENT_ROW"` (the bridge-row shape); the legacy alias
-    `"OPERATES_WITHIN"` is also surfaced under `relationship_legacy_alias`
-    for backward compatibility with older clients.
+    `"PERSPECTIVE_INTENT_ROW"` (the bridge-row shape).
     """
     engine = get_db_engine()
     try:
@@ -1667,7 +1665,6 @@ async def get_intent_perspectives(intent_name: Optional[str] = None):
                     "intent_name": r[0], "intent_category": r[1], 
                     "intent_description": r[2],
                     "relationship": "PERSPECTIVE_INTENT_ROW",
-                    "relationship_legacy_alias": "OPERATES_WITHIN",
                     "intent_factor_weight": r[3], "explanation": r[4],
                     "perspective": {
                         "perspective_id": r[5], "perspective_name": r[6],
@@ -1678,11 +1675,10 @@ async def get_intent_perspectives(intent_name: Optional[str] = None):
             ]
             return {
                 "perspective_intent_rows": mappings,
-                "intent_perspectives": mappings,
                 "count": len(mappings),
             }
     except Exception as e:
-        return {"error": str(e), "intent_perspectives": [], "count": 0}
+        return {"error": str(e), "count": 0}
 
 
 @app.get("/mcp/tools/resolve_semantic_path")
@@ -1707,10 +1703,8 @@ async def resolve_semantic_path(table_name: str, field_name: str, intent_name: s
     5. Apply `intent_factor_weight` to select the elevated concept.
 
     Returns the deterministically resolved concept for the field given
-    the intent. The response includes bridge-oriented keys
-    (`perspective_intent_row`, `perspective_concept_row`) alongside the
-    legacy `operates_within` / `uses_definition` aliases for backward
-    compatibility.
+    the intent, using bridge-oriented keys (`perspective_intent_row`,
+    `perspective_concept_row`).
     """
     engine = get_db_engine()
     try:
@@ -1757,20 +1751,9 @@ async def resolve_semantic_path(table_name: str, field_name: str, intent_name: s
                         },
                         "perspective_intent_row": {
                             "perspective": row[3], "stakeholder_role": row[4],
-                            "weight": row[10],
-                            "_legacy_alias": "operates_within"
-                        },
-                        "perspective_concept_row": {
-                            "priority_weight": row[11],
-                            "_legacy_alias": "uses_definition"
-                        },
-                        # Legacy keys retained for backward compatibility with
-                        # older MCP clients. Prefer the bridge-row names above.
-                        "operates_within": {
-                            "perspective": row[3], "stakeholder_role": row[4],
                             "weight": row[10]
                         },
-                        "uses_definition": {
+                        "perspective_concept_row": {
                             "priority_weight": row[11]
                         },
                         "can_mean": {
