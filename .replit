@@ -118,3 +118,7 @@ expertMode = true
 
 [userenv.shared]
 ARANGO_DB = "manufacturing_graph"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
