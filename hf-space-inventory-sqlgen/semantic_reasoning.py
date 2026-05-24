@@ -11,14 +11,23 @@ RESOLUTION ALGORITHM (per treatise):
 =====================================
 Intent → Meaning Resolution for (Intent I, Field F):
 
-NOTE: The legacy graph traversal through a Perspective vertex
-(`Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept`)
-has been retired. Perspective now lives as a property on bridge rows:
-  - Perspective_Intents  (perspective, intent)   replaces OPERATES_WITHIN
-  - Perspective_Concepts (perspective, concept)  replaces USES_DEFINITION
-In SQLite these are the existing `schema_intent_perspectives` and
-`schema_perspective_concepts` bridge tables — already the source of truth
-and already what the queries below join against.
+Perspective is NOT a standalone vertex.  It lives as a property on two
+bridge-row collections:
+
+  Perspective_Intents  (perspective, intent, weight)
+      SQLite table: schema_intent_perspectives
+      Records which Intents are active within a Perspective.
+      Replaces the retired OPERATES_WITHIN edge (legacy alias).
+
+  Perspective_Concepts (perspective, concept)
+      SQLite table: schema_perspective_concepts
+      Records which Concepts a Perspective emphasises.
+      Replaces the retired USES_DEFINITION edge (legacy alias).
+
+Resolution reads directly from these bridge tables — it never traverses
+through a Perspective vertex.
+
+Steps:
 
 1. Identify all Perspective P where:
    Perspective_Intents row exists for (P, I) AND weight ≠ -1
@@ -90,8 +99,8 @@ def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name:
         ResolutionResult with status 'resolved', 'ambiguous', or 'no_path'
     """
     with engine.connect() as conn:
-        # Step 1-3: Full graph traversal query
-        # Path: Intent → Perspective → Concept ← Field
+        # Steps 1-3: Resolve via bridge-row joins (no Perspective vertex traversal)
+        # Path: Perspective_Intents bridge → Perspective_Concepts bridge → CAN_MEAN ← Field
         result = conn.execute(text("""
             SELECT DISTINCT
                 i.intent_name,
@@ -101,11 +110,13 @@ def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name:
                 ip.intent_factor_weight as perspective_weight,
                 COALESCE(ic.intent_factor_weight, 0) as concept_weight
             FROM schema_intents i
-            -- Step 1: Intent OPERATES_WITHIN Perspective (weight ≠ -1)
+            -- Step 1: Perspective_Intents bridge rows where Intent is active (weight ≠ -1)
+            --         (legacy alias: OPERATES_WITHIN edge)
             JOIN schema_intent_perspectives ip ON i.intent_id = ip.intent_id
                 AND ip.intent_factor_weight != -1
             JOIN schema_perspectives p ON ip.perspective_id = p.perspective_id
-            -- Step 2: Perspective USES_DEFINITION Concept
+            -- Step 2: Perspective_Concepts bridge rows linking Perspective to Concept
+            --         (legacy alias: USES_DEFINITION edge)
             JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id
             JOIN schema_concepts c ON pc.concept_id = c.concept_id
             -- Step 3: Field CAN_MEAN Concept
@@ -135,8 +146,9 @@ def resolve_field_meaning(engine, intent_name: str, table_name: str, field_name:
                 perspective=None,
                 status='no_path',
                 candidate_concepts=[],
-                explanation=f"No valid path: Intent '{intent_name}' has no OPERATES_WITHIN "
-                           f"perspective that USES_DEFINITION a concept the field CAN_MEAN"
+                explanation=f"No valid path: no Perspective_Intents bridge row links "
+                           f"Intent '{intent_name}' to a Perspective whose Perspective_Concepts "
+                           f"bridge rows include a Concept the field CAN_MEAN"
             )
         
         # Step 4: Apply elevation filter - prefer elevated (weight=1) over neutral (weight=0)
@@ -498,9 +510,19 @@ def infer_intent_from_sql(engine, sql: str) -> List[IntentScore]:
 def get_cypher_traversal(intent_name: str, table_name: str, field_name: str) -> str:
     """
     Feature 4a: Neo4j Cypher traversal syntax
-    
-    Generate explicit Cypher query that follows the semantic path:
-    (:Intent) -[:OPERATES_WITHIN]-> (:Perspective) -[:USES_DEFINITION]-> (:Concept) <-[:CAN_MEAN]- (:Field)
+
+    Generates an equivalent Cypher query for the bridge-row resolution model.
+    In the current SQLite implementation, Perspective is NOT a vertex — it lives
+    as a property on two bridge-row tables (Perspective_Intents and
+    Perspective_Concepts).  The Cypher edge names below are legacy aliases for
+    those bridge relationships:
+
+      -[:OPERATES_WITHIN]->  corresponds to a Perspective_Intents bridge row
+                             (legacy alias; SQLite table: schema_intent_perspectives)
+      -[:USES_DEFINITION]->  corresponds to a Perspective_Concepts bridge row
+                             (legacy alias; SQLite table: schema_perspective_concepts)
+
+    This Cypher form is provided as a graph-database reference equivalent only.
     """
     return f"""// Neo4j Cypher - Semantic Path Resolution
 // Resolves: {table_name}.{field_name} under intent '{intent_name}'
@@ -536,8 +558,19 @@ ORDER BY Weight DESC
 def get_aql_traversal(intent_name: str, table_name: str, field_name: str) -> str:
     """
     Feature 4b: ArangoDB AQL traversal syntax
-    
-    Generate explicit AQL query for graph traversal using edge collections.
+
+    Generates an equivalent AQL query for the bridge-row resolution model.
+    In the current SQLite implementation, Perspective is NOT a vertex — it lives
+    as a property on two bridge-row tables (Perspective_Intents and
+    Perspective_Concepts).  The AQL traversal below uses Perspective vertices for
+    illustration purposes; the edge collections it crosses are legacy aliases:
+
+      Perspective_Intents bridge  (legacy alias: OPERATES_WITHIN edge collection)
+          SQLite source: schema_intent_perspectives
+      Perspective_Concepts bridge (legacy alias: USES_DEFINITION edge collection)
+          SQLite source: schema_perspective_concepts
+
+    This AQL form is provided as a graph-database reference equivalent only.
     """
     return f"""// ArangoDB AQL - Semantic Path Resolution
 // Resolves: {table_name}.{field_name} under intent '{intent_name}'
@@ -549,7 +582,8 @@ LET intent = FIRST(
     RETURN i
 )
 
-// Traverse: Intent -> Perspective -> Concept <- Field
+// Traverse via bridge-row model: Perspective_Intents -> Perspective_Concepts -> CAN_MEAN <- Field
+// (Legacy edge aliases used in AQL: OPERATES_WITHIN, USES_DEFINITION)
 FOR v, e, p IN 1..3 OUTBOUND intent
   GRAPH 'semantic_graph'
   OPTIONS {{bfs: true}}
