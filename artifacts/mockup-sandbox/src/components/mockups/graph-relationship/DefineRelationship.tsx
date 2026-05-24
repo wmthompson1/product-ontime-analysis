@@ -247,8 +247,11 @@ export function DefineRelationship() {
   const [sourceMode, setSourceMode] = useState<MatchMode>("Contains");
   const [sourceModeOpen, setSourceModeOpen] = useState(false);
   const [targetSearch, setTargetSearch] = useState("");
+  const [targetMode, setTargetMode] = useState<MatchMode>("Contains");
+  const [targetModeOpen, setTargetModeOpen] = useState(false);
 
   const sourceResults = searchEntities(sourceSearch, sourceMode);
+  const targetResults = searchEntities(targetSearch, targetMode);
 
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
@@ -666,28 +669,106 @@ export function DefineRelationship() {
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
                   Select Target Entity
                 </p>
-                <div className="relative mb-2">
-                  <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
-                  <input
-                    value={targetSearch}
-                    onChange={(e) => setTargetSearch(e.target.value)}
-                    placeholder="Search..."
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
-                  />
+
+                {/* Search + Match Mode toggle */}
+                <div className="flex items-stretch gap-1 mb-1.5">
+                  <div className="relative flex-1">
+                    <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
+                    <input
+                      value={targetSearch}
+                      onChange={(e) => setTargetSearch(e.target.value)}
+                      placeholder={
+                        targetMode === "Wildcard"
+                          ? "*_orders, quality_*"
+                          : targetMode === "Regex"
+                          ? "^quality_.*$"
+                          : "Search..."
+                      }
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
+                    />
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={() => setTargetModeOpen(!targetModeOpen)}
+                      className="h-full bg-slate-700/50 border border-slate-600 rounded text-[10px] text-slate-300 px-2 hover:bg-slate-600/60 flex items-center gap-1"
+                    >
+                      {targetMode}
+                      <ChevronDown size={10} />
+                    </button>
+                    {targetModeOpen && (
+                      <div className="absolute right-0 mt-1 z-10 bg-[#1e1e2e] border border-slate-600 rounded shadow-lg min-w-[110px]">
+                        {MATCH_MODES.map((m) => (
+                          <button
+                            key={m}
+                            onClick={() => {
+                              setTargetMode(m);
+                              setTargetModeOpen(false);
+                            }}
+                            className={`block w-full text-left px-2 py-1 text-[10px] hover:bg-slate-700/60 ${
+                              m === targetMode ? "text-emerald-300" : "text-slate-300"
+                            }`}
+                          >
+                            {m}
+                            {m === "Regex" && (
+                              <span className="ml-1 text-[8px] text-slate-500">advanced</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <select
-                  value={selectedTarget}
-                  onChange={(e) => setSelectedTarget(e.target.value)}
-                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
-                >
-                  {TARGET_ENTITIES.filter((e) =>
-                    e.toLowerCase().includes(targetSearch.toLowerCase())
-                  ).map((e) => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ))}
-                </select>
+
+                {/* Match count */}
+                <p className="text-[9px] text-slate-500 mb-1.5">
+                  {targetResults.matches_found} match{targetResults.matches_found === 1 ? "" : "es"}
+                  {targetSearch && (
+                    <span className="text-slate-600">
+                      {" "}· {targetMode.toLowerCase()} &quot;{targetSearch}&quot;
+                    </span>
+                  )}
+                </p>
+
+                {/* Grouped results list */}
+                <div className="border border-slate-600 rounded bg-slate-800/40 max-h-[140px] overflow-y-auto">
+                  {Object.keys(targetResults.grouped_results).length === 0 ? (
+                    <p className="text-[10px] text-slate-500 italic px-2 py-1.5">
+                      No matches
+                    </p>
+                  ) : (
+                    Object.entries(targetResults.grouped_results).map(([source, records]) => (
+                      <div key={source}>
+                        <div className="px-2 py-0.5 bg-slate-700/40 border-b border-slate-700 flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            {source}
+                          </span>
+                          <span className="text-[9px] text-slate-500">({records.length})</span>
+                        </div>
+                        {records.map((rec) => {
+                          const display = `${rec.table_name} (${source})`;
+                          const isSelected = selectedTarget === display;
+                          return (
+                            <button
+                              key={rec.qualified_name}
+                              onClick={() => setSelectedTarget(display)}
+                              className={`block w-full text-left px-2 py-0.5 text-[10px] border-l-2 ${
+                                isSelected
+                                  ? "bg-slate-700/60 text-emerald-300 border-emerald-400"
+                                  : "text-slate-300 border-transparent hover:bg-slate-700/40 hover:text-slate-100"
+                              }`}
+                            >
+                              <span className="font-medium">▸ {rec.table_name}</span>
+                              <span className="ml-1 text-[8px] text-slate-500">
+                                {rec.qualified_name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))
+                  )}
+                </div>
+
                 <div className="mt-2">
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide">
                     Context:
