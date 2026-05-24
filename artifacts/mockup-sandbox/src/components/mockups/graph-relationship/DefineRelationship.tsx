@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -82,13 +82,17 @@ const MOCK_SEARCH_DATA: SearchResult = {
   },
 };
 
-function searchEntities(query: string, mode: MatchMode = "Contains"): SearchResult {
-  if (!query) return MOCK_SEARCH_DATA;
+function searchEntities(
+  query: string,
+  mode: MatchMode = "Contains",
+  data: SearchResult = MOCK_SEARCH_DATA,
+): SearchResult {
+  if (!query) return data;
   const normalized = query.toLowerCase();
   const filteredGroups: GroupedResults = {};
   let total = 0;
 
-  for (const [source, records] of Object.entries(MOCK_SEARCH_DATA.grouped_results)) {
+  for (const [source, records] of Object.entries(data.grouped_results)) {
     const matched = records.filter((item) => {
       const target = item.table_name.toLowerCase();
       switch (mode) {
@@ -219,6 +223,73 @@ const DATA_TYPES = [
   "suppliers",
 ];
 
+// ---------------------------------------------------------------------------
+// DRAFT ARANGO LAYER — not yet connected to ArangoDB.
+// Each function maps to a named query in docs/arango_graph_queries_new.md.
+// When wiring the real connection, replace each function body with a
+// fetch() call to the corresponding /mcp/tools/... endpoint or direct AQL.
+// The component initialises its state from these stubs via useEffect so
+// the swap-in is a single-function body change per stub.
+// ---------------------------------------------------------------------------
+
+// M1 — Load entity namespaces (grouped results for both entity panels)
+// Real: AQL against manufacturing_graph_node + intents/concepts/bindings
+async function fetchEntityNamespaces(): Promise<SearchResult> {
+  return MOCK_SEARCH_DATA;
+}
+
+// M2 — Load intent list (Choose Intent dropdown)
+// Real: FOR i IN intents SORT i.intent_name RETURN i.intent_name
+async function fetchIntents(): Promise<string[]> {
+  return ["Avoid_Cost", "Quality_Defect", "Throughput_Boost"];
+}
+
+// M3 — Load concept list (Choose Concept dropdown)
+// Real: FOR c IN concepts SORT c.concept_name RETURN c.concept_name
+async function fetchConcepts(): Promise<string[]> {
+  return ["DefectSeverity", "DeliveryPerformance", "OEE"];
+}
+
+// M4 — Load category/perspective list (pill bar)
+// Real: FOR row IN Perspective_Intents COLLECT perspective = row.perspective RETURN perspective
+// Alt:  SELECT DISTINCT perspective_name FROM schema_perspectives (SQLite source of truth)
+async function fetchCategories(): Promise<string[]> {
+  return CATEGORIES;
+}
+
+// M5 — Resolve Perspective_Intents bridge key for (intent, perspective)
+// Real: FOR row IN Perspective_Intents FILTER row.perspective==@p FILTER row.intent==@i RETURN row._key
+async function fetchIntentBridgeKey(intent: string, perspective: string): Promise<string | null> {
+  if (perspective === "ALL") return null;
+  const seg3 = (s: string) => s.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  return `${seg3(intent)}_001_${perspective}`;
+}
+
+// M6 — Resolve Perspective_Concepts bridge key for (concept, perspective)
+// Real: FOR row IN Perspective_Concepts FILTER row.perspective==@p FILTER row.concept==@c RETURN row._key
+async function fetchConceptBridgeKey(concept: string, perspective: string): Promise<string | null> {
+  if (perspective === "ALL") return null;
+  const seg3 = (s: string) => s.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  return `${seg3(concept)}_001_${perspective}`;
+}
+
+// M7 — Commit new edge ("Add to Graph" button)
+// Real: predicate-routing table in docs/arango_graph_queries_new.md → Query M7
+// Returns a promise so the caller can await and show a success/error toast.
+async function commitEdge(
+  _predicate: string,
+  _sourceId: string,
+  _targetId: string,
+  _intent: string,
+  _perspective: string,
+): Promise<{ ok: boolean; message: string }> {
+  // TODO: POST to /mcp/tools/commit_edge with the payload; use M7 routing table
+  console.log("[DRAFT] commitEdge called — not yet connected to Arango");
+  return { ok: false, message: "Not yet connected to ArangoDB" };
+}
+
+// ---------------------------------------------------------------------------
+
 function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) {
   return (
     <div
@@ -250,8 +321,22 @@ export function DefineRelationship() {
   const [targetMode, setTargetMode] = useState<MatchMode>("Contains");
   const [targetModeOpen, setTargetModeOpen] = useState(false);
 
-  const sourceResults = searchEntities(sourceSearch, sourceMode);
-  const targetResults = searchEntities(targetSearch, targetMode);
+  // Draft Arango data — populated by stubs on mount; swap stub bodies to connect real Arango.
+  // See docs/arango_graph_queries_new.md for the AQL behind each fetch function.
+  const [entityNamespaces, setEntityNamespaces] = useState<SearchResult>(MOCK_SEARCH_DATA);
+  const [intents, setIntents] = useState<string[]>(["Avoid_Cost", "Quality_Defect", "Throughput_Boost"]);
+  const [concepts, setConcepts] = useState<string[]>(["DefectSeverity", "DeliveryPerformance", "OEE"]);
+  const [categories, setCategories] = useState<string[]>(CATEGORIES);
+
+  useEffect(() => {
+    fetchEntityNamespaces().then(setEntityNamespaces);
+    fetchIntents().then(setIntents);
+    fetchConcepts().then(setConcepts);
+    fetchCategories().then(setCategories);
+  }, []);
+
+  const sourceResults = searchEntities(sourceSearch, sourceMode, entityNamespaces);
+  const targetResults = searchEntities(targetSearch, targetMode, entityNamespaces);
 
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
@@ -412,7 +497,7 @@ export function DefineRelationship() {
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
             Category:
           </span>
-          {(["ALL", ...CATEGORIES] as CategoryScope[]).map((cat) => (
+          {(["ALL", ...categories] as CategoryScope[]).map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
@@ -631,7 +716,7 @@ export function DefineRelationship() {
                   onChange={(e) => setSelectedIntent(e.target.value)}
                   className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
                 >
-                  {INTENTS.map((i) => (
+                  {intents.map((i) => (
                     <option key={i} value={i}>
                       {i}
                     </option>
@@ -646,7 +731,7 @@ export function DefineRelationship() {
                   onChange={(e) => setSelectedConcept(e.target.value)}
                   className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
                 >
-                  {CONCEPTS.map((c) => (
+                  {concepts.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -838,7 +923,12 @@ export function DefineRelationship() {
 
         {/* Bottom action buttons */}
         <div className="border-t border-slate-700/50 px-4 py-3 flex items-center gap-3 bg-[#1e1e2e]">
-          <button className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
+          <button
+            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors"
+            onClick={() =>
+              commitEdge(selectedPredicate, selectedSource, selectedTarget, selectedIntent, activeCategory)
+            }
+          >
             Add to Graph
           </button>
           <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors">
