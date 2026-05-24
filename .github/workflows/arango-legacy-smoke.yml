@@ -1,0 +1,109 @@
+name: ArangoDB Legacy-Collection Smoke Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  arango-smoke:
+    name: Verify legacy ArangoDB collections are absent
+    runs-on: ubuntu-latest
+
+    services:
+      arangodb:
+        image: arangodb:3.11
+        env:
+          ARANGO_ROOT_PASSWORD: ci_test_password
+        ports:
+          - 8529:8529
+        options: >-
+          --health-cmd "curl -sf http://localhost:8529/_api/version || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      ARANGO_HOST: http://localhost:8529
+      ARANGO_USER: root
+      ARANGO_ROOT_PASSWORD: ci_test_password
+      ARANGO_DB: manufacturing_graph
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install python-arango sqlalchemy
+          if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
+            pip install -r hf-space-inventory-sqlgen/requirements.txt
+          fi
+
+      - name: Wait for ArangoDB to be ready
+        run: |
+          for i in {1..24}; do
+            if curl -sf http://localhost:8529/_api/version > /dev/null 2>&1; then
+              echo "ArangoDB is ready"
+              break
+            fi
+            echo "Waiting for ArangoDB... attempt $i/24"
+            sleep 5
+          done
+          curl -sf http://localhost:8529/_api/version
+
+      - name: Create test database in ArangoDB
+        run: |
+          curl -sf -u root:ci_test_password \
+            -X POST http://localhost:8529/_api/database \
+            -H "Content-Type: application/json" \
+            -d '{"name": "manufacturing_graph"}' || true
+
+      - name: Run ArangoDB legacy-collection smoke test
+        id: smoke
+        run: |
+          python hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py \
+            2>&1 | tee /tmp/smoke_output.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Fail if live ArangoDB check was silently skipped
+        run: |
+          if grep -q "SKIP: could not connect to ArangoDB\|SKIP: could not import ArangoDB" /tmp/smoke_output.txt; then
+            echo "ERROR: test_live_arango_collections_absent was skipped due to a connection or import failure."
+            echo "ArangoDB must be reachable in CI — check service container health and credentials."
+            cat /tmp/smoke_output.txt
+            exit 1
+          fi
+          if ! grep -q "PASS: all legacy collections absent from ArangoDB\|PASS:.*legacy" /tmp/smoke_output.txt; then
+            echo "ERROR: test_live_arango_collections_absent did not emit a PASS confirmation."
+            echo "This means the live ArangoDB check either skipped or failed."
+            cat /tmp/smoke_output.txt
+            exit 1
+          fi
+
+      - name: Write step summary
+        if: always()
+        run: |
+          echo "## ArangoDB Legacy-Collection Smoke Test" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat /tmp/smoke_output.txt >> "$GITHUB_STEP_SUMMARY" || echo "(no output captured)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.smoke.outcome }}" = "success" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Result: PASS** — no legacy collections found in ArangoDB." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **Result: FAIL** — one or more legacy collections are present. Run \`migrations/drop_legacy_perspective_graph.py\` to remove them." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Show full output on failure
+        if: failure()
+        run: cat /tmp/smoke_output.txt || true
