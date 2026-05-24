@@ -37,6 +37,14 @@ args = "HF Space Inventory SQL"
 task = "workflow.run"
 args = "test-resolution-messages"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "check-legacy-perspective"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "test-perspective-deprecation"
+
 [[workflows.workflow]]
 name = "Flask App"
 author = "agent"
@@ -95,6 +103,28 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python hf-space-inventory-sqlgen/tests/test_resolution_messages.py"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "check-legacy-perspective"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python hf-space-inventory-sqlgen/scripts/check_legacy_perspective_refs.py"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "test-perspective-deprecation"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py"
 
 [workflows.workflow.metadata]
 isValidation = true
