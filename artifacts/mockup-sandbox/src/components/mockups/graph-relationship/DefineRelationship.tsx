@@ -289,7 +289,7 @@ async function commitEdge(
   intent: string,
   perspective: string,
   conceptAnchor?: string,
-): Promise<{ ok: boolean; message: string }> {
+): Promise<{ ok: boolean; message: string; edge_id?: string }> {
   const res = await fetch("/mcp/tools/commit_edge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -304,7 +304,18 @@ async function commitEdge(
   });
   const data = await res.json();
   if (!res.ok) return { ok: false, message: data.detail ?? data.error ?? `HTTP ${res.status}` };
-  return { ok: true, message: data.message ?? `Edge committed: ${data.edge_id ?? "ok"}` };
+  return { ok: true, message: data.message ?? `Edge committed: ${data.edge_id ?? "ok"}`, edge_id: data.edge_id };
+}
+
+// M7-undo — Remove a previously committed edge by its edge_id
+// Live: DELETE /mcp/tools/commit_edge?edge_id=...
+async function undoEdge(edgeId: string): Promise<{ ok: boolean; message: string }> {
+  const res = await fetch(`/mcp/tools/commit_edge?edge_id=${encodeURIComponent(edgeId)}`, {
+    method: "DELETE",
+  });
+  const data = await res.json();
+  if (!res.ok) return { ok: false, message: data.detail ?? data.error ?? `HTTP ${res.status}` };
+  return { ok: true, message: data.message ?? "Edge removed" };
 }
 
 // ---------------------------------------------------------------------------
@@ -365,7 +376,8 @@ export function DefineRelationship() {
 
   // Commit-edge feedback state.
   const [isCommitting, setIsCommitting] = useState(false);
-  const [commitResult, setCommitResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [isUndoing, setIsUndoing] = useState(false);
+  const [commitResult, setCommitResult] = useState<{ ok: boolean; message: string; edge_id?: string } | null>(null);
 
   useEffect(() => {
     setIsLoadingEntities(true);
@@ -1036,7 +1048,31 @@ export function DefineRelationship() {
               }`}
             >
               <span>{commitResult.ok ? "✓" : "✗"}</span>
-              <span>{commitResult.message}</span>
+              <span className="flex-1">{commitResult.message}</span>
+              {commitResult.ok && commitResult.edge_id && (
+                <button
+                  className="ml-auto shrink-0 underline text-emerald-400 hover:text-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent border-0 p-0 text-[10px] font-semibold"
+                  disabled={isUndoing}
+                  onClick={async () => {
+                    setIsUndoing(true);
+                    try {
+                      const result = await undoEdge(commitResult.edge_id!);
+                      if (result.ok) {
+                        setCommitResult(null);
+                      } else {
+                        setCommitResult({ ok: false, message: `Undo failed: ${result.message}` });
+                      }
+                    } catch (err: unknown) {
+                      const msg = err instanceof Error ? err.message : String(err);
+                      setCommitResult({ ok: false, message: `Undo failed: ${msg}` });
+                    } finally {
+                      setIsUndoing(false);
+                    }
+                  }}
+                >
+                  {isUndoing ? "Undoing…" : "Undo"}
+                </button>
+              )}
             </div>
           )}
           <div className="flex items-center gap-3">
@@ -1056,7 +1092,7 @@ export function DefineRelationship() {
                   selectedConcept,
                 );
                 setCommitResult(result);
-                if (result.ok) {
+                if (result.ok && !result.edge_id) {
                   setTimeout(() => setCommitResult(null), 4000);
                 }
               } catch (err: unknown) {

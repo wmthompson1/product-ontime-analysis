@@ -2072,6 +2072,147 @@ async def commit_edge(req: CommitEdgeRequest):
         raise HTTPException(status_code=500, detail=f"ArangoDB write failed: {e}")
 
 
+@app.delete("/mcp/tools/commit_edge")
+async def delete_commit_edge(edge_id: str):
+    """Remove an edge or bridge document previously created by POST /mcp/tools/commit_edge.
+
+    Accepts the edge_id returned by the POST handler and routes deletion based on prefix:
+      sqlite:schema_intent_perspectives/<perspective>__<intent>  → DELETE from SQLite
+      sqlite:schema_perspective_concepts/<perspective>__<concept> → DELETE from SQLite
+      <collection>/<key>  (no prefix)                            → ArangoDB document remove
+
+    Returns {ok, message} on success; raises HTTP 404/422/503 on failure.
+    """
+    import sqlite3 as _sqlite3
+    import importlib
+    from fastapi import HTTPException
+
+    if not edge_id:
+        raise HTTPException(status_code=422, detail="edge_id is required")
+
+    # ── SQLite-backed bridge rows ─────────────────────────────────────────────
+    if edge_id.startswith("sqlite:"):
+        remainder = edge_id[len("sqlite:"):]
+        # remainder is table_name/composite_key
+        if "/" not in remainder:
+            raise HTTPException(status_code=422, detail=f"Malformed sqlite edge_id: {edge_id!r}")
+        table_name, composite_key = remainder.split("/", 1)
+
+        try:
+            conn = _sqlite3.connect(SQLITE_DB_PATH)
+            conn.row_factory = _sqlite3.Row
+
+            if table_name == "schema_intent_perspectives":
+                # key format: intent__perspective  (matches POST edge_id: sqlite:schema_intent_perspectives/{intent}__{perspective})
+                if "__" not in composite_key:
+                    raise HTTPException(status_code=422,
+                        detail=f"Cannot parse intent__perspective from {composite_key!r}")
+                intent, perspective = composite_key.split("__", 1)
+                intent_row = conn.execute(
+                    "SELECT intent_id FROM schema_intents WHERE intent_name = ?",
+                    (intent,),
+                ).fetchone()
+                perspective_row = conn.execute(
+                    "SELECT perspective_id FROM schema_perspectives WHERE perspective_name = ?",
+                    (perspective,),
+                ).fetchone()
+                if intent_row is None or perspective_row is None:
+                    raise HTTPException(status_code=404,
+                        detail=f"Bridge row not found: intent={intent!r}, perspective={perspective!r}")
+                conn.execute(
+                    "DELETE FROM schema_intent_perspectives WHERE intent_id = ? AND perspective_id = ?",
+                    (intent_row["intent_id"], perspective_row["perspective_id"]),
+                )
+                conn.commit()
+
+            elif table_name == "schema_perspective_concepts":
+                # key format: perspective__concept
+                if "__" not in composite_key:
+                    raise HTTPException(status_code=422,
+                        detail=f"Cannot parse perspective__concept from {composite_key!r}")
+                perspective, concept = composite_key.split("__", 1)
+                perspective_row = conn.execute(
+                    "SELECT perspective_id FROM schema_perspectives WHERE perspective_name = ?",
+                    (perspective,),
+                ).fetchone()
+                concept_row = conn.execute(
+                    "SELECT concept_id FROM schema_concepts WHERE concept_name = ?",
+                    (concept,),
+                ).fetchone()
+                if perspective_row is None or concept_row is None:
+                    raise HTTPException(status_code=404,
+                        detail=f"Bridge row not found: perspective={perspective!r}, concept={concept!r}")
+                conn.execute(
+                    "DELETE FROM schema_perspective_concepts WHERE perspective_id = ? AND concept_id = ?",
+                    (perspective_row["perspective_id"], concept_row["concept_id"]),
+                )
+                conn.commit()
+
+            else:
+                raise HTTPException(status_code=422,
+                    detail=f"Unknown SQLite table in edge_id: {table_name!r}")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"SQLite delete failed: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        return {"ok": True, "message": f"Bridge row deleted from {table_name}"}
+
+    # ── ArangoDB-backed edges ─────────────────────────────────────────────────
+    # edge_id is a standard ArangoDB document handle: collection/key
+    if "/" not in edge_id:
+        raise HTTPException(status_code=422,
+            detail=f"Malformed edge_id (expected collection/key or sqlite:…): {edge_id!r}")
+
+    collection_name, doc_key = edge_id.split("/", 1)
+
+    # Restrict deletion to collections that commit_edge is allowed to write.
+    # This prevents callers from removing arbitrary ArangoDB documents.
+    _ALLOWED_EDGE_COLLECTIONS = frozenset({
+        "elevates", "bound_to", "HAS_COLUMN", "FOREIGN_KEY", "CAN_MEAN",
+    })
+    if collection_name not in _ALLOWED_EDGE_COLLECTIONS:
+        raise HTTPException(status_code=422,
+            detail=(
+                f"Collection {collection_name!r} is not a valid undo target. "
+                f"Allowed: {sorted(_ALLOWED_EDGE_COLLECTIONS)}"
+            ))
+
+    try:
+        gs = importlib.import_module("graph_sync")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"graph_sync unavailable: {e}")
+
+    try:
+        client = gs.get_arango_client()
+        db = gs.get_arango_db(client)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"ArangoDB connection failed: {e}")
+
+    try:
+        col = db.collection(collection_name)
+        if not col.has(doc_key):
+            raise HTTPException(status_code=404,
+                detail=f"Edge not found in ArangoDB: {edge_id!r}")
+        doc = col.get(doc_key)
+        if doc.get("created_by") != "define_relationship_ui":
+            raise HTTPException(status_code=403,
+                detail="This edge was not created through the UI and cannot be undone here.")
+        col.delete(doc_key)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ArangoDB delete failed: {e}")
+
+    return {"ok": True, "message": f"Edge {edge_id!r} removed from ArangoDB"}
+
+
 @app.get("/mcp/tools/resolve_semantic_path")
 async def resolve_semantic_path(table_name: str, field_name: str, intent_name: str):
     """Resolve (Intent, Field) → Concept via the perspective bridge rows.
