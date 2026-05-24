@@ -1139,10 +1139,12 @@ async def list_schema_tables():
       {
         "matches_found": int,
         "grouped_results": {
-          "ERP_Instance_1": [{"table_name": str, "qualified_name": str}, ...],
+          "<ERP_INSTANCE_NAME>": [{"table_name": str, "qualified_name": str}, ...],
           "semantic_layer": [{"table_name": str, "qualified_name": str}, ...]
         }
       }
+    The ERP group key is read from the ERP_INSTANCE_NAME environment variable
+    (default: "ERP_Instance_1").
     The shape matches the SearchResult type consumed by the DefineRelationship
     mockup component so both entity search panels can be wired to live data.
     """
@@ -1176,9 +1178,10 @@ async def list_schema_tables():
     except Exception:
         pass
 
+    erp_instance_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
     grouped: dict = {}
     if erp_records:
-        grouped["ERP_Instance_1"] = erp_records
+        grouped[erp_instance_name] = erp_records
     if semantic_records:
         grouped["semantic_layer"] = semantic_records
 
