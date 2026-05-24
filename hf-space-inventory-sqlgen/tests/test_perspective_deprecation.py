@@ -106,12 +106,51 @@ def test_solder_engine_perspective_property_binding():
     print("PASS: solder_engine binding selection uses .perspective string property")
 
 
+LEGACY_COLLECTIONS = ["perspectives", "operates_within", "uses_definition"]
+
+
+def test_live_arango_collections_absent():
+    """Post-migration smoke test: legacy collections must not exist in ArangoDB.
+
+    Skipped when ARANGO_HOST is not set so the suite stays green in offline
+    environments.  When credentials are present the test connects, checks each
+    of the three retired collections, and fails fast if any of them exists.
+    """
+    if not os.environ.get("ARANGO_HOST"):
+        print("SKIP: ARANGO_HOST not set — live ArangoDB check skipped")
+        return
+
+    try:
+        from graph_sync import get_arango_client, get_arango_db
+    except Exception as e:
+        print(f"SKIP: could not import ArangoDB helpers: {e}")
+        return
+
+    try:
+        client = get_arango_client()
+        db = get_arango_db(client)
+    except Exception as e:
+        print(f"SKIP: could not connect to ArangoDB: {e}")
+        return
+
+    found = [name for name in LEGACY_COLLECTIONS if db.has_collection(name)]
+    assert not found, (
+        f"Legacy collections still exist in ArangoDB and must be dropped: {found}. "
+        "Re-run migrations/drop_legacy_perspective_graph.py to remove them."
+    )
+    print(
+        f"PASS: all legacy collections absent from ArangoDB "
+        f"({', '.join(LEGACY_COLLECTIONS)})"
+    )
+
+
 def main() -> int:
     tests = [
         test_graph_sync_constants_drop_legacy,
         test_grep_gate_passes,
         test_semantic_reasoning_bridge_lookup,
         test_solder_engine_perspective_property_binding,
+        test_live_arango_collections_absent,
     ]
     failed = 0
     for t in tests:
