@@ -108,6 +108,141 @@ def test_solder_engine_perspective_property_binding():
 
 LEGACY_COLLECTIONS = ["perspectives", "operates_within", "uses_definition"]
 
+LEGACY_RESPONSE_KEYS = {
+    "intent_perspectives",
+    "relationship_legacy_alias",
+    "operates_within",
+    "uses_definition",
+}
+
+
+def _all_keys(obj) -> set:
+    """Recursively collect every dict key present anywhere in a JSON value."""
+    keys: set = set()
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            keys.add(k)
+            keys |= _all_keys(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            keys |= _all_keys(item)
+    return keys
+
+
+def _seed_db_if_needed():
+    """Run seed_test_db.py via subprocess so its module-level side effects are
+    isolated.  Only invoked when the DB file already exists (or its directory
+    does) so we never create an unintended path."""
+    import subprocess
+    seed_script = os.path.join(HF_DIR, "scripts", "seed_test_db.py")
+    if os.path.exists(seed_script):
+        subprocess.run(
+            [sys.executable, seed_script],
+            check=False,
+            capture_output=True,
+        )
+
+
+def test_mcp_get_intent_perspectives_no_legacy_keys():
+    """Smoke test: GET /mcp/tools/get_intent_perspectives must not return
+    any of the four retired legacy keys in its JSON response body."""
+    if not os.path.exists(DB_PATH):
+        print("SKIP: manufacturing.db not present — seeding and retrying")
+        _seed_db_if_needed()
+        if not os.path.exists(DB_PATH):
+            print("SKIP: manufacturing.db still absent after seed attempt")
+            return
+
+    _seed_db_if_needed()
+
+    try:
+        from fastapi.testclient import TestClient
+        import app as fastapi_app
+    except ImportError as exc:
+        print(f"SKIP: could not import app or TestClient: {exc}")
+        return
+
+    client = TestClient(fastapi_app.app, raise_server_exceptions=False)
+    response = client.get("/mcp/tools/get_intent_perspectives")
+    assert response.status_code == 200, (
+        f"Expected 200, got {response.status_code}: {response.text[:200]}"
+    )
+
+    body = response.json()
+    found_keys = _all_keys(body)
+    bad_keys = found_keys & LEGACY_RESPONSE_KEYS
+    assert not bad_keys, (
+        f"Legacy keys found in /mcp/tools/get_intent_perspectives response: "
+        f"{sorted(bad_keys)}"
+    )
+    print(
+        "PASS: /mcp/tools/get_intent_perspectives contains none of the "
+        f"retired legacy keys {sorted(LEGACY_RESPONSE_KEYS)}"
+    )
+
+
+def test_mcp_resolve_semantic_path_no_legacy_keys():
+    """Smoke test: GET /mcp/tools/resolve_semantic_path must not return
+    any of the four retired legacy keys in its JSON response body.
+
+    Uses the seeded (intent_name=defect_cost_analysis,
+    table_name=stg_manufacturing_flat, field_name=ncm_cost) fixture row so
+    the endpoint exercises its resolved-path branch.  The unresolved branch
+    (no row found) is also checked to confirm the fallback message dict is
+    equally clean of legacy keys.
+    """
+    if not os.path.exists(DB_PATH):
+        _seed_db_if_needed()
+        if not os.path.exists(DB_PATH):
+            print("SKIP: manufacturing.db still absent after seed attempt")
+            return
+
+    _seed_db_if_needed()
+
+    try:
+        from fastapi.testclient import TestClient
+        import app as fastapi_app
+    except ImportError as exc:
+        print(f"SKIP: could not import app or TestClient: {exc}")
+        return
+
+    client = TestClient(fastapi_app.app, raise_server_exceptions=False)
+
+    test_cases = [
+        # Seeded fixture — exercises the resolved-path branch
+        {
+            "table_name": "stg_manufacturing_flat",
+            "field_name": "ncm_cost",
+            "intent_name": "defect_cost_analysis",
+        },
+        # Non-existent fixture — exercises the unresolved fallback branch
+        {
+            "table_name": "__no_such_table__",
+            "field_name": "__no_such_field__",
+            "intent_name": "__no_such_intent__",
+        },
+    ]
+
+    for params in test_cases:
+        response = client.get("/mcp/tools/resolve_semantic_path", params=params)
+        assert response.status_code == 200, (
+            f"Expected 200 for params {params}, got {response.status_code}: "
+            f"{response.text[:200]}"
+        )
+        body = response.json()
+        found_keys = _all_keys(body)
+        bad_keys = found_keys & LEGACY_RESPONSE_KEYS
+        assert not bad_keys, (
+            f"Legacy keys found in /mcp/tools/resolve_semantic_path response "
+            f"(params={params}): {sorted(bad_keys)}"
+        )
+
+    print(
+        "PASS: /mcp/tools/resolve_semantic_path contains none of the "
+        f"retired legacy keys {sorted(LEGACY_RESPONSE_KEYS)} "
+        "(both resolved and unresolved branches checked)"
+    )
+
 
 def test_live_arango_collections_absent():
     """Post-migration smoke test: legacy collections must not exist in ArangoDB.
@@ -151,6 +286,8 @@ def main() -> int:
         test_semantic_reasoning_bridge_lookup,
         test_solder_engine_perspective_property_binding,
         test_live_arango_collections_absent,
+        test_mcp_get_intent_perspectives_no_legacy_keys,
+        test_mcp_resolve_semantic_path_no_legacy_keys,
     ]
     failed = 0
     for t in tests:
