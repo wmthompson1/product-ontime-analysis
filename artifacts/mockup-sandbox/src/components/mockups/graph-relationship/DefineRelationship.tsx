@@ -318,6 +318,18 @@ async function undoEdge(edgeId: string): Promise<{ ok: boolean; message: string 
   return { ok: true, message: data.message ?? "Edge removed" };
 }
 
+// M8-graph-stats — Fetch total edge count from the backend graph_stats endpoint.
+// Live: GET /mcp/tools/graph_stats
+async function fetchGraphStats(): Promise<{ total_edges: number; arango_available: boolean } | null> {
+  try {
+    const res = await fetch("/mcp/tools/graph_stats");
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) {
@@ -379,6 +391,15 @@ export function DefineRelationship() {
   const [isUndoing, setIsUndoing] = useState(false);
   const [commitResult, setCommitResult] = useState<{ ok: boolean; message: string; edge_id?: string } | null>(null);
 
+  // Live edge-count badge — null means not yet loaded.
+  const [graphEdgeCount, setGraphEdgeCount] = useState<number | null>(null);
+
+  const refreshGraphStats = () => {
+    fetchGraphStats().then((stats) => {
+      if (stats !== null) setGraphEdgeCount(stats.total_edges);
+    });
+  };
+
   useEffect(() => {
     setIsLoadingEntities(true);
     fetchEntityNamespaces()
@@ -407,6 +428,7 @@ export function DefineRelationship() {
     fetchIntents().then(setIntents).catch(() => { /* keep mock fallback */ });
     fetchConcepts().then(setConcepts).catch(() => { /* keep mock fallback */ });
     fetchCategories().then(setCategories).catch(() => { /* keep mock fallback */ });
+    refreshGraphStats();
   }, []);
 
   const sourceResults = searchEntities(sourceSearch, sourceMode, entityNamespaces);
@@ -1039,6 +1061,17 @@ export function DefineRelationship() {
 
         {/* Bottom action buttons */}
         <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 flex flex-col gap-2 bg-[#1e1e2e]">
+          {/* Live edge-count badge */}
+          <div className="flex items-center gap-1.5 self-end">
+            <span className="text-[9px] uppercase tracking-widest text-slate-500">Graph:</span>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+              graphEdgeCount === null
+                ? "bg-slate-800 border-slate-600 text-slate-500"
+                : "bg-violet-900/50 border-violet-600/60 text-violet-300"
+            }`}>
+              {graphEdgeCount === null ? "…" : `${graphEdgeCount} edges`}
+            </span>
+          </div>
           {commitResult && (
             <div
               className={`text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 ${
@@ -1092,8 +1125,11 @@ export function DefineRelationship() {
                   selectedConcept,
                 );
                 setCommitResult(result);
-                if (result.ok && !result.edge_id) {
-                  setTimeout(() => setCommitResult(null), 4000);
+                if (result.ok) {
+                  refreshGraphStats();
+                  if (!result.edge_id) {
+                    setTimeout(() => setCommitResult(null), 4000);
+                  }
                 }
               } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err);

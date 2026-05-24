@@ -2213,6 +2213,75 @@ async def delete_commit_edge(edge_id: str):
     return {"ok": True, "message": f"Edge {edge_id!r} removed from ArangoDB"}
 
 
+@app.get("/mcp/tools/graph_stats")
+async def get_graph_stats():
+    """Return total edge counts per collection from ArangoDB plus SQLite bridge row counts.
+
+    Used by the DefineRelationship UI to show a live edge-count badge so users can
+    confirm that an 'Add to Graph' commit actually grew the graph.
+
+    Returns:
+        {
+          "total_edges": int,          # sum across all edge collections
+          "collections": {             # per-collection counts
+            "elevates": int,
+            "bound_to": int,
+            "HAS_COLUMN": int,
+            "FOREIGN_KEY": int,
+            "CAN_MEAN": int,
+            "Perspective_Intents": int,
+            "Perspective_Concepts": int,
+          },
+          "arango_available": bool,
+          "sqlite_bridge_rows": int,   # schema_intent_perspectives + schema_perspective_concepts
+        }
+    """
+    import importlib
+    import sqlite3 as _sqlite3
+
+    ARANGO_EDGE_COLLECTIONS = [
+        "elevates", "bound_to", "HAS_COLUMN", "FOREIGN_KEY", "CAN_MEAN",
+        "Perspective_Intents", "Perspective_Concepts",
+    ]
+
+    counts: dict = {}
+    arango_available = False
+
+    try:
+        gs = importlib.import_module("graph_sync")
+        client = gs.get_arango_client()
+        db = gs.get_arango_db(client)
+        for col_name in ARANGO_EDGE_COLLECTIONS:
+            try:
+                counts[col_name] = db.collection(col_name).count()
+            except Exception:
+                counts[col_name] = 0
+        arango_available = True
+    except Exception:
+        for col_name in ARANGO_EDGE_COLLECTIONS:
+            counts[col_name] = 0
+
+    # SQLite bridge rows (always available locally)
+    sqlite_bridge_rows = 0
+    try:
+        conn = _sqlite3.connect(SQLITE_DB_PATH)
+        r1 = conn.execute("SELECT COUNT(*) FROM schema_intent_perspectives").fetchone()
+        r2 = conn.execute("SELECT COUNT(*) FROM schema_perspective_concepts").fetchone()
+        sqlite_bridge_rows = (r1[0] if r1 else 0) + (r2[0] if r2 else 0)
+        conn.close()
+    except Exception:
+        pass
+
+    total_edges = sum(counts.values()) + sqlite_bridge_rows
+
+    return {
+        "total_edges": total_edges,
+        "collections": counts,
+        "arango_available": arango_available,
+        "sqlite_bridge_rows": sqlite_bridge_rows,
+    }
+
+
 @app.get("/mcp/tools/resolve_semantic_path")
 async def resolve_semantic_path(table_name: str, field_name: str, intent_name: str):
     """Resolve (Intent, Field) → Concept via the perspective bridge rows.
