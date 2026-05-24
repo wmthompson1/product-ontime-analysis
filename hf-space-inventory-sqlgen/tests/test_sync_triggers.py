@@ -8,6 +8,7 @@ These tests operate on a fresh in-memory (or temp-file) SQLite database
 so they never touch the production manufacturing.db.
 """
 
+import logging
 import os
 import sqlite3
 import sys
@@ -257,6 +258,118 @@ class TestSyncWatcherQueueLogic(unittest.TestCase):
         self.assertEqual(self._pending(), 5)
         self._mark_processed("SUCCESS")
         self.assertEqual(self._pending(), 0)
+
+
+class TestCreateSqliteDbInstallsTriggers(unittest.TestCase):
+    """
+    Verify that simulating the create_sqlite_db.py flow (schema + install)
+    results in a fully-triggered database — no manual trigger step required.
+    """
+
+    def test_fresh_db_has_triggers_after_create_flow(self):
+        """
+        A freshly created in-memory DB that goes through the same
+        schema-creation + install() sequence used by create_sqlite_db.py
+        must have all expected triggers.
+        """
+        conn = _make_test_db()
+        ist.install(conn)
+
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_arango_sync_%'"
+        ).fetchall()
+        found = {r[0] for r in rows}
+        expected = {
+            ist.trigger_name(t, op)
+            for t in ist.WATCHED_TABLES
+            for op in ist.OPERATIONS
+        }
+        conn.close()
+        self.assertEqual(
+            found,
+            expected,
+            "All sync triggers must be present immediately after the DB-creation flow.",
+        )
+
+    def test_fresh_db_has_queue_table_after_create_flow(self):
+        conn = _make_test_db()
+        ist.install(conn)
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='graph_sync_queue'"
+        ).fetchone()
+        conn.close()
+        self.assertIsNotNone(
+            row,
+            "graph_sync_queue must exist immediately after the DB-creation flow.",
+        )
+
+
+class TestSyncWatcherAutoInstall(unittest.TestCase):
+    """
+    Verify that sync_watcher._auto_install_triggers() installs triggers
+    on a connection that has the watched tables but not yet the queue/triggers.
+    """
+
+    def _make_logger(self):
+        logger = logging.getLogger("test_auto_install")
+        logger.setLevel(logging.CRITICAL)
+        return logger
+
+    def test_auto_install_creates_queue_and_triggers(self):
+        import sync_watcher
+
+        conn = _make_test_db()
+        logger = self._make_logger()
+
+        row_before = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='graph_sync_queue'"
+        ).fetchone()
+        self.assertIsNone(row_before, "Queue table should not exist before auto-install.")
+
+        sync_watcher._auto_install_triggers(conn, logger)
+
+        row_after = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='graph_sync_queue'"
+        ).fetchone()
+        self.assertIsNotNone(row_after, "Queue table must exist after auto-install.")
+
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_arango_sync_%'"
+        ).fetchall()
+        found = {r[0] for r in rows}
+        expected = {
+            ist.trigger_name(t, op)
+            for t in ist.WATCHED_TABLES
+            for op in ist.OPERATIONS
+        }
+        conn.close()
+        self.assertEqual(
+            found,
+            expected,
+            "All sync triggers must be present after auto-install.",
+        )
+
+    def test_auto_install_survives_import_error(self):
+        """
+        _auto_install_triggers must not raise even when the import fails
+        (it should log and call _alert instead).
+        """
+        import sync_watcher
+
+        conn = _make_test_db()
+        logger = self._make_logger()
+
+        with patch("sync_watcher._SCRIPTS_DIR", "/nonexistent/path"):
+            with patch.object(sync_watcher, "_alert") as mock_alert:
+                with patch.dict(sys.modules, {"install_sync_triggers": None}):
+                    try:
+                        sync_watcher._auto_install_triggers(conn, logger)
+                    except Exception as exc:
+                        self.fail(
+                            f"_auto_install_triggers raised unexpectedly: {exc}"
+                        )
+
+        conn.close()
 
 
 if __name__ == "__main__":

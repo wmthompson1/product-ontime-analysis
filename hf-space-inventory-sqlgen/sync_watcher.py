@@ -42,6 +42,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_SCRIPTS_DIR = os.path.join(SCRIPT_DIR, "scripts")
 DB_PATH = os.path.join(SCRIPT_DIR, "app_schema", "manufacturing.db")
 LOG_PATH = os.path.join(SCRIPT_DIR, "sync_watcher.log")
 
@@ -187,6 +188,23 @@ def _alert(title: str, body: str, pending: int | None = None) -> None:
         )
 
 
+def _auto_install_triggers(conn: sqlite3.Connection, logger: logging.Logger) -> None:
+    """
+    Import install_sync_triggers and call install() on the open connection.
+    This is called when sync_watcher detects that graph_sync_queue is absent,
+    so a fresh database never silently skips trigger installation.
+    """
+    if _SCRIPTS_DIR not in sys.path:
+        sys.path.insert(0, _SCRIPTS_DIR)
+    try:
+        import install_sync_triggers as ist
+        ist.install(conn)
+        logger.info("Sync triggers auto-installed successfully.")
+    except Exception as exc:
+        logger.error("Failed to auto-install sync triggers: %s", exc, exc_info=True)
+        _alert("TRIGGER AUTO-INSTALL FAILED", str(exc))
+
+
 def watch(poll_interval: int, dry_run: bool, once: bool, logger: logging.Logger) -> int:
     had_failure = False
 
@@ -215,9 +233,9 @@ def watch(poll_interval: int, dry_run: bool, once: bool, logger: logging.Logger)
             try:
                 if not _queue_table_exists(conn):
                     logger.warning(
-                        "graph_sync_queue table not found. "
-                        "Run install_sync_triggers.py first."
+                        "graph_sync_queue table not found — auto-installing sync triggers."
                     )
+                    _auto_install_triggers(conn, logger)
                 else:
                     count = _pending_count(conn)
                     if count > 0:
