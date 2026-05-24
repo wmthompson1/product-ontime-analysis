@@ -5,11 +5,27 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
 
 jobs:
+  skip-notice:
+    name: Skip notice (no ArangoDB credentials)
+    runs-on: ubuntu-latest
+    if: ${{ secrets.ARANGO_HOST == '' || secrets.ARANGO_HOST == null }}
+    steps:
+      - name: Write skip summary
+        run: |
+          echo "## ArangoDB Legacy-Collection Smoke Test" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **Skipped** — \`ARANGO_HOST\` secret is not configured in this repository." >> "$GITHUB_STEP_SUMMARY"
+          echo "> To run the full smoke test, add the \`ARANGO_HOST\`, \`ARANGO_USER\`, and \`ARANGO_PASSWORD\` secrets," >> "$GITHUB_STEP_SUMMARY"
+          echo "> or trigger this workflow manually via **workflow_dispatch** from a repository that has them." >> "$GITHUB_STEP_SUMMARY"
+          echo "Skipped: ARANGO_HOST secret not present — ArangoDB smoke test will not run."
+
   arango-smoke:
     name: Verify legacy ArangoDB collections are absent
     runs-on: ubuntu-latest
+    if: ${{ secrets.ARANGO_HOST != '' && secrets.ARANGO_HOST != null }}
 
     services:
       arangodb:
@@ -25,9 +41,9 @@ jobs:
           --health-retries 12
 
     env:
-      ARANGO_HOST: http://localhost:8529
-      ARANGO_USER: root
-      ARANGO_ROOT_PASSWORD: ci_test_password
+      ARANGO_HOST: ${{ secrets.ARANGO_HOST }}
+      ARANGO_USER: ${{ secrets.ARANGO_USER }}
+      ARANGO_PASSWORD: ${{ secrets.ARANGO_PASSWORD }}
       ARANGO_DB: manufacturing_graph
 
     steps:
