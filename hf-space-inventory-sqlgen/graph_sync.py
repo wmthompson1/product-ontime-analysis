@@ -12,7 +12,7 @@ Graph structure:
     Perspective_Intents   key = (perspective, intent)
     Perspective_Concepts  key = (perspective, concept)
 
-Graph name: semantic_graph
+Graph name: manufacturing_graph  (same value as ARANGO_DB env var)
 
 The legacy `perspectives` vertex plus the `operates_within` and
 `uses_definition` edge collections have been retired. Perspective is now
@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 SQLITE_DB_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "manufacturing.db")
 MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "ground_truth", "reviewer_manifest.json")
 
-GRAPH_NAME = "semantic_graph"
+GRAPH_NAME = os.environ.get("ARANGO_DB", "manufacturing_graph")
 
 VERTEX_COLLECTIONS = ["intents", "concepts", "bindings"]
 EDGE_COLLECTIONS = ["elevates", "bound_to"]

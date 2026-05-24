@@ -37,7 +37,7 @@ if os.path.join(HF_DIR, "scripts") not in sys.path:
 
 LEGACY_VERTEX_COLLECTIONS = ["perspectives"]
 LEGACY_EDGE_COLLECTIONS = ["operates_within", "uses_definition"]
-GRAPH_NAME = "semantic_graph"
+GRAPH_NAME = os.environ.get("ARANGO_DB", "manufacturing_graph")
 
 
 def _run_grep_gate() -> bool:

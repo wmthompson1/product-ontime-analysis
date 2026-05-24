@@ -612,7 +612,7 @@ LET intent = FIRST(
 // Traverse via bridge-row model: Perspective_Intents -> Perspective_Concepts -> CAN_MEAN <- Field
 // (Legacy edge aliases used in AQL: OPERATES_WITHIN, USES_DEFINITION)
 FOR v, e, p IN 1..3 OUTBOUND intent
-  GRAPH 'semantic_graph'
+  GRAPH 'manufacturing_graph'
   OPTIONS {{bfs: true}}
   FILTER p.vertices[1]._id LIKE 'schema_perspectives/%'
   FILTER p.vertices[2]._id LIKE 'schema_concepts/%'
@@ -651,7 +651,7 @@ FOR v, e, p IN 1..3 OUTBOUND intent
 // Alternative: Shortest path query
 FOR v, e IN OUTBOUND SHORTEST_PATH 
   'schema_intents/{intent_name}' TO 'schema_fields/{table_name}.{field_name}'
-  GRAPH 'semantic_graph'
+  GRAPH 'manufacturing_graph'
   RETURN {{vertex: v, edge: e}}
 """
 

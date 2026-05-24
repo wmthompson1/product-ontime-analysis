@@ -3462,7 +3462,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown("""
             ### ArangoDB Graph Sync
             
-            Push the semantic layer from SQLite into ArangoDB as a named graph (`semantic_graph`).
+            Push the semantic layer from SQLite into ArangoDB as a named graph (`manufacturing_graph`).
             This keeps your cloud graph database in sync with local changes to intents, perspectives,
             concepts, elevation weights, and SME-approved bindings.
             
