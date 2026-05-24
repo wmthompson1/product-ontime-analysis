@@ -1351,8 +1351,13 @@ async def get_perspectives():
 
 @app.get("/mcp/tools/get_perspective_concepts")
 async def get_perspective_concepts(perspective_name: Optional[str] = None):
-    """Get concepts used by each perspective (USES_DEFINITION relationships).
-    
+    """Get concepts used by each perspective (Perspective_Concepts bridge rows).
+
+    Reads the `schema_perspective_concepts` bridge table — the SQLite
+    source-of-truth that feeds the ArangoDB `Perspective_Concepts` document
+    collection. (The retired three-hop `USES_DEFINITION` edge collection is
+    no longer used; perspective lives as a property on each bridge row.)
+
     Shows which concept interpretations are valid for each organizational perspective.
     """
     engine = get_db_engine()
@@ -1619,11 +1624,23 @@ async def resolve_field_for_intent(table_name: str, field_name: str, intent_name
 
 @app.get("/mcp/tools/get_intent_perspectives")
 async def get_intent_perspectives(intent_name: Optional[str] = None):
-    """Get OPERATES_WITHIN relationships (Intent → Perspective).
-    
-    Shows which perspective(s) each intent operates within.
-    This is the intermediate constraint layer in the graph traversal:
-    Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept
+    """Get Intent → Perspective bridge rows (Perspective_Intents).
+
+    Reads the `schema_intent_perspectives` bridge table — the SQLite
+    source-of-truth that feeds the ArangoDB `Perspective_Intents` document
+    collection (keyed by `perspective__intent`).
+
+    The retired three-hop traversal
+    `Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept`
+    has been deprecated. Perspective is now a property carried on each
+    bridge row, and `(Intent, Field) -> Concept` is resolved directly via
+    the bridge tables `schema_intent_perspectives` and
+    `schema_perspective_concepts` (no Perspective vertex involved).
+
+    Each returned row includes a `relationship` field set to
+    `"PERSPECTIVE_INTENT_ROW"` (the bridge-row shape); the legacy alias
+    `"OPERATES_WITHIN"` is also surfaced under `relationship_legacy_alias`
+    for backward compatibility with older clients.
     """
     engine = get_db_engine()
     try:
@@ -1649,7 +1666,8 @@ async def get_intent_perspectives(intent_name: Optional[str] = None):
                 {
                     "intent_name": r[0], "intent_category": r[1], 
                     "intent_description": r[2],
-                    "relationship": "OPERATES_WITHIN",
+                    "relationship": "PERSPECTIVE_INTENT_ROW",
+                    "relationship_legacy_alias": "OPERATES_WITHIN",
                     "intent_factor_weight": r[3], "explanation": r[4],
                     "perspective": {
                         "perspective_id": r[5], "perspective_name": r[6],
@@ -1658,23 +1676,41 @@ async def get_intent_perspectives(intent_name: Optional[str] = None):
                 }
                 for r in result.fetchall()
             ]
-            return {"intent_perspectives": mappings, "count": len(mappings)}
+            return {
+                "perspective_intent_rows": mappings,
+                "intent_perspectives": mappings,
+                "count": len(mappings),
+            }
     except Exception as e:
         return {"error": str(e), "intent_perspectives": [], "count": 0}
 
 
 @app.get("/mcp/tools/resolve_semantic_path")
 async def resolve_semantic_path(table_name: str, field_name: str, intent_name: str):
-    """Full graph traversal: Intent → Perspective → Concept ← Field.
-    
-    This is the complete semantic disambiguation endpoint that follows the graph path:
-    1. Start from Intent
-    2. Traverse OPERATES_WITHIN to get constraining Perspective
-    3. Traverse USES_DEFINITION to get valid Concepts for that Perspective
-    4. Match against Field's CAN_MEAN concepts
-    5. Apply intent_factor_weight to select the elevated concept
-    
-    Returns the deterministically resolved concept for the field given the intent.
+    """Resolve (Intent, Field) → Concept via the perspective bridge rows.
+
+    This is the complete semantic disambiguation endpoint. It follows the
+    current bridge-row model (the legacy three-hop traversal
+    `Intent -[OPERATES_WITHIN]-> Perspective -[USES_DEFINITION]-> Concept`
+    has been retired — Perspective is no longer a vertex):
+
+    1. Start from Intent.
+    2. Look up the perspective(s) carried on the matching
+       `schema_intent_perspectives` bridge rows (the SQLite feed for the
+       ArangoDB `Perspective_Intents` document collection — formerly
+       OPERATES_WITHIN edges).
+    3. Look up the concept(s) carried on the matching
+       `schema_perspective_concepts` bridge rows for that perspective
+       (the SQLite feed for `Perspective_Concepts` — formerly
+       USES_DEFINITION edges).
+    4. Match against the Field's CAN_MEAN concepts.
+    5. Apply `intent_factor_weight` to select the elevated concept.
+
+    Returns the deterministically resolved concept for the field given
+    the intent. The response includes bridge-oriented keys
+    (`perspective_intent_row`, `perspective_concept_row`) alongside the
+    legacy `operates_within` / `uses_definition` aliases for backward
+    compatibility.
     """
     engine = get_db_engine()
     try:
@@ -1716,9 +1752,20 @@ async def resolve_semantic_path(table_name: str, field_name: str, intent_name: s
                     "field": {"table_name": table_name, "field_name": field_name},
                     "traversal_path": {
                         "intent": {
-                            "name": row[0], "category": row[1], 
+                            "name": row[0], "category": row[1],
                             "typical_question": row[2]
                         },
+                        "perspective_intent_row": {
+                            "perspective": row[3], "stakeholder_role": row[4],
+                            "weight": row[10],
+                            "_legacy_alias": "operates_within"
+                        },
+                        "perspective_concept_row": {
+                            "priority_weight": row[11],
+                            "_legacy_alias": "uses_definition"
+                        },
+                        # Legacy keys retained for backward compatibility with
+                        # older MCP clients. Prefer the bridge-row names above.
                         "operates_within": {
                             "perspective": row[3], "stakeholder_role": row[4],
                             "weight": row[10]
@@ -2010,11 +2057,12 @@ def create_gradio_interface():
 **{row[0]}** ({row[1]})
 *"{row[2]}"*
 
-### OPERATES_WITHIN → Perspective
+### Perspective_Intents bridge row → Perspective
 **{row[3]}**
 Stakeholder: {row[4]}
+*(legacy alias: OPERATES_WITHIN)*
 
-### USES_DEFINITION → Concept
+### Perspective_Concepts bridge row → Concept
 **{row[6]}** (type: {row[7]})
 Domain: {row[9]}
 
@@ -2487,15 +2535,21 @@ Check that perspective-concept and intent-concept relationships are seeded.
         
         with gr.Tab("🔗 Semantic Graph"):
             gr.Markdown("""
-            ### Semantic Disambiguation via Graph Traversal
-            
-            Resolve ambiguous field meanings using the graph path:
-            
+            ### Semantic Disambiguation via Perspective Bridge Rows
+
+            Resolve ambiguous field meanings using the current bridge-row model.
+            Perspective is no longer a vertex — it is a property carried on
+            two bridge collections:
+
             ```
-            (:Intent) -[:OPERATES_WITHIN]-> (:Perspective) -[:USES_DEFINITION]-> (:Concept) <-[:CAN_MEAN]- (:Field)
+            (:Intent) --[Perspective_Intents row {perspective}]--> (Perspective_Concepts row {perspective}) --> (:Concept) <-[:CAN_MEAN]- (:Field)
             ```
-            
-            Select an **Intent** (analytical goal) and an **Ambiguous Field** to see how the graph resolves the field's meaning.
+
+            *(Legacy three-hop aliases:
+            `OPERATES_WITHIN` → `Perspective_Intents`,
+            `USES_DEFINITION` → `Perspective_Concepts`.)*
+
+            Select an **Intent** (analytical goal) and an **Ambiguous Field** to see how the bridge rows resolve the field's meaning.
             """)
             
             with gr.Row():
@@ -2543,8 +2597,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
             |----------|---------|
             | `GET /mcp/tools/get_perspectives` | List organizational perspectives |
             | `GET /mcp/tools/get_intents` | List analytical intents |
-            | `GET /mcp/tools/get_intent_perspectives` | View OPERATES_WITHIN edges |
-            | `GET /mcp/tools/resolve_semantic_path` | Full graph traversal |
+            | `GET /mcp/tools/get_intent_perspectives` | View Perspective_Intents bridge rows (legacy alias: OPERATES_WITHIN edges) |
+            | `GET /mcp/tools/get_perspective_concepts` | View Perspective_Concepts bridge rows (legacy alias: USES_DEFINITION edges) |
+            | `GET /mcp/tools/resolve_semantic_path` | Resolve (Intent, Field) → Concept via the bridge rows |
             """)
         
         with gr.Tab("🧠 Advanced Reasoning"):
@@ -3218,14 +3273,19 @@ Check that perspective-concept and intent-concept relationships are seeded.
             This keeps your cloud graph database in sync with local changes to intents, perspectives,
             concepts, elevation weights, and SME-approved bindings.
             
-            **Graph structure:**
-            
-            | Edge | From | To | Purpose |
-            |------|------|----|---------|
-            | `OPERATES_WITHIN` | Intent | Perspective | Which lens an intent uses |
-            | `ELEVATES` | Intent | Concept | Elevation weight (1.0 = primary, 0.0 = neutral) |
-            | `USES_DEFINITION` | Perspective | Concept | Which concepts a perspective defines |
-            | `BOUND_TO` | Intent | Binding | Links intent to its approved SQL snippet |
+            **Graph structure (current bridge-row model):**
+
+            Perspective is no longer a vertex collection. The retired
+            `OPERATES_WITHIN` and `USES_DEFINITION` edge collections have
+            been replaced by two composite-key bridge document collections
+            that carry `perspective` as a property on each row.
+
+            | Collection | Kind | From / Key | To | Purpose |
+            |------------|------|------------|----|---------|
+            | `Perspective_Intents` | bridge doc | `perspective__intent` | — | Replaces `OPERATES_WITHIN`; which lens an intent uses |
+            | `Perspective_Concepts` | bridge doc | `perspective__concept` | — | Replaces `USES_DEFINITION`; which concepts a perspective defines |
+            | `ELEVATES` | edge | Intent | Concept | Elevation weight (1.0 = primary, 0.0 = neutral) |
+            | `BOUND_TO` | edge | Intent | Binding | Links intent to its approved SQL snippet |
             
             **How to use:**
             1. Click **Dry Run** to preview what will be synced (reads SQLite only, no ArangoDB connection)
