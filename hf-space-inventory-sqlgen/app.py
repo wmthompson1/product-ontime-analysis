@@ -1821,8 +1821,9 @@ async def commit_edge(req: CommitEdgeRequest):
       USES_DEFINITION        → SQLite schema_perspective_concepts (source of truth)
                                then ArangoDB Perspective_Concepts (best-effort sync)
 
-    Returns {ok, edge_id, message} on success; raises HTTP 400/422 on bad input,
+    Returns {ok, created, edge_id, message} on success; raises HTTP 400/422 on bad input,
     HTTP 503 if ArangoDB is unreachable for Arango-routed predicates.
+    `created` is True when a new edge was inserted, False when an existing edge was updated.
     """
     import sqlite3 as _sqlite3
     import importlib
@@ -1852,6 +1853,11 @@ async def commit_edge(req: CommitEdgeRequest):
             if perspective_row is None:
                 raise HTTPException(status_code=422,
                     detail=f"Perspective not found in SQLite: {req.perspective!r}")
+            existing = conn.execute(
+                "SELECT 1 FROM schema_intent_perspectives WHERE intent_id = ? AND perspective_id = ?",
+                (intent_row["intent_id"], perspective_row["perspective_id"]),
+            ).fetchone()
+            row_created = existing is None
             conn.execute(
                 """INSERT INTO schema_intent_perspectives
                        (intent_id, perspective_id, intent_factor_weight, explanation)
@@ -1891,8 +1897,10 @@ async def commit_edge(req: CommitEdgeRequest):
         except Exception:
             arango_note = "; ArangoDB sync skipped (offline)"
 
-        return {"ok": True, "edge_id": edge_id,
-                "message": f"OPERATES_WITHIN bridge row saved to SQLite{arango_note}"}
+        ow_msg = ("OPERATES_WITHIN bridge row saved to SQLite" if row_created
+                  else "OPERATES_WITHIN bridge row already exists — updated in SQLite")
+        return {"ok": True, "created": row_created, "edge_id": edge_id,
+                "message": f"{ow_msg}{arango_note}"}
 
     if predicate == "USES_DEFINITION":
         if not (req.perspective and req.concept_anchor):
@@ -1915,6 +1923,11 @@ async def commit_edge(req: CommitEdgeRequest):
             if concept_row is None:
                 raise HTTPException(status_code=422,
                     detail=f"Concept not found in SQLite: {req.concept_anchor!r}")
+            existing = conn.execute(
+                "SELECT 1 FROM schema_perspective_concepts WHERE perspective_id = ? AND concept_id = ?",
+                (perspective_row["perspective_id"], concept_row["concept_id"]),
+            ).fetchone()
+            row_created = existing is None
             conn.execute(
                 """INSERT INTO schema_perspective_concepts
                        (perspective_id, concept_id, relationship_type, priority_weight)
@@ -1953,8 +1966,10 @@ async def commit_edge(req: CommitEdgeRequest):
         except Exception:
             arango_note = "; ArangoDB sync skipped (offline)"
 
-        return {"ok": True, "edge_id": edge_id,
-                "message": f"USES_DEFINITION bridge row saved to SQLite{arango_note}"}
+        ud_msg = ("USES_DEFINITION bridge row saved to SQLite" if row_created
+                  else "USES_DEFINITION bridge row already exists — updated in SQLite")
+        return {"ok": True, "created": row_created, "edge_id": edge_id,
+                "message": f"{ud_msg}{arango_note}"}
 
     # ── ArangoDB-routed predicates ────────────────────────────────────────────
     try:
@@ -1982,6 +1997,7 @@ async def commit_edge(req: CommitEdgeRequest):
         if predicate in ("ELEVATES", "SUPPRESSES"):
             weight = 1 if predicate == "ELEVATES" else -1
             aql = """
+            UPSERT { _from: @source, _to: @target }
             INSERT {
                 _from:       @source,
                 _to:         @target,
@@ -1989,7 +2005,14 @@ async def commit_edge(req: CommitEdgeRequest):
                 intent_name: @intent,
                 explanation: @explanation,
                 created_by:  'define_relationship_ui'
-            } INTO elevates RETURN NEW
+            }
+            UPDATE {
+                weight:      @weight,
+                intent_name: @intent,
+                explanation: @explanation
+            }
+            IN elevates
+            RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle,
@@ -1998,18 +2021,28 @@ async def commit_edge(req: CommitEdgeRequest):
                 "intent": req.intent or "",
                 "explanation": req.explanation or f"{predicate} via UI",
             }))
-            doc = result[0]
-            return {"ok": True, "edge_id": doc["_id"], "message": f"{predicate} edge created"}
+            row = result[0]
+            doc, created = row["doc"], row["created"]
+            msg = (f"{predicate} edge created" if created
+                   else f"{predicate} edge already exists — updated")
+            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
 
         elif predicate == "BOUND_TO":
             aql = """
+            UPSERT { _from: @source, _to: @target }
             INSERT {
                 _from:          @source,
                 _to:            @target,
                 binding_key:    @binding_key,
                 concept_anchor: @concept_anchor,
                 created_by:     'define_relationship_ui'
-            } INTO bound_to RETURN NEW
+            }
+            UPDATE {
+                binding_key:    @binding_key,
+                concept_anchor: @concept_anchor
+            }
+            IN bound_to
+            RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle,
@@ -2017,48 +2050,73 @@ async def commit_edge(req: CommitEdgeRequest):
                 "binding_key": req.binding_key or "",
                 "concept_anchor": req.concept_anchor or "",
             }))
-            doc = result[0]
-            return {"ok": True, "edge_id": doc["_id"], "message": "BOUND_TO edge created"}
+            row = result[0]
+            doc, created = row["doc"], row["created"]
+            msg = ("BOUND_TO edge created" if created
+                   else "BOUND_TO edge already exists — updated")
+            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
 
         elif predicate == "HAS_COLUMN":
             aql = """
+            UPSERT { _from: @source, _to: @target }
             INSERT { _from: @source, _to: @target, created_by: 'define_relationship_ui' }
-            INTO HAS_COLUMN RETURN NEW
+            UPDATE {}
+            IN HAS_COLUMN
+            RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle, "target": target_handle,
             }))
-            doc = result[0]
-            return {"ok": True, "edge_id": doc["_id"], "message": "HAS_COLUMN edge created"}
+            row = result[0]
+            doc, created = row["doc"], row["created"]
+            msg = ("HAS_COLUMN edge created" if created
+                   else "HAS_COLUMN edge already exists — updated")
+            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
 
         elif predicate == "FOREIGN_KEY":
             aql = """
+            UPSERT { _from: @source, _to: @target }
             INSERT {
                 _from:       @source,
                 _to:         @target,
                 from_column: @from_column,
                 to_column:   @to_column,
                 created_by:  'define_relationship_ui'
-            } INTO FOREIGN_KEY RETURN NEW
+            }
+            UPDATE {
+                from_column: @from_column,
+                to_column:   @to_column
+            }
+            IN FOREIGN_KEY
+            RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle, "target": target_handle,
                 "from_column": req.from_column or "",
                 "to_column": req.to_column or "",
             }))
-            doc = result[0]
-            return {"ok": True, "edge_id": doc["_id"], "message": "FOREIGN_KEY edge created"}
+            row = result[0]
+            doc, created = row["doc"], row["created"]
+            msg = ("FOREIGN_KEY edge created" if created
+                   else "FOREIGN_KEY edge already exists — updated")
+            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
 
         elif predicate in ("MAPS_TO_CONCEPT", "CAN_MEAN"):
             aql = """
+            UPSERT { _from: @source, _to: @target }
             INSERT { _from: @source, _to: @target, created_by: 'define_relationship_ui' }
-            INTO CAN_MEAN RETURN NEW
+            UPDATE {}
+            IN CAN_MEAN
+            RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle, "target": target_handle,
             }))
-            doc = result[0]
-            return {"ok": True, "edge_id": doc["_id"], "message": "MAPS_TO_CONCEPT (CAN_MEAN) edge created"}
+            row = result[0]
+            doc, created = row["doc"], row["created"]
+            msg = ("MAPS_TO_CONCEPT (CAN_MEAN) edge created" if created
+                   else "MAPS_TO_CONCEPT (CAN_MEAN) edge already exists — updated")
+            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
 
         else:
             raise HTTPException(status_code=400,
