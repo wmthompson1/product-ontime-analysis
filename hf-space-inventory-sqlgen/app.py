@@ -1131,6 +1131,61 @@ async def get_db_tables():
     return {"tables": tables, "count": len(tables)}
 
 
+@app.get("/mcp/tools/list_schema_tables")
+async def list_schema_tables():
+    """Get all ERP tables and semantic layer nodes grouped by source namespace.
+
+    Returns a SearchResult-compatible payload:
+      {
+        "matches_found": int,
+        "grouped_results": {
+          "ERP_Instance_1": [{"table_name": str, "qualified_name": str}, ...],
+          "semantic_layer": [{"table_name": str, "qualified_name": str}, ...]
+        }
+      }
+    The shape matches the SearchResult type consumed by the DefineRelationship
+    mockup component so both entity search panels can be wired to live data.
+    """
+    tables = get_all_tables()
+    erp_records = [
+        {"table_name": t, "qualified_name": f"dbo.{t.upper()}"}
+        for t in sorted(tables)
+    ]
+
+    semantic_records: list = []
+    engine = get_db_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT concept_name FROM schema_concepts ORDER BY concept_name")
+            )
+            for row in result.fetchall():
+                name = row[0]
+                semantic_records.append(
+                    {"table_name": name, "qualified_name": f"concepts/{name}"}
+                )
+
+            result = conn.execute(
+                text("SELECT intent_name FROM schema_intents ORDER BY intent_name")
+            )
+            for row in result.fetchall():
+                name = row[0]
+                semantic_records.append(
+                    {"table_name": name, "qualified_name": f"intents/{name}"}
+                )
+    except Exception:
+        pass
+
+    grouped: dict = {}
+    if erp_records:
+        grouped["ERP_Instance_1"] = erp_records
+    if semantic_records:
+        grouped["semantic_layer"] = semantic_records
+
+    total = sum(len(v) for v in grouped.values())
+    return {"matches_found": total, "grouped_results": grouped}
+
+
 @app.get("/mcp/tools/get_table_ddl")
 async def get_table_ddl(table_name: str):
     """Get CREATE TABLE SQL for a specific table"""

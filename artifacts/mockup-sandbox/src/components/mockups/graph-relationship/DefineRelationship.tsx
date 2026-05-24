@@ -229,9 +229,14 @@ const DATA_TYPES = [
 // ---------------------------------------------------------------------------
 
 // M1 — Load entity namespaces (grouped results for both entity panels)
-// Real: AQL against manufacturing_graph_node + intents/concepts/bindings
+// Calls /mcp/tools/list_schema_tables (proxied to Flask app on :8080).
+// Throws on non-OK HTTP status so the caller can catch and fall back to mock.
 async function fetchEntityNamespaces(): Promise<SearchResult> {
-  return MOCK_SEARCH_DATA;
+  const res = await fetch("/mcp/tools/list_schema_tables");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (!data.grouped_results) throw new Error("Unexpected response shape");
+  return data as SearchResult;
 }
 
 // M2 — Load intent list (Choose Intent dropdown)
@@ -330,8 +335,35 @@ export function DefineRelationship() {
   const [concepts, setConcepts] = useState<string[]>(["DefectSeverity", "DeliveryPerformance", "OEE"]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
 
+  // Loading / API reachability state for entity panels.
+  const [isLoadingEntities, setIsLoadingEntities] = useState(true);
+  const [apiWarning, setApiWarning] = useState<string | null>(null);
+
   useEffect(() => {
-    fetchEntityNamespaces().then(setEntityNamespaces);
+    setIsLoadingEntities(true);
+    fetchEntityNamespaces()
+      .then((live) => {
+        setEntityNamespaces(live);
+        setApiWarning(null);
+        // If the current source/target selections are not present in live data,
+        // reset them to the first available live item so the UI stays consistent.
+        const allLiveItems: string[] = [];
+        for (const [src, recs] of Object.entries(live.grouped_results)) {
+          for (const rec of recs) {
+            allLiveItems.push(`${rec.table_name} (${src})`);
+          }
+        }
+        if (allLiveItems.length > 0) {
+          setSelectedSource((prev) => (allLiveItems.includes(prev) ? prev : allLiveItems[0]));
+          setSelectedTarget((prev) => (allLiveItems.includes(prev) ? prev : allLiveItems[0]));
+        }
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        setApiWarning(`Live schema unavailable (${msg}) — showing mock data.`);
+      })
+      .finally(() => setIsLoadingEntities(false));
+
     fetchIntents().then(setIntents);
     fetchConcepts().then(setConcepts);
     fetchCategories().then(setCategories);
@@ -494,6 +526,20 @@ export function DefineRelationship() {
           </h1>
         </div>
 
+        {/* API warning banner — shown when live schema is unreachable */}
+        {apiWarning && (
+          <div className="px-5 py-1.5 flex items-center gap-2 bg-amber-900/40 border-b border-amber-700/60">
+            <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">⚠ Schema API</span>
+            <span className="text-[10px] text-amber-300/80 flex-1">{apiWarning}</span>
+            <button
+              onClick={() => setApiWarning(null)}
+              className="text-amber-500 hover:text-amber-300"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+
         {/* Category pill bar */}
         <div className="px-5 py-2.5 border-b border-slate-700/40 flex items-center gap-2 flex-wrap bg-[#1e1e2e]/60">
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
@@ -646,7 +692,12 @@ export function DefineRelationship() {
 
                 {/* Grouped results list */}
                 <div className="border border-slate-600 rounded bg-slate-800/40 max-h-[140px] overflow-y-auto">
-                  {Object.keys(sourceResults.grouped_results).length === 0 ? (
+                  {isLoadingEntities ? (
+                    <div className="flex items-center gap-1.5 px-2 py-2">
+                      <RefreshCw size={11} className="text-slate-500 animate-spin" />
+                      <span className="text-[10px] text-slate-500 italic">Loading schema…</span>
+                    </div>
+                  ) : Object.keys(sourceResults.grouped_results).length === 0 ? (
                     <p className="text-[10px] text-slate-500 italic px-2 py-1.5">
                       No matches
                     </p>
@@ -818,7 +869,12 @@ export function DefineRelationship() {
 
                 {/* Grouped results list */}
                 <div className="border border-slate-600 rounded bg-slate-800/40 max-h-[140px] overflow-y-auto">
-                  {Object.keys(targetResults.grouped_results).length === 0 ? (
+                  {isLoadingEntities ? (
+                    <div className="flex items-center gap-1.5 px-2 py-2">
+                      <RefreshCw size={11} className="text-slate-500 animate-spin" />
+                      <span className="text-[10px] text-slate-500 italic">Loading schema…</span>
+                    </div>
+                  ) : Object.keys(targetResults.grouped_results).length === 0 ? (
                     <p className="text-[10px] text-slate-500 italic px-2 py-1.5">
                       No matches
                     </p>

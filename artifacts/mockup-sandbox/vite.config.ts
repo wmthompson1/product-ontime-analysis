@@ -63,6 +63,12 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      "/mcp": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,
