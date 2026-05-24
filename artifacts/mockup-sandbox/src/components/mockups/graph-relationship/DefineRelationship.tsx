@@ -704,11 +704,20 @@ export function DefineRelationship() {
 
                 {/* Match count */}
                 <p className="text-[9px] text-slate-500 mb-1.5">
-                  {sourceResults.matches_found} match{sourceResults.matches_found === 1 ? "" : "es"}
-                  {sourceSearch && (
-                    <span className="text-slate-600">
-                      {" "}· {sourceMode.toLowerCase()} &quot;{sourceSearch}&quot;
-                    </span>
+                  {isLoadingEntities ? (
+                    <span className="animate-pulse text-slate-600">—</span>
+                  ) : (
+                    <>
+                      {sourceResults.matches_found} match{sourceResults.matches_found === 1 ? "" : "es"}
+                      {apiWarning !== null && (
+                        <span className="ml-1 text-amber-400 font-semibold">mock</span>
+                      )}
+                      {sourceSearch && (
+                        <span className="text-slate-600">
+                          {" "}· {sourceMode.toLowerCase()} &quot;{sourceSearch}&quot;
+                        </span>
+                      )}
+                    </>
                   )}
                 </p>
 
@@ -881,11 +890,20 @@ export function DefineRelationship() {
 
                 {/* Match count */}
                 <p className="text-[9px] text-slate-500 mb-1.5">
-                  {targetResults.matches_found} match{targetResults.matches_found === 1 ? "" : "es"}
-                  {targetSearch && (
-                    <span className="text-slate-600">
-                      {" "}· {targetMode.toLowerCase()} &quot;{targetSearch}&quot;
-                    </span>
+                  {isLoadingEntities ? (
+                    <span className="animate-pulse text-slate-600">—</span>
+                  ) : (
+                    <>
+                      {targetResults.matches_found} match{targetResults.matches_found === 1 ? "" : "es"}
+                      {apiWarning !== null && (
+                        <span className="ml-1 text-amber-400 font-semibold">mock</span>
+                      )}
+                      {targetSearch && (
+                        <span className="text-slate-600">
+                          {" "}· {targetMode.toLowerCase()} &quot;{targetSearch}&quot;
+                        </span>
+                      )}
+                    </>
                   )}
                 </p>
 
