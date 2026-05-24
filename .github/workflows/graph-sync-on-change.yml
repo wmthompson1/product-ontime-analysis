@@ -65,6 +65,8 @@ jobs:
       - name: Health check — bridge collection counts match SQLite
         if: ${{ github.event.inputs.dry_run != 'true' && env.ARANGO_HOST != '' }}
         working-directory: hf-space-inventory-sqlgen
+        env:
+          DRIFT_REPORT_PATH: ${{ github.workspace }}/drift_report.txt
         run: python tests/test_bridge_collection_health.py
 
       - name: Skip live sync (no ArangoDB secrets or dry-run requested)
@@ -83,6 +85,13 @@ jobs:
         run: |
           TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DRIFT_FILE="${{ github.workspace }}/drift_report.txt"
+
+          if [ -f "${DRIFT_FILE}" ]; then
+            DRIFT_DETAILS=$(cat "${DRIFT_FILE}")
+          else
+            DRIFT_DETAILS=""
+          fi
 
           # Write a GitHub Actions step summary visible in the workflow UI
           {
@@ -93,15 +102,59 @@ jobs:
             echo "| **Workflow run** | [View logs](${RUN_URL}) |"
             echo "| **Branch** | \`${{ github.ref_name }}\` |"
             echo "| **Triggered by** | ${{ github.actor }} |"
+            if [ -n "${DRIFT_DETAILS}" ]; then
+              echo ""
+              echo "### Drift Details"
+              echo '```'
+              echo "${DRIFT_DETAILS}"
+              echo '```'
+              echo ""
+              echo "> Re-run \`graph_sync.py\` to bring ArangoDB back in sync with SQLite."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
           # Optionally POST to Slack webhook if secret is configured
           if [ -n "${GRAPH_SYNC_ALERT_WEBHOOK}" ]; then
-            PAYLOAD=$(printf '{"text":":rotating_light: *Graph Sync CI Failed*\n*Time:* %s\n*Branch:* `%s`\n*Triggered by:* %s\n*Logs:* <%s|View run>"}' \
-              "${TS}" \
-              "${{ github.ref_name }}" \
-              "${{ github.actor }}" \
-              "${RUN_URL}")
+            PAYLOAD=$(python3 - <<'PYEOF'
+import datetime, json, os
+
+ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+run_url = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+branch  = "${{ github.ref_name }}"
+actor   = "${{ github.actor }}"
+drift_file = "${{ github.workspace }}/drift_report.txt"
+drift   = open(drift_file).read().strip() if os.path.exists(drift_file) else ""
+
+fields = [
+    {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
+    {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
+    {"type": "mrkdwn", "text": f"*Triggered by:*\n{actor}"},
+]
+blocks = [
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": ":rotating_light: Graph Sync Failed"}
+    },
+    {"type": "section", "fields": fields},
+]
+if drift:
+    blocks.append({
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": f"*Drift details:*\n```{drift}```"
+        }
+    })
+blocks.append({
+    "type": "section",
+    "text": {
+        "type": "mrkdwn",
+        "text": f"Re-run `graph_sync.py` to bring ArangoDB in sync with SQLite.\n<{run_url}|View workflow run>"
+    }
+})
+print(json.dumps({"blocks": blocks}))
+PYEOF
+            )
             curl -sS -o /dev/null -w "Slack webhook HTTP status: %{http_code}\n" \
               -X POST -H "Content-Type: application/json" \
               -d "${PAYLOAD}" \
