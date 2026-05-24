@@ -6,6 +6,8 @@ on:
   pull_request:
     branches: ["**"]
   workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * *'
 
 jobs:
   skip-notice:
@@ -45,6 +47,7 @@ jobs:
       ARANGO_USER: ${{ secrets.ARANGO_USER }}
       ARANGO_PASSWORD: ${{ secrets.ARANGO_PASSWORD }}
       ARANGO_DB: manufacturing_graph
+      GRAPH_SYNC_ALERT_WEBHOOK: ${{ secrets.GRAPH_SYNC_ALERT_WEBHOOK }}
 
     steps:
       - name: Checkout
@@ -123,3 +126,54 @@ jobs:
       - name: Show full output on failure
         if: failure()
         run: cat /tmp/smoke_output.txt || true
+
+      - name: Send Slack alert on failure
+        if: failure() && env.GRAPH_SYNC_ALERT_WEBHOOK != ''
+        run: |
+          PAYLOAD=$(python3 - <<'PYEOF'
+import datetime, json, os
+
+ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+run_url = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+branch  = "${{ github.ref_name }}"
+trigger = "${{ github.event_name }}"
+
+smoke_file = "/tmp/smoke_output.txt"
+smoke_out  = open(smoke_file).read().strip() if os.path.exists(smoke_file) else "(no output captured)"
+# Truncate to keep Slack payload under limits
+if len(smoke_out) > 1500:
+    smoke_out = smoke_out[-1500:] + "\n...(truncated)"
+
+blocks = [
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": ":rotating_light: ArangoDB Legacy-Collection Smoke Test FAILED"}
+    },
+    {
+        "type": "section",
+        "fields": [
+            {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
+            {"type": "mrkdwn", "text": f"*Trigger:*\n`{trigger}`"},
+            {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
+        ]
+    },
+    {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": f"*Smoke test output:*\n```{smoke_out}```"}
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": f"Run `migrations/drop_legacy_perspective_graph.py` to remove legacy collections.\n<{run_url}|View workflow run>"
+        }
+    }
+]
+print(json.dumps({"blocks": blocks}))
+PYEOF
+          )
+
+          curl -sS -o /dev/null -w "Slack webhook HTTP status: %{http_code}\n" \
+            -X POST -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "${{ secrets.GRAPH_SYNC_ALERT_WEBHOOK }}"
