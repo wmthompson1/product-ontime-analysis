@@ -2676,14 +2676,45 @@ def create_gradio_interface():
         except:
             return []
     
-    def resolve_field_gradio(field_choice: str, intent_choice: str) -> str:
+    def resolve_field_gradio(field_choice: str, intent_choice: str) -> tuple:
         """Resolve a field using the full graph traversal"""
         if not field_choice or not intent_choice:
-            return "Select both a field and an intent to resolve."
+            return "Select both a field and an intent to resolve.", ""
         
         table_name, field_name = field_choice.split("|")
         engine = get_db_engine()
         try:
+            # Call the formal resolution algorithm to get ResolutionResult.explanation
+            resolution = resolve_field_meaning(engine, intent_choice, table_name, field_name)
+
+            # Build the explanation panel text based on resolution status
+            if resolution.status == "ambiguous":
+                candidates = ", ".join(f"`{c}`" for c in resolution.candidate_concepts)
+                explanation_md = (
+                    f'<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;'
+                    f'padding:12px 16px;margin-top:8px;">'
+                    f'<strong>⚠️ Ambiguous Resolution — Modeling Fix Required</strong><br><br>'
+                    f'{resolution.explanation}<br><br>'
+                    f'<em>Candidate concepts: {candidates}</em>'
+                    f'</div>'
+                )
+            elif resolution.status == "no_path":
+                explanation_md = (
+                    f'<div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;'
+                    f'padding:12px 16px;margin-top:8px;">'
+                    f'<strong>❌ No Resolution Path</strong><br><br>'
+                    f'{resolution.explanation}'
+                    f'</div>'
+                )
+            else:
+                explanation_md = (
+                    f'<div style="background:#d4edda;border:1px solid #c3e6cb;border-radius:6px;'
+                    f'padding:12px 16px;margin-top:8px;">'
+                    f'<strong>✅ Resolution Explanation</strong><br><br>'
+                    f'{resolution.explanation}'
+                    f'</div>'
+                )
+
             with engine.connect() as conn:
                 result = conn.execute(text("""
                     SELECT 
@@ -2710,7 +2741,7 @@ def create_gradio_interface():
                 
                 row = result.fetchone()
                 if row:
-                    return f"""## Graph Traversal Result
+                    main_md = f"""## Graph Traversal Result
 
 ### Field
 `{table_name}.{field_name}`
@@ -2733,6 +2764,7 @@ Domain: {row[9]}
 
 **Explanation:** {row[14]}
 """
+                    return main_md, explanation_md
                 else:
                     valid_intents_result = conn.execute(text("""
                         SELECT DISTINCT i.intent_name, c.concept_name
@@ -2748,7 +2780,7 @@ Domain: {row[9]}
                     
                     if valid_rows:
                         suggestions = "\n".join([f"- **{r[0]}** → resolves to `{r[1]}`" for r in valid_rows])
-                        return f"""## No Valid Path Found
+                        main_md = f"""## No Valid Path Found
 
 Field: `{table_name}.{field_name}`
 Intent: `{intent_choice}`
@@ -2759,7 +2791,7 @@ The selected intent does not have a valid semantic path to this field.
 {suggestions}
 """
                     else:
-                        return f"""## No Valid Path Found
+                        main_md = f"""## No Valid Path Found
 
 Field: `{table_name}.{field_name}`
 Intent: `{intent_choice}`
@@ -2767,8 +2799,9 @@ Intent: `{intent_choice}`
 No intents currently have complete semantic paths to this field.
 Check that perspective-concept and intent-concept relationships are seeded.
 """
+                    return main_md, explanation_md
         except Exception as e:
-            return f"Error: {str(e)}"
+            return f"Error: {str(e)}", ""
     
     def get_graph_visualization() -> str:
         """Generate text-based graph visualization"""
@@ -3243,11 +3276,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         value="Select an intent and field, then click **Resolve Field Meaning**.",
                         label="Graph Traversal Result"
                     )
+                    explanation_output = gr.HTML(
+                        value="",
+                        label="Resolution Explanation"
+                    )
             
             resolve_btn.click(
                 fn=resolve_field_gradio,
                 inputs=[field_dropdown, intent_dropdown],
-                outputs=resolution_output,
+                outputs=[resolution_output, explanation_output],
                 api_name="resolve_semantic_field"
             )
             
