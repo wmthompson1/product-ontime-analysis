@@ -3112,8 +3112,18 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 
                 with gr.Tabs():
                     with gr.Tab("Cypher (Neo4j)"):
+                        gr.Markdown(
+                            "> ⚠️ **Reference only** — This Cypher query is illustrative and **cannot be run directly**. "
+                            "The Perspective vertex collection is retired; query patterns now use bridge-row docs. "
+                            "See `Perspective_Intents` / `Perspective_Concepts` collections for live traversal."
+                        )
                         cypher_output = gr.Code(language="sql", label="Cypher Query")
                     with gr.Tab("AQL (ArangoDB)"):
+                        gr.Markdown(
+                            "> ⚠️ **Reference only** — This AQL query is illustrative and **cannot be run directly**. "
+                            "The Perspective vertex collection is retired; query patterns now use bridge-row docs. "
+                            "See `Perspective_Intents` / `Perspective_Concepts` collections for live traversal."
+                        )
                         aql_output = gr.Code(language="sql", label="AQL Query")
                     with gr.Tab("SQL Equivalent"):
                         sql_equiv_output = gr.Code(language="sql", label="SQL Query")
