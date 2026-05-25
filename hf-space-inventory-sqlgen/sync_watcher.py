@@ -34,12 +34,14 @@ import json
 import logging
 import os
 import signal
+import smtplib
 import sqlite3
 import sys
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from email.mime.text import MIMEText
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _SCRIPTS_DIR = os.path.join(SCRIPT_DIR, "scripts")
@@ -148,8 +150,10 @@ def _alert(title: str, body: str, pending: int | None = None) -> None:
       - alert title and error text
       - count of pending queue rows (when available)
 
-    Leave GRAPH_SYNC_ALERT_WEBHOOK empty (or unset) to keep the current
-    silent / stderr-only behaviour.
+    When GRAPH_SYNC_ALERT_EMAIL is set (comma-separated recipients), also
+    sends an SMTP email using SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD.
+
+    Leave both env vars empty (or unset) to keep the stderr-only behaviour.
     """
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     pending_str = f"{pending} pending queue row(s)" if pending is not None else "pending count unavailable"
@@ -158,32 +162,91 @@ def _alert(title: str, body: str, pending: int | None = None) -> None:
     print(stderr_line, file=sys.stderr)
 
     webhook_url = os.environ.get("GRAPH_SYNC_ALERT_WEBHOOK", "").strip()
-    if not webhook_url:
+    if webhook_url:
+        slack_text = (
+            f":rotating_light: *Graph Sync Alert — {title}*\n"
+            f"*Time:* {ts}\n"
+            f"*Pending queue rows:* {pending_str}\n"
+            f"*Details:*\n```{body}```"
+        )
+        payload = json.dumps({"text": slack_text}).encode("utf-8")
+        req = urllib.request.Request(
+            webhook_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status not in (200, 204):
+                    print(
+                        f"[GRAPH_SYNC_ALERT] Webhook POST returned HTTP {resp.status}",
+                        file=sys.stderr,
+                    )
+        except urllib.error.URLError as exc:
+            print(
+                f"[GRAPH_SYNC_ALERT] Webhook POST failed: {exc}",
+                file=sys.stderr,
+            )
+
+    _alert_email(title, body, ts, pending_str)
+
+
+def _alert_email(title: str, body: str, ts: str, pending_str: str) -> None:
+    """
+    Send an SMTP email alert when GRAPH_SYNC_ALERT_EMAIL is set.
+
+    Required env vars:
+        GRAPH_SYNC_ALERT_EMAIL  — comma-separated recipient addresses
+        SMTP_HOST               — SMTP server hostname
+        SMTP_USER               — login username (also used as From address)
+        SMTP_PASSWORD           — login password
+
+    Optional env vars:
+        SMTP_PORT               — SMTP port (default: 587, uses STARTTLS)
+
+    Falls back silently when any required variable is missing.
+    """
+    recipients_raw = os.environ.get("GRAPH_SYNC_ALERT_EMAIL", "").strip()
+    smtp_host = os.environ.get("SMTP_HOST", "").strip()
+    smtp_user = os.environ.get("SMTP_USER", "").strip()
+    smtp_password = os.environ.get("SMTP_PASSWORD", "").strip()
+
+    if not (recipients_raw and smtp_host and smtp_user and smtp_password):
         return
 
-    slack_text = (
-        f":rotating_light: *Graph Sync Alert — {title}*\n"
-        f"*Time:* {ts}\n"
-        f"*Pending queue rows:* {pending_str}\n"
-        f"*Details:*\n```{body}```"
+    recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
+    if not recipients:
+        return
+
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+
+    subject = f"[Graph Sync Alert] {title}"
+    email_body = (
+        f"Graph Sync Alert — {title}\n"
+        f"\n"
+        f"Time:              {ts}\n"
+        f"Pending queue rows: {pending_str}\n"
+        f"\n"
+        f"Details:\n"
+        f"{body}\n"
     )
-    payload = json.dumps({"text": slack_text}).encode("utf-8")
-    req = urllib.request.Request(
-        webhook_url,
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+
+    msg = MIMEText(email_body, "plain")
+    msg["Subject"] = subject
+    msg["From"] = smtp_user
+    msg["To"] = ", ".join(recipients)
+
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            if resp.status not in (200, 204):
-                print(
-                    f"[GRAPH_SYNC_ALERT] Webhook POST returned HTTP {resp.status}",
-                    file=sys.stderr,
-                )
-    except urllib.error.URLError as exc:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_user, smtp_password)
+            server.sendmail(smtp_user, recipients, msg.as_string())
+    except Exception as exc:
         print(
-            f"[GRAPH_SYNC_ALERT] Webhook POST failed: {exc}",
+            f"[GRAPH_SYNC_ALERT] Email send failed: {exc}",
             file=sys.stderr,
         )
 
