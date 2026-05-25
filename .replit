@@ -5,6 +5,50 @@ channel = "stable-24_05"
 packages = ["arangodb", "cairo", "duckdb", "ffmpeg-full", "freetype", "ghostscript", "glibcLocales", "gobject-introspection", "gtk3", "libxcrypt", "libyaml", "nano", "pkg-config", "qhull", "sqlite", "tcl", "tk", "vim", "xcodebuild", "xsimd", "zlib"]
 
 [workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "artifacts/mockup-sandbox: Component Preview Server"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "artifacts/mockup-sandbox"
+isCanvasWorkflow = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+cwd = "./artifacts/mockup-sandbox"
+waitForPort = 23636
+router = "path"
+
+[workflows.workflow.tasks.env]
+PORT = "23636"
+BASE_PATH = "/__mockup/"
+
+[[workflows.workflow]]
+name = "HF Space Inventory SQL"
+mode = "sequential"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd hf-space-inventory-sqlgen && python app.py"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "HF Space Inventory SQL"
 
 [deployment]
 run = ["sh", "-c", "python3 helloWorld.py"]
@@ -28,10 +72,6 @@ externalPort = 80
 [[ports]]
 localPort = 8080
 externalPort = 8080
-
-[[ports]]
-localPort = 23636
-externalPort = 3003
 
 [agent]
 expertMode = true
