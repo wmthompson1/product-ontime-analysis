@@ -2199,10 +2199,16 @@ async def delete_commit_edge(edge_id: str):
                 if intent_row is None or perspective_row is None:
                     raise HTTPException(status_code=404,
                         detail=f"Bridge row not found: intent={intent!r}, perspective={perspective!r}")
-                conn.execute(
+                cur = conn.execute(
                     "DELETE FROM schema_intent_perspectives WHERE intent_id = ? AND perspective_id = ?",
                     (intent_row["intent_id"], perspective_row["perspective_id"]),
                 )
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404,
+                        detail=(
+                            f"Bridge row already deleted: "
+                            f"intent={intent!r}, perspective={perspective!r}"
+                        ))
                 conn.commit()
 
             elif table_name == "schema_perspective_concepts":
@@ -2222,10 +2228,16 @@ async def delete_commit_edge(edge_id: str):
                 if perspective_row is None or concept_row is None:
                     raise HTTPException(status_code=404,
                         detail=f"Bridge row not found: perspective={perspective!r}, concept={concept!r}")
-                conn.execute(
+                cur = conn.execute(
                     "DELETE FROM schema_perspective_concepts WHERE perspective_id = ? AND concept_id = ?",
                     (perspective_row["perspective_id"], concept_row["concept_id"]),
                 )
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404,
+                        detail=(
+                            f"Bridge row already deleted: "
+                            f"perspective={perspective!r}, concept={concept!r}"
+                        ))
                 conn.commit()
 
             else:
