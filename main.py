@@ -61,7 +61,7 @@ with app.app_context():
 @app.route('/')
 def hello():
     from flask import redirect
-    return redirect('/define-relationship/', code=302)
+    return redirect('/gradio/', code=302)
 
 @app.route('/api/test')
 def api_test():
