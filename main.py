@@ -60,8 +60,8 @@ with app.app_context():
 
 @app.route('/')
 def hello():
-    from datetime import datetime
-    return render_template('index.html', current_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    from flask import redirect
+    return redirect('/gradio/', code=302)
 
 @app.route('/api/test')
 def api_test():
@@ -1797,6 +1797,89 @@ def convert_csv_to_schema():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+GRADIO_BACKEND = "http://127.0.0.1:8080"
+
+
+@app.route('/gradio')
+def proxy_gradio_root():
+    from flask import redirect
+    return redirect('/gradio/', code=302)
+
+@app.route('/gradio/', defaults={'path': ''})
+@app.route('/gradio/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+def proxy_gradio(path):
+    target_url = f"{GRADIO_BACKEND}/gradio/{path}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+    try:
+        resp = http_requests.request(
+            method=request.method,
+            url=target_url,
+            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=30,
+            stream=True,
+        )
+        excluded = {'content-encoding', 'transfer-encoding', 'connection'}
+        headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded]
+        return Response(resp.content, status=resp.status_code, headers=headers)
+    except http_requests.exceptions.ConnectionError:
+        return Response("The Gradio app is starting up — please refresh in a moment.", status=503)
+
+@app.route('/define-relationship')
+def proxy_define_relationship_root():
+    from flask import redirect
+    return redirect('/define-relationship/', code=302)
+
+@app.route('/define-relationship/', defaults={'path': ''})
+@app.route('/define-relationship/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+def proxy_define_relationship(path):
+    target_url = f"{GRADIO_BACKEND}/define-relationship/{path}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+    try:
+        resp = http_requests.request(
+            method=request.method,
+            url=target_url,
+            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=30,
+            stream=True,
+        )
+        excluded = {'content-encoding', 'transfer-encoding', 'connection'}
+        headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded]
+        return Response(resp.content, status=resp.status_code, headers=headers)
+    except http_requests.exceptions.ConnectionError:
+        return Response("The Gradio app is starting up — please refresh in a moment.", status=503)
+
+@app.route('/mcp/', defaults={'path': ''})
+@app.route('/mcp/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+def proxy_mcp(path):
+    target_url = f"{GRADIO_BACKEND}/mcp/{path}"
+    if request.query_string:
+        target_url += f"?{request.query_string.decode()}"
+    try:
+        resp = http_requests.request(
+            method=request.method,
+            url=target_url,
+            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False,
+            timeout=30,
+            stream=True,
+        )
+        excluded = {'content-encoding', 'transfer-encoding', 'connection'}
+        headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded]
+        return Response(resp.content, status=resp.status_code, headers=headers)
+    except http_requests.exceptions.ConnectionError:
+        return Response("The Gradio app is starting up — please refresh in a moment.", status=503)
 
 
 MOCKUP_BACKEND = "http://127.0.0.1:23636"
