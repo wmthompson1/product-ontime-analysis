@@ -265,14 +265,16 @@ async function fetchConceptBridgeKey(concept: string, perspective: string): Prom
 
 // M7 — Commit new edge ("Add to Graph" button)
 // Live: POST /mcp/tools/commit_edge with predicate-routing (docs/arango_graph_queries_new.md § M7)
+// perspective and category are stored as direct properties on every edge document.
 async function commitEdge(
   predicate: string,
   sourceId: string,
   targetId: string,
   intent: string,
-  perspective: string,
+  category: string,
   conceptAnchor?: string,
 ): Promise<{ ok: boolean; message: string; edge_id?: string }> {
+  const cat = category === "ALL" ? null : category;
   const res = await fetch("/mcp/tools/commit_edge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -281,7 +283,8 @@ async function commitEdge(
       source_id: sourceId,
       target_id: targetId,
       intent: intent || null,
-      perspective: perspective === "ALL" ? null : perspective,
+      category: cat,
+      perspective: cat,
       concept_anchor: conceptAnchor || null,
     }),
   });
@@ -474,14 +477,7 @@ export function DefineRelationship() {
   const sourceShort = selectedSource.split(" ")[0];
   const targetShort = selectedTarget.split(" ")[0];
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
-  const conceptEdgeId = assembleConceptEdgeId(selectedConcept, activeCategory);
-  // Bridge row keys — strictly composite, no source/target tables.
-  // Perspective_Intents (perspective, intent) → 3-char intent + counter + perspective
-  // Perspective_Concepts (perspective, concept) → same shape, different collection
-  const seg3 = (s: string) => s.replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
-  const persistable = activeCategory !== "ALL";
-  const intentBridgeKey = persistable ? `${seg3(selectedIntent)}_001_${activeCategory}` : null;
-  const conceptBridgeKey = persistable ? `${seg3(selectedConcept)}_001_${activeCategory}` : null;
+  const hasCategory = activeCategory !== "ALL";
 
   return (
     <div className="flex h-screen w-full bg-[#1e1e2e] text-sm font-['Inter'] overflow-hidden">
@@ -677,15 +673,13 @@ export function DefineRelationship() {
               </p>
             </div>
 
-            {/* IDENTITY STRIP — three live-assembled keys above the fold.
-                Hoisted out of the Edge Property Panel so the demo punchline
-                (one edge, two bridge-row composite keys) is visible without scrolling. */}
+            {/* IDENTITY STRIP — edge ID + edge properties above the fold. */}
             <div className="px-4 pb-3 pt-1 border-t border-slate-600/60 bg-slate-900/30">
               <p className="text-[9px] font-bold tracking-widest text-slate-500 uppercase mb-1.5">
                 Live Identity Preview
               </p>
               <div className="grid grid-cols-3 gap-2">
-                {/* Directional edge — always shown, scoped by intent+perspective */}
+                {/* Directional edge ID */}
                 <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
                   <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
                     rel_edge_id
@@ -698,29 +692,29 @@ export function DefineRelationship() {
                   </p>
                 </div>
 
-                {/* Perspective_Intents bridge row key — composite (perspective, intent) */}
-                <div className={`border rounded px-2 py-1.5 ${persistable ? "border-violet-500/60 bg-violet-900/20" : "border-slate-600 bg-slate-800/40"}`}>
-                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${persistable ? "text-violet-300/70" : "text-slate-500"}`}>
-                    Perspective_Intents
+                {/* edge.category — domain category from pill bar */}
+                <div className={`border rounded px-2 py-1.5 ${hasCategory ? "border-violet-500/60 bg-violet-900/20" : "border-slate-600 bg-slate-800/40"}`}>
+                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${hasCategory ? "text-violet-300/70" : "text-slate-500"}`}>
+                    edge.category
                   </p>
-                  <p className={`text-[11px] font-mono break-all leading-tight ${persistable ? "text-violet-200" : "text-slate-500 italic"}`}>
-                    {intentBridgeKey ?? "— pick a category to persist —"}
+                  <p className={`text-[11px] font-mono break-all leading-tight ${hasCategory ? "text-violet-200" : "text-slate-500 italic"}`}>
+                    {hasCategory ? activeCategory : "— pick a category —"}
                   </p>
-                  <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-violet-300/50" : "text-slate-600"}`}>
-                    Bridge row: (perspective, intent)
+                  <p className={`mt-0.5 text-[9px] leading-tight ${hasCategory ? "text-violet-300/50" : "text-slate-600"}`}>
+                    Edge property (domain scope)
                   </p>
                 </div>
 
-                {/* Perspective_Concepts bridge row key — composite (perspective, concept) */}
-                <div className={`border rounded px-2 py-1.5 ${persistable ? "border-fuchsia-500/60 bg-fuchsia-900/20" : "border-slate-600 bg-slate-800/40"}`}>
-                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${persistable ? "text-fuchsia-300/70" : "text-slate-500"}`}>
-                    Perspective_Concepts
+                {/* edge.perspective — same scope as category */}
+                <div className={`border rounded px-2 py-1.5 ${hasCategory ? "border-fuchsia-500/60 bg-fuchsia-900/20" : "border-slate-600 bg-slate-800/40"}`}>
+                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${hasCategory ? "text-fuchsia-300/70" : "text-slate-500"}`}>
+                    edge.perspective
                   </p>
-                  <p className={`text-[11px] font-mono break-all leading-tight ${persistable ? "text-fuchsia-200" : "text-slate-500 italic"}`}>
-                    {conceptBridgeKey ?? "— pick a category to persist —"}
+                  <p className={`text-[11px] font-mono break-all leading-tight ${hasCategory ? "text-fuchsia-200" : "text-slate-500 italic"}`}>
+                    {hasCategory ? activeCategory : "— pick a category —"}
                   </p>
-                  <p className={`mt-0.5 text-[9px] leading-tight ${persistable ? "text-fuchsia-300/50" : "text-slate-600"}`}>
-                    Bridge row: (perspective, concept)
+                  <p className={`mt-0.5 text-[9px] leading-tight ${hasCategory ? "text-fuchsia-300/50" : "text-slate-600"}`}>
+                    Edge property (analytical scope)
                   </p>
                 </div>
               </div>

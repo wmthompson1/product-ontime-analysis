@@ -1797,6 +1797,7 @@ class CommitEdgeRequest(BaseModel):
     target_id: str
     intent: Optional[str] = None
     perspective: Optional[str] = None
+    category: Optional[str] = None
     explanation: Optional[str] = None
     binding_key: Optional[str] = None
     concept_anchor: Optional[str] = None
@@ -2056,12 +2057,16 @@ async def commit_edge(req: CommitEdgeRequest):
                 weight:      @weight,
                 intent_name: @intent,
                 explanation: @explanation,
+                category:    @category,
+                perspective: @perspective,
                 created_by:  'define_relationship_ui'
             }
             UPDATE {
                 weight:      @weight,
                 intent_name: @intent,
-                explanation: @explanation
+                explanation: @explanation,
+                category:    @category,
+                perspective: @perspective
             }
             IN elevates
             RETURN { doc: NEW, created: OLD == null }
@@ -2072,6 +2077,8 @@ async def commit_edge(req: CommitEdgeRequest):
                 "weight": weight,
                 "intent": req.intent or "",
                 "explanation": req.explanation or f"{predicate} via UI",
+                "category": req.category or "",
+                "perspective": req.perspective or "",
             }))
             row = result[0]
             doc, created = row["doc"], row["created"]
@@ -2087,11 +2094,15 @@ async def commit_edge(req: CommitEdgeRequest):
                 _to:            @target,
                 binding_key:    @binding_key,
                 concept_anchor: @concept_anchor,
+                category:       @category,
+                perspective:    @perspective,
                 created_by:     'define_relationship_ui'
             }
             UPDATE {
                 binding_key:    @binding_key,
-                concept_anchor: @concept_anchor
+                concept_anchor: @concept_anchor,
+                category:       @category,
+                perspective:    @perspective
             }
             IN bound_to
             RETURN { doc: NEW, created: OLD == null }
@@ -2101,6 +2112,8 @@ async def commit_edge(req: CommitEdgeRequest):
                 "target": target_handle,
                 "binding_key": req.binding_key or "",
                 "concept_anchor": req.concept_anchor or "",
+                "category": req.category or "",
+                "perspective": req.perspective or "",
             }))
             row = result[0]
             doc, created = row["doc"], row["created"]
@@ -2111,13 +2124,21 @@ async def commit_edge(req: CommitEdgeRequest):
         elif predicate == "HAS_COLUMN":
             aql = """
             UPSERT { _from: @source, _to: @target }
-            INSERT { _from: @source, _to: @target, created_by: 'define_relationship_ui' }
-            UPDATE {}
+            INSERT {
+                _from:       @source,
+                _to:         @target,
+                category:    @category,
+                perspective: @perspective,
+                created_by:  'define_relationship_ui'
+            }
+            UPDATE { category: @category, perspective: @perspective }
             IN HAS_COLUMN
             RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle, "target": target_handle,
+                "category": req.category or "",
+                "perspective": req.perspective or "",
             }))
             row = result[0]
             doc, created = row["doc"], row["created"]
@@ -2133,11 +2154,15 @@ async def commit_edge(req: CommitEdgeRequest):
                 _to:         @target,
                 from_column: @from_column,
                 to_column:   @to_column,
+                category:    @category,
+                perspective: @perspective,
                 created_by:  'define_relationship_ui'
             }
             UPDATE {
                 from_column: @from_column,
-                to_column:   @to_column
+                to_column:   @to_column,
+                category:    @category,
+                perspective: @perspective
             }
             IN FOREIGN_KEY
             RETURN { doc: NEW, created: OLD == null }
@@ -2146,6 +2171,8 @@ async def commit_edge(req: CommitEdgeRequest):
                 "source": source_handle, "target": target_handle,
                 "from_column": req.from_column or "",
                 "to_column": req.to_column or "",
+                "category": req.category or "",
+                "perspective": req.perspective or "",
             }))
             row = result[0]
             doc, created = row["doc"], row["created"]
@@ -2156,13 +2183,21 @@ async def commit_edge(req: CommitEdgeRequest):
         elif predicate in ("MAPS_TO_CONCEPT", "CAN_MEAN"):
             aql = """
             UPSERT { _from: @source, _to: @target }
-            INSERT { _from: @source, _to: @target, created_by: 'define_relationship_ui' }
-            UPDATE {}
+            INSERT {
+                _from:       @source,
+                _to:         @target,
+                category:    @category,
+                perspective: @perspective,
+                created_by:  'define_relationship_ui'
+            }
+            UPDATE { category: @category, perspective: @perspective }
             IN CAN_MEAN
             RETURN { doc: NEW, created: OLD == null }
             """
             result = list(db.aql.execute(aql, bind_vars={
                 "source": source_handle, "target": target_handle,
+                "category": req.category or "",
+                "perspective": req.perspective or "",
             }))
             row = result[0]
             doc, created = row["doc"], row["created"]
