@@ -33,6 +33,8 @@ import io
 import re
 import datetime
 import tempfile
+import warnings
+import logging
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -3463,8 +3465,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     
                     table_name, field_name = field_choice.split("|")
                     engine = get_db_engine()
-                    syntax = get_graph_syntax_examples(engine, intent, table_name, field_name)
-                    
+
+                    with warnings.catch_warnings(record=True) as caught:
+                        warnings.simplefilter("always", DeprecationWarning)
+                        syntax = get_graph_syntax_examples(engine, intent, table_name, field_name)
+
+                    for w in caught:
+                        msg = str(w.message)
+                        logging.warning("Graph syntax DeprecationWarning: %s", msg)
+                        gr.Warning(f"⚠️ Reference only — {msg}")
+
                     return syntax["cypher"], syntax["aql"], syntax["sql_equivalent"]
                 
                 syntax_btn.click(
