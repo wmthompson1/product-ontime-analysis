@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -380,6 +380,10 @@ export function DefineRelationship() {
   const [isCommitting, setIsCommitting] = useState(false);
   const [isUndoing, setIsUndoing] = useState(false);
   const [commitResult, setCommitResult] = useState<{ ok: boolean; message: string; edge_id?: string } | null>(null);
+
+  // Transient undo confirmation — shown for 3 s then auto-cleared.
+  const [undoConfirm, setUndoConfirm] = useState<{ predicate: string; source: string; target: string } | null>(null);
+  const undoConfirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Live edge-count badge — null means not yet loaded.
   const [graphEdgeCount, setGraphEdgeCount] = useState<number | null>(null);
@@ -1072,6 +1076,15 @@ export function DefineRelationship() {
               {graphEdgeCount === null ? "…" : `${graphEdgeCount} edges`}
             </span>
           </div>
+          {undoConfirm && (
+            <div className="text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 bg-slate-700/70 border border-slate-500/60 text-slate-300">
+              <span>↩</span>
+              <span className="flex-1">
+                Removed: <span className="text-slate-100 font-semibold">{undoConfirm.predicate}</span> edge (
+                <span className="text-slate-100">{undoConfirm.source}</span> → <span className="text-slate-100">{undoConfirm.target}</span>)
+              </span>
+            </div>
+          )}
           {commitResult && (
             <div
               className={`text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 ${
@@ -1088,10 +1101,16 @@ export function DefineRelationship() {
                   disabled={isUndoing}
                   onClick={async () => {
                     setIsUndoing(true);
+                    const snapshotPredicate = selectedPredicate;
+                    const snapshotSource = selectedSource;
+                    const snapshotTarget = selectedTarget;
                     try {
                       const result = await undoEdge(commitResult.edge_id!);
                       if (result.ok) {
                         setCommitResult(null);
+                        if (undoConfirmTimerRef.current) clearTimeout(undoConfirmTimerRef.current);
+                        setUndoConfirm({ predicate: snapshotPredicate, source: snapshotSource, target: snapshotTarget });
+                        undoConfirmTimerRef.current = setTimeout(() => setUndoConfirm(null), 3000);
                       } else {
                         setCommitResult({ ok: false, message: `Undo failed: ${result.message}` });
                       }
