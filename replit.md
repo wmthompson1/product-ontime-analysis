@@ -75,10 +75,26 @@ Served by mockup sandbox Vite server (port 23636). Connects to Flask app at `/mc
 | `ERP_INSTANCE_NAME` | `ERP_Instance_1` | ERP source label shown in UI |
 | `OPENAI_API_KEY` | — | OpenAI embeddings (optional) |
 | `TAVILY_API_KEY` | — | Tavily search for RAG (optional) |
-| `GRAPH_SYNC_ALERT_WEBHOOK` | — | Slack incoming webhook for sync failure alerts |
+| `GRAPH_SYNC_ALERT_WEBHOOK` | — | Slack incoming webhook for sync failure alerts (see below) |
 | `QUERY_API_KEY` | — | API key guard for SQL generation endpoints |
 
-See `.env.example` for full documentation.
+## Enabling Slack Alerts for Nightly Sync Failures
+
+The nightly graph sync workflow (`.github/workflows/graph-sync-on-change.yml`) posts a Slack Block Kit alert whenever any step fails — including the 2 AM UTC scheduled run. The alert includes the failure timestamp, branch, who triggered the run, and a direct link to the GitHub Actions log. If a bridge health drift report was written, it is included in the alert body.
+
+**To enable alerts:**
+
+1. Create a Slack Incoming Webhook for your workspace:
+   - Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From scratch
+   - Under "Add features", choose **Incoming Webhooks** and activate them
+   - Click **Add New Webhook to Workspace**, pick the channel where alerts should appear, and copy the webhook URL (format: `https://hooks.slack.com/services/…`)
+
+2. Add the URL as a GitHub Actions repository secret:
+   - In your GitHub repo, go to **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `GRAPH_SYNC_ALERT_WEBHOOK`
+   - Value: the webhook URL copied above
+
+3. That's it. The next time the nightly sync fails (or any push-triggered run fails), a Slack message is posted automatically. If `GRAPH_SYNC_ALERT_WEBHOOK` is not set, the step is skipped silently and a summary is still written to the GitHub Actions step summary tab.
 
 ## External Dependencies
 Flask, FastAPI, SQLAlchemy, sqlite3, LangChain, LangGraph, Gradio, SQLGlot, python-arango, FAISS, pandas, openpyxl, xlrd, requests, httpx, mcp, trafilatura, beautifulsoup4, lxml, Faker, sdv, sdmetrics
