@@ -61,7 +61,7 @@ with app.app_context():
 @app.route('/')
 def hello():
     from flask import redirect
-    return redirect('/gradio/', code=302)
+    return redirect('/define-relationship/', code=302)
 
 @app.route('/api/test')
 def api_test():
@@ -1830,33 +1830,26 @@ def proxy_gradio(path):
     except http_requests.exceptions.ConnectionError:
         return Response("The Gradio app is starting up — please refresh in a moment.", status=503)
 
+_DR_STATIC = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "hf-space-inventory-sqlgen", "static", "define-relationship"
+)
+
 @app.route('/define-relationship')
-def proxy_define_relationship_root():
+def dr_redirect():
     from flask import redirect
     return redirect('/define-relationship/', code=302)
 
-@app.route('/define-relationship/', defaults={'path': ''})
-@app.route('/define-relationship/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
-def proxy_define_relationship(path):
-    target_url = f"{GRADIO_BACKEND}/define-relationship/{path}"
-    if request.query_string:
-        target_url += f"?{request.query_string.decode()}"
-    try:
-        resp = http_requests.request(
-            method=request.method,
-            url=target_url,
-            headers={k: v for k, v in request.headers if k.lower() not in ('host', 'content-length')},
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False,
-            timeout=30,
-            stream=True,
-        )
-        excluded = {'content-encoding', 'transfer-encoding', 'connection'}
-        headers = [(k, v) for k, v in resp.raw.headers.items() if k.lower() not in excluded]
-        return Response(resp.content, status=resp.status_code, headers=headers)
-    except http_requests.exceptions.ConnectionError:
-        return Response("The Gradio app is starting up — please refresh in a moment.", status=503)
+@app.route('/define-relationship/')
+def dr_index():
+    return send_from_directory(_DR_STATIC, 'index.html')
+
+@app.route('/define-relationship/<path:path>')
+def dr_asset(path):
+    full = os.path.join(_DR_STATIC, path)
+    if os.path.isfile(full):
+        return send_from_directory(_DR_STATIC, path)
+    return send_from_directory(_DR_STATIC, 'index.html')
 
 @app.route('/mcp/', defaults={'path': ''})
 @app.route('/mcp/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
