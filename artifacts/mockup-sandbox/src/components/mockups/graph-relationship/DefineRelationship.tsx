@@ -234,14 +234,17 @@ async function fetchConcepts(): Promise<string[]> {
   return data.concepts.map((c: { concept_name: string }) => c.concept_name).sort();
 }
 
-// M4 — Load category/perspective list (pill bar)
-// Live: GET /mcp/tools/get_perspectives → {perspectives: [{perspective_name, ...}]}
+// M4 — Load entity category list (pill bar)
+// Live: GET /mcp/tools/get_entity_categories → {categories: string[], source: "sqlite"}
+// Falls back to the CATEGORIES constant if the endpoint is unavailable.
 async function fetchCategories(): Promise<string[]> {
-  const res = await fetch("/mcp/tools/get_perspectives");
+  const res = await fetch("/mcp/tools/get_entity_categories");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
-  if (!Array.isArray(data.perspectives)) throw new Error("Unexpected response shape");
-  return ["ALL", ...data.perspectives.map((p: { perspective_name: string }) => p.perspective_name).sort()];
+  if (!Array.isArray(data.categories) || data.categories.length === 0) {
+    return ["ALL", ...CATEGORIES];
+  }
+  return ["ALL", ...data.categories];
 }
 
 // M5 — Resolve Perspective_Intents bridge key for (intent, perspective)

@@ -419,6 +419,29 @@ CREATE TABLE IF NOT EXISTS schema_perspective_concepts (
     UNIQUE(perspective_id, concept_id)
 );
 
+-- Entity categories: top-level domain groupings for schema tables / graph vertices.
+-- These map to the 11 ArangoDB vertex category labels and drive the pill bar in the Define Relationship UI.
+CREATE TABLE IF NOT EXISTS schema_entity_categories (
+    category_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_name TEXT NOT NULL UNIQUE,   -- e.g. Customer_Order, Manufacturing
+    display_order INTEGER DEFAULT 99,
+    description   TEXT,
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO schema_entity_categories (category_name, display_order, description) VALUES
+('Customer_Order',         1,  'Customer orders, fulfilment, and delivery'),
+('Demand_Forecast',        2,  'Demand planning and forecast accuracy'),
+('Engineering',            3,  'Engineering change orders and BOM management'),
+('General_Ledger',         4,  'GL accounts, cost centres, and financial postings'),
+('Inventory_Transactions', 5,  'Stock movements, receipts, and adjustments'),
+('Manufacturing',          6,  'Production orders, routing, and WIP'),
+('Parts',                  7,  'Part master, revisions, and classifications'),
+('Payables',               8,  'Supplier invoices and payments'),
+('Receivables',            9,  'Customer invoices and collections'),
+('Visual_Admin',           10, 'UI configuration and admin metadata'),
+('Work_Orders',            11, 'Maintenance and shop-floor work orders');
+
 -- Seed data: 5 Organizational Perspectives
 INSERT INTO schema_perspectives (perspective_name, description, stakeholder_role, priority_focus) VALUES
 ('Quality', 'Product conformance, defect prevention, and continuous improvement', 'Quality Engineer, QA Manager', 'Defect rates, NCM resolution, process capability'),

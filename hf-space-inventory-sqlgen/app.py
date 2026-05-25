@@ -1266,6 +1266,22 @@ async def execute_sql_endpoint(sql: str = Form(...)):
     return result
 
 
+@app.get("/mcp/tools/get_entity_categories")
+async def get_entity_categories():
+    """Return the 11 domain category names from schema_entity_categories (SQLite).
+    These drive the pill bar in the Define Relationship UI and map to ArangoDB vertex groupings."""
+    try:
+        engine = get_db_engine()
+        if not engine:
+            return {"categories": [], "source": "unavailable"}
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text("SELECT category_name FROM schema_entity_categories ORDER BY display_order, category_name")
+            ).fetchall()
+        return {"categories": [r[0] for r in rows], "source": "sqlite"}
+    except Exception as exc:
+        return {"categories": [], "error": str(exc)}
+
 @app.get("/mcp/tools/get_saved_categories")
 async def get_saved_categories():
     """Get list of saved query categories"""
