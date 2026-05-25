@@ -304,6 +304,92 @@ class TestCreateSqliteDbInstallsTriggers(unittest.TestCase):
         )
 
 
+class TestFreshDbFromRealSchema(unittest.TestCase):
+    """
+    CI guard: create a temp SQLite database from the real schema_sqlite.sql,
+    run install_sync_triggers.install(), and assert every expected trigger and
+    the graph_sync_queue table are present.
+
+    This test requires NO ArangoDB credentials and must pass in plain CI.
+    """
+
+    SCHEMA_PATH = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "app_schema",
+        "schema_sqlite.sql",
+    )
+
+    def setUp(self):
+        if not os.path.exists(self.SCHEMA_PATH):
+            self.skipTest(f"schema_sqlite.sql not found at {self.SCHEMA_PATH}")
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self.db_path = self._tmp.name
+        with open(self.SCHEMA_PATH, "r", encoding="utf-8") as fh:
+            schema_sql = fh.read()
+        self.conn = sqlite3.connect(self.db_path)
+        self.conn.executescript(schema_sql)
+        self.conn.commit()
+
+    def tearDown(self):
+        self.conn.close()
+        try:
+            os.unlink(self.db_path)
+        except OSError:
+            pass
+
+    def test_queue_table_created_from_real_schema(self):
+        """graph_sync_queue must exist after install() on a real-schema DB."""
+        ist.install(self.conn)
+        row = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='graph_sync_queue'"
+        ).fetchone()
+        self.assertIsNotNone(
+            row,
+            "graph_sync_queue table must be created by install() on a real-schema DB.",
+        )
+
+    def test_all_triggers_present_from_real_schema(self):
+        """All expected sync triggers must be installed on a real-schema DB."""
+        ist.install(self.conn)
+        rows = self.conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_arango_sync_%'"
+        ).fetchall()
+        found = {r[0] for r in rows}
+        expected = {
+            ist.trigger_name(t, op)
+            for t in ist.WATCHED_TABLES
+            for op in ist.OPERATIONS
+        }
+        missing = expected - found
+        self.assertEqual(
+            missing,
+            set(),
+            f"Missing triggers after install() on real schema: {sorted(missing)}",
+        )
+
+    def test_verify_passes_on_real_schema(self):
+        """verify() must return True after install() on a real-schema DB."""
+        ist.install(self.conn)
+        self.assertTrue(
+            ist.verify(self.conn),
+            "verify() must return True after install() on a real-schema DB.",
+        )
+
+    def test_watched_tables_exist_in_real_schema(self):
+        """All WATCHED_TABLES must be present in the real schema before install."""
+        for table in ist.WATCHED_TABLES:
+            row = self.conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone()
+            self.assertIsNotNone(
+                row,
+                f"WATCHED_TABLE '{table}' is missing from schema_sqlite.sql — "
+                "triggers cannot be installed on a table that does not exist.",
+            )
+
+
 class TestSyncWatcherAutoInstall(unittest.TestCase):
     """
     Verify that sync_watcher._auto_install_triggers() installs triggers

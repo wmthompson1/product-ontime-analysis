@@ -68,6 +68,12 @@ jobs:
       - name: Sync trigger tests
         run: python hf-space-inventory-sqlgen/tests/test_sync_triggers.py
 
+      - name: Trigger auto-install — fresh DB from real schema
+        run: |
+          python -m pytest hf-space-inventory-sqlgen/tests/test_sync_triggers.py \
+            -k TestFreshDbFromRealSchema -v \
+            --tb=short
+
       - name: MCP config endpoint tests
         run: python hf-space-inventory-sqlgen/tests/test_mcp_config.py
 
