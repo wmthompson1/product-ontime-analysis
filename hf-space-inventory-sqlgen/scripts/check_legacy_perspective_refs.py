@@ -1,9 +1,11 @@
-"""Grep gate: fail if any consumer references the retired perspective graph paths.
+"""Grep gate: fail if any consumer references the retired perspective graph paths
+or hardcodes the legacy graph name "semantic_graph".
 
 Retired surfaces:
     - `perspectives` vertex collection (ArangoDB)
     - `operates_within` edge collection (ArangoDB)
     - `uses_definition` edge collection (ArangoDB)
+    - hardcoded graph name string literal "semantic_graph" (use ARANGO_DB env var)
 
 This script scans repository Python sources and known config files for
 fresh references to those names. It allow-lists the locations where the
@@ -42,14 +44,27 @@ LEGACY_PATTERNS = [
     rf'["\'](?:{_names_alt})/[^"\']+["\']',  # Arango doc id like "perspectives/Quality"
 ]
 
-# Files that are allowed to reference the legacy names (docs, migration,
-# this gate script itself, deprecation guards, the regression test).
+# Files that are allowed to reference the legacy collection names (docs,
+# migration, this gate script itself, deprecation guards, regression test).
 ALLOWED_PATHS = {
     os.path.relpath(__file__, REPO_ROOT),
     "hf-space-inventory-sqlgen/migrations/drop_legacy_perspective_graph.py",
     "hf-space-inventory-sqlgen/graph_sync.py",  # LEGACY_* constants for guard
     "hf-space-inventory-sqlgen/semantic_reasoning.py",  # deprecation note
     "hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py",
+}
+
+# ── Hardcoded graph-name guard ────────────────────────────────────────────────
+# Any file outside migrations/ that contains the bare string literal
+# "semantic_graph" or 'semantic_graph' is using the old hard-coded name
+# instead of reading from the ARANGO_DB environment variable.
+HARDCODED_GRAPH_NAME_PATTERN = re.compile(r"""["']semantic_graph["']""")
+
+# Paths allowed to contain "semantic_graph" as a literal (migration history
+# only; no production code should reference this name).
+HARDCODED_GRAPH_NAME_ALLOWED_PATHS = {
+    os.path.relpath(__file__, REPO_ROOT),
+    "hf-space-inventory-sqlgen/migrations/rename_graph_to_manufacturing.py",
 }
 
 SCAN_EXTS = (".py",)
@@ -77,15 +92,70 @@ def scan() -> list[tuple[str, int, str]]:
     return hits
 
 
+def scan_hardcoded_graph_name() -> list[tuple[str, int, str]]:
+    """Return every line outside migrations/ that hardcodes 'semantic_graph'.
+
+    Scans only the directories most likely to contain production Python code
+    (hf-space-inventory-sqlgen/ and scripts/ at repo root) to keep runtime
+    fast on repos with many files.
+    """
+    hits: list[tuple[str, int, str]] = []
+    scan_roots = [
+        HF_DIR,
+        os.path.join(REPO_ROOT, "scripts"),
+    ]
+    for scan_root in scan_roots:
+        if not os.path.isdir(scan_root):
+            continue
+        for root, dirs, files in os.walk(scan_root):
+            dirs[:] = [
+                d for d in dirs
+                if d not in {"__pycache__", "node_modules", ".git"}
+            ]
+            for f in files:
+                if not f.endswith(SCAN_EXTS):
+                    continue
+                full = os.path.join(root, f)
+                rel = os.path.relpath(full, REPO_ROOT)
+                if rel in HARDCODED_GRAPH_NAME_ALLOWED_PATHS:
+                    continue
+                # Skip anything inside a migrations/ directory
+                parts = rel.replace(os.sep, "/").split("/")
+                if "migrations" in parts:
+                    continue
+                try:
+                    with open(full, "r", encoding="utf-8") as fh:
+                        for lineno, line in enumerate(fh, start=1):
+                            if HARDCODED_GRAPH_NAME_PATTERN.search(line):
+                                hits.append((rel, lineno, line.rstrip()))
+                except (OSError, UnicodeDecodeError):
+                    continue
+    return hits
+
+
 def main() -> int:
+    failed = 0
+
     hits = scan()
-    if not hits:
+    if hits:
+        failed += 1
+        print("FAIL: found references to retired perspective graph surfaces:")
+        for path, lineno, line in hits:
+            print(f"  {path}:{lineno}: {line}")
+    else:
         print("OK: no fresh references to retired perspective graph surfaces.")
-        return 0
-    print("FAIL: found references to retired perspective graph surfaces:")
-    for path, lineno, line in hits:
-        print(f"  {path}:{lineno}: {line}")
-    return 1
+
+    graph_hits = scan_hardcoded_graph_name()
+    if graph_hits:
+        failed += 1
+        print('FAIL: found hardcoded "semantic_graph" string literals '
+              "(use os.environ.get(\"ARANGO_DB\", \"manufacturing_graph\") instead):")
+        for path, lineno, line in graph_hits:
+            print(f"  {path}:{lineno}: {line}")
+    else:
+        print('OK: no hardcoded "semantic_graph" graph-name literals found.')
+
+    return 0 if failed == 0 else 1
 
 
 if __name__ == "__main__":

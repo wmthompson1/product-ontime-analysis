@@ -244,6 +244,52 @@ def test_mcp_resolve_semantic_path_no_legacy_keys():
     )
 
 
+def test_exactly_one_graph_in_arango():
+    """Guard against a second named graph reappearing in ArangoDB.
+
+    Connects to ArangoDB, lists all named graphs, and asserts:
+      1. Exactly one graph exists.
+      2. Its name matches os.environ.get("ARANGO_DB", "manufacturing_graph").
+
+    Skipped when ARANGO_HOST is not set so the suite stays green in offline
+    environments.
+    """
+    if not os.environ.get("ARANGO_HOST"):
+        print("SKIP: ARANGO_HOST not set — single-graph check skipped")
+        return
+
+    try:
+        from graph_sync import get_arango_client, get_arango_db
+    except Exception as e:
+        print(f"SKIP: could not import ArangoDB helpers: {e}")
+        return
+
+    try:
+        client = get_arango_client()
+        db = get_arango_db(client)
+    except Exception as e:
+        print(f"SKIP: could not connect to ArangoDB: {e}")
+        return
+
+    graphs = db.graphs()
+    assert len(graphs) == 1, (
+        f"Expected exactly 1 named graph in ArangoDB, found {len(graphs)}: "
+        f"{[g['name'] for g in graphs]}. "
+        "A second graph may have reappeared — check for hardcoded graph names."
+    )
+
+    expected_name = os.environ.get("ARANGO_DB", "manufacturing_graph")
+    actual_name = graphs[0]["name"]
+    assert actual_name == expected_name, (
+        f"Graph name mismatch: expected '{expected_name}', got '{actual_name}'. "
+        "The graph name must be read from the ARANGO_DB environment variable."
+    )
+    print(
+        f"PASS: exactly one graph in ArangoDB and its name is '{actual_name}' "
+        f"(matches ARANGO_DB env var)"
+    )
+
+
 def test_live_arango_collections_absent():
     """Post-migration smoke test: legacy collections must not exist in ArangoDB.
 
@@ -285,6 +331,7 @@ def main() -> int:
         test_grep_gate_passes,
         test_semantic_reasoning_bridge_lookup,
         test_solder_engine_perspective_property_binding,
+        test_exactly_one_graph_in_arango,
         test_live_arango_collections_absent,
         test_mcp_get_intent_perspectives_no_legacy_keys,
         test_mcp_resolve_semantic_path_no_legacy_keys,

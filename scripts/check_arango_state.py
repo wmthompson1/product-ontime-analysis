@@ -14,7 +14,8 @@ from arango import ArangoClient
 host = os.getenv('ARANGO_HOST', 'http://localhost:8529')
 user = os.getenv('ARANGO_USER', 'root')
 password = os.getenv('ARANGO_ROOT_PASSWORD', '')
-db_name = os.getenv('ARANGO_DB', 'manufacturing_semantic_layer')
+db_name = os.getenv('ARANGO_DB', 'manufacturing_graph')
+graph_name = db_name
 
 client = ArangoClient(hosts=host)
 db = client.db(db_name, username=user, password=password)
@@ -24,9 +25,9 @@ print(f'Database: {db_name}')
 print(f'Host: {host}')
 print()
 
-if db.has_graph('semantic_graph'):
-    graph = db.graph('semantic_graph')
-    print('✅ Graph: semantic_graph EXISTS')
+if db.has_graph(graph_name):
+    graph = db.graph(graph_name)
+    print(f'✅ Graph: {graph_name} EXISTS')
     print()
     
     print('Vertex Collections:')
@@ -50,4 +51,4 @@ if db.has_graph('semantic_graph'):
     
     print(f'  {"TOTAL EDGES":20s}: {total_edges:3d}')
 else:
-    print('❌ Graph: semantic_graph DOES NOT EXIST')
+    print(f'❌ Graph: {graph_name} DOES NOT EXIST')
