@@ -4550,13 +4550,28 @@ print(f"SQLite database initialized with {len(initial_tables)} tables")
 
 _dr_static = os.path.join(os.path.dirname(__file__), "static", "define-relationship")
 
+def _dr_index_html() -> str | None:
+    """Return the content of the Define Relationship SPA entry HTML.
+
+    Checks, in order:
+      1. index.html          (manually maintained / legacy)
+      2. index-define-relationship.html  (Vite build output when using named input)
+    Returns None when neither file exists.
+    """
+    for name in ("index.html", "index-define-relationship.html"):
+        path = os.path.join(_dr_static, name)
+        if os.path.isfile(path):
+            with open(path, "r") as f:
+                return f.read()
+    return None
+
+
 @app.get("/define-relationship/", response_class=HTMLResponse, include_in_schema=False)
 async def serve_define_relationship_root():
     """Serve the Define Relationship SPA index page."""
-    idx = os.path.join(_dr_static, "index.html")
-    if os.path.isfile(idx):
-        with open(idx, "r") as f:
-            return f.read()
+    html = _dr_index_html()
+    if html is not None:
+        return html
     raise HTTPException(status_code=404, detail="Define Relationship build not found")
 
 @app.get("/define-relationship/{path:path}", include_in_schema=False)
@@ -4568,10 +4583,9 @@ async def serve_define_relationship_asset(path: str):
     if os.path.isfile(file_path):
         mime, _ = mimetypes.guess_type(file_path)
         return FileResponse(file_path, media_type=mime or "application/octet-stream")
-    idx = os.path.join(_dr_static, "index.html")
-    if os.path.isfile(idx):
-        with open(idx, "r") as f:
-            return HTMLResponse(f.read())
+    html = _dr_index_html()
+    if html is not None:
+        return HTMLResponse(html)
     raise HTTPException(status_code=404, detail="Not found")
 
 gradio_app = create_gradio_interface()

@@ -1840,16 +1840,28 @@ def dr_redirect():
     from flask import redirect
     return redirect('/define-relationship/', code=302)
 
+def _dr_index_name():
+    for name in ("index.html", "index-define-relationship.html"):
+        if os.path.isfile(os.path.join(_DR_STATIC, name)):
+            return name
+    return None
+
 @app.route('/define-relationship/')
 def dr_index():
-    return send_from_directory(_DR_STATIC, 'index.html')
+    name = _dr_index_name()
+    if name:
+        return send_from_directory(_DR_STATIC, name)
+    return "Define Relationship build not found", 404
 
 @app.route('/define-relationship/<path:path>')
 def dr_asset(path):
     full = os.path.join(_DR_STATIC, path)
     if os.path.isfile(full):
         return send_from_directory(_DR_STATIC, path)
-    return send_from_directory(_DR_STATIC, 'index.html')
+    name = _dr_index_name()
+    if name:
+        return send_from_directory(_DR_STATIC, name)
+    return "Define Relationship build not found", 404
 
 @app.route('/mcp/', defaults={'path': ''})
 @app.route('/mcp/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])

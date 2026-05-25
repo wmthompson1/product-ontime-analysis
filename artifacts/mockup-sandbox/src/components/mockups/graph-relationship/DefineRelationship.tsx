@@ -134,7 +134,7 @@ const CATEGORIES = [
 
 // Ordered top-to-bottom: Categories first (top-level organizing concept), then the entities it scopes.
 const GRAPH_ENTITIES: Array<{ name: string; children?: string[] }> = [
-  { name: "Categories", children: CATEGORIES },
+  { name: "Types", children: CATEGORIES },
   { name: "Intents" },
   { name: "Concepts" },
   { name: "Bindings" },
@@ -322,7 +322,7 @@ export function DefineRelationship() {
   const [dataTypesOpen, setDataTypesOpen] = useState(true);
   const [graphEntitiesOpen, setGraphEntitiesOpen] = useState(true);
   const [expandedEntities, setExpandedEntities] = useState<Record<string, boolean>>({
-    Categories: true,
+    Types: true,
   });
   const [sourceSearch, setSourceSearch] = useState("");
   const [sourceMode, setSourceMode] = useState<MatchMode>("Contains");
