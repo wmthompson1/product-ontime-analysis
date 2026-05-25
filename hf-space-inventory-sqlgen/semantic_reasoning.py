@@ -683,9 +683,12 @@ def get_graph_syntax_examples(engine, intent_name: str, table_name: str, field_n
     """
     Return both Cypher and AQL examples for the given semantic path.
     """
+    _ref_warning = "Reference only — Perspective vertex is retired"
     return {
         "cypher": get_cypher_traversal(intent_name, table_name, field_name),
+        "cypher_warning": _ref_warning,
         "aql": get_aql_traversal(intent_name, table_name, field_name),
+        "aql_warning": _ref_warning,
         "sql_equivalent": f"""-- SQL Equivalent (current implementation)
 -- ─── Bridge-table join strategy (Perspective is NOT a graph vertex) ──────────
 -- In the bridge-row model, Perspective is a plain string property, not a node.
