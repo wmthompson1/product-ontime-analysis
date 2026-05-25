@@ -829,7 +829,7 @@ export function DefineRelationship() {
                                   : "text-slate-300 border-transparent hover:bg-slate-700/40 hover:text-slate-100"
                               }`}
                             >
-                              <span className="font-medium">▸ {rec.table_name}</span>
+                              <span className="font-medium">{rec.table_name}</span>
                               <span className="ml-1 text-[8px] text-slate-500">
                                 {rec.qualified_name}
                               </span>
@@ -1015,7 +1015,7 @@ export function DefineRelationship() {
                                   : "text-slate-300 border-transparent hover:bg-slate-700/40 hover:text-slate-100"
                               }`}
                             >
-                              <span className="font-medium">▸ {rec.table_name}</span>
+                              <span className="font-medium">{rec.table_name}</span>
                               <span className="ml-1 text-[8px] text-slate-500">
                                 {rec.qualified_name}
                               </span>
