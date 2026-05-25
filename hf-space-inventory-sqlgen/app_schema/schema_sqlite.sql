@@ -286,11 +286,36 @@ CREATE TABLE IF NOT EXISTS schema_edges (
 );
 
 CREATE TABLE IF NOT EXISTS schema_nodes (
-    table_name TEXT NOT NULL,
+    table_name TEXT NOT NULL UNIQUE,
     table_type TEXT,
     description text,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES
+('EMPLOYEE',                'Table', 'Employee master records'),
+('corrective_actions',      'Table', 'Corrective action tracking'),
+('daily_deliveries',        'Table', 'Daily delivery records'),
+('downtime_events',         'Table', 'Equipment and line downtime events'),
+('effectiveness_metrics',   'Table', 'Operational effectiveness KPIs'),
+('equipment_metrics',       'Table', 'Equipment performance metrics'),
+('equipment_reliability',   'Table', 'Equipment reliability measurements'),
+('failure_events',          'Table', 'Failure event log'),
+('financial_impact',        'Table', 'Financial impact assessments'),
+('industry_benchmarks',     'Table', 'Industry benchmark comparisons'),
+('maintenance_targets',     'Table', 'Maintenance schedule targets'),
+('manufacturing_acronyms',  'Table', 'Manufacturing acronym reference'),
+('non_conformant_materials','Table', 'Non-conformant material records'),
+('product_defects',         'Table', 'Product defect tracking'),
+('product_lines',           'Table', 'Product line definitions'),
+('production_lines',        'Table', 'Production line master'),
+('production_quality',      'Table', 'Production quality measurements'),
+('production_schedule',     'Table', 'Production scheduling records'),
+('products',                'Table', 'Product master'),
+('quality_costs',           'Table', 'Quality cost tracking'),
+('quality_incidents',       'Table', 'Quality incident reports'),
+('suppliers',               'Table', 'Supplier master'),
+('users',                   'Table', 'Application users');
 
 CREATE TABLE IF NOT EXISTS suppliers (
     supplier_id INTEGER NOT NULL,

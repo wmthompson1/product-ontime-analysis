@@ -1182,7 +1182,7 @@ async def get_db_tables():
 
 @app.get("/mcp/tools/list_schema_tables")
 async def list_schema_tables():
-    """Get all ERP tables grouped by source namespace.
+    """Get graph nodes (ERP tables) from schema_nodes, grouped by source namespace.
 
     Returns a SearchResult-compatible payload:
       {
@@ -1191,22 +1191,38 @@ async def list_schema_tables():
           "<ERP_INSTANCE_NAME>": [{"table_name": str, "qualified_name": str}, ...]
         }
       }
-    The ERP group key is read from the ERP_INSTANCE_NAME environment variable
-    (default: "ERP_Instance_1").
-    Only ERP tables are returned — graph nodes are tables only; concepts and
-    intents are not valid relationship endpoints.
+    Source of truth is schema_nodes (table_type = 'Table') — SQLite drives the
+    graph; tables are nodes. Falls back to get_all_tables() if schema_nodes is empty.
     """
-    tables = get_all_tables()
     erp_instance_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
-    erp_records = [
-        {"table_name": t, "qualified_name": f"dbo.{t.upper()}"}
-        for t in sorted(tables)
-    ]
+    erp_records: list = []
+    engine = get_db_engine()
+    if engine:
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text(
+                        "SELECT table_name FROM schema_nodes "
+                        "WHERE table_type = 'Table' ORDER BY table_name"
+                    )
+                )
+                rows = result.fetchall()
+                if rows:
+                    erp_records = [
+                        {"table_name": r[0], "qualified_name": f"dbo.{r[0].upper()}"}
+                        for r in rows
+                    ]
+        except Exception:
+            pass
+    if not erp_records:
+        erp_records = [
+            {"table_name": t, "qualified_name": f"dbo.{t.upper()}"}
+            for t in sorted(get_all_tables())
+        ]
     grouped: dict = {}
     if erp_records:
         grouped[erp_instance_name] = erp_records
-    total = len(erp_records)
-    return {"matches_found": total, "grouped_results": grouped}
+    return {"matches_found": len(erp_records), "grouped_results": grouped}
 
 
 @app.get("/mcp/tools/get_table_ddl")
