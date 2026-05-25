@@ -1,0 +1,8 @@
+CREATE TABLE [dbo].[tmpInvVal] (
+    [part_id] NVARCHAR(30) DEFAULT  NULL,
+    [qty] DECIMAL(38,8) DEFAULT  NULL,
+    [Mat] DECIMAL(38,8) DEFAULT  NULL,
+    [Lab] DECIMAL(38,8) DEFAULT  NULL,
+    [Bur] DECIMAL(38,8) DEFAULT  NULL,
+    [Svc] DECIMAL(38,8) DEFAULT  NULL
+)

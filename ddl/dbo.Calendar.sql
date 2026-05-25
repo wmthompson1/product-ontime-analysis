@@ -1,0 +1,21 @@
+CREATE TABLE [dbo].[Calendar] (
+    [CalendarDate] date DEFAULT  NOT NULL,
+    [CalendarYear] int DEFAULT  NOT NULL,
+    [CalendarMonth] int DEFAULT  NOT NULL,
+    [CalendarDay] int DEFAULT  NOT NULL,
+    [DayOfWeekName] VARCHAR(10) DEFAULT  NOT NULL,
+    [FirstDateOfWeek] date DEFAULT  NOT NULL,
+    [LastDateOfWeek] date DEFAULT  NOT NULL,
+    [FirstDateOfMonth] date DEFAULT  NOT NULL,
+    [LastDateOfMonth] date DEFAULT  NOT NULL,
+    [FirstDateOfQuarter] date DEFAULT  NOT NULL,
+    [LastDateOfQuarter] date DEFAULT  NOT NULL,
+    [FirstDateOfYear] date DEFAULT  NOT NULL,
+    [LastDateOfYear] date DEFAULT  NOT NULL,
+    [BusinessDay] bit DEFAULT  NOT NULL,
+    [NonBusinessDay] bit DEFAULT  NOT NULL,
+    [Weekend] bit DEFAULT  NOT NULL,
+    [Holiday] bit DEFAULT  NOT NULL,
+    [Weekday] bit DEFAULT  NOT NULL,
+    [CalendarDateDescription] VARCHAR(50) DEFAULT  NULL
+)

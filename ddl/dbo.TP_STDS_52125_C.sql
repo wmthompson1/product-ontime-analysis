@@ -1,0 +1,3 @@
+CREATE TABLE [dbo].[TP_STDS_52125_C] (
+    [part_id] NVARCHAR(30) DEFAULT  NULL
+)

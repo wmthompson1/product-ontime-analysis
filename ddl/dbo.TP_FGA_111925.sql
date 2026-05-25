@@ -1,0 +1,3 @@
+CREATE TABLE [dbo].[TP_FGA_111925] (
+    [part_id] NVARCHAR(30) DEFAULT  NULL
+)
