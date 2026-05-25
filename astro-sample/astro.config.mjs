@@ -7,7 +7,8 @@ export default defineConfig({
   integrations: [react(), tailwind(), mcp()],
   server: {
     host: '0.0.0.0',
-    port: 4321
+    port: 4321,
+    strictPort: true
   },
   vite: {
     server: {
