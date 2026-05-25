@@ -288,9 +288,13 @@ def watch(poll_interval: int, dry_run: bool, once: bool, logger: logging.Logger)
     try:
         with sqlite3.connect(DB_PATH) as _chk:
             if _queue_table_exists(_chk):
+                _trigger_count = _chk.execute(
+                    "SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type='trigger' AND name LIKE 'trg_arango_sync_%'"
+                ).fetchone()[0]
                 logger.info(
-                    "Startup health: sync triggers are installed — "
-                    "graph_sync_queue table is present and ready."
+                    "Sync triggers verified — graph_sync_queue present with %d trigger(s).",
+                    _trigger_count,
                 )
             else:
                 logger.warning(
