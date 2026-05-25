@@ -1055,6 +1055,20 @@ async def mcp_discover():
     )
 
 
+def _get_erp_config() -> dict:
+    """Single source of truth for ERP runtime config.
+
+    Returns a dict with:
+      - erp_instance_name: resolved ERP name (env var or default)
+      - erp_instance_name_source: "env" if ERP_INSTANCE_NAME is set, "default" otherwise
+    """
+    raw = os.environ.get("ERP_INSTANCE_NAME")
+    return {
+        "erp_instance_name": raw if raw else "ERP_Instance_1",
+        "erp_instance_name_source": "env" if raw else "default",
+    }
+
+
 @app.get("/mcp/config")
 async def get_mcp_config():
     """Return active runtime configuration so operators can verify settings without reading logs.
@@ -1065,11 +1079,9 @@ async def get_mcp_config():
       - sqlite_db_path: resolved path to the SQLite database file
       - query_api_key_set: boolean – true when QUERY_API_KEY is non-empty
     """
-    raw = os.environ.get("ERP_INSTANCE_NAME")
-    erp_instance_name = raw if raw else "ERP_Instance_1"
+    cfg = _get_erp_config()
     return {
-        "erp_instance_name": erp_instance_name,
-        "erp_instance_name_source": "env" if raw else "default",
+        **cfg,
         "sqlite_db_path": SQLITE_DB_PATH,
         "query_api_key_set": bool(QUERY_API_KEY),
     }
@@ -3032,11 +3044,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
             )
         
         with gr.Tab("📊 Schema"):
-            schema_header_md = gr.Markdown("### Database Schema Resources\n\n**ERP Source:** loading…")
+            schema_header_md = gr.Markdown("### Database Schema Resources\n\n**Active ERP:** loading…")
 
             def _load_erp_header():
-                erp_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
-                return f"### Database Schema Resources\n\n**ERP Source:** `{erp_name}`"
+                cfg = _get_erp_config()
+                erp_name = cfg["erp_instance_name"]
+                source = cfg["erp_instance_name_source"]
+                header = f"### Database Schema Resources\n\n**Active ERP:** `{erp_name}` *(source: {source})*"
+                if source == "default":
+                    header += "\n\n> ⚠️ Using the default ERP name. Set the `ERP_INSTANCE_NAME` environment variable to configure your system."
+                return header
 
             initial_table_list = get_all_tables()
             gr.Markdown(f"**{len(initial_table_list)} tables available**")
@@ -3066,22 +3083,26 @@ Check that perspective-concept and intent-concept relationships are seeded.
             get_all_ddl_btn.click(fn=get_all_ddl_gradio, outputs=ddl_output)
         
         with gr.Tab("📁 Ground Truth SQL"):
-            _gt_erp_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
             gt_erp_header_md = gr.Markdown(
-                f"### Validated SQL Query Resources\n\n"
-                f"**Source ERP:** `{_gt_erp_name}`\n\n"
-                f"Browse ground truth SQL queries organized by category.\n"
-                f"These serve as few-shot examples for Copilot context."
+                "### Validated SQL Query Resources\n\n"
+                "**Active ERP:** loading…\n\n"
+                "Browse ground truth SQL queries organized by category.\n"
+                "These serve as few-shot examples for Copilot context."
             )
 
             def _load_gt_erp_header():
-                erp_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
-                return (
+                cfg = _get_erp_config()
+                erp_name = cfg["erp_instance_name"]
+                source = cfg["erp_instance_name_source"]
+                header = (
                     f"### Validated SQL Query Resources\n\n"
-                    f"**Source ERP:** `{erp_name}`\n\n"
+                    f"**Active ERP:** `{erp_name}` *(source: {source})*\n\n"
                     f"Browse ground truth SQL queries organized by category.\n"
                     f"These serve as few-shot examples for Copilot context."
                 )
+                if source == "default":
+                    header += "\n\n> ⚠️ Using the default ERP name. Set the `ERP_INSTANCE_NAME` environment variable to configure your system."
+                return header
             
             def load_queries_for_category(category_id: str):
                 print(f"[DEBUG] load_queries_for_category called with: {repr(category_id)}")
@@ -4473,6 +4494,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             """)
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
+        demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)
     
     return demo
 
