@@ -318,7 +318,14 @@ async function undoEdge(edgeId: string): Promise<{ ok: boolean; message: string 
 
 // M8-graph-stats — Fetch total edge count from the backend graph_stats endpoint.
 // Live: GET /mcp/tools/graph_stats
-async function fetchGraphStats(): Promise<{ total_edges: number; arango_available: boolean } | null> {
+type GraphStats = {
+  total_edges: number;
+  arango_available: boolean;
+  collections: Record<string, number>;
+  sqlite_bridge_rows: number;
+};
+
+async function fetchGraphStats(): Promise<GraphStats | null> {
   try {
     const res = await fetch("/mcp/tools/graph_stats");
     if (!res.ok) return null;
@@ -414,10 +421,15 @@ export function DefineRelationship() {
 
   // Live edge-count badge — null means not yet loaded.
   const [graphEdgeCount, setGraphEdgeCount] = useState<number | null>(null);
+  const [graphStats, setGraphStats] = useState<GraphStats | null>(null);
+  const [badgeHovered, setBadgeHovered] = useState(false);
 
   const refreshGraphStats = () => {
     fetchGraphStats().then((stats) => {
-      if (stats !== null) setGraphEdgeCount(stats.total_edges);
+      if (stats !== null) {
+        setGraphEdgeCount(stats.total_edges);
+        setGraphStats(stats);
+      }
     });
   };
 
@@ -1092,16 +1104,59 @@ export function DefineRelationship() {
 
         {/* Bottom action buttons */}
         <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 flex flex-col gap-2 bg-[#1e1e2e]">
-          {/* Live edge-count badge */}
-          <div className="flex items-center gap-1.5 self-end">
+          {/* Live edge-count badge with per-collection tooltip */}
+          <div className="flex items-center gap-1.5 self-end relative">
             <span className="text-[9px] uppercase tracking-widest text-slate-500">Graph:</span>
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-              graphEdgeCount === null
-                ? "bg-slate-800 border-slate-600 text-slate-500"
-                : "bg-violet-900/50 border-violet-600/60 text-violet-300"
-            }`}>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-default ${
+                graphEdgeCount === null
+                  ? "bg-slate-800 border-slate-600 text-slate-500"
+                  : "bg-violet-900/50 border-violet-600/60 text-violet-300"
+              }`}
+              onMouseEnter={() => setBadgeHovered(true)}
+              onMouseLeave={() => setBadgeHovered(false)}
+            >
               {graphEdgeCount === null ? "…" : `${graphEdgeCount} edges`}
             </span>
+
+            {/* Popover — shown while hovering badge and stats are loaded */}
+            {badgeHovered && graphStats !== null && (
+              <div
+                className="absolute bottom-full right-0 mb-2 z-50 min-w-[200px] rounded-md border border-slate-600 bg-slate-900 shadow-xl text-[10px] text-slate-300 py-2"
+                onMouseEnter={() => setBadgeHovered(true)}
+                onMouseLeave={() => setBadgeHovered(false)}
+              >
+                {/* ArangoDB section */}
+                <p className="px-3 pb-1 text-[9px] uppercase tracking-widest text-slate-500 border-b border-slate-700/60 mb-1">
+                  {graphStats.arango_available ? "ArangoDB collections" : "ArangoDB offline — showing SQLite counts only"}
+                </p>
+                {Object.entries(graphStats.collections).map(([col, count]) => (
+                  <div key={col} className="flex items-center justify-between px-3 py-0.5">
+                    <span className={graphStats.arango_available ? "text-violet-300" : "text-slate-500 italic"}>
+                      {col}
+                    </span>
+                    <span className={`font-semibold tabular-nums ${graphStats.arango_available ? "text-slate-100" : "text-slate-600"}`}>
+                      {count}
+                    </span>
+                  </div>
+                ))}
+
+                {/* SQLite bridge rows section */}
+                <p className="px-3 pt-2 pb-1 text-[9px] uppercase tracking-widest text-slate-500 border-t border-slate-700/60 mt-1">
+                  SQLite bridge rows
+                </p>
+                <div className="flex items-center justify-between px-3 py-0.5">
+                  <span className="text-emerald-400">schema_intent_perspectives + schema_perspective_concepts</span>
+                  <span className="font-semibold tabular-nums text-slate-100 ml-3 shrink-0">{graphStats.sqlite_bridge_rows}</span>
+                </div>
+
+                {/* Total */}
+                <div className="flex items-center justify-between px-3 pt-1.5 mt-1 border-t border-slate-700/60">
+                  <span className="text-slate-400 font-semibold">Total</span>
+                  <span className="font-semibold tabular-nums text-violet-300">{graphStats.total_edges}</span>
+                </div>
+              </div>
+            )}
           </div>
           {undoConfirm && (
             <div className="text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 bg-slate-700/70 border border-slate-500/60 text-slate-300">
