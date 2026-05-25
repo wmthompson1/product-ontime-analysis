@@ -95,11 +95,29 @@ def scan() -> list[tuple[str, int, str]]:
 def scan_hardcoded_graph_name() -> list[tuple[str, int, str]]:
     """Return every line outside migrations/ that hardcodes 'semantic_graph'.
 
-    Scans only the directories most likely to contain production Python code
-    (hf-space-inventory-sqlgen/ and scripts/ at repo root) to keep runtime
-    fast on repos with many files.
+    Scans:
+      - hf-space-inventory-sqlgen/  (recursive)
+      - scripts/  at repo root (recursive)
+      - *.py files directly in the repo root (non-recursive) — #80
     """
     hits: list[tuple[str, int, str]] = []
+
+    def _scan_file(full: str) -> None:
+        rel = os.path.relpath(full, REPO_ROOT)
+        if rel in HARDCODED_GRAPH_NAME_ALLOWED_PATHS:
+            return
+        parts = rel.replace(os.sep, "/").split("/")
+        if "migrations" in parts:
+            return
+        try:
+            with open(full, "r", encoding="utf-8") as fh:
+                for lineno, line in enumerate(fh, start=1):
+                    if HARDCODED_GRAPH_NAME_PATTERN.search(line):
+                        hits.append((rel, lineno, line.rstrip()))
+        except (OSError, UnicodeDecodeError):
+            pass
+
+    # Recursive scan of HF Space directory and repo-root scripts/
     scan_roots = [
         HF_DIR,
         os.path.join(REPO_ROOT, "scripts"),
@@ -113,23 +131,17 @@ def scan_hardcoded_graph_name() -> list[tuple[str, int, str]]:
                 if d not in {"__pycache__", "node_modules", ".git"}
             ]
             for f in files:
-                if not f.endswith(SCAN_EXTS):
-                    continue
-                full = os.path.join(root, f)
-                rel = os.path.relpath(full, REPO_ROOT)
-                if rel in HARDCODED_GRAPH_NAME_ALLOWED_PATHS:
-                    continue
-                # Skip anything inside a migrations/ directory
-                parts = rel.replace(os.sep, "/").split("/")
-                if "migrations" in parts:
-                    continue
-                try:
-                    with open(full, "r", encoding="utf-8") as fh:
-                        for lineno, line in enumerate(fh, start=1):
-                            if HARDCODED_GRAPH_NAME_PATTERN.search(line):
-                                hits.append((rel, lineno, line.rstrip()))
-                except (OSError, UnicodeDecodeError):
-                    continue
+                if f.endswith(SCAN_EXTS):
+                    _scan_file(os.path.join(root, f))
+
+    # Non-recursive scan of root-level Python scripts (#80)
+    for f in os.listdir(REPO_ROOT):
+        if not f.endswith(SCAN_EXTS):
+            continue
+        full = os.path.join(REPO_ROOT, f)
+        if os.path.isfile(full):
+            _scan_file(full)
+
     return hits
 
 

@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@keyframes drFadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dr-fade-in { animation: drFadeIn 0.18s ease-out; }
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

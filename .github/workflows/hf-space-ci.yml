@@ -1,4 +1,8 @@
 name: HF Space — Full Test Suite
+# This workflow is the required status check for branch protection (#77).
+# All jobs must pass before any PR can merge into main/master.
+# Configure in GitHub: Settings → Branches → Add rule → Require status checks →
+#   "Run all HF Space tests" and "TypeScript check + Vitest"
 
 on:
   push:
@@ -25,13 +29,32 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install sqlalchemy fastapi httpx
           if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
             pip install -r hf-space-inventory-sqlgen/requirements.txt
           fi
+
+      - name: Set up Node (TypeScript check)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: artifacts/mockup-sandbox/package-lock.json
+
+      - name: Install Node dependencies
+        run: npm ci
+        working-directory: artifacts/mockup-sandbox
+
+      - name: TypeScript type-check (React component)
+        run: npm run typecheck
+        working-directory: artifacts/mockup-sandbox
+
+      - name: React unit tests (vitest)
+        run: npm test
+        working-directory: artifacts/mockup-sandbox
 
       - name: Grep gate — no retired perspective graph surfaces
         run: python hf-space-inventory-sqlgen/scripts/check_legacy_perspective_refs.py
@@ -48,7 +71,7 @@ jobs:
       - name: MCP config endpoint tests
         run: python hf-space-inventory-sqlgen/tests/test_mcp_config.py
 
-      - name: Delete commit-edge 404 tests
+      - name: Delete / commit-edge 404 tests
         run: python hf-space-inventory-sqlgen/tests/test_delete_commit_edge_404.py
 
       - name: Duplicate-edge protection tests
@@ -57,6 +80,18 @@ jobs:
       - name: Bridge collection health tests
         run: python hf-space-inventory-sqlgen/tests/test_bridge_collection_health.py
 
+      - name: Bridge health status tests
+        run: |
+          if [ -f hf-space-inventory-sqlgen/tests/test_bridge_health_status.py ]; then
+            python hf-space-inventory-sqlgen/tests/test_bridge_health_status.py
+          fi
+
+      - name: Semantic warning field tests
+        run: |
+          if [ -f hf-space-inventory-sqlgen/tests/test_semantic_warnings.py ]; then
+            python hf-space-inventory-sqlgen/tests/test_semantic_warnings.py
+          fi
+
       - name: Legacy graph-warning tests
         run: |
           if [ -f hf-space-inventory-sqlgen/tests/test_legacy_graph_warnings.py ]; then
@@ -64,10 +99,8 @@ jobs:
           fi
 
       - name: Graph syntax disclaimer tests
-        run: |
-          if [ -f hf-space-inventory-sqlgen/tests/test_graph_syntax_disclaimer.py ]; then
-            python -m pytest hf-space-inventory-sqlgen/tests/test_graph_syntax_disclaimer.py -v
-          fi
+        run: python -m pytest hf-space-inventory-sqlgen/tests/test_graph_syntax_disclaimer.py -v
+        if: hashFiles('hf-space-inventory-sqlgen/tests/test_graph_syntax_disclaimer.py') != ''
 
       - name: Write step summary
         if: always()
@@ -75,10 +108,26 @@ jobs:
           echo "## HF Space CI Results" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Commit: \`${{ github.sha }}\`  Branch: \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Test steps" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Step | Coverage |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|----------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| TypeScript type-check | React component types |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| React unit tests | vitest suite |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Grep gate | retired perspective graph surfaces |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Perspective deprecation | graph constants, bridge lookups, legacy absence |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Resolution messages | bridge-row explanation strings |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Sync trigger tests | SQLite trigger install/verify/remove, queue firing |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| MCP config endpoint | ERP name + API key reflection |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Delete/commit-edge 404 | double-undo, missing edge 404 paths |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Duplicate-edge protection | AQL UPSERT idempotency for all 5 predicates |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Bridge collection health | ArangoDB ↔ SQLite count parity |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Bridge health status | status string format, skip paths |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Semantic warning fields | cypher_warning / aql_warning always present |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Graph syntax disclaimer | disclaimer wording, both functions |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "${{ job.status }}" = "success" ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "> **All tests passed.**" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "> **One or more tests failed** — check the step logs above." >> "$GITHUB_STEP_SUMMARY"
           fi

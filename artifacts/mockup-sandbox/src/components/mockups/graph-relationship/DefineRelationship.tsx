@@ -15,6 +15,7 @@ import { getFirstEntityDisplay } from "./entityDisplay";
 import type { EntityRecord, GroupedResults, SearchResult } from "./entityDisplay";
 import { undoEdge, fetchGraphStats } from "./graphApi";
 import type { GraphStats } from "./graphApi";
+import { MOCK_SEARCH_DATA } from "./fixtures";
 
 // Pill bar now scopes the workspace by Perspective/Category (was: edge predicate filter).
 // Picking a Category here means "I'm building relationships within this domain scope" — and the
@@ -50,32 +51,11 @@ const EDGE_MEANINGS: Record<string, string> = {
 
 // SOURCE_ENTITIES static list retired — selectedSource now derives from MOCK_SEARCH_DATA
 // so the initial highlight always matches the live grouped-results list.
+// MOCK_SEARCH_DATA is defined in ./fixtures — import above.
 
 type MatchMode = "Contains" | "Starts with" | "Wildcard" | "Regex";
 
 const MATCH_MODES: MatchMode[] = ["Contains", "Starts with", "Wildcard", "Regex"];
-
-const MOCK_SEARCH_DATA: SearchResult = {
-  matches_found: 12,
-  grouped_results: {
-    ERP_Instance_1: [
-      { table_name: "production_orders", qualified_name: "dbo.PRODUCTION_ORDERS" },
-      { table_name: "work_orders", qualified_name: "dbo.WORK_ORDERS" },
-      { table_name: "order_lines", qualified_name: "dbo.ORDER_LINES" },
-      { table_name: "quality_events", qualified_name: "dbo.QUALITY_EVENTS" },
-      { table_name: "equipment_metrics", qualified_name: "dbo.EQUIPMENT_METRICS" },
-      { table_name: "downtime_events", qualified_name: "dbo.DOWNTIME_EVENTS" },
-      { table_name: "suppliers", qualified_name: "dbo.SUPPLIERS" },
-      { table_name: "production_lines", qualified_name: "dbo.PRODUCTION_LINES" },
-    ],
-    semantic_layer: [
-      { table_name: "orders_concept", qualified_name: "concepts/orders_concept" },
-      { table_name: "quality_intent", qualified_name: "intents/quality_intent" },
-      { table_name: "downtime_perspective", qualified_name: "perspectives/downtime_perspective" },
-      { table_name: "suppliers_binding", qualified_name: "bindings/suppliers_binding" },
-    ],
-  },
-};
 
 function searchEntities(
   query: string,
@@ -360,9 +340,11 @@ export function DefineRelationship() {
   const [isCommitting, setIsCommitting] = useState(false);
 
   // Multi-entry undo history — last MAX_HISTORY successful additions shown as a list.
-  // Each entry has its own Undo button and is removed once undone or after HISTORY_TTL_MS.
-  const HISTORY_TTL_MS = 30_000; // 30 s — adjust as needed
+  // Each entry has its own Undo button and is removed once undone or after historyTtlMs.
+  const DEFAULT_HISTORY_TTL_MS = 30_000;
+  const [historyTtlMs, setHistoryTtlMs] = useState(DEFAULT_HISTORY_TTL_MS); // adjustable from UI (#94)
   const MAX_HISTORY = 5;
+  const HISTORY_SESSION_KEY = "dr_recent_additions_v1";
   type HistoryEntry = {
     id: string;
     ok: boolean;
@@ -373,7 +355,18 @@ export function DefineRelationship() {
     target: string;
     addedAt: number;
   };
-  const [recentAdditions, setRecentAdditions] = useState<HistoryEntry[]>([]);
+  // Restore history from sessionStorage on mount, dropping entries older than DEFAULT_HISTORY_TTL_MS.
+  const [recentAdditions, setRecentAdditions] = useState<HistoryEntry[]>(() => {
+    try {
+      const raw = sessionStorage.getItem(HISTORY_SESSION_KEY);
+      if (raw) {
+        const parsed: HistoryEntry[] = JSON.parse(raw);
+        const now = Date.now();
+        return parsed.filter((e) => now - e.addedAt < DEFAULT_HISTORY_TTL_MS);
+      }
+    } catch {}
+    return [];
+  });
   const [undoingEdgeId, setUndoingEdgeId] = useState<string | null>(null);
   const historyTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -396,15 +389,44 @@ export function DefineRelationship() {
   const [graphEdgeCount, setGraphEdgeCount] = useState<number | null>(null);
   const [graphStats, setGraphStats] = useState<GraphStats | null>(null);
   const [badgeHovered, setBadgeHovered] = useState(false);
+  const [edgeDelta, setEdgeDelta] = useState<number | null>(null); // shows +/- since last change (#97)
+  const prevEdgeCountRef = useRef<number | null>(null);
 
   const refreshGraphStats = () => {
     fetchGraphStats().then((stats) => {
       if (stats !== null) {
-        setGraphEdgeCount(stats.total_edges);
+        const prev = prevEdgeCountRef.current;
+        const next = stats.total_edges;
+        if (prev !== null && prev !== next) {
+          setEdgeDelta(next - prev);
+          // Clear the delta indicator after 4 s
+          setTimeout(() => setEdgeDelta(null), 4000);
+        }
+        prevEdgeCountRef.current = next;
+        setGraphEdgeCount(next);
         setGraphStats(stats);
       }
     });
   };
+
+  // Persist history to sessionStorage whenever it changes (#92).
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(HISTORY_SESSION_KEY, JSON.stringify(recentAdditions));
+    } catch {}
+  }, [recentAdditions]);
+
+  // Pre-fill source/target from URL parameters on mount (#102).
+  // Example: ?source=production_orders&target=work_orders
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const s = params.get("source");
+      const t = params.get("target");
+      if (s) setSelectedSource(s);
+      if (t) setSelectedTarget(t);
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setIsLoadingEntities(true);
@@ -1081,15 +1103,22 @@ export function DefineRelationship() {
           <div className="flex items-center gap-1.5 self-end relative">
             <span className="text-[9px] uppercase tracking-widest text-slate-500">Graph:</span>
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-default ${
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border cursor-default transition-colors ${
                 graphEdgeCount === null
-                  ? "bg-slate-800 border-slate-600 text-slate-500"
+                  ? "bg-slate-800 border-slate-600 text-slate-500 animate-pulse"
                   : "bg-violet-900/50 border-violet-600/60 text-violet-300"
               }`}
               onMouseEnter={() => setBadgeHovered(true)}
               onMouseLeave={() => setBadgeHovered(false)}
             >
-              {graphEdgeCount === null ? "…" : `${graphEdgeCount} edges`}
+              {graphEdgeCount === null
+                ? "Loading…"
+                : `${graphEdgeCount} edges`}
+              {edgeDelta !== null && (
+                <span className={`text-[9px] font-bold ${edgeDelta > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {edgeDelta > 0 ? `+${edgeDelta}` : `${edgeDelta}`}
+                </span>
+              )}
             </span>
 
             {/* Popover — shown while hovering badge and stats are loaded */}
@@ -1132,19 +1161,46 @@ export function DefineRelationship() {
             )}
           </div>
           {undoConfirm && (
-            <div className="text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 bg-slate-700/70 border border-slate-500/60 text-slate-300">
+            <div className="text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 bg-slate-700/70 border border-slate-500/60 text-slate-300 dr-fade-in">
               <span>↩</span>
               <span className="flex-1">
                 Removed: <span className="text-slate-100 font-semibold">{undoConfirm.predicate}</span> edge (
                 <span className="text-slate-100">{undoConfirm.source}</span> → <span className="text-slate-100">{undoConfirm.target}</span>)
               </span>
+              <button
+                className="ml-1 shrink-0 text-slate-500 hover:text-slate-200 cursor-pointer bg-transparent border-0 p-0"
+                title="Dismiss"
+                onClick={() => {
+                  if (undoConfirmTimerRef.current) clearTimeout(undoConfirmTimerRef.current);
+                  setUndoConfirm(null);
+                }}
+              >
+                <X size={10} />
+              </button>
             </div>
           )}
           {recentAdditions.length > 0 && (
             <div className="flex flex-col gap-1">
-              <p className="text-[9px] uppercase tracking-widest text-slate-500 px-0.5">
-                Recent additions ({recentAdditions.length}/{MAX_HISTORY})
-              </p>
+              <div className="flex items-center justify-between px-0.5">
+                <p className="text-[9px] uppercase tracking-widest text-slate-500">
+                  Recent additions ({recentAdditions.length}/{MAX_HISTORY})
+                </p>
+                {/* TTL slider — adjusts how long entries stay visible (#94) */}
+                <label className="flex items-center gap-1.5 text-[9px] text-slate-600 cursor-pointer select-none">
+                  <span>Keep</span>
+                  <input
+                    type="range"
+                    min={5}
+                    max={120}
+                    step={5}
+                    value={historyTtlMs / 1000}
+                    onChange={(e) => setHistoryTtlMs(parseInt(e.target.value) * 1000)}
+                    className="w-16 accent-violet-500"
+                    title={`History visible for ${historyTtlMs / 1000}s`}
+                  />
+                  <span className="min-w-[26px]">{historyTtlMs / 1000}s</span>
+                </label>
+              </div>
               {recentAdditions.map((entry) => (
                 <div
                   key={entry.id}
@@ -1255,7 +1311,7 @@ export function DefineRelationship() {
                 if (result.ok) {
                   refreshGraphStats();
                   if (result.edge_id) {
-                    scheduleExpiry(entryId, HISTORY_TTL_MS);
+                    scheduleExpiry(entryId, historyTtlMs);
                   } else {
                     scheduleExpiry(entryId, 4000);
                   }

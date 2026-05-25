@@ -150,3 +150,72 @@ PYEOF
             -X POST -H "Content-Type: application/json" \
             -d "${PAYLOAD}" \
             "${{ secrets.GRAPH_SYNC_ALERT_WEBHOOK }}"
+
+      - name: Send email alert
+        if: >-
+          ${{ env.ARANGO_HOST != '' && failure() &&
+              secrets.ALERT_EMAIL_TO != '' &&
+              secrets.ALERT_SMTP_HOST != '' }}
+        env:
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_SMTP_HOST: ${{ secrets.ALERT_SMTP_HOST }}
+          ALERT_SMTP_PORT: ${{ secrets.ALERT_SMTP_PORT }}
+          ALERT_SMTP_USER: ${{ secrets.ALERT_SMTP_USER }}
+          ALERT_SMTP_PASSWORD: ${{ secrets.ALERT_SMTP_PASSWORD }}
+        run: |
+          python3 - <<'PYEOF'
+import datetime, os, smtplib
+from email.mime.text import MIMEText
+
+ts       = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+run_url  = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+branch   = "${{ github.ref_name }}"
+drift_file = "${{ github.workspace }}/drift_report.txt"
+drift    = open(drift_file).read().strip() if os.path.exists(drift_file) else "(no structured drift report)"
+
+to_addr   = os.environ.get("ALERT_EMAIL_TO", "")
+from_addr = os.environ.get("ALERT_EMAIL_FROM") or "noreply@github-actions"
+smtp_host = os.environ.get("ALERT_SMTP_HOST", "")
+smtp_port = int(os.environ.get("ALERT_SMTP_PORT", "587"))
+smtp_user = os.environ.get("ALERT_SMTP_USER", "")
+smtp_pass = os.environ.get("ALERT_SMTP_PASSWORD", "")
+
+if not (to_addr and smtp_host):
+    print("Email alert skipped: ALERT_EMAIL_TO or ALERT_SMTP_HOST not set.")
+    raise SystemExit(0)
+
+subject = f"[ALERT] ArangoDB \u2194 SQLite Drift Detected — {branch} @ {ts}"
+body = f"""\
+ArangoDB \u2194 SQLite Drift Detected
+======================================
+
+Time (UTC): {ts}
+Branch:     {branch}
+Run:        {run_url}
+
+Drift Details
+-------------
+{drift}
+
+Action Required
+---------------
+Re-run graph_sync.py to bring ArangoDB back in sync with SQLite.
+"""
+
+msg = MIMEText(body)
+msg["Subject"] = subject
+msg["From"]    = from_addr
+msg["To"]      = to_addr
+
+try:
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as s:
+        s.ehlo()
+        s.starttls()
+        if smtp_user:
+            s.login(smtp_user, smtp_pass)
+        s.sendmail(from_addr, [to_addr], msg.as_string())
+    print(f"Email alert sent to {to_addr}")
+except Exception as exc:
+    print(f"Email alert failed (non-fatal): {exc}")
+PYEOF

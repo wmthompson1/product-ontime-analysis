@@ -283,6 +283,23 @@ def watch(poll_interval: int, dry_run: bool, once: bool, logger: logging.Logger)
         once,
     )
 
+    # Startup trigger health check — log clearly so operators can confirm
+    # the system is healthy without waiting for the first poll cycle (#63).
+    try:
+        with sqlite3.connect(DB_PATH) as _chk:
+            if _queue_table_exists(_chk):
+                logger.info(
+                    "Startup health: sync triggers are installed — "
+                    "graph_sync_queue table is present and ready."
+                )
+            else:
+                logger.warning(
+                    "Startup health: graph_sync_queue table NOT found — "
+                    "triggers will be auto-installed on the first poll cycle."
+                )
+    except Exception as _chk_exc:
+        logger.warning("Could not verify trigger health at startup: %s", _chk_exc)
+
     def _shutdown(signum, frame):
         logger.info("Received signal %s, shutting down.", signum)
         sys.exit(0 if not had_failure else 1)

@@ -3002,6 +3002,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
         
         with gr.Tab("🚀 Copilot Context"):
             gr.Markdown("### Build MCP Context Package")
+            _cfg_cc = _get_erp_config()
+            _cc_source_note = (
+                "\n\n> ⚠️ Using the default ERP name. Set `ERP_INSTANCE_NAME` to configure your system."
+                if _cfg_cc["erp_instance_name_source"] == "default" else ""
+            )
+            copilot_erp_md = gr.Markdown(
+                f"**Active ERP:** `{_cfg_cc['erp_instance_name']}` "
+                f"*(source: {_cfg_cc['erp_instance_name_source']})*{_cc_source_note}"
+            )
             
             with gr.Row():
                 with gr.Column():
@@ -3107,12 +3116,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 source = cfg["erp_instance_name_source"]
                 header = (
                     f"### Validated SQL Query Resources\n\n"
-                    f"**Active ERP:** `{erp_name}` *(source: {source})*\n\n"
+                    f"**Active ERP:** `{erp_name}` *(source: {source})* — "
+                    f"queries below are scoped to and validated for this ERP instance.\n\n"
                     f"Browse ground truth SQL queries organized by category.\n"
                     f"These serve as few-shot examples for Copilot context."
                 )
                 if source == "default":
-                    header += "\n\n> ⚠️ Using the default ERP name. Set the `ERP_INSTANCE_NAME` environment variable to configure your system."
+                    header += (
+                        "\n\n> ⚠️ Using the default ERP name. "
+                        "Set the `ERP_INSTANCE_NAME` environment variable to configure your system."
+                    )
                 return header
             
             def load_queries_for_category(category_id: str):
@@ -3599,6 +3612,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     output += "|--------|------------|----------------|------------------|\n"
                     for s in scores[:5]:
                         output += f"| {s.intent_name} | {s.confidence:.1%} | {len(s.matched_fields)} | {', '.join(s.matched_concepts)} |\n"
+
+                    top = scores[0]
+                    output += f"\n**Resolution explanation** (top intent):\n\n> {top.explanation}"
                     
                     return output
                 
@@ -3874,6 +3890,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
             
             The LLM acts as a **Semantic Router**, not a SQL generator. All SQL is governed.
             """)
+            _cfg_aaq = _get_erp_config()
+            _aaq_source_note = (
+                "\n\n> ⚠️ Using the default ERP name. Set `ERP_INSTANCE_NAME` to configure your system."
+                if _cfg_aaq["erp_instance_name_source"] == "default" else ""
+            )
+            aaq_erp_md = gr.Markdown(
+                f"**Active ERP:** `{_cfg_aaq['erp_instance_name']}` "
+                f"*(source: {_cfg_aaq['erp_instance_name_source']})*{_aaq_source_note}"
+            )
             
             dispatcher = ProductionDispatcher(solder_engine=solder, use_live_api=True)
             
@@ -4251,6 +4276,53 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 except Exception as e:
                     return f"ERROR: {e}", str(e)
             
+            sync_bridge_health = gr.Textbox(
+                label="Bridge Health (auto-checked after sync)",
+                interactive=False,
+                value="— run Sync to ArangoDB to check",
+            )
+
+            def _quick_bridge_health() -> str:
+                """One-line bridge health status shown below the sync report (#66)."""
+                import sqlite3 as _sq
+                import datetime as _dt
+                _bmap = {
+                    "Perspective_Intents": "schema_intent_perspectives",
+                    "Perspective_Concepts": "schema_perspective_concepts",
+                }
+                if not os.path.exists(SQLITE_DB_PATH):
+                    return "SKIP — SQLite DB not found"
+                if not os.environ.get("ARANGO_HOST"):
+                    try:
+                        conn = _sq.connect(SQLITE_DB_PATH)
+                        parts = []
+                        for _tbl in _bmap.values():
+                            n = conn.execute(f"SELECT COUNT(*) FROM {_tbl}").fetchone()[0]
+                            parts.append(f"{_tbl}: {n}")
+                        conn.close()
+                        ts = _dt.datetime.now().strftime("%H:%M:%S")
+                        return f"ArangoDB not configured — SQLite counts @ {ts}: " + ", ".join(parts)
+                    except Exception as exc:
+                        return f"SKIP — {exc}"
+                try:
+                    from graph_sync import get_arango_client, get_arango_db
+                    cl = get_arango_client()
+                    db = get_arango_db(cl)
+                    conn = _sq.connect(SQLITE_DB_PATH)
+                    mismatches = []
+                    for ac, st in _bmap.items():
+                        an = db.collection(ac).count() if db.has_collection(ac) else -1
+                        sn = conn.execute(f"SELECT COUNT(*) FROM {st}").fetchone()[0]
+                        if an != sn:
+                            mismatches.append(f"{ac}: Arango={an} SQLite={sn}")
+                    conn.close()
+                    ts = _dt.datetime.now().strftime("%H:%M:%S")
+                    if mismatches:
+                        return "❌ MISMATCH @ " + ts + ": " + "; ".join(mismatches)
+                    return "✅ IN SYNC @ " + ts
+                except Exception as exc:
+                    return f"⚠️ ERROR — {exc}"
+
             sync_dry_run_btn.click(
                 fn=lambda: run_graph_sync(dry_run=True),
                 outputs=[sync_status, sync_report_output]
@@ -4258,6 +4330,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
             sync_live_btn.click(
                 fn=lambda: run_graph_sync(dry_run=False),
                 outputs=[sync_status, sync_report_output]
+            ).then(
+                fn=_quick_bridge_health,
+                outputs=sync_bridge_health,
             )
 
         with gr.Tab("🩺 Bridge Health"):
@@ -4506,6 +4581,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
         demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)
+        demo.load(fn=_load_gt_erp_header, outputs=copilot_erp_md)
+        demo.load(fn=_load_gt_erp_header, outputs=aaq_erp_md)
     
     return demo
 

@@ -679,16 +679,22 @@ FOR v, e IN OUTBOUND SHORTEST_PATH
 """
 
 
+# Shared warning text for both Cypher and AQL graph syntax examples.
+# Pinned here so tests can import and pin against it without duplicating the string (#87).
+PERSPECTIVE_VERTEX_RETIRED_WARNING: str = (
+    "Reference only — Perspective vertex is retired"
+)
+
+
 def get_graph_syntax_examples(engine, intent_name: str, table_name: str, field_name: str) -> Dict[str, str]:
     """
     Return both Cypher and AQL examples for the given semantic path.
     """
-    _ref_warning = "Reference only — Perspective vertex is retired"
     return {
         "cypher": get_cypher_traversal(intent_name, table_name, field_name),
-        "cypher_warning": _ref_warning,
+        "cypher_warning": PERSPECTIVE_VERTEX_RETIRED_WARNING,
         "aql": get_aql_traversal(intent_name, table_name, field_name),
-        "aql_warning": _ref_warning,
+        "aql_warning": PERSPECTIVE_VERTEX_RETIRED_WARNING,
         "sql_equivalent": f"""-- SQL Equivalent (current implementation)
 -- ─── Bridge-table join strategy (Perspective is NOT a graph vertex) ──────────
 -- In the bridge-row model, Perspective is a plain string property, not a node.
