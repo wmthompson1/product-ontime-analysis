@@ -4548,12 +4548,34 @@ get_db_engine()
 initial_tables = get_all_tables()
 print(f"SQLite database initialized with {len(initial_tables)} tables")
 
+_dr_static = os.path.join(os.path.dirname(__file__), "static", "define-relationship")
+
+@app.get("/define-relationship/", response_class=HTMLResponse, include_in_schema=False)
+async def serve_define_relationship_root():
+    """Serve the Define Relationship SPA index page."""
+    idx = os.path.join(_dr_static, "index.html")
+    if os.path.isfile(idx):
+        with open(idx, "r") as f:
+            return f.read()
+    raise HTTPException(status_code=404, detail="Define Relationship build not found")
+
+@app.get("/define-relationship/{path:path}", include_in_schema=False)
+async def serve_define_relationship_asset(path: str):
+    """Serve static assets for the Define Relationship SPA."""
+    from fastapi.responses import FileResponse
+    import mimetypes
+    file_path = os.path.join(_dr_static, path)
+    if os.path.isfile(file_path):
+        mime, _ = mimetypes.guess_type(file_path)
+        return FileResponse(file_path, media_type=mime or "application/octet-stream")
+    idx = os.path.join(_dr_static, "index.html")
+    if os.path.isfile(idx):
+        with open(idx, "r") as f:
+            return HTMLResponse(f.read())
+    raise HTTPException(status_code=404, detail="Not found")
+
 gradio_app = create_gradio_interface()
 app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
-
-_dr_static = os.path.join(os.path.dirname(__file__), "static", "define-relationship")
-if os.path.isdir(_dr_static):
-    app.mount("/define-relationship", StaticFiles(directory=_dr_static, html=True), name="define-relationship")
 
 
 if __name__ == "__main__":
