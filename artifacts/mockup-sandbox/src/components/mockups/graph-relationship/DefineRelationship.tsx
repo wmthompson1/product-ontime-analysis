@@ -378,8 +378,35 @@ export function DefineRelationship() {
 
   // Commit-edge feedback state.
   const [isCommitting, setIsCommitting] = useState(false);
-  const [isUndoing, setIsUndoing] = useState(false);
-  const [commitResult, setCommitResult] = useState<{ ok: boolean; message: string; edge_id?: string } | null>(null);
+
+  // Multi-entry undo history — last MAX_HISTORY successful additions shown as a list.
+  // Each entry has its own Undo button and is removed once undone or after HISTORY_TTL_MS.
+  const HISTORY_TTL_MS = 30_000; // 30 s — adjust as needed
+  const MAX_HISTORY = 5;
+  type HistoryEntry = {
+    id: string;
+    ok: boolean;
+    message: string;
+    edge_id?: string;
+    predicate: string;
+    source: string;
+    target: string;
+    addedAt: number;
+  };
+  const [recentAdditions, setRecentAdditions] = useState<HistoryEntry[]>([]);
+  const [undoingEdgeId, setUndoingEdgeId] = useState<string | null>(null);
+  const historyTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const removeHistoryEntry = (id: string) => {
+    setRecentAdditions((prev) => prev.filter((e) => e.id !== id));
+    const t = historyTimersRef.current.get(id);
+    if (t) { clearTimeout(t); historyTimersRef.current.delete(id); }
+  };
+
+  const scheduleExpiry = (id: string, delay: number) => {
+    const t = setTimeout(() => removeHistoryEntry(id), delay);
+    historyTimersRef.current.set(id, t);
+  };
 
   // Transient undo confirmation — shown for 3 s then auto-cleared.
   const [undoConfirm, setUndoConfirm] = useState<{ predicate: string; source: string; target: string } | null>(null);
@@ -1085,46 +1112,86 @@ export function DefineRelationship() {
               </span>
             </div>
           )}
-          {commitResult && (
-            <div
-              className={`text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 ${
-                commitResult.ok
-                  ? "bg-emerald-900/60 border border-emerald-600/50 text-emerald-300"
-                  : "bg-rose-900/60 border border-rose-600/50 text-rose-300"
-              }`}
-            >
-              <span>{commitResult.ok ? "✓" : "✗"}</span>
-              <span className="flex-1">{commitResult.message}</span>
-              {commitResult.ok && commitResult.edge_id && (
-                <button
-                  className="ml-auto shrink-0 underline text-emerald-400 hover:text-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent border-0 p-0 text-[10px] font-semibold"
-                  disabled={isUndoing}
-                  onClick={async () => {
-                    setIsUndoing(true);
-                    const snapshotPredicate = selectedPredicate;
-                    const snapshotSource = selectedSource;
-                    const snapshotTarget = selectedTarget;
-                    try {
-                      const result = await undoEdge(commitResult.edge_id!);
-                      if (result.ok) {
-                        setCommitResult(null);
-                        if (undoConfirmTimerRef.current) clearTimeout(undoConfirmTimerRef.current);
-                        setUndoConfirm({ predicate: snapshotPredicate, source: snapshotSource, target: snapshotTarget });
-                        undoConfirmTimerRef.current = setTimeout(() => setUndoConfirm(null), 3000);
-                      } else {
-                        setCommitResult({ ok: false, message: `Undo failed: ${result.message}` });
-                      }
-                    } catch (err: unknown) {
-                      const msg = err instanceof Error ? err.message : String(err);
-                      setCommitResult({ ok: false, message: `Undo failed: ${msg}` });
-                    } finally {
-                      setIsUndoing(false);
-                    }
-                  }}
+          {recentAdditions.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <p className="text-[9px] uppercase tracking-widest text-slate-500 px-0.5">
+                Recent additions ({recentAdditions.length}/{MAX_HISTORY})
+              </p>
+              {recentAdditions.map((entry) => (
+                <div
+                  key={entry.id}
+                  className={`text-[10px] font-medium px-3 py-1.5 rounded flex items-center gap-2 ${
+                    entry.ok
+                      ? "bg-emerald-900/60 border border-emerald-600/50 text-emerald-300"
+                      : "bg-rose-900/60 border border-rose-600/50 text-rose-300"
+                  }`}
                 >
-                  {isUndoing ? "Undoing…" : "Undo"}
-                </button>
-              )}
+                  <span>{entry.ok ? "✓" : "✗"}</span>
+                  <span className="flex-1 min-w-0 truncate">
+                    {entry.ok
+                      ? <>
+                          <span className="font-semibold text-emerald-200">{entry.predicate}</span>
+                          {" "}
+                          <span className="text-slate-300">{entry.source.split(" ")[0]}</span>
+                          <span className="text-slate-500 mx-1">→</span>
+                          <span className="text-slate-300">{entry.target.split(" ")[0]}</span>
+                        </>
+                      : entry.message
+                    }
+                  </span>
+                  {entry.ok && entry.edge_id && (
+                    <button
+                      className="ml-auto shrink-0 underline text-emerald-400 hover:text-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-transparent border-0 p-0 text-[10px] font-semibold"
+                      disabled={undoingEdgeId !== null}
+                      onClick={async () => {
+                        setUndoingEdgeId(entry.id);
+                        try {
+                          const result = await undoEdge(entry.edge_id!);
+                          if (result.ok) {
+                            removeHistoryEntry(entry.id);
+                            refreshGraphStats();
+                            if (undoConfirmTimerRef.current) clearTimeout(undoConfirmTimerRef.current);
+                            setUndoConfirm({ predicate: entry.predicate, source: entry.source, target: entry.target });
+                            undoConfirmTimerRef.current = setTimeout(() => setUndoConfirm(null), 3000);
+                          } else {
+                            setRecentAdditions((prev) =>
+                              prev.map((e) =>
+                                e.id === entry.id
+                                  ? { ...e, ok: false, message: `Undo failed: ${result.message}`, edge_id: undefined }
+                                  : e
+                              )
+                            );
+                            scheduleExpiry(entry.id, 5000);
+                          }
+                        } catch (err: unknown) {
+                          const msg = err instanceof Error ? err.message : String(err);
+                          setRecentAdditions((prev) =>
+                            prev.map((e) =>
+                              e.id === entry.id
+                                ? { ...e, ok: false, message: `Undo failed: ${msg}`, edge_id: undefined }
+                                : e
+                            )
+                          );
+                          scheduleExpiry(entry.id, 5000);
+                        } finally {
+                          setUndoingEdgeId(null);
+                        }
+                      }}
+                    >
+                      {undoingEdgeId === entry.id ? "Undoing…" : "Undo"}
+                    </button>
+                  )}
+                  {(!entry.edge_id) && (
+                    <button
+                      className="ml-auto shrink-0 text-slate-500 hover:text-slate-300 cursor-pointer bg-transparent border-0 p-0"
+                      onClick={() => removeHistoryEntry(entry.id)}
+                      title="Dismiss"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           )}
           <div className="flex items-center gap-3">
@@ -1133,26 +1200,54 @@ export function DefineRelationship() {
             disabled={isCommitting}
             onClick={async () => {
               setIsCommitting(true);
-              setCommitResult(null);
+              const snapshotPredicate = selectedPredicate;
+              const snapshotSource = selectedSource;
+              const snapshotTarget = selectedTarget;
               try {
                 const result = await commitEdge(
-                  selectedPredicate,
-                  selectedSource,
-                  selectedTarget,
+                  snapshotPredicate,
+                  snapshotSource,
+                  snapshotTarget,
                   selectedIntent,
                   activeCategory,
                   selectedConcept,
                 );
-                setCommitResult(result);
+                const entryId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                const entry: HistoryEntry = {
+                  id: entryId,
+                  ok: result.ok,
+                  message: result.message,
+                  edge_id: result.edge_id,
+                  predicate: snapshotPredicate,
+                  source: snapshotSource,
+                  target: snapshotTarget,
+                  addedAt: Date.now(),
+                };
+                setRecentAdditions((prev) => [entry, ...prev].slice(0, MAX_HISTORY));
                 if (result.ok) {
                   refreshGraphStats();
-                  if (!result.edge_id) {
-                    setTimeout(() => setCommitResult(null), 4000);
+                  if (result.edge_id) {
+                    scheduleExpiry(entryId, HISTORY_TTL_MS);
+                  } else {
+                    scheduleExpiry(entryId, 4000);
                   }
+                } else {
+                  scheduleExpiry(entryId, 6000);
                 }
               } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : String(err);
-                setCommitResult({ ok: false, message: msg });
+                const entryId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                const entry: HistoryEntry = {
+                  id: entryId,
+                  ok: false,
+                  message: msg,
+                  predicate: snapshotPredicate,
+                  source: snapshotSource,
+                  target: snapshotTarget,
+                  addedAt: Date.now(),
+                };
+                setRecentAdditions((prev) => [entry, ...prev].slice(0, MAX_HISTORY));
+                scheduleExpiry(entryId, 6000);
               } finally {
                 setIsCommitting(false);
               }
