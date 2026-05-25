@@ -2648,6 +2648,66 @@ async def api_arango_sync(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# Bridge health helper — module-level so tests can import it directly (#120)
+# ---------------------------------------------------------------------------
+_SYNC_LAST_STATUS: list[str] = ["Ready — click Dry Run or Sync"]
+
+_BRIDGE_HEALTH_MAP = {
+    "Perspective_Intents": "schema_intent_perspectives",
+    "Perspective_Concepts": "schema_perspective_concepts",
+}
+
+
+def quick_bridge_health() -> str:
+    """Return a one-line bridge health status string.
+
+    Used by the Graph Sync tab (.then() chain) and importable by tests.
+    Compares ArangoDB bridge-collection counts against SQLite source tables.
+
+    Returns one of:
+      "✅ IN SYNC @ HH:MM:SS"
+      "❌ MISMATCH @ HH:MM:SS: <details>"
+      "⚠️ ERROR — <msg>"
+      "SKIP — <reason>"
+    """
+    import sqlite3 as _sq
+    import datetime as _dt
+
+    if not os.path.exists(SQLITE_DB_PATH):
+        return "SKIP — SQLite DB not found"
+    if not os.environ.get("ARANGO_HOST"):
+        try:
+            conn = _sq.connect(SQLITE_DB_PATH)
+            parts = []
+            for _tbl in _BRIDGE_HEALTH_MAP.values():
+                n = conn.execute(f"SELECT COUNT(*) FROM {_tbl}").fetchone()[0]
+                parts.append(f"{_tbl}: {n}")
+            conn.close()
+            ts = _dt.datetime.now().strftime("%H:%M:%S")
+            return f"ArangoDB not configured — SQLite counts @ {ts}: " + ", ".join(parts)
+        except Exception as exc:
+            return f"SKIP — {exc}"
+    try:
+        from graph_sync import get_arango_client, get_arango_db
+        cl = get_arango_client()
+        db = get_arango_db(cl)
+        conn = _sq.connect(SQLITE_DB_PATH)
+        mismatches = []
+        for ac, st in _BRIDGE_HEALTH_MAP.items():
+            an = db.collection(ac).count() if db.has_collection(ac) else -1
+            sn = conn.execute(f"SELECT COUNT(*) FROM {st}").fetchone()[0]
+            if an != sn:
+                mismatches.append(f"{ac}: Arango={an} SQLite={sn}")
+        conn.close()
+        ts = _dt.datetime.now().strftime("%H:%M:%S")
+        if mismatches:
+            return "❌ MISMATCH @ " + ts + ": " + "; ".join(mismatches)
+        return "✅ IN SYNC @ " + ts
+    except Exception as exc:
+        return f"⚠️ ERROR — {exc}"
+
+
 def create_gradio_interface():
     """Create the Gradio interface for the Space"""
     
@@ -4272,56 +4332,17 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         status = f"SUCCESS — {report.total_vertices} vertices, {report.total_edges} edges synced to ArangoDB"
                     else:
                         status = f"FAILED — see errors in report below"
+                    _SYNC_LAST_STATUS[0] = status
                     return status, report.summary()
                 except Exception as e:
-                    return f"ERROR: {e}", str(e)
-            
-            sync_bridge_health = gr.Textbox(
-                label="Bridge Health (auto-checked after sync)",
-                interactive=False,
-                value="— run Sync to ArangoDB to check",
-            )
+                    err = f"ERROR: {e}"
+                    _SYNC_LAST_STATUS[0] = err
+                    return err, str(e)
 
-            def _quick_bridge_health() -> str:
-                """One-line bridge health status shown below the sync report (#66)."""
-                import sqlite3 as _sq
-                import datetime as _dt
-                _bmap = {
-                    "Perspective_Intents": "schema_intent_perspectives",
-                    "Perspective_Concepts": "schema_perspective_concepts",
-                }
-                if not os.path.exists(SQLITE_DB_PATH):
-                    return "SKIP — SQLite DB not found"
-                if not os.environ.get("ARANGO_HOST"):
-                    try:
-                        conn = _sq.connect(SQLITE_DB_PATH)
-                        parts = []
-                        for _tbl in _bmap.values():
-                            n = conn.execute(f"SELECT COUNT(*) FROM {_tbl}").fetchone()[0]
-                            parts.append(f"{_tbl}: {n}")
-                        conn.close()
-                        ts = _dt.datetime.now().strftime("%H:%M:%S")
-                        return f"ArangoDB not configured — SQLite counts @ {ts}: " + ", ".join(parts)
-                    except Exception as exc:
-                        return f"SKIP — {exc}"
-                try:
-                    from graph_sync import get_arango_client, get_arango_db
-                    cl = get_arango_client()
-                    db = get_arango_db(cl)
-                    conn = _sq.connect(SQLITE_DB_PATH)
-                    mismatches = []
-                    for ac, st in _bmap.items():
-                        an = db.collection(ac).count() if db.has_collection(ac) else -1
-                        sn = conn.execute(f"SELECT COUNT(*) FROM {st}").fetchone()[0]
-                        if an != sn:
-                            mismatches.append(f"{ac}: Arango={an} SQLite={sn}")
-                    conn.close()
-                    ts = _dt.datetime.now().strftime("%H:%M:%S")
-                    if mismatches:
-                        return "❌ MISMATCH @ " + ts + ": " + "; ".join(mismatches)
-                    return "✅ IN SYNC @ " + ts
-                except Exception as exc:
-                    return f"⚠️ ERROR — {exc}"
+            def _health_inline() -> str:
+                """Append bridge health to the last sync status for inline display (#121)."""
+                health = quick_bridge_health()
+                return f"{_SYNC_LAST_STATUS[0]}  ·  {health}"
 
             sync_dry_run_btn.click(
                 fn=lambda: run_graph_sync(dry_run=True),
@@ -4331,8 +4352,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 fn=lambda: run_graph_sync(dry_run=False),
                 outputs=[sync_status, sync_report_output]
             ).then(
-                fn=_quick_bridge_health,
-                outputs=sync_bridge_health,
+                fn=_health_inline,
+                outputs=sync_status,
             )
 
         with gr.Tab("🩺 Bridge Health"):
