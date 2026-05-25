@@ -1,66 +1,84 @@
-# Python Educational Script with Flask Application
+# Manufacturing SQL Semantic Layer — HF Space
 
 ## Overview
-This project provides an interactive Python educational script for learning basic programming concepts, complemented by a Flask web application and an Astro demonstration. Its core purpose is to facilitate learning through practical examples and hands-on exercises, with a focus on building business intelligence applications for the manufacturing industry. Key capabilities include a RESTful API with user management, advanced RAG-assisted SQL generation, statistical analysis tools for quality control, and a modern frontend framework integration. The project aims to prepare users for working with APIs in an aerospace manufacturing context, integrating AI strategies, and demonstrating production-ready application development.
+A production-ready semantic layer for manufacturing business intelligence, built around the "Solder Pattern": all SQL comes from SME-approved ground-truth snippets, never from LLM generation. Natural language questions are routed deterministically through a graph-theoretic semantic layer to pre-approved SQL. The system uses SQLite for schema metadata and ArangoDB for the graph-based semantic layer, with a Gradio interface hosted as a Hugging Face Space.
+
+The project also contains supporting Flask/Astro demos and educational Python scripts from an Advanced RAG study sequence.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 Technical preferences: LangChain for semantic layer, comprehensive safety guardrails for SQL execution, production-ready architecture with monitoring.
-JavaScript framework interest: Exploring Astro as modern frontend framework to complement Flask backend, interested in Teachable Machine analogy for understanding framework concepts.
-Learning path: Advanced Python for business applications, preparing to work with APIs at aerospace manufacturing company, enrolled in AI learning for Business leaders (Berkeley Haas), needs CSV upload and processing capabilities for work projects.
-Capstone project: Creating semantic layer using LangChain for Berkeley Haas AI strategy class, focusing on business intelligence and natural language to SQL conversion for manufacturing industry applications.
-Development approach: Learning-first methodology - prefers understanding building blocks thoroughly before integration to avoid unnecessary API costs. Systematic 123[n..]_Entry_Point_Topic.py naming convention for incremental Frank Kane Advanced RAG study.
-API management: Cost-conscious development with OpenAI quota awareness, confirmed pay-as-you-go Tavily integration, prefers demo modes for initial learning before live API usage.
-LangGraph 101 Discovery: Successfully identified and implemented the foundational LangGraph base class patterns from langchain-ai/agents-from-scratch/langgraph_101.ipynb, enabling direct adaptation of email assistant pattern to manufacturing intelligence with proper StateGraph, tool calling loops, and workflow orchestration.
+JavaScript framework interest: Exploring Astro as modern frontend framework to complement Flask backend.
+Learning path: Advanced Python for business applications, preparing to work with APIs at aerospace manufacturing company, enrolled in AI learning for Business leaders (Berkeley Haas).
+Capstone project: Semantic layer using LangChain for Berkeley Haas AI strategy class — natural language to SQL conversion for manufacturing industry.
+Development approach: Learning-first methodology. Systematic `123[n..]_Entry_Point_Topic.py` naming convention for Frank Kane Advanced RAG study sequence.
+API management: Cost-conscious, prefers demo modes before live API usage.
+
+## Current System State (May 2026)
+
+### HF Space app — fully operational
+- Entry point: `hf-space-inventory-sqlgen/app.py` (FastAPI + Gradio, port 8080)
+- Database: `hf-space-inventory-sqlgen/app_schema/manufacturing.db` (SQLite, 33 tables, WAL mode)
+- ArangoDB: graph `manufacturing_graph` in database `manufacturing_graph` (read from `ARANGO_DB` env var)
+- Workflow: "HF Space Inventory SQL" → `cd hf-space-inventory-sqlgen && python app.py`
+
+### What's been built and is working
+- **Solder Pattern end-to-end**: NL → dispatcher → SolderEngine → SME-approved SQL (never LLM-generated)
+- **ArangoDB graph**: single named graph `manufacturing_graph`, 80 vertices, 41 edges; legacy `semantic_graph` retired
+- **Perspective Bridge Model**: Perspective lives as a property on bridge rows (`Perspective_Intents`, `Perspective_Concepts`) — not as a vertex collection
+- **Define Relationship UI** (mockup panel): live entity search, Add to Graph wired to real endpoints, duplicate-edge protection (AQL UPSERT), undo history (last 5), edge-count badge with per-collection tooltip
+- **Gradio tabs**: Schema browser, Ground Truth SQL browser, Semantic Graph + disambiguation, Bridge Health, Graph Sync, Query Palette, Ask a Question — all showing live ERP source label
+- **Sync automation**: SQLite triggers → queue table → polling watcher (`sync_watcher.py`) → ArangoDB sync; GitHub Actions nightly cron
+- **Drift alerts**: 6-hour GitHub Actions drift check with Slack Block Kit alerts (gated on `GRAPH_SYNC_ALERT_WEBHOOK` secret)
+- **CI**: Consolidated `hf-space-ci.yml` runs all 7 test files; ArangoDB smoke test in `arango-legacy-smoke.yml` (nightly + on push)
+
+### Test suite
+All tests run via `scripts/post-merge.sh` (8/8 passing):
+| File | What it covers |
+|---|---|
+| `tests/test_perspective_deprecation.py` | Graph constants, bridge lookups, legacy collection absence (8 tests) |
+| `tests/test_resolution_messages.py` | Bridge-row resolution explanation strings (5 tests) |
+| `tests/test_sync_triggers.py` | SQLite trigger install/verify/remove, queue firing (21 tests) |
+| `tests/test_mcp_config.py` | /mcp/config ERP name + API key reflection (5 tests) |
+| `tests/test_delete_commit_edge_404.py` | Double-undo, missing edge 404 paths (5 tests) |
+| `tests/test_commit_edge_duplicate.py` | AQL UPSERT idempotency for all 5 predicates (11 tests) |
+| `tests/test_bridge_collection_health.py` | ArangoDB ↔ SQLite count parity (skips if offline) |
+
+### Grep gates (run by post-merge.sh)
+- No retired perspective graph surfaces (`scripts/check_legacy_perspective_refs.py`)
+- No hardcoded `"semantic_graph"` literals outside `migrations/`
 
 ## System Architecture
-### Backend
-- **Framework**: Flask (Python web framework)
-- **ORM**: SQLAlchemy with Flask-SQLAlchemy
-- **Database**: SQLite (single file at `hf-space-inventory-sqlgen/app_schema/manufacturing.db`, WAL mode for concurrency)
-- **API Design**: RESTful JSON endpoints for user CRUD, database connection pooling, and automatic table creation.
-- **Advanced RAG Implementation**: Four-stage methodology progressing from educational demos to production-ready Advanced RAG with Tavily and OpenAI integration, incorporating manufacturing intelligence and RAGAS evaluation.
-- **Semantic Layer**: LangChain-based Natural Language to SQL conversion with dynamic schema introspection, safety features (SQL injection prevention, operation whitelisting), and monitoring. Includes advanced techniques like vector store retrieval (FAISS, OpenAI embeddings) and few-shot prompting with manufacturing domain examples.
-- **Statistical Analysis Tools**: Two comprehensive tools for manufacturing quality control: Daily defect rate analysis and daily on-time delivery rate analysis, both with CSV upload functionality and professional reporting.
-- **Excel Data Cleansing**: Web-based and CLI tool for preparing manufacturing data, supporting drag-and-drop .xlsx/.xls uploads, optional JSON schema enforcement, a 10-step automated cleansing pipeline, real-time statistics, and downloadable cleansed Excel files.
-- **Document Segmentation for Hybrid RAG**: Web-based and CLI tool for segmenting Excel documents into structured blocks based on cell ranges and segment types, enabling hybrid RAG architectures.
-- **Combined Cleansing + Segmentation Pipeline**: Production-ready ETL pipeline integrating data cleansing and document segmentation with multi-CSV output, schema-based column filtering, per-block cleansing, and web/terminal interfaces for processing.
-- **Contextual UI Hints System**: Database-backed intelligent hint system for manufacturing terminology, acronym expansion, and query assistance, leveraging enhanced metadata and user-defined acronyms.
-- **LangGraph 101 Implementation**: Entry Point series demonstrating LangGraph base class patterns for custom manufacturing tools, workflow orchestration, and agent patterns, including a Manufacturing Queue Router and Plant Log Ingestion system.
-- **Structured RAG with Graph-Theoretic Determinism**: Production-ready implementation separating deterministic logic from LLM inference, using graph metadata stored in a relational database.
-- **ArangoDB Graph Persistence**: Production-ready utilities for persisting schema graphs to ArangoDB (database: manufacturing_graph, graph: manufacturing_graph). Additive persistence via persist_from_dicts (overwrite=False). Includes: load_fk_edges.py (15 FOREIGN_KEY binary edges), load_bridge_edges.py (MAPS_TO_CONCEPT table-to-concept bridges), persist_semantic_graph_to_arango.py (40 semantic nodes, 72 semantic edges), verify_graph.py (100% table-to-semantic reachability assertion). ArangoDB cloud port auto-detection (:8529) and whitespace-safe host handling. All graph/collection names read from ARANGO_DB env var. Fail-fast guards: RuntimeError if ARANGO_DB env var missing, optional create_db_if_missing/create_if_missing flags on constructor and _ensure_graph.
-- **Perspective Bridge Model (deprecates legacy graph path)**: Perspective is no longer a standalone vertex collection in ArangoDB. The retired surfaces are the `perspectives` vertex collection and the `operates_within` / `uses_definition` edge collections. Perspective now lives as a property on bridge rows in two composite-key document collections written by `graph_sync.py`: `Perspective_Intents` (key = perspective__intent, replaces OPERATES_WITHIN) and `Perspective_Concepts` (key = perspective__concept, replaces USES_DEFINITION). `semantic_reasoning.py` resolves (Intent, Field) → Concept directly from the SQLite bridge tables `schema_intent_perspectives` / `schema_perspective_concepts` (the source-of-truth feed for the Arango bridge rows) — never through a Perspective vertex. `solder_engine.py` selects bindings by the `.perspective` string property on each binding row. A grep gate (`scripts/check_legacy_perspective_refs.py`) blocks fresh references to the retired Arango collection handles, and the one-shot migration `migrations/drop_legacy_perspective_graph.py` drops the three legacy collections (gated on the grep check, idempotent). Regression coverage in `tests/test_perspective_deprecation.py`.
-- **Atomic Solder (Column-Level Graph)**: load_atomic_nodes.py creates 251 column-level vertices (_key=table_name.column_name) with data_type, is_primary_key, node_type="atomic_column" properties. 8 ATOMIC_FK edges (is_foreign_key=true) for declared DDL foreign keys. 251 HAS_COLUMN structural edges linking table_* nodes to their atomic column nodes. DDL round-trip validated: AQL forward projection reconstructs CREATE TABLE with columns, types, PK, and FK REFERENCES matching original SQLite DDL. test_atomic_traversal.py: 30/30 assertions (forward projection + backward impact trace for production_lines, downtime_events, equipment_metrics, suppliers).
-- **Hugging Face MCP Server Integration**: Web-based interface implementing Model Context Protocol patterns for accessing Hugging Face Hub for model, dataset, and spaces search, including quick actions and authentication.
-- **Manufacturing SQL Semantic Layer (HF Space)**: MCP Context Builder for GitHub Copilot with a Gradio interface allowing users to build MCP context packages, browse manufacturing schemas, view ground truth SQL, perform interactive field disambiguation via graph traversal, and submit SME SQL snippets with semantic metadata for approver review workflow (Binding Resolver pattern with deterministic filenames and Reviewer Manifest JSON).
-- **SolderEngine (Semantic Transpilation)**: SQLGlot-based engine that assembles final executable SQL by combining APPROVED ground truth snippets with elevation weights (ELEVATES/SUPPRESSES) from the semantic graph. Supports AST manipulation (alias renaming, table qualification), multi-dialect transpilation (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery), SPATIAL_ALIAS detection, and perspective-driven concept selection. Integrated into Gradio interface with elevation reports. Includes multi-concept assembly via CTE-based query construction (assemble_query), resolve_concept_snippet with perspective fallback and suppression-to-NULL logic, and a validation test suite with seed manifest data.
-- **Production Dispatcher (Hybrid RAG)**: Closed-vocabulary semantic router that maps natural language questions to Intent/Concepts/Perspective using HuggingFace Inference API (Mistral-7B-Instruct, with mock keyword fallback). Routes through SolderEngine for governed SQL assembly. LLM acts as classifier only—never generates SQL. Supports OUT_OF_SCOPE detection, perspective override, and multi-dialect output. Integrated as "Ask a Question" Gradio tab.
-- **Schema Files**: SQLite-compatible schema for local development and original PostgreSQL schema for Replit production.
 
-### Frontend
-- **Framework**: Astro with React integration
-- **Features**: File-based routing, component architecture, interactive Teachable Machine simulation, and live Flask API connection testing.
-- **UI/UX**: Professional gradient design with hover effects, smooth transitions, and interactive elements for contextual hints.
+### Backend
+- **Framework**: FastAPI (ASGI, uvicorn) + Gradio mounted at `/gradio`
+- **Database**: SQLite (`manufacturing.db`, WAL mode) — source of truth for schema metadata and bridge tables
+- **Graph**: ArangoDB — `manufacturing_graph` database, `manufacturing_graph` named graph; populated by `graph_sync.py`
+- **Semantic Layer**: SolderEngine (`solder_engine.py`) — SQLGlot-based assembly of approved SQL snippets; multi-dialect (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery)
+- **Dispatcher**: Production Dispatcher — closed-vocabulary router using HuggingFace Inference API (Mistral-7B-Instruct) as classifier only, routes to SolderEngine
+- **Sync**: `sync_watcher.py` daemon polls `graph_sync_queue` SQLite table (populated by triggers); `scripts/install_sync_triggers.py` installs 9 triggers on 3 bridge tables
+
+### Frontend (Gradio)
+Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question
+
+### Define Relationship mockup (React/Vite)
+Location: `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`
+Served by mockup sandbox Vite server (port 23636). Connects to Flask app at `/mcp/*`.
+
+## Key Environment Variables
+| Variable | Default | Purpose |
+|---|---|---|
+| `ARANGO_HOST` | — | ArangoDB connection URL (with port) |
+| `ARANGO_USER` | — | ArangoDB username |
+| `ARANGO_ROOT_PASSWORD` | — | ArangoDB password |
+| `ARANGO_DB` | `manufacturing_graph` | Database and graph name |
+| `ERP_INSTANCE_NAME` | `ERP_Instance_1` | ERP source label shown in UI |
+| `OPENAI_API_KEY` | — | OpenAI embeddings (optional) |
+| `TAVILY_API_KEY` | — | Tavily search for RAG (optional) |
+| `GRAPH_SYNC_ALERT_WEBHOOK` | — | Slack incoming webhook for sync failure alerts |
+| `QUERY_API_KEY` | — | API key guard for SQL generation endpoints |
+
+See `.env.example` for full documentation.
 
 ## External Dependencies
-- **Flask**: Web framework
-- **Flask-SQLAlchemy**: ORM integration for Flask
-- **SQLAlchemy**: Object-relational mapping
-- **sqlite3**: Built-in Python SQLite adapter (no external dependency)
-- **LangChain**: Framework for developing applications powered by language models (for semantic layer)
-- **requests**: HTTP client
-- **beautifulsoup4**: HTML parsing
-- **lxml**: XML/HTML parsing
-- **trafilatura**: Web content extraction
-- **Tavily API**: For advanced RAG implementation
-- **OpenAI API**: For advanced RAG implementation
-- **FAISS**: For vector store retrieval in semantic layer
-- **LangGraph**: StateGraph workflow orchestration
-- **pandas**: Data manipulation and analysis
-- **openpyxl**: Excel file reading and writing (.xlsx)
-- **xlrd**: Legacy Excel file reading (.xls)
-- **mcp**: Model Context Protocol SDK for building MCP servers and clients
-- **httpx**: Modern async HTTP client for API integrations
-- **sdv**: Synthetic Data Vault for realistic mock data generation (local development)
-- **sdmetrics**: Metrics for evaluating synthetic data quality (local development)
-- **Faker**: Realistic synthetic data generation with seed-based reproducibility (seed=42)
+Flask, FastAPI, SQLAlchemy, sqlite3, LangChain, LangGraph, Gradio, SQLGlot, python-arango, FAISS, pandas, openpyxl, xlrd, requests, httpx, mcp, trafilatura, beautifulsoup4, lxml, Faker, sdv, sdmetrics

@@ -1,0 +1,84 @@
+name: HF Space — Full Test Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run all HF Space tests
+    runs-on: ubuntu-latest
+
+    env:
+      ARANGO_DB: manufacturing_graph
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sqlalchemy fastapi httpx
+          if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
+            pip install -r hf-space-inventory-sqlgen/requirements.txt
+          fi
+
+      - name: Grep gate — no retired perspective graph surfaces
+        run: python hf-space-inventory-sqlgen/scripts/check_legacy_perspective_refs.py
+
+      - name: Perspective deprecation regression suite
+        run: python hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py
+
+      - name: Resolution message tests
+        run: python hf-space-inventory-sqlgen/tests/test_resolution_messages.py
+
+      - name: Sync trigger tests
+        run: python hf-space-inventory-sqlgen/tests/test_sync_triggers.py
+
+      - name: MCP config endpoint tests
+        run: python hf-space-inventory-sqlgen/tests/test_mcp_config.py
+
+      - name: Delete commit-edge 404 tests
+        run: python hf-space-inventory-sqlgen/tests/test_delete_commit_edge_404.py
+
+      - name: Duplicate-edge protection tests
+        run: python hf-space-inventory-sqlgen/tests/test_commit_edge_duplicate.py
+
+      - name: Bridge collection health tests
+        run: python hf-space-inventory-sqlgen/tests/test_bridge_collection_health.py
+
+      - name: Legacy graph-warning tests
+        run: |
+          if [ -f hf-space-inventory-sqlgen/tests/test_legacy_graph_warnings.py ]; then
+            python -m pytest hf-space-inventory-sqlgen/tests/test_legacy_graph_warnings.py -v
+          fi
+
+      - name: Graph syntax disclaimer tests
+        run: |
+          if [ -f hf-space-inventory-sqlgen/tests/test_graph_syntax_disclaimer.py ]; then
+            python -m pytest hf-space-inventory-sqlgen/tests/test_graph_syntax_disclaimer.py -v
+          fi
+
+      - name: Write step summary
+        if: always()
+        run: |
+          echo "## HF Space CI Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: \`${{ github.sha }}\`  Branch: \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **All tests passed.**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> **One or more tests failed** — check the step logs above." >> "$GITHUB_STEP_SUMMARY"
+          fi
