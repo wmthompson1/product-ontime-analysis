@@ -3066,12 +3066,22 @@ Check that perspective-concept and intent-concept relationships are seeded.
             get_all_ddl_btn.click(fn=get_all_ddl_gradio, outputs=ddl_output)
         
         with gr.Tab("📁 Ground Truth SQL"):
-            gr.Markdown("""
-            ### Validated SQL Query Resources
-            
-            Browse ground truth SQL queries organized by category.
-            These serve as few-shot examples for Copilot context.
-            """)
+            _gt_erp_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
+            gt_erp_header_md = gr.Markdown(
+                f"### Validated SQL Query Resources\n\n"
+                f"**Source ERP:** `{_gt_erp_name}`\n\n"
+                f"Browse ground truth SQL queries organized by category.\n"
+                f"These serve as few-shot examples for Copilot context."
+            )
+
+            def _load_gt_erp_header():
+                erp_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
+                return (
+                    f"### Validated SQL Query Resources\n\n"
+                    f"**Source ERP:** `{erp_name}`\n\n"
+                    f"Browse ground truth SQL queries organized by category.\n"
+                    f"These serve as few-shot examples for Copilot context."
+                )
             
             def load_queries_for_category(category_id: str):
                 print(f"[DEBUG] load_queries_for_category called with: {repr(category_id)}")
@@ -3244,6 +3254,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 inputs=saved_category,
                 outputs=[saved_query_dropdown, saved_sql_output]
             )
+            load_queries_btn.click(fn=_load_gt_erp_header, outputs=gt_erp_header_md)
             
             saved_query_dropdown.change(
                 fn=load_query_sql,
