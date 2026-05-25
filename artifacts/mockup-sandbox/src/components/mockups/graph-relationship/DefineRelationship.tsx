@@ -644,7 +644,7 @@ export function DefineRelationship() {
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
             Category:
           </span>
-          {(["ALL", ...categories] as CategoryScope[]).map((cat) => (
+          {(categories as CategoryScope[]).map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
