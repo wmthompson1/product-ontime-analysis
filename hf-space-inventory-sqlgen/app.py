@@ -3318,7 +3318,153 @@ Check that perspective-concept and intent-concept relationships are seeded.
             | `GET /mcp/tools/get_perspective_concepts` | View Perspective_Concepts bridge rows |
             | `GET /mcp/tools/resolve_semantic_path` | Resolve (Intent, Field) → Concept via the bridge rows |
             """)
-        
+
+            gr.Markdown("---")
+
+            with gr.Accordion("Define Relationship", open=False):
+                gr.Markdown("""
+                Add or update a semantic relationship edge. Submit the same relationship twice to
+                confirm it already exists — the status indicator will change from **green** (new)
+                to **amber** (already exists / updated) so you never have to read the raw message.
+                """)
+
+                with gr.Row():
+                    with gr.Column():
+                        dr_predicate = gr.Dropdown(
+                            choices=[
+                                "ELEVATES",
+                                "SUPPRESSES",
+                                "OPERATES_WITHIN",
+                                "USES_DEFINITION",
+                                "BOUND_TO",
+                                "HAS_COLUMN",
+                                "FOREIGN_KEY",
+                                "MAPS_TO_CONCEPT",
+                            ],
+                            label="Predicate",
+                            info="Type of relationship to create",
+                            interactive=True,
+                        )
+                        dr_source = gr.Textbox(
+                            label="Source ID",
+                            placeholder="e.g. intents/COST_ANALYSIS  or  COST_ANALYSIS",
+                            info="The 'from' node. Use collection/key or a plain entity name.",
+                        )
+                        dr_target = gr.Textbox(
+                            label="Target ID",
+                            placeholder="e.g. concepts/NCM_COST  or  NCM_COST",
+                            info="The 'to' node. Use collection/key or a plain entity name.",
+                        )
+
+                    with gr.Column():
+                        dr_intent = gr.Textbox(
+                            label="Intent (OPERATES_WITHIN only)",
+                            placeholder="e.g. COST_ANALYSIS",
+                        )
+                        dr_perspective = gr.Textbox(
+                            label="Perspective (OPERATES_WITHIN / USES_DEFINITION)",
+                            placeholder="e.g. QUALITY_ENGINEER",
+                        )
+                        dr_concept = gr.Textbox(
+                            label="Concept Anchor (USES_DEFINITION only)",
+                            placeholder="e.g. NCM_COST",
+                        )
+                        dr_explanation = gr.Textbox(
+                            label="Explanation (optional)",
+                            placeholder="Why does this relationship exist?",
+                            lines=2,
+                        )
+
+                dr_submit_btn = gr.Button("Add / Update Relationship", variant="primary")
+                dr_status = gr.HTML(value="")
+
+                def _define_relationship_handler(
+                    predicate, source_id, target_id,
+                    intent, perspective, concept_anchor, explanation
+                ):
+                    import requests as _requests
+
+                    if not predicate:
+                        return (
+                            '<div style="background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;'
+                            'border-radius:6px;padding:10px 14px;font-weight:bold;">'
+                            "❌ Please select a predicate."
+                            "</div>"
+                        )
+                    if not source_id or not target_id:
+                        return (
+                            '<div style="background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;'
+                            'border-radius:6px;padding:10px 14px;font-weight:bold;">'
+                            "❌ Source ID and Target ID are required."
+                            "</div>"
+                        )
+
+                    port = int(os.environ.get("PORT", 8080))
+                    url = f"http://localhost:{port}/mcp/tools/commit_edge"
+                    payload = {
+                        "predicate": predicate,
+                        "source_id": source_id.strip(),
+                        "target_id": target_id.strip(),
+                    }
+                    if intent and intent.strip():
+                        payload["intent"] = intent.strip()
+                    if perspective and perspective.strip():
+                        payload["perspective"] = perspective.strip()
+                    if concept_anchor and concept_anchor.strip():
+                        payload["concept_anchor"] = concept_anchor.strip()
+                    if explanation and explanation.strip():
+                        payload["explanation"] = explanation.strip()
+
+                    try:
+                        resp = _requests.post(url, json=payload, timeout=15)
+                        data = resp.json()
+                    except Exception as exc:
+                        return (
+                            '<div style="background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;'
+                            'border-radius:6px;padding:10px 14px;font-weight:bold;">'
+                            f"❌ Request failed: {exc}"
+                            "</div>"
+                        )
+
+                    if not resp.ok:
+                        detail = data.get("detail", resp.text)
+                        return (
+                            '<div style="background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;'
+                            'border-radius:6px;padding:10px 14px;font-weight:bold;">'
+                            f"❌ Error {resp.status_code}: {detail}"
+                            "</div>"
+                        )
+
+                    created = data.get("created", True)
+                    message = data.get("message", "")
+                    edge_id = data.get("edge_id", "")
+
+                    if created:
+                        return (
+                            '<div style="background:#d4edda;color:#155724;border:1px solid #c3e6cb;'
+                            'border-radius:6px;padding:10px 14px;font-weight:bold;">'
+                            f"✅ Relationship created — {message}"
+                            f'<br><span style="font-weight:normal;font-size:0.85em;">Edge ID: {edge_id}</span>'
+                            "</div>"
+                        )
+                    else:
+                        return (
+                            '<div style="background:#fff3cd;color:#856404;border:1px solid #ffc107;'
+                            'border-radius:6px;padding:10px 14px;font-weight:bold;">'
+                            f"⚠️ Already exists — {message}"
+                            f'<br><span style="font-weight:normal;font-size:0.85em;">Edge ID: {edge_id}</span>'
+                            "</div>"
+                        )
+
+                dr_submit_btn.click(
+                    fn=_define_relationship_handler,
+                    inputs=[
+                        dr_predicate, dr_source, dr_target,
+                        dr_intent, dr_perspective, dr_concept, dr_explanation,
+                    ],
+                    outputs=dr_status,
+                )
+
         with gr.Tab("🧠 Advanced Reasoning"):
             gr.Markdown("""
             ### Advanced Semantic Reasoning
