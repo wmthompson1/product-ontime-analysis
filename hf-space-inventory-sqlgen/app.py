@@ -1075,6 +1075,17 @@ async def get_mcp_config():
     }
 
 
+@app.get("/mcp/tools/erp_info")
+async def get_erp_info():
+    """Return the current ERP instance name from the environment.
+
+    Response fields:
+      - erp_instance_name: value of ERP_INSTANCE_NAME env var (default "ERP_Instance_1")
+    """
+    raw = os.environ.get("ERP_INSTANCE_NAME")
+    return {"erp_instance_name": raw if raw else "ERP_Instance_1"}
+
+
 @app.post("/mcp/tools/generate_sql", response_model=SQLGenerationResponse)
 async def generate_sql(request: SQLGenerationRequest):
     """Generate SQL from natural language query"""
@@ -3021,11 +3032,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
             )
         
         with gr.Tab("📊 Schema"):
-            _erp_instance_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
-            gr.Markdown(
-                f"### Database Schema Resources\n\n"
-                f"**ERP Source:** `{_erp_instance_name}`"
-            )
+            schema_header_md = gr.Markdown("### Database Schema Resources\n\n**ERP Source:** loading…")
+
+            def _load_erp_header():
+                erp_name = os.environ.get("ERP_INSTANCE_NAME", "ERP_Instance_1")
+                return f"### Database Schema Resources\n\n**ERP Source:** `{erp_name}`"
 
             initial_table_list = get_all_tables()
             gr.Markdown(f"**{len(initial_table_list)} tables available**")
@@ -3050,6 +3061,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return gr.update(choices=tables, value=tables[0] if tables else None)
             
             refresh_tables_btn.click(fn=refresh_table_list, outputs=table_dropdown)
+            refresh_tables_btn.click(fn=_load_erp_header, outputs=schema_header_md)
             get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
             get_all_ddl_btn.click(fn=get_all_ddl_gradio, outputs=ddl_output)
         
@@ -4448,6 +4460,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
             3. Paste context into Copilot Chat
             4. Ask follow-up questions about your manufacturing data
             """)
+
+        demo.load(fn=_load_erp_header, outputs=schema_header_md)
     
     return demo
 
