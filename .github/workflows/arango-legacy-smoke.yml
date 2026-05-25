@@ -11,18 +11,73 @@ on:
 
 jobs:
   skip-notice:
-    name: Skip notice (no ArangoDB credentials)
+    name: "SKIPPED — ArangoDB smoke test did not run (no credentials)"
     runs-on: ubuntu-latest
     if: ${{ secrets.ARANGO_HOST == '' || secrets.ARANGO_HOST == null }}
     steps:
+      - name: Emit warning annotation
+        run: |
+          echo "::warning title=ArangoDB smoke test SKIPPED::ARANGO_HOST secret is not set — the ArangoDB legacy-collection smoke test was SKIPPED, not passed. Add ARANGO_HOST, ARANGO_USER, and ARANGO_PASSWORD secrets to enable it."
+
       - name: Write skip summary
         run: |
-          echo "## ArangoDB Legacy-Collection Smoke Test" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ⚠️ ArangoDB Legacy-Collection Smoke Test — SKIPPED" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "> **Skipped** — \`ARANGO_HOST\` secret is not configured in this repository." >> "$GITHUB_STEP_SUMMARY"
-          echo "> To run the full smoke test, add the \`ARANGO_HOST\`, \`ARANGO_USER\`, and \`ARANGO_PASSWORD\` secrets," >> "$GITHUB_STEP_SUMMARY"
-          echo "> or trigger this workflow manually via **workflow_dispatch** from a repository that has them." >> "$GITHUB_STEP_SUMMARY"
+          echo "> **This check was SKIPPED, not passed.** The smoke test did not run." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Reason:** \`ARANGO_HOST\` secret is not configured in this repository." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**To enable the smoke test:** add the \`ARANGO_HOST\`, \`ARANGO_USER\`, and \`ARANGO_PASSWORD\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "secrets to this repository (Settings → Secrets and variables → Actions)," >> "$GITHUB_STEP_SUMMARY"
+          echo "or trigger this workflow manually via **workflow_dispatch** from a repository that has them." >> "$GITHUB_STEP_SUMMARY"
           echo "Skipped: ARANGO_HOST secret not present — ArangoDB smoke test will not run."
+
+      - name: Post PR comment on pull_request events
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Fork PRs often have a read-only GITHUB_TOKEN; wrap everything so a
+            // permission denial never turns this graceful skip into a failed check.
+            try {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              const marker = '<!-- arango-smoke-skip-notice -->';
+              const already = comments.find(c => c.body.includes(marker));
+              if (already) {
+                console.log('Skip-notice comment already present, skipping duplicate.');
+                return;
+              }
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: [
+                  marker,
+                  '### ⚠️ ArangoDB smoke test was SKIPPED on this PR',
+                  '',
+                  'The **ArangoDB Legacy-Collection Smoke Test** check shows green, but it **did not run** — it was skipped because the `ARANGO_HOST` secret is not available in this repository (expected for forks and contributor PRs).',
+                  '',
+                  'This is not a test pass. To verify the smoke test locally:',
+                  '```bash',
+                  'ARANGO_HOST=<host> ARANGO_USER=<user> ARANGO_PASSWORD=<pass> \\',
+                  '  python hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py',
+                  '```',
+                  '',
+                  'Maintainers: the full smoke test runs automatically on the main repository where secrets are configured.',
+                ].join('\n'),
+              });
+              console.log('Skip-notice comment posted successfully.');
+            } catch (err) {
+              // Expected on fork PRs where GITHUB_TOKEN is read-only.
+              // The warning annotation and step summary already communicate the skip;
+              // a missing PR comment is acceptable in that case.
+              console.log(`Could not post PR comment (likely a fork PR with read-only token): ${err.message}`);
+            }
 
   arango-smoke:
     name: Verify legacy ArangoDB collections are absent
