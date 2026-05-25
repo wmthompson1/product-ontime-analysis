@@ -1,0 +1,126 @@
+flowchart TB
+    %% Work Order Sources
+    subgraph Sources["Work Order Sources"]
+        MRP["MRP Planning"]
+        Manual["Manually entered"]
+        SO["Sales Order Lines"]
+        DL["Data Loader"]
+    end
+
+    %% Work Order Types
+    subgraph WOTypes["Work Order Types"]
+        Standard["Standard"]
+        Rework["Rework"]
+        Disassembly["Disassembly"]
+        LaborOnly["Labor Only"]
+    end
+
+    %% WO Header and Attributes
+    WOHeader[("WO Header")]
+    
+    subgraph HeaderAttrs["Work Order Attributes"]
+        WODates["Work Order Dates"]
+        CostQty["Cost and Quantity"]
+        WOStatus["Work Order Status"]
+        Variance["Variance Summaries"]
+        Accounts["Accounts and Dimensions"]
+        LotSerial["Lot and Serial Control"]
+    end
+
+    %% WO Operations
+    subgraph WOOps["WO Operation"]
+        Location["Location"]
+        Shipment["Shipment"]
+        Machine["Machine"]
+        Scrap["Scrap"]
+        Schedule["Schedule"]
+        Return["Return"]
+        Tasks["Tasks"]
+        Cost["Cost"]
+        WIP["WIP"]
+        Actual["Actual"]
+    end
+
+    %% WO Related Lists
+    WORelated[("WO Related List")]
+    
+    subgraph Components["WO Component"]
+        Detail["Detail"]
+        Serial["Serial"]
+    end
+    
+    SerialMaster["WO Serial Master"]
+    Traveler["WO Traveler"]
+
+    %% Main Workflow
+    Extract["Extract WO Operations &\nComponents"]
+    Print["Print WO Documents"]
+    Issue["Issue Component Materials To WO"]
+    TimeQty["Time and Qty Booking"]
+    Receive["Receive Items To Inventory"]
+    Complete["WO Complete"]
+    Close["WO Close"]
+
+    %% Reversal Actions
+    IssueRev["Issue Reversal"]
+    TimeRev["Reverse Time & Qty"]
+    ReceiptRev["Reverse Receipt"]
+    CloseRev["Reverse Close"]
+
+    %% Picklist output
+    Picklist["Picklist\nWO Traveler With\n- Components\n- Operations"]
+
+    %% Flow Connections
+    Sources -->|Available options to\nCreate Work Order| WOTypes
+    WOTypes -->|Creates Record| WOHeader
+    WOHeader --> HeaderAttrs
+    WOHeader -->|Creates Firmed Work Orders| WOOps
+    WOHeader -->|Release WO| Extract
+    WOHeader --> WORelated
+    WORelated --> Components
+    WORelated --> SerialMaster
+    WORelated --> Traveler
+
+    %% Main Process Flow
+    Extract --> Print
+    Print --> Issue
+    Extract --> Picklist
+    Issue --> TimeQty
+    TimeQty --> Receive
+    Receive --> Complete
+    Complete --> Close
+
+    %% Reversal Flow (dashed lines)
+    IssueRev -.-> Issue
+    Issue -.-> IssueRev
+    TimeRev -.-> TimeQty
+    TimeQty -.-> TimeRev
+    ReceiptRev -.-> Receive
+    Receive -.-> ReceiptRev
+    CloseRev -.-> Close
+    Close -.-> CloseRev
+
+    %% Reversal connections to Work Order Actions
+    IssueRev -.-> WOActions["Work Order\nActions"]
+    TimeRev -.-> WOActions
+    ReceiptRev -.-> WOActions
+    CloseRev -.-> WOActions
+
+    %% Styling
+    classDef sourceStyle fill:#f5f5f5,stroke:#333,stroke-width:2px
+    classDef headerStyle fill:#ffb6c1,stroke:#333,stroke-width:2px
+    classDef attrStyle fill:#ffcccb,stroke:#333,stroke-width:1px
+    classDef processStyle fill:#90EE90,stroke:#333,stroke-width:2px
+    classDef reversalStyle fill:#90EE90,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    classDef opsStyle fill:#ADD8E6,stroke:#333,stroke-width:1px
+    classDef componentStyle fill:#ADD8E6,stroke:#333,stroke-width:1px
+    classDef typeStyle fill:#ffffcc,stroke:#333,stroke-width:1px
+
+    class MRP,Manual,SO,DL sourceStyle
+    class WOHeader,WORelated headerStyle
+    class WODates,CostQty,WOStatus,Variance,Accounts,LotSerial attrStyle
+    class Extract,Print,Issue,TimeQty,Receive,Complete,Close processStyle
+    class IssueRev,TimeRev,ReceiptRev,CloseRev reversalStyle
+    class Location,Shipment,Machine,Scrap,Schedule,Return,Tasks,Cost,WIP,Actual opsStyle
+    class Detail,Serial,SerialMaster,Traveler componentStyle
+    class Standard,Rework,Disassembly,LaborOnly typeStyle

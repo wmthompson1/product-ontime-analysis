@@ -1,0 +1,6 @@
+Scenario,class,type,class_tag_1,type_tag_2,purc_order_id,work_order,effect_on_QOH,ui_label,purc_order_id
+1,R,I,Released,In,12345,,,,180971
+2,A,O,Adjust,Out,,,,Adjust Out,
+3,A,I,Adjust,In,,,,Adjust In,
+4,I,O,issue,Out,,565656,-1 * QTY,Issue,
+5,I,I,issue,In,,565656,+1 * QTY,Issue Rtn,

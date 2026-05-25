@@ -1,0 +1,75 @@
+{
+  "nodes": [
+    { "table": "INVENTORY_TRANS", "pk": ["TRANSACTION_ID"] },
+    { "table": "TRACE", "pk": ["PART_ID", "ID"] },
+    { "table": "TRACE_INV_TRANS", "pk": ["PART_ID", "TRACE_ID", "TRANSACTION_ID"] },
+    { "table": "WAREHOUSE", "pk": ["ID"] },
+    { "table": "LOCATION", "pk": ["WAREHOUSE_ID", "ID"] },
+    { "table": "WORK_ORDER", "pk": ["TYPE", "BASE_ID", "LOT_ID", "SPLIT_ID", "SUB_ID"] },
+    { "table": "OPERATION", "pk": ["WORKORDER_TYPE", "WORKORDER_BASE_ID", "WORKORDER_LOT_ID", "WORKORDER_SPLIT_ID", "WORKORDER_SUB_ID", "SEQUENCE_NO"] },
+    { "table": "REQUIREMENT", "pk": ["WORKORDER_TYPE", "WORKORDER_BASE_ID", "WORKORDER_LOT_ID", "WORKORDER_SPLIT_ID", "WORKORDER_SUB_ID", "OPERATION_SEQ_NO", "PIECE_NO"] }
+  ],
+  "edges": [
+    {
+      "source_table": "TRACE_INV_TRANS",
+      "source_columns": ["PART_ID","TRACE_ID"],
+      "target_table": "TRACE",
+      "target_columns": ["PART_ID","ID"],
+      "type": "fk",
+      "constraint": "FKEY0241"
+    },
+    {
+      "source_table": "TRACE_INV_TRANS",
+      "source_columns": ["TRANSACTION_ID"],
+      "target_table": "INVENTORY_TRANS",
+      "target_columns": ["TRANSACTION_ID"],
+      "type": "fk",
+      "constraint": "FKEY0284"
+    },
+    {
+      "source_table": "INVENTORY_TRANS",
+      "source_columns": ["WORKORDER_BASE_ID","WORKORDER_LOT_ID","WORKORDER_SPLIT_ID"],
+      "target_table": "WORK_ORDER",
+      "target_columns": ["BASE_ID","LOT_ID","SPLIT_ID"],
+      "type": "join",
+      "notes": "SQL joins these three columns to WORK_ORDER; TYPE/SUB_ID not included in this specific join in the report"
+    },
+    {
+      "source_table": "OPERATION",
+      "source_columns": ["WORKORDER_TYPE","WORKORDER_BASE_ID","WORKORDER_LOT_ID","WORKORDER_SPLIT_ID","WORKORDER_SUB_ID"],
+      "target_table": "WORK_ORDER",
+      "target_columns": ["TYPE","BASE_ID","LOT_ID","SPLIT_ID","SUB_ID"],
+      "type": "fk",
+      "constraint": "FKEY0132"
+    },
+    {
+      "source_table": "OPERATION",
+      "source_columns": ["SEQUENCE_NO","WORKORDER_SUB_ID"],
+      "target_table": "REQUIREMENT",
+      "target_columns": ["OPERATION_SEQ_NO","SUBORD_WO_SUB_ID"],
+      "type": "join",
+      "notes": "SQL matches OPERATION.SEQUENCE_NO->REQUIREMENT.OPERATION_SEQ_NO and uses ISNULL(REQUIREMENT.SUBORD_WO_SUB_ID,0) to compare to OPERATION.WORKORDER_SUB_ID"
+    },
+    {
+      "source_table": "INVENTORY_TRANS",
+      "source_columns": ["LOCATION_ID"],
+      "target_table": "LOCATION",
+      "target_columns": ["ID"],
+      "type": "join",
+      "notes": "SQL joins INVENTORY_TRANS.location_id -> LOCATION.id and LOCATION.warehouse_id -> WAREHOUSE.id"
+    },
+    {
+      "source_table": "LOCATION",
+      "source_columns": ["WAREHOUSE_ID"],
+      "target_table": "WAREHOUSE",
+      "target_columns": ["ID"],
+      "type": "fk",
+      "constraint": "FKEY0117"
+    }
+  ],
+  "trace_lot_mapping": {
+    "table": "TRACE",
+    "column": "APROPERTY_1",
+    "meaning": "physical lot identifier used in reports (selected as trace_lot)"
+  }
+}

@@ -1,0 +1,1163 @@
+{
+  "document_map": {
+    "Adjusting_Materials.md": {
+      "title": "Adjusting Materials",
+      "path": "Adjusting_Materials.md",
+      "links": [
+        {
+          "href": "VMPRTMNTfrmPart.md",
+          "anchor_text": "costs defined on the\n   part record",
+          "context": "the materials you are adjusting in. To use\n   the [costs defined on the\n   part record](VMPRTMNTfrmPart.md#Costing), leave these fields blank. To override the costs,"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "your\nsettings in Site Maintenance",
+          "context": "ecify\nthe reason for the adjustment. Depending on [your\nsettings in Site Maintenance](Specifying_Information_on_the_Defaults_Tab_site.md), this field may be required.\n\nAccount ID Specify\n"
+        },
+        {
+          "href": "Using_the_G_L_Account_Interface_Table.md",
+          "anchor_text": "sites\ngeneral ledger interface",
+          "context": "ment. To use\nthe default account specified in the [sites\ngeneral ledger interface](Using_the_G_L_Account_Interface_Table.md), leave this field blank.\n\n9. If you use [dimensio"
+        },
+        {
+          "href": "Dimension_Reporting.md",
+          "anchor_text": "dimensional\n   reporting",
+          "context": "Table.md), leave this field blank.\n\n9. If you use [dimensional\n   reporting](Dimension_Reporting.md), the default dimension IDs for the debit transact"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "inserted. You can specify different information.\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        }
+      ],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "README.md",
+        "VMINVENTWhat.md",
+        "VMINVENT_APLfrmInventoryEntry.md"
+      ]
+    },
+    "Document_Hierarchy_Map.md": {
+      "title": "Inventory Transaction Entry - Documentation Hierarchy",
+      "path": "Document_Hierarchy_Map.md",
+      "links": [
+        {
+          "href": "Receiving_Materials_Into_Inventory.md",
+          "anchor_text": "Receipt by Work Order",
+          "context": "ed Material into Inventory\n\n**ERP Help Files:**\n- [Receipt by Work Order](Receiving_Materials_Into_Inventory.md)\n- [Receipt by Part](Receiving_by_Part.md)\n- [Rece"
+        },
+        {
+          "href": "Receiving_by_Part.md",
+          "anchor_text": "Receipt by Part",
+          "context": "k Order](Receiving_Materials_Into_Inventory.md)\n- [Receipt by Part](Receiving_by_Part.md)\n- [Receipt by Part Inventory Transaction Entry](R"
+        },
+        {
+          "href": "Receipt_by_Part_Inventory_Transaction_Entry.md",
+          "anchor_text": "Receipt by Part Inventory Transaction Entry",
+          "context": "y.md)\n- [Receipt by Part](Receiving_by_Part.md)\n- [Receipt by Part Inventory Transaction Entry](Receipt_by_Part_Inventory_Transaction_Entry.md)\n\n**Database:** CLASS='R', TYPE='I' | Effect: +QTY"
+        },
+        {
+          "href": "VMINVENTfrmIssue.md",
+          "anchor_text": "Issuing Materials to Work Orders",
+          "context": "e Material to a Work Order\n\n**ERP Help Files:**\n- [Issuing Materials to Work Orders](VMINVENTfrmIssue.md)\n- [Issue by Exception](VMINVENT_APLfrmIssue.md)\n\n"
+        },
+        {
+          "href": "VMINVENT_APLfrmIssue.md",
+          "anchor_text": "Issue by Exception",
+          "context": " Materials to Work Orders](VMINVENTfrmIssue.md)\n- [Issue by Exception](VMINVENT_APLfrmIssue.md)\n\n**Detailed Documentation:**\n- [Issue Material to"
+        },
+        {
+          "href": "Issue_Material_to_Work_Order.md",
+          "anchor_text": "Issue Material to Work Order - Complete Guide",
+          "context": "NT_APLfrmIssue.md)\n\n**Detailed Documentation:**\n- [Issue Material to Work Order - Complete Guide](Issue_Material_to_Work_Order.md) ✓\n\n**Database:** CLASS='I', TYPE='O' | Effect: -Q"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjusting Materials",
+          "context": "st Material Into Inventory\n\n**ERP Help Files:**\n- [Adjusting Materials](Adjusting_Materials.md)\n- [For Adjust In or Adjust Out from Inventory](Fo"
+        },
+        {
+          "href": "For_Adjust_In_or_Adjust_Out_from_Inventory.md",
+          "anchor_text": "For Adjust In or Adjust Out from Inventory",
+          "context": "- [Adjusting Materials](Adjusting_Materials.md)\n- [For Adjust In or Adjust Out from Inventory](For_Adjust_In_or_Adjust_Out_from_Inventory.md)\n\n**Database:** CLASS='A', TYPE='I' | Effect: +QTY"
+        },
+        {
+          "href": "Returning_Received_Materials.md",
+          "anchor_text": "Returning Received Materials",
+          "context": "urn (Return to Work Order)\n\n**ERP Help Files:**\n- [Returning Received Materials](Returning_Received_Materials.md)\n- [For Receipt Return of Finished Goods](For_Rece"
+        },
+        {
+          "href": "For_Receipt_Return_of_Finished_Goods.md",
+          "anchor_text": "For Receipt Return of Finished Goods",
+          "context": "ved Materials](Returning_Received_Materials.md)\n- [For Receipt Return of Finished Goods](For_Receipt_Return_of_Finished_Goods.md)\n\n**Database:** CLASS='R', TYPE='O' | Effect: -QTY"
+        },
+        {
+          "href": "Returning_Issued_Materials.md",
+          "anchor_text": "Returning Issued Materials",
+          "context": "turn (Return to Stockroom)\n\n**ERP Help Files:**\n- [Returning Issued Materials](Returning_Issued_Materials.md)\n- [For Return of Issued Material from a Work Orde"
+        },
+        {
+          "href": "For_Return_of_Issued_Material_from_a_Work_Order.md",
+          "anchor_text": "For Return of Issued Material from a Work Order",
+          "context": "ssued Materials](Returning_Issued_Materials.md)\n- [For Return of Issued Material from a Work Order](For_Return_of_Issued_Material_from_a_Work_Order.md)\n\n**Detailed Documentation:**\n- [Issue Return to S"
+        },
+        {
+          "href": "Issue_Return_to_Stockroom.md",
+          "anchor_text": "Issue Return to Stockroom - Complete Guide",
+          "context": "m_a_Work_Order.md)\n\n**Detailed Documentation:**\n- [Issue Return to Stockroom - Complete Guide](Issue_Return_to_Stockroom.md) ✓\n\n**Database:** CLASS='I', TYPE='I' | Effect: +Q"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjusting Materials",
+          "context": " Material Out of Inventory\n\n**ERP Help Files:**\n- [Adjusting Materials](Adjusting_Materials.md) (same as #3)\n\n**Database:** CLASS='A', TYPE='O' |"
+        }
+      ],
+      "backlinks": []
+    },
+    "Inventory_Transaction_Entry_Index.md": {
+      "title": "Using Inventory Transaction Entry",
+      "path": "Inventory_Transaction_Entry_Index.md",
+      "links": [
+        {
+          "href": "Receiving_Materials_Into_Inventory.md",
+          "anchor_text": "Receiving Materials by Work Order",
+          "context": "antity being received)\n\n**Related Help Files:**\n- [Receiving Materials by Work Order](Receiving_Materials_Into_Inventory.md)\n- [Receiving by Part](Receiving_by_Part.md)\n\n---\n"
+        },
+        {
+          "href": "Receiving_by_Part.md",
+          "anchor_text": "Receiving by Part",
+          "context": "k Order](Receiving_Materials_Into_Inventory.md)\n- [Receiving by Part](Receiving_by_Part.md)\n\n---\n\n### 2. Issue Material to a Work Order\n\nIssu"
+        },
+        {
+          "href": "Issue_Material_to_Work_Order.md",
+          "anchor_text": "Issue Material to Work Order",
+          "context": "rements for production.\n\n**Operation Details:**\n- [Issue Material to Work Order](Issue_Material_to_Work_Order.md)\n\n**Database Schema:**\n- **CLASS**: `I` (Issue)\n- "
+        },
+        {
+          "href": "VMINVENTfrmIssue.md",
+          "anchor_text": "Issuing Materials to Work Orders",
+          "context": " charged to work order\n\n**Related Help Files:**\n- [Issuing Materials to Work Orders](VMINVENTfrmIssue.md)\n- [Issue and Return by Exception](VMINVENT_APLfrm"
+        },
+        {
+          "href": "VMINVENT_APLfrmIssue.md",
+          "anchor_text": "Issue and Return by Exception",
+          "context": " Materials to Work Orders](VMINVENTfrmIssue.md)\n- [Issue and Return by Exception](VMINVENT_APLfrmIssue.md)\n\n---\n\n### 3. Adjust Material Into Inventory\n\nManu"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjusting Materials",
+          "context": "anation of adjustment)\n\n**Related Help Files:**\n- [Adjusting Materials](Adjusting_Materials.md)\n\n---\n\n### 4. Receipt Return\n\nReturn a material to"
+        },
+        {
+          "href": "Returning_Received_Materials.md",
+          "anchor_text": "Returning Received Materials",
+          "context": "ods TO work-in-process\n\n**Related Help Files:**\n- [Returning Received Materials](Returning_Received_Materials.md)\n\n---\n\n### 5. Issue Return\n\nReturn issued material"
+        },
+        {
+          "href": "Issue_Return_to_Stockroom.md",
+          "anchor_text": "Issue Return to Stockroom",
+          "context": " an issue transaction).\n\n**Operation Details:**\n- [Issue Return to Stockroom](Issue_Return_to_Stockroom.md)\n\n**Database Schema:**\n- **CLASS**: `I` (Issue)\n- "
+        },
+        {
+          "href": "Returning_Issued_Materials.md",
+          "anchor_text": "Returning Issued Materials",
+          "context": "ventory TO WIP (↓ QOH)\n\n**Related Help Files:**\n- [Returning Issued Materials](Returning_Issued_Materials.md)\n\n---\n\n### 6. Adjust Material Out of Inventory\n\nMa"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjusting Materials",
+          "context": "anation of adjustment)\n\n**Related Help Files:**\n- [Adjusting Materials](Adjusting_Materials.md)\n\n---\n\n## Transaction Matrix Reference\n\n| Operatio"
+        },
+        {
+          "href": "Inventory_Transactions.md",
+          "anchor_text": "Inventory Transactions",
+          "context": " minimal dwell time\n\n**Related Documentation:**\n- [Inventory Transactions](Inventory_Transactions.md)\n\n---\n\n### Work Order Shipment to Customer\n\nWhen s"
+        },
+        {
+          "href": "Creating_Inventory_Transactions.md",
+          "anchor_text": "Creating Inventory Transactions (Shipping)",
+          "context": "CLASS='I', TYPE='O'\n\n**Related Documentation:**\n- [Creating Inventory Transactions (Shipping)](Creating_Inventory_Transactions.md)\n\n---\n\n## Related Documentation\n\n### Core Schema D"
+        },
+        {
+          "href": "materiall_requirements_flow.md",
+          "anchor_text": "Material Requirements Flow",
+          "context": "ed Documentation\n\n### Core Schema Documentation\n- [Material Requirements Flow](materiall_requirements_flow.md) - Database schema and CLASS+TYPE definitions\n- [I"
+        },
+        {
+          "href": "Inventory_Transaction_Terminology_Guide.md",
+          "anchor_text": "Inventory Transaction Terminology Guide",
+          "context": "d) - Database schema and CLASS+TYPE definitions\n- [Inventory Transaction Terminology Guide](Inventory_Transaction_Terminology_Guide.md) - Complete disambiguation reference\n- [Inventory "
+        },
+        {
+          "href": "Inventory_transactions_flow.md",
+          "anchor_text": "Inventory Transactions Flow",
+          "context": "y_Guide.md) - Complete disambiguation reference\n- [Inventory Transactions Flow](Inventory_transactions_flow.md) - Data flow diagrams\n\n### SQL Implementation\n- [I"
+        },
+        {
+          "href": "Inventory_Transactions_Filtered.sql",
+          "anchor_text": "Inventory_Transactions_Filtered.sql",
+          "context": "d) - Data flow diagrams\n\n### SQL Implementation\n- [Inventory_Transactions_Filtered.sql](Inventory_Transactions_Filtered.sql) - Production query examples\n- [Inventory - Transa"
+        },
+        {
+          "href": "Inventory%20-%20Transactions%20AI%20Review.sql",
+          "anchor_text": "Inventory - Transactions AI Review.sql",
+          "context": "tions_Filtered.sql) - Production query examples\n- [Inventory - Transactions AI Review.sql](Inventory%20-%20Transactions%20AI%20Review.sql) - Analysis queries\n\n### ERP Help Files\n- [Using I"
+        },
+        {
+          "href": "VMINVENT_APLfrmInventoryEntry.md",
+          "anchor_text": "Using Inventory Transaction Entry",
+          "context": "iew.sql) - Analysis queries\n\n### ERP Help Files\n- [Using Inventory Transaction Entry](VMINVENT_APLfrmInventoryEntry.md) - Main transaction entry screen\n- [BTS_BI_Basic_I"
+        },
+        {
+          "href": "BTS_BI_Basic_Inventory_Transactions.md",
+          "anchor_text": "BTS_BI_Basic_Inventory_Transactions",
+          "context": "entoryEntry.md) - Main transaction entry screen\n- [BTS_BI_Basic_Inventory_Transactions](BTS_BI_Basic_Inventory_Transactions.md) - BTS integration\n- [Inventory Transaction Costin"
+        },
+        {
+          "href": "Inventory_Transaction_Costing.md",
+          "anchor_text": "Inventory Transaction Costing",
+          "context": "ic_Inventory_Transactions.md) - BTS integration\n- [Inventory Transaction Costing](Inventory_Transaction_Costing.md) - Cost accounting\n\n---\n\n## Validation and Reconci"
+        },
+        {
+          "href": "VMINVENT_APLfrmIssue.md",
+          "anchor_text": "Issue and Return by Exception",
+          "context": "\n- Auto-mode for batch processing\n\n**Related:**\n- [Issue and Return by Exception](VMINVENT_APLfrmIssue.md)\n\n### Part Traceability\n- Lot number tracking\n- Se"
+        },
+        {
+          "href": "For_Issue_of_Inventory_to_a_Work_Order.md",
+          "anchor_text": "For Issue of Inventory to a Work Order",
+          "context": " Trace IDs for material genealogy\n\n**Related:**\n- [For Issue of Inventory to a Work Order](For_Issue_of_Inventory_to_a_Work_Order.md) (traceability section)\n- [Setting Part Traceabili"
+        },
+        {
+          "href": "Setting_Part_Traceability_Inventory_Transaction_Entry.md",
+          "anchor_text": "Setting Part Traceability Inventory Transaction Entry",
+          "context": "tory_to_a_Work_Order.md) (traceability section)\n- [Setting Part Traceability Inventory Transaction Entry](Setting_Part_Traceability_Inventory_Transaction_Entry.md)\n\n### Move Requests\n- Material movement requests\n-"
+        },
+        {
+          "href": "Creating_Move_Requests_in_Inventory_Transaction_Entry.md",
+          "anchor_text": "Creating Move Requests in Inventory Transaction Entry",
+          "context": "gration\n- Pick/put-away workflows\n\n**Related:**\n- [Creating Move Requests in Inventory Transaction Entry](Creating_Move_Requests_in_Inventory_Transaction_Entry.md)\n- [Move Requests in Inventory Transaction Entry]("
+        },
+        {
+          "href": "Move_Requests_in_Inventory_Transaction_Entry.md",
+          "anchor_text": "Move Requests in Inventory Transaction Entry",
+          "context": "ove_Requests_in_Inventory_Transaction_Entry.md)\n- [Move Requests in Inventory Transaction Entry](Move_Requests_in_Inventory_Transaction_Entry.md)\n\n---\n\n## Quick Reference: Transaction Selection G"
+        },
+        {
+          "href": "Inventory_Transaction_Terminology_Guide.md",
+          "anchor_text": "Inventory Transaction Terminology Guide",
+          "context": "index creation for GitBook |\n\n---\n\n## See Also\n\n- [Inventory Transaction Terminology Guide](Inventory_Transaction_Terminology_Guide.md) - Complete terminology reference\n- [Material Requ"
+        },
+        {
+          "href": "materiall_requirements_flow.md",
+          "anchor_text": "Material Requirements Flow",
+          "context": "logy_Guide.md) - Complete terminology reference\n- [Material Requirements Flow](materiall_requirements_flow.md) - Database schema details\n- [Work Order Operation"
+        },
+        {
+          "href": "work_order_operations_flow.md",
+          "anchor_text": "Work Order Operations Flow",
+          "context": "requirements_flow.md) - Database schema details\n- [Work Order Operations Flow](work_order_operations_flow.md) - Work order integration\n"
+        }
+      ],
+      "backlinks": []
+    },
+    "README.md": {
+      "title": "Using Inventory Transaction Entry",
+      "path": "README.md",
+      "links": [
+        {
+          "href": "Receiving_Materials_Into_Inventory.md",
+          "anchor_text": "by\n  work order",
+          "context": "aterial into inventory. You can receive inventory [by\n  work order](Receiving_Materials_Into_Inventory.md) or [by part](Receiving_by_Part.md).\n* [Issue\n  Ma"
+        },
+        {
+          "href": "Receiving_by_Part.md",
+          "anchor_text": "by part",
+          "context": " order](Receiving_Materials_Into_Inventory.md) or [by part](Receiving_by_Part.md).\n* [Issue\n  Material to a work order.](VMINVENTfr"
+        },
+        {
+          "href": "VMINVENTfrmIssue.md",
+          "anchor_text": "Issue\n  Material to a work order.",
+          "context": "ventory.md) or [by part](Receiving_by_Part.md).\n* [Issue\n  Material to a work order.](VMINVENTfrmIssue.md)\n* [Adjust\n  material into inventory (add material"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjust\n  material into inventory (add material to inventory).",
+          "context": "Material to a work order.](VMINVENTfrmIssue.md)\n* [Adjust\n  material into inventory (add material to inventory).](Adjusting_Materials.md)\n* [Receipt\n  return (returns a material to the wo"
+        },
+        {
+          "href": "Returning_Received_Materials.md",
+          "anchor_text": "Receipt\n  return (returns a material to the work order)",
+          "context": "aterial to inventory).](Adjusting_Materials.md)\n* [Receipt\n  return (returns a material to the work order)](Returning_Received_Materials.md).\n* [Issue\n  return (return an issued material to "
+        },
+        {
+          "href": "Returning_Issued_Materials.md",
+          "anchor_text": "Issue\n  return (return an issued material to the stockroom)",
+          "context": " work order)](Returning_Received_Materials.md).\n* [Issue\n  return (return an issued material to the stockroom)](Returning_Issued_Materials.md).\n* [Adjust\n  material out of inventory (subtracts"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjust\n  material out of inventory (subtracts from inventory)",
+          "context": "the stockroom)](Returning_Issued_Materials.md).\n* [Adjust\n  material out of inventory (subtracts from inventory)](Adjusting_Materials.md).\n\nAll of these operations are performed using the"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the Defaults Tab",
+          "context": "During\nReceipt check box in Site Maintenance. See [Specifying\nInformation on the Defaults Tab](Specifying_Information_on_the_Defaults_Tab_site.md).\n\nRequired\n- The quantity required on the materia"
+        },
+        {
+          "href": "Setting_Up_Piece_Tracked_Parts_in_Part_Maintenance.md",
+          "anchor_text": "Setting\nUp Piece Tracked Parts in Part Maintenance",
+          "context": " which dimensions\nare required for the piece. See [Setting\nUp Piece Tracked Parts in Part Maintenance](Setting_Up_Piece_Tracked_Parts_in_Part_Maintenance.md).\n\nTransaction Class - The type of inventory trans"
+        },
+        {
+          "href": "Creating_Dimension_IDs.md",
+          "anchor_text": "Creating Dimension\nIDs",
+          "context": "r dimensions associated with the transaction.\nSee [Creating Dimension\nIDs](Creating_Dimension_IDs.md).\n\nCustomer Order ID - If you use dimensional repo"
+        },
+        {
+          "href": "Dimension_Reporting.md",
+          "anchor_text": "Dimension\nReporting",
+          "context": "omer order ID associated with\nthe adjustment. See [Dimension\nReporting](Dimension_Reporting.md).\n\nWork Order Table\n- For receipt by part transact"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "ons\nand are performing an adjust-in transaction.\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        }
+      ],
+      "backlinks": []
+    },
+    "Receiving_by_Part.md": {
+      "title": "Receiving by Part",
+      "path": "Receiving_by_Part.md",
+      "links": [
+        {
+          "href": "Specifying_Information_on_the_General_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the General Tab",
+          "context": " able to specify a new location for the part. See [Specifying\nInformation on the General Tab](Specifying_Information_on_the_General_Tab_site.md).\n\nDescription\nSpecify a description of the transa"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the Defaults Tab",
+          "context": "ho complete the labor for this finished\ngood. See [Specifying\nInformation on the Defaults Tab](Specifying_Information_on_the_Defaults_Tab_site.md).\n\n4. In the work order table,\n   the quantity you"
+        }
+      ],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "README.md",
+        "VMINVENTWhat.md",
+        "VMINVENT_APLfrmInventoryEntry.md"
+      ]
+    },
+    "Receiving_Materials_Into_Inventory.md": {
+      "title": "Receiving Materials by Work Order",
+      "path": "Receiving_Materials_Into_Inventory.md",
+      "links": [
+        {
+          "href": "Allocating_Released_Work_Order_Quantities_to_Demand.md",
+          "anchor_text": "Allocating\nReleased Work Order Quantities to Demand",
+          "context": "ign\nthe work order supply to a demand source. See [Allocating\nReleased Work Order Quantities to Demand](Allocating_Released_Work_Order_Quantities_to_Demand.md).\n\n6. Specify the quantity\n   of finished goods yo"
+        },
+        {
+          "href": "Specifying_Information_on_the_General_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the General Tab",
+          "context": " able to specify a new location for the part. See [Specifying\nInformation on the General Tab](Specifying_Information_on_the_General_Tab_site.md).\n\nDescription\nSpecify a description of the transa"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the Defaults Tab",
+          "context": "ho complete the labor for this finished\ngood. See [Specifying\nInformation on the Defaults Tab](Specifying_Information_on_the_Defaults_Tab_site.md).\n\n7. Click Save.\n   The quantity you specified is"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "you specified.\n   A transaction ID is generated.\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "nventory_Transaction_Entry.md) User-defined Help\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](Allocating_Released_Work_Order_Quantities_to_Dem"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "ocating Released Work Order Quantities\nto Demand\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](Assigning_Released_Work_Order_Receipt_Quantities"
+        }
+      ],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "README.md",
+        "VMINVENTWhat.md",
+        "VMINVENT_APLfrmInventoryEntry.md"
+      ]
+    },
+    "Returning_Issued_Materials.md": {
+      "title": "Returning Issued Materials",
+      "path": "Returning_Issued_Materials.md",
+      "links": [],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "README.md",
+        "VMINVENTWhat.md",
+        "VMINVENT_APLfrmInventoryEntry.md"
+      ]
+    },
+    "Returning_Received_Materials.md": {
+      "title": "Returning Received Materials",
+      "path": "Returning_Received_Materials.md",
+      "links": [],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "README.md",
+        "VMINVENTWhat.md",
+        "VMINVENT_APLfrmInventoryEntry.md"
+      ]
+    },
+    "VMINVENTfrmIssue.md": {
+      "title": "Issuing Materials to Work Orders",
+      "path": "VMINVENTfrmIssue.md",
+      "links": [
+        {
+          "href": "VMINVENT_APLfrmIssue.md",
+          "anchor_text": "Using\nIssue By Exception",
+          "context": "irements, use the Issue By Exception feature. See [Using\nIssue By Exception](VMINVENT_APLfrmIssue.md).\n\nTo issue parts to a material requirement:\n\n1. S"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the Defaults Tab",
+          "context": "ite Maintenance, this field may  be\nrequired. See [Specifying\nInformation on the Defaults Tab](Specifying_Information_on_the_Defaults_Tab_site.md).\n\nDescription\nSpecify a description of the transa"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "7. Click Save.\n   A transaction ID is generated.\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        }
+      ],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "README.md",
+        "VMINVENTWhat.md",
+        "VMINVENT_APLfrmInventoryEntry.md"
+      ]
+    },
+    "VMINVENTWhat.md": {
+      "title": "What is Inventory Transaction Entry?",
+      "path": "VMINVENTWhat.md",
+      "links": [
+        {
+          "href": "VMINVENTfrmIssue.md",
+          "anchor_text": "Issuing",
+          "context": " Transaction Entry to perform these functions:\n\n* [Issuing](VMINVENTfrmIssue.md)\n  and [returning](Returning_Issued_Materials.md) "
+        },
+        {
+          "href": "Returning_Issued_Materials.md",
+          "anchor_text": "returning",
+          "context": "unctions:\n\n* [Issuing](VMINVENTfrmIssue.md)\n  and [returning](Returning_Issued_Materials.md) inventory\n  materials to work orders. Materials p"
+        },
+        {
+          "href": "VMINVENT_APLfrmIssue.md",
+          "anchor_text": "Issue\n  by Exception",
+          "context": "all materials required by\n  a work order, use the [Issue\n  by Exception](VMINVENT_APLfrmIssue.md) function.\n* [Receiving](Receiving_Materials_Into_"
+        },
+        {
+          "href": "Receiving_Materials_Into_Inventory.md",
+          "anchor_text": "Receiving",
+          "context": "y Exception](VMINVENT_APLfrmIssue.md) function.\n* [Receiving](Receiving_Materials_Into_Inventory.md)\n  and [returning](Returning_Received_Materials.md"
+        },
+        {
+          "href": "Returning_Received_Materials.md",
+          "anchor_text": "returning",
+          "context": "ing](Receiving_Materials_Into_Inventory.md)\n  and [returning](Returning_Received_Materials.md) finished\n  goods from work in process. Work order"
+        },
+        {
+          "href": "Receiving_by_Part.md",
+          "anchor_text": "by\n  part",
+          "context": "  You can receive finished goods by work order or [by\n  part](Receiving_by_Part.md).\n* [Adjusting\n  inventory](Adjusting_Materials.md"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjusting\n  inventory",
+          "context": "ork order or [by\n  part](Receiving_by_Part.md).\n* [Adjusting\n  inventory](Adjusting_Materials.md) on-hand quantities to reconcile with actual physi"
+        },
+        {
+          "href": "Viewing_and_Modifying_Transaction_Information.md",
+          "anchor_text": "Viewing",
+          "context": "ysical Inventory Count does this automatically.\n* [Viewing](Viewing_and_Modifying_Transaction_Information.md)\n  of inventory transactions created automatically"
+        },
+        {
+          "href": "VMINVENT_APLfrmInventoryTransfer.md",
+          "anchor_text": "Transferring\n  inventory",
+          "context": "ry Count, and Labor Ticket\n  Entry auto-issues.\n* [Transferring\n  inventory](VMINVENT_APLfrmInventoryTransfer.md) between part locations\n\n[![btn_mini.gif](btn_mini"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "LfrmInventoryTransfer.md) between part locations\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "nventory_Transaction_Entry.md) User-defined Help\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](Starting_Inventory_Transaction_Entry.md) Startin"
+        }
+      ],
+      "backlinks": []
+    },
+    "VMINVENT_APLfrmInventoryEntry.md": {
+      "title": "Using Inventory Transaction Entry",
+      "path": "VMINVENT_APLfrmInventoryEntry.md",
+      "links": [
+        {
+          "href": "Receiving_Materials_Into_Inventory.md",
+          "anchor_text": "by\n  work order",
+          "context": "aterial into inventory. You can receive inventory [by\n  work order](Receiving_Materials_Into_Inventory.md) or [by part](Receiving_by_Part.md).\n* [Issue\n  Ma"
+        },
+        {
+          "href": "Receiving_by_Part.md",
+          "anchor_text": "by part",
+          "context": " order](Receiving_Materials_Into_Inventory.md) or [by part](Receiving_by_Part.md).\n* [Issue\n  Material to a work order.](VMINVENTfr"
+        },
+        {
+          "href": "VMINVENTfrmIssue.md",
+          "anchor_text": "Issue\n  Material to a work order.",
+          "context": "ventory.md) or [by part](Receiving_by_Part.md).\n* [Issue\n  Material to a work order.](VMINVENTfrmIssue.md)\n* [Adjust\n  material into inventory (add material"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjust\n  material into inventory (add material to inventory).",
+          "context": "Material to a work order.](VMINVENTfrmIssue.md)\n* [Adjust\n  material into inventory (add material to inventory).](Adjusting_Materials.md)\n* [Receipt\n  return (returns a material to the wo"
+        },
+        {
+          "href": "Returning_Received_Materials.md",
+          "anchor_text": "Receipt\n  return (returns a material to the work order)",
+          "context": "aterial to inventory).](Adjusting_Materials.md)\n* [Receipt\n  return (returns a material to the work order)](Returning_Received_Materials.md).\n* [Issue\n  return (return an issued material to "
+        },
+        {
+          "href": "Returning_Issued_Materials.md",
+          "anchor_text": "Issue\n  return (return an issued material to the stockroom)",
+          "context": " work order)](Returning_Received_Materials.md).\n* [Issue\n  return (return an issued material to the stockroom)](Returning_Issued_Materials.md).\n* [Adjust\n  material out of inventory (subtracts"
+        },
+        {
+          "href": "Adjusting_Materials.md",
+          "anchor_text": "Adjust\n  material out of inventory (subtracts from inventory)",
+          "context": "the stockroom)](Returning_Issued_Materials.md).\n* [Adjust\n  material out of inventory (subtracts from inventory)](Adjusting_Materials.md).\n\nAll of these operations are performed using the"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "Specifying\nInformation on the Defaults Tab",
+          "context": "During\nReceipt check box in Site Maintenance. See [Specifying\nInformation on the Defaults Tab](Specifying_Information_on_the_Defaults_Tab_site.md).\n\nRequired\n- The quantity required on the materia"
+        },
+        {
+          "href": "Setting_Up_Piece_Tracked_Parts_in_Part_Maintenance.md",
+          "anchor_text": "Setting\nUp Piece Tracked Parts in Part Maintenance",
+          "context": " which dimensions\nare required for the piece. See [Setting\nUp Piece Tracked Parts in Part Maintenance](Setting_Up_Piece_Tracked_Parts_in_Part_Maintenance.md).\n\nTransaction Class - The type of inventory trans"
+        },
+        {
+          "href": "Creating_Dimension_IDs.md",
+          "anchor_text": "Creating Dimension\nIDs",
+          "context": "r dimensions associated with the transaction.\nSee [Creating Dimension\nIDs](Creating_Dimension_IDs.md).\n\nCustomer Order ID - If you use dimensional repo"
+        },
+        {
+          "href": "Dimension_Reporting.md",
+          "anchor_text": "Dimension\nReporting",
+          "context": "omer order ID associated with\nthe adjustment. See [Dimension\nReporting](Dimension_Reporting.md).\n\nWork Order Table\n- For receipt by part transact"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "ons\nand are performing an adjust-in transaction.\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        }
+      ],
+      "backlinks": [
+        "Inventory_Transaction_Entry_Index.md"
+      ]
+    },
+    "VMINVENT_APLfrmInventoryTransfer.md": {
+      "title": "Transferring Inventory Between Locations",
+      "path": "VMINVENT_APLfrmInventoryTransfer.md",
+      "links": [
+        {
+          "href": "Using_the_Primary_Warehouse_and_Location_as_the_Default_From_Location.md",
+          "anchor_text": "Using\n   the Primary Warehouse and Location as the Default From Location",
+          "context": "efault. You can specify a different value.\n   See [Using\n   the Primary Warehouse and Location as the Default From Location](Using_the_Primary_Warehouse_and_Location_as_the_Default_From_Location.md).\n\nIf you are transferring a piece-tracked\npart, s"
+        },
+        {
+          "href": "Specifying_Information_on_the_Defaults_Tab_site.md",
+          "anchor_text": "Specifying\n   Information on the Defaults Tab",
+          "context": "ntory\n   adjustments also apply to transfers. See [Specifying\n   Information on the Defaults Tab](Specifying_Information_on_the_Defaults_Tab_site.md).\n7. In the From fields,\n   specify the warehouse "
+        },
+        {
+          "href": "Using_the_Primary_Warehouse_and_Location_as_the_Default_From_Location.md",
+          "anchor_text": "Using\n   the Primary Warehouse and Location as the Default From Location",
+          "context": "efault. You can specify\n   a different value. See [Using\n   the Primary Warehouse and Location as the Default From Location](Using_the_Primary_Warehouse_and_Location_as_the_Default_From_Location.md).\n\nIf you use [dimensional\nreporting](Dimension_Re"
+        },
+        {
+          "href": "Dimension_Reporting.md",
+          "anchor_text": "dimensional\nreporting",
+          "context": "ion_as_the_Default_From_Location.md).\n\nIf you use [dimensional\nreporting](Dimension_Reporting.md), the default dimension IDs for the debit transact"
+        },
+        {
+          "href": "Dimension_Reporting.md",
+          "anchor_text": "dimensional\nreporting",
+          "context": " which you are transferring the part.\n\nIf you use [dimensional\nreporting](Dimension_Reporting.md), the default dimension IDs for the debit transact"
+        },
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "ching Adjust In transaction for the\nTo location.\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        }
+      ],
+      "backlinks": [
+        "VMINVENTWhat.md"
+      ]
+    },
+    "VMINVENT_APLfrmIssue.md": {
+      "title": "Issue and Return by Exception",
+      "path": "VMINVENT_APLfrmIssue.md",
+      "links": [
+        {
+          "href": "btn_mini.gif \"btn_mini.gif\"",
+          "anchor_text": "![btn_mini.gif",
+          "context": "n I return traced parts? | **Yes** | Yes | Yes |\n\n[![btn_mini.gif](btn_mini.gif \"btn_mini.gif\")](User_defined_Help_Files_Inventory_Transaction_En"
+        }
+      ],
+      "backlinks": [
+        "Document_Hierarchy_Map.md",
+        "Inventory_Transaction_Entry_Index.md",
+        "VMINVENTfrmIssue.md",
+        "VMINVENTWhat.md"
+      ]
+    }
+  },
+  "link_graph": {
+    "nodes": [
+      "Adjusting_Materials.md",
+      "Document_Hierarchy_Map.md",
+      "Inventory_Transaction_Entry_Index.md",
+      "README.md",
+      "Receiving_by_Part.md",
+      "Receiving_Materials_Into_Inventory.md",
+      "Returning_Issued_Materials.md",
+      "Returning_Received_Materials.md",
+      "VMINVENTfrmIssue.md",
+      "VMINVENTWhat.md",
+      "VMINVENT_APLfrmInventoryEntry.md",
+      "VMINVENT_APLfrmInventoryTransfer.md",
+      "VMINVENT_APLfrmIssue.md"
+    ],
+    "edges": [
+      {
+        "from": "Adjusting_Materials.md",
+        "to": "VMPRTMNTfrmPart.md",
+        "label": "costs defined on the\n   part record"
+      },
+      {
+        "from": "Adjusting_Materials.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "your\nsettings in Site Maintenance"
+      },
+      {
+        "from": "Adjusting_Materials.md",
+        "to": "Using_the_G_L_Account_Interface_Table.md",
+        "label": "sites\ngeneral ledger interface"
+      },
+      {
+        "from": "Adjusting_Materials.md",
+        "to": "Dimension_Reporting.md",
+        "label": "dimensional\n   reporting"
+      },
+      {
+        "from": "Adjusting_Materials.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Receiving_Materials_Into_Inventory.md",
+        "label": "Receipt by Work Order"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Receiving_by_Part.md",
+        "label": "Receipt by Part"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Receipt_by_Part_Inventory_Transaction_Entry.md",
+        "label": "Receipt by Part Inventory Transaction Entry"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "VMINVENTfrmIssue.md",
+        "label": "Issuing Materials to Work Orders"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "VMINVENT_APLfrmIssue.md",
+        "label": "Issue by Exception"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Issue_Material_to_Work_Order.md",
+        "label": "Issue Material to Work Order - Complete Guide"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjusting Materials"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "For_Adjust_In_or_Adjust_Out_from_Inventory.md",
+        "label": "For Adjust In or Adjust Out from Inventory"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Returning_Received_Materials.md",
+        "label": "Returning Received Materials"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "For_Receipt_Return_of_Finished_Goods.md",
+        "label": "For Receipt Return of Finished Goods"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Returning_Issued_Materials.md",
+        "label": "Returning Issued Materials"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "For_Return_of_Issued_Material_from_a_Work_Order.md",
+        "label": "For Return of Issued Material from a Work Order"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Issue_Return_to_Stockroom.md",
+        "label": "Issue Return to Stockroom - Complete Guide"
+      },
+      {
+        "from": "Document_Hierarchy_Map.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjusting Materials"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Receiving_Materials_Into_Inventory.md",
+        "label": "Receiving Materials by Work Order"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Receiving_by_Part.md",
+        "label": "Receiving by Part"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Issue_Material_to_Work_Order.md",
+        "label": "Issue Material to Work Order"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "VMINVENTfrmIssue.md",
+        "label": "Issuing Materials to Work Orders"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "VMINVENT_APLfrmIssue.md",
+        "label": "Issue and Return by Exception"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjusting Materials"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Returning_Received_Materials.md",
+        "label": "Returning Received Materials"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Issue_Return_to_Stockroom.md",
+        "label": "Issue Return to Stockroom"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Returning_Issued_Materials.md",
+        "label": "Returning Issued Materials"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjusting Materials"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory_Transactions.md",
+        "label": "Inventory Transactions"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Creating_Inventory_Transactions.md",
+        "label": "Creating Inventory Transactions (Shipping)"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "materiall_requirements_flow.md",
+        "label": "Material Requirements Flow"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory_Transaction_Terminology_Guide.md",
+        "label": "Inventory Transaction Terminology Guide"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory_transactions_flow.md",
+        "label": "Inventory Transactions Flow"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory_Transactions_Filtered.sql",
+        "label": "Inventory_Transactions_Filtered.sql"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory%20-%20Transactions%20AI%20Review.sql",
+        "label": "Inventory - Transactions AI Review.sql"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "VMINVENT_APLfrmInventoryEntry.md",
+        "label": "Using Inventory Transaction Entry"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "BTS_BI_Basic_Inventory_Transactions.md",
+        "label": "BTS_BI_Basic_Inventory_Transactions"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory_Transaction_Costing.md",
+        "label": "Inventory Transaction Costing"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "VMINVENT_APLfrmIssue.md",
+        "label": "Issue and Return by Exception"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "For_Issue_of_Inventory_to_a_Work_Order.md",
+        "label": "For Issue of Inventory to a Work Order"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Setting_Part_Traceability_Inventory_Transaction_Entry.md",
+        "label": "Setting Part Traceability Inventory Transaction Entry"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Creating_Move_Requests_in_Inventory_Transaction_Entry.md",
+        "label": "Creating Move Requests in Inventory Transaction Entry"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Move_Requests_in_Inventory_Transaction_Entry.md",
+        "label": "Move Requests in Inventory Transaction Entry"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "Inventory_Transaction_Terminology_Guide.md",
+        "label": "Inventory Transaction Terminology Guide"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "materiall_requirements_flow.md",
+        "label": "Material Requirements Flow"
+      },
+      {
+        "from": "Inventory_Transaction_Entry_Index.md",
+        "to": "work_order_operations_flow.md",
+        "label": "Work Order Operations Flow"
+      },
+      {
+        "from": "README.md",
+        "to": "Receiving_Materials_Into_Inventory.md",
+        "label": "by\n  work order"
+      },
+      {
+        "from": "README.md",
+        "to": "Receiving_by_Part.md",
+        "label": "by part"
+      },
+      {
+        "from": "README.md",
+        "to": "VMINVENTfrmIssue.md",
+        "label": "Issue\n  Material to a work order."
+      },
+      {
+        "from": "README.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjust\n  material into inventory (add material to inventory)."
+      },
+      {
+        "from": "README.md",
+        "to": "Returning_Received_Materials.md",
+        "label": "Receipt\n  return (returns a material to the work order)"
+      },
+      {
+        "from": "README.md",
+        "to": "Returning_Issued_Materials.md",
+        "label": "Issue\n  return (return an issued material to the stockroom)"
+      },
+      {
+        "from": "README.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjust\n  material out of inventory (subtracts from inventory)"
+      },
+      {
+        "from": "README.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "Specifying\nInformation on the Defaults Tab"
+      },
+      {
+        "from": "README.md",
+        "to": "Setting_Up_Piece_Tracked_Parts_in_Part_Maintenance.md",
+        "label": "Setting\nUp Piece Tracked Parts in Part Maintenance"
+      },
+      {
+        "from": "README.md",
+        "to": "Creating_Dimension_IDs.md",
+        "label": "Creating Dimension\nIDs"
+      },
+      {
+        "from": "README.md",
+        "to": "Dimension_Reporting.md",
+        "label": "Dimension\nReporting"
+      },
+      {
+        "from": "README.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "Receiving_by_Part.md",
+        "to": "Specifying_Information_on_the_General_Tab_site.md",
+        "label": "Specifying\nInformation on the General Tab"
+      },
+      {
+        "from": "Receiving_by_Part.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "Specifying\nInformation on the Defaults Tab"
+      },
+      {
+        "from": "Receiving_Materials_Into_Inventory.md",
+        "to": "Allocating_Released_Work_Order_Quantities_to_Demand.md",
+        "label": "Allocating\nReleased Work Order Quantities to Demand"
+      },
+      {
+        "from": "Receiving_Materials_Into_Inventory.md",
+        "to": "Specifying_Information_on_the_General_Tab_site.md",
+        "label": "Specifying\nInformation on the General Tab"
+      },
+      {
+        "from": "Receiving_Materials_Into_Inventory.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "Specifying\nInformation on the Defaults Tab"
+      },
+      {
+        "from": "Receiving_Materials_Into_Inventory.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "Receiving_Materials_Into_Inventory.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "Receiving_Materials_Into_Inventory.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "VMINVENTfrmIssue.md",
+        "to": "VMINVENT_APLfrmIssue.md",
+        "label": "Using\nIssue By Exception"
+      },
+      {
+        "from": "VMINVENTfrmIssue.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "Specifying\nInformation on the Defaults Tab"
+      },
+      {
+        "from": "VMINVENTfrmIssue.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "VMINVENTfrmIssue.md",
+        "label": "Issuing"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "Returning_Issued_Materials.md",
+        "label": "returning"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "VMINVENT_APLfrmIssue.md",
+        "label": "Issue\n  by Exception"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "Receiving_Materials_Into_Inventory.md",
+        "label": "Receiving"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "Returning_Received_Materials.md",
+        "label": "returning"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "Receiving_by_Part.md",
+        "label": "by\n  part"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjusting\n  inventory"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "Viewing_and_Modifying_Transaction_Information.md",
+        "label": "Viewing"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "VMINVENT_APLfrmInventoryTransfer.md",
+        "label": "Transferring\n  inventory"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "VMINVENTWhat.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Receiving_Materials_Into_Inventory.md",
+        "label": "by\n  work order"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Receiving_by_Part.md",
+        "label": "by part"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "VMINVENTfrmIssue.md",
+        "label": "Issue\n  Material to a work order."
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjust\n  material into inventory (add material to inventory)."
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Returning_Received_Materials.md",
+        "label": "Receipt\n  return (returns a material to the work order)"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Returning_Issued_Materials.md",
+        "label": "Issue\n  return (return an issued material to the stockroom)"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Adjusting_Materials.md",
+        "label": "Adjust\n  material out of inventory (subtracts from inventory)"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "Specifying\nInformation on the Defaults Tab"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Setting_Up_Piece_Tracked_Parts_in_Part_Maintenance.md",
+        "label": "Setting\nUp Piece Tracked Parts in Part Maintenance"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Creating_Dimension_IDs.md",
+        "label": "Creating Dimension\nIDs"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "Dimension_Reporting.md",
+        "label": "Dimension\nReporting"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryEntry.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryTransfer.md",
+        "to": "Using_the_Primary_Warehouse_and_Location_as_the_Default_From_Location.md",
+        "label": "Using\n   the Primary Warehouse and Location as the Default From Location"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryTransfer.md",
+        "to": "Specifying_Information_on_the_Defaults_Tab_site.md",
+        "label": "Specifying\n   Information on the Defaults Tab"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryTransfer.md",
+        "to": "Using_the_Primary_Warehouse_and_Location_as_the_Default_From_Location.md",
+        "label": "Using\n   the Primary Warehouse and Location as the Default From Location"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryTransfer.md",
+        "to": "Dimension_Reporting.md",
+        "label": "dimensional\nreporting"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryTransfer.md",
+        "to": "Dimension_Reporting.md",
+        "label": "dimensional\nreporting"
+      },
+      {
+        "from": "VMINVENT_APLfrmInventoryTransfer.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      },
+      {
+        "from": "VMINVENT_APLfrmIssue.md",
+        "to": "btn_mini.gif \"btn_mini.gif\"",
+        "label": "![btn_mini.gif"
+      }
+    ]
+  },
+  "statistics": {
+    "total_documents": 13,
+    "total_links": 100,
+    "total_nodes": 13,
+    "total_edges": 100
+  }
+}
