@@ -39,6 +39,7 @@ from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import gradio as gr
 from sqlalchemy import create_engine, text, inspect
@@ -3043,6 +3044,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=context_output
             )
         
+        with gr.Tab("🔗 Define Relationship"):
+            gr.Markdown("### Define Data Relationships\n\nSearch for entities, select a predicate, and add the relationship to the graph. Use the undo history to reverse recent additions.")
+            gr.HTML(
+                value="""<iframe
+                    src="/define-relationship/"
+                    style="width:100%;height:820px;border:none;border-radius:8px;background:#0f172a;"
+                    title="Define Relationship Panel"
+                ></iframe>"""
+            )
+
         with gr.Tab("📊 Schema"):
             schema_header_md = gr.Markdown("### Database Schema Resources\n\n**Active ERP:** loading…")
 
@@ -4505,6 +4516,10 @@ print(f"SQLite database initialized with {len(initial_tables)} tables")
 
 gradio_app = create_gradio_interface()
 app = gr.mount_gradio_app(app, gradio_app, path="/gradio")
+
+_dr_static = os.path.join(os.path.dirname(__file__), "static", "define-relationship")
+if os.path.isdir(_dr_static):
+    app.mount("/define-relationship", StaticFiles(directory=_dr_static, html=True), name="define-relationship")
 
 
 if __name__ == "__main__":
