@@ -6,3 +6,9 @@ id = "DTYC8-OeBSbXgDjoHh5ZL"
 uri = "file://docs/arango_graph_queries.md"
 type = "text"
 title = "ArangoDB Graph Query Reference"
+
+[[outputs]]
+id = "kaqFg5kR5LG8fqDpIa7tN"
+uri = "file://define-relationship-integration-guide.md"
+type = "text"
+title = "Define Relationship — Integration Guide"
