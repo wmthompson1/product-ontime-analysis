@@ -121,22 +121,33 @@ def table_vertex(
 def column_vertex(
     table_name: str,
     column_name: str,
-    data_type: str = "",
-    not_null: bool = False,
+    column_type: str = "TEXT",
+    notnull: bool = False,
     pk: bool = False,
+    default_value: Any = None,
     synced_at: str = "",
 ) -> Dict[str, Any]:
-    """Build a ``columns`` vertex document ready for ArangoDB insert/update."""
+    """Build a ``columns`` vertex document ready for ArangoDB insert/update.
+
+    Field names match the private repo's column node schema (see graph_naming_adapters.py):
+      node_type      : "column"
+      table_name     : uppercase, e.g. "EMPLOYEE"
+      column_name    : uppercase, e.g. "ADDR_1"
+      column_type    : SQLite type string, e.g. "TEXT", "INTEGER"
+      notnull        : bool
+      primary_key    : bool
+      default_value  : raw default from PRAGMA (None when absent)
+    """
     key = column_key(table_name, column_name)
     return {
         "_key": key,
-        "table_name": table_name,
-        "column_name": column_name,
-        "qualified_name": f"{table_name}.{column_name}",
-        "data_type": data_type,
-        "not_null": not_null,
-        "primary_key": pk,
         "node_type": "column",
+        "table_name": table_name.strip().upper(),
+        "column_name": column_name.strip().upper(),
+        "column_type": column_type or "TEXT",
+        "notnull": notnull,
+        "primary_key": pk,
+        "default_value": default_value,
         "synced_at": synced_at,
     }
 
@@ -146,12 +157,22 @@ def contains_edge(
     column_name: str,
     synced_at: str = "",
 ) -> Dict[str, Any]:
-    """Build a ``contains`` edge document ready for ArangoDB insert/update."""
+    """Build a ``contains`` edge document ready for ArangoDB insert/update.
+
+    Matches the private repo's edge schema:
+      edge_type   : "CONTAINS"
+      table_name  : uppercase, e.g. "EMPLOYEE"
+      column_name : uppercase, e.g. "ADDR_1"
+      _from       : tables/{table_key}
+      _to         : columns/{column_key}
+    """
     key = contains_edge_key(table_name, column_name)
     return {
         "_key": key,
         "_from": f"{TABLES_COLLECTION}/{table_key(table_name)}",
         "_to": f"{COLUMNS_COLLECTION}/{column_key(table_name, column_name)}",
-        "relationship": "CONTAINS",
+        "edge_type": "CONTAINS",
+        "table_name": table_name.strip().upper(),
+        "column_name": column_name.strip().upper(),
         "synced_at": synced_at,
     }

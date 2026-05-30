@@ -123,26 +123,42 @@ class TestColumnVertex(unittest.TestCase):
         from arangodb_helpers.manufacturing_graph_version_0_0_1 import column_vertex
         self.cv = column_vertex(
             "corrective_actions", "capa_id",
-            data_type="INTEGER", not_null=True, pk=True, synced_at="T",
+            column_type="INTEGER", notnull=True, pk=True,
+            default_value=None, synced_at="T",
         )
 
     def test_key_format(self):
         self.assertEqual(self.cv["_key"], "column::CORRECTIVE_ACTIONS.CAPA_ID")
 
-    def test_qualified_name_uses_dot(self):
-        self.assertEqual(self.cv["qualified_name"], "corrective_actions.capa_id")
-
     def test_node_type_is_column(self):
         self.assertEqual(self.cv["node_type"], "column")
+
+    def test_table_name_uppercase(self):
+        self.assertEqual(self.cv["table_name"], "CORRECTIVE_ACTIONS")
+
+    def test_column_name_uppercase(self):
+        self.assertEqual(self.cv["column_name"], "CAPA_ID")
 
     def test_primary_key_flag(self):
         self.assertTrue(self.cv["primary_key"])
 
-    def test_not_null_flag(self):
-        self.assertTrue(self.cv["not_null"])
+    def test_notnull_flag(self):
+        self.assertTrue(self.cv["notnull"])
 
-    def test_data_type_preserved(self):
-        self.assertEqual(self.cv["data_type"], "INTEGER")
+    def test_column_type_preserved(self):
+        self.assertEqual(self.cv["column_type"], "INTEGER")
+
+    def test_default_value_none(self):
+        self.assertIsNone(self.cv["default_value"])
+
+    def test_no_qualified_name_field(self):
+        self.assertNotIn("qualified_name", self.cv)
+
+    def test_no_data_type_field(self):
+        self.assertNotIn("data_type", self.cv)
+
+    def test_no_not_null_field(self):
+        self.assertNotIn("not_null", self.cv)
 
 
 class TestContainsEdgeDoc(unittest.TestCase):
@@ -156,8 +172,17 @@ class TestContainsEdgeDoc(unittest.TestCase):
     def test_to_is_column(self):
         self.assertEqual(self.ed["_to"], "columns/column::DAILY_DELIVERIES.DELIVERY_DATE")
 
-    def test_relationship_label(self):
-        self.assertEqual(self.ed["relationship"], "CONTAINS")
+    def test_edge_type_label(self):
+        self.assertEqual(self.ed["edge_type"], "CONTAINS")
+
+    def test_no_relationship_field(self):
+        self.assertNotIn("relationship", self.ed)
+
+    def test_edge_table_name_uppercase(self):
+        self.assertEqual(self.ed["table_name"], "DAILY_DELIVERIES")
+
+    def test_edge_column_name_uppercase(self):
+        self.assertEqual(self.ed["column_name"], "DELIVERY_DATE")
 
 
 # ---------------------------------------------------------------------------
@@ -265,7 +290,7 @@ class TestLoadSchemaContainmentData(unittest.TestCase):
 
     def test_not_null_flag(self):
         data = self._load()
-        nn = {(c["table_name"], c["column_name"]): c["not_null"] for c in data["columns"]}
+        nn = {(c["table_name"], c["column_name"]): c["notnull"] for c in data["columns"]}
         self.assertTrue(nn[("alpha_table", "label")])
         self.assertTrue(nn[("beta_table", "flag")])
         self.assertFalse(nn[("beta_table", "value")])

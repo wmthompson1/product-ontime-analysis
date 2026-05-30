@@ -222,9 +222,10 @@ def load_schema_containment_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any
                 columns.append({
                     "table_name": tname,
                     "column_name": col["name"],
-                    "data_type": col["type"] or "TEXT",
-                    "not_null": bool(col["notnull"]),
+                    "column_type": col["type"] or "TEXT",
+                    "notnull": bool(col["notnull"]),
                     "pk": bool(col["pk"]),
+                    "default_value": col["dflt_value"],
                 })
         except Exception:
             pass
@@ -567,9 +568,10 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             cname = col["column_name"]
             col_doc = column_vertex(
                 tname, cname,
-                data_type=col["data_type"],
-                not_null=col["not_null"],
+                column_type=col["column_type"],
+                notnull=col["notnull"],
                 pk=col["pk"],
+                default_value=col.get("default_value"),
                 synced_at=report.timestamp,
             )
             edge_doc = contains_edge(tname, cname, synced_at=report.timestamp)
