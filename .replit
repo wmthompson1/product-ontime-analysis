@@ -69,30 +69,6 @@ outputType = "webview"
 [deployment]
 run = ["sh", "-c", "python3 helloWorld.py"]
 
-[[ports]]
-localPort = 3000
-externalPort = 3000
-
-[[ports]]
-localPort = 4321
-externalPort = 3001
-
-[[ports]]
-localPort = 4322
-externalPort = 3002
-
-[[ports]]
-localPort = 5000
-externalPort = 80
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 23636
-externalPort = 4200
-
 [agent]
 expertMode = true
 
@@ -104,3 +80,15 @@ ARANGO_DB = "manufacturing_graph"
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 23636
+externalPort = 80
