@@ -2402,16 +2402,26 @@ async def list_table_columns(table: str):
     try:
         conn = _sqlite3.connect(SQLITE_DB_PATH)
         conn.row_factory = _sqlite3.Row
+
         rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+
+        if not rows:
+            # Case-insensitive fallback: find the real physical table name.
+            match = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND LOWER(name)=LOWER(?)",
+                (table,),
+            ).fetchone()
+            if match:
+                physical = match["name"]
+                rows = conn.execute(f"PRAGMA table_info({physical})").fetchall()
+                table = physical
+
         conn.close()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"SQLite error: {exc}")
 
     if not rows:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Table '{table}' not found or has no columns in the database",
-        )
+        return {"table_name": table, "columns": []}
 
     columns = [
         {
