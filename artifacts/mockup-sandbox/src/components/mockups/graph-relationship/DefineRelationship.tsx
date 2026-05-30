@@ -40,6 +40,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const EDGE_MEANINGS: Record<string, string> = {
+  CONTAINS: "Defined as: Structural containment — a table node owns its column nodes. Physical layer only, no business meaning. edge_type stored on the contains edge collection.",
   FOREIGN_KEY: "Defined as: structural referential integrity link between ERP tables. Table-Scoped. NOT GLOBAL MEANING.",
   ELEVATES: "Defined as: Intent promotes this Concept when routing a question. Semantic weight = 1. NOT GLOBAL MEANING.",
   SUPPRESSES: "Defined as: Intent demotes this Concept when routing a question. Semantic weight = -1. NOT GLOBAL MEANING.",
@@ -106,6 +107,7 @@ function searchEntities(
 // so selectedTarget must use that same format (see useState initializer below).
 
 const PREDICATES = [
+  "CONTAINS",
   "FOREIGN_KEY",
   "ELEVATES",
   "SUPPRESSES",
@@ -846,7 +848,7 @@ export function DefineRelationship() {
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
                   Define Relationship (Edge)
                 </p>
-                <p className="text-[10px] text-slate-500 mb-1">Choose Predicate</p>
+                <p className="text-[10px] text-slate-500 mb-1">Choose Edge Type</p>
                 <select
                   value={selectedPredicate}
                   onChange={(e) => setSelectedPredicate(e.target.value)}
@@ -1047,7 +1049,7 @@ export function DefineRelationship() {
                 <div className="flex items-center gap-1 text-slate-400">
                   <div className="w-5 h-px bg-slate-500" />
                   <div className="border border-slate-500 rounded px-1.5 py-0.5 text-[9px] text-slate-400 bg-slate-800">
-                    ({selectedPredicate.toLowerCase()})
+                    {selectedPredicate.toLowerCase()}
                   </div>
                   <div className="w-5 h-px bg-slate-500" />
                   <svg width="8" height="10" viewBox="0 0 8 10" className="text-slate-400">
@@ -1064,7 +1066,7 @@ export function DefineRelationship() {
               <div className="flex-1 flex items-center gap-1.5 flex-wrap justify-end">
                 <span className="text-[9px] uppercase tracking-widest text-slate-500 mr-1">Attrs:</span>
                 <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
-                  predicate: <span className="text-slate-200">{selectedPredicate}</span>
+                  edge_type: <span className="text-slate-200">{selectedPredicate}</span>
                 </span>
                 <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
                   intent: <span className="text-violet-300">{selectedIntent}</span>
