@@ -534,7 +534,7 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
     # These collections are intentionally separate from the semantic layer.
     try:
         from arangodb_helpers.manufacturing_graph_version_0_0_1 import (
-            table_vertex, column_vertex, contains_edge,
+            table_key, table_vertex, column_vertex, contains_edge,
             TABLES_COLLECTION, COLUMNS_COLLECTION, CONTAINS_EDGE_COLLECTION,
         )
 
@@ -554,8 +554,9 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             tname = tbl["table_name"]
             doc = table_vertex(tname, description=tbl["description"],
                                synced_at=report.timestamp)
+            tbl_key = table_key(tname)   # e.g. "table::CORRECTIVE_ACTIONS"
             try:
-                is_new = _upsert_vertex(tables_coll, tname, doc)
+                is_new = _upsert_vertex(tables_coll, tbl_key, doc)
                 sc_v_synced[TABLES_COLLECTION] += 1
                 (sc_v_new if is_new else sc_v_updated)[TABLES_COLLECTION] += 1
             except Exception as ex:

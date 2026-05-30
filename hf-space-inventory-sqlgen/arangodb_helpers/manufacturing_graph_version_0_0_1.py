@@ -28,12 +28,14 @@ A resolver can walk:
                                                <-[elevates]- intents/{intent}
                                                <-[BOUND_TO]- bindings/{binding_key}
 
-Key conventions
----------------
-- Table vertex key  : ``table_name``  (e.g. ``corrective_actions``)
-- Column vertex key : ``{table_name}__{column_name}``  (double-underscore separator;
-  ArangoDB _key cannot contain a dot)
-- Contains edge key : same as column key (one parent per column, so the key is unique)
+Key conventions  (aligned with private repo graph_naming_adapters.py)
+----------------------------------------------------------------------
+- Table vertex key  : ``table::{TABLE_NAME}``          (uppercase, type-prefixed)
+                      e.g. ``table::CORRECTIVE_ACTIONS``
+- Column vertex key : ``column::{TABLE_NAME}.{COL}``   (uppercase, dot separator)
+                      e.g. ``column::CORRECTIVE_ACTIONS.CAPA_ID``
+  ArangoDB _key permits dots — the double-colon prefix keeps the type explicit.
+- Contains edge key : same as column key (one parent per column → unique)
 
 Collections introduced by this model
 -------------------------------------
@@ -61,18 +63,32 @@ CONTAINS_EDGE_DEFINITION: Dict[str, Any] = {
 
 # ── Key helpers ──────────────────────────────────────────────────────────────
 
+def table_key(table_name: str) -> str:
+    """Return the ArangoDB ``_key`` for a table vertex.
+
+    Format: ``table::{TABLE_NAME}`` (uppercase).
+
+    Example::
+
+        table_key("corrective_actions")
+        # → "table::CORRECTIVE_ACTIONS"
+    """
+    return f"table::{table_name.strip().upper()}"
+
+
 def column_key(table_name: str, column_name: str) -> str:
     """Return the ArangoDB ``_key`` for a column vertex.
 
-    Uses a double-underscore separator because ArangoDB ``_key`` values
-    cannot contain a dot character.
+    Format: ``column::{TABLE_NAME}.{COLUMN_NAME}`` (both uppercase).
+    ArangoDB ``_key`` permits literal dots; the ``column::`` prefix keeps
+    the type unambiguous when browsing the collection.
 
     Example::
 
         column_key("corrective_actions", "capa_id")
-        # → "corrective_actions__capa_id"
+        # → "column::CORRECTIVE_ACTIONS.CAPA_ID"
     """
-    return f"{table_name}__{column_name}"
+    return f"column::{table_name.strip().upper()}.{column_name.strip().upper()}"
 
 
 def contains_edge_key(table_name: str, column_name: str) -> str:
@@ -93,7 +109,7 @@ def table_vertex(
 ) -> Dict[str, Any]:
     """Build a ``tables`` vertex document ready for ArangoDB insert/update."""
     return {
-        "_key": table_name,
+        "_key": table_key(table_name),
         "table_name": table_name,
         "qualified_name": f"dbo.{table_name.upper()}",
         "description": description,
@@ -134,7 +150,7 @@ def contains_edge(
     key = contains_edge_key(table_name, column_name)
     return {
         "_key": key,
-        "_from": f"{TABLES_COLLECTION}/{table_name}",
+        "_from": f"{TABLES_COLLECTION}/{table_key(table_name)}",
         "_to": f"{COLUMNS_COLLECTION}/{column_key(table_name, column_name)}",
         "relationship": "CONTAINS",
         "synced_at": synced_at,

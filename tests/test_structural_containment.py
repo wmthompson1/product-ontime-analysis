@@ -47,25 +47,48 @@ class TestSchemaModelConstants(unittest.TestCase):
         self.assertEqual(self.CONTAINS, "contains")
 
 
+class TestTableKey(unittest.TestCase):
+    def setUp(self):
+        from arangodb_helpers.manufacturing_graph_version_0_0_1 import table_key
+        self.table_key = table_key
+
+    def test_type_prefix(self):
+        self.assertTrue(self.table_key("employee").startswith("table::"))
+
+    def test_uppercase(self):
+        self.assertEqual(self.table_key("corrective_actions"), "table::CORRECTIVE_ACTIONS")
+
+    def test_strips_whitespace(self):
+        self.assertEqual(self.table_key("  products  "), "table::PRODUCTS")
+
+
 class TestColumnKey(unittest.TestCase):
     def setUp(self):
         from arangodb_helpers.manufacturing_graph_version_0_0_1 import column_key
         self.column_key = column_key
 
-    def test_double_underscore_separator(self):
+    def test_type_prefix(self):
+        self.assertTrue(self.column_key("employee", "id").startswith("column::"))
+
+    def test_uppercase_with_dot(self):
         self.assertEqual(
             self.column_key("corrective_actions", "capa_id"),
-            "corrective_actions__capa_id",
+            "column::CORRECTIVE_ACTIONS.CAPA_ID",
         )
 
-    def test_no_dot_in_key(self):
+    def test_dot_separator_present(self):
         key = self.column_key("products", "product_id")
-        self.assertNotIn(".", key)
+        self.assertIn(".", key)
 
     def test_different_table_same_column_name_are_distinct(self):
         k1 = self.column_key("products", "status")
         k2 = self.column_key("suppliers", "status")
         self.assertNotEqual(k1, k2)
+
+    def test_matches_private_repo_adapter_format(self):
+        # Verify alignment with scripts/utils/graph_naming_adapters.py
+        # tokenize_agent_canonical_id("EMPLOYEE", "ID") → "column::EMPLOYEE.ID"
+        self.assertEqual(self.column_key("EMPLOYEE", "ID"), "column::EMPLOYEE.ID")
 
 
 class TestContainsEdgeKey(unittest.TestCase):
@@ -82,8 +105,8 @@ class TestTableVertex(unittest.TestCase):
         from arangodb_helpers.manufacturing_graph_version_0_0_1 import table_vertex
         self.tv = table_vertex("production_orders", description="PO lines", synced_at="T")
 
-    def test_key_equals_table_name(self):
-        self.assertEqual(self.tv["_key"], "production_orders")
+    def test_key_type_prefixed_uppercase(self):
+        self.assertEqual(self.tv["_key"], "table::PRODUCTION_ORDERS")
 
     def test_qualified_name_uppercase(self):
         self.assertEqual(self.tv["qualified_name"], "dbo.PRODUCTION_ORDERS")
@@ -104,7 +127,7 @@ class TestColumnVertex(unittest.TestCase):
         )
 
     def test_key_format(self):
-        self.assertEqual(self.cv["_key"], "corrective_actions__capa_id")
+        self.assertEqual(self.cv["_key"], "column::CORRECTIVE_ACTIONS.CAPA_ID")
 
     def test_qualified_name_uses_dot(self):
         self.assertEqual(self.cv["qualified_name"], "corrective_actions.capa_id")
@@ -128,10 +151,10 @@ class TestContainsEdgeDoc(unittest.TestCase):
         self.ed = contains_edge("daily_deliveries", "delivery_date", synced_at="T")
 
     def test_from_is_table(self):
-        self.assertEqual(self.ed["_from"], "tables/daily_deliveries")
+        self.assertEqual(self.ed["_from"], "tables/table::DAILY_DELIVERIES")
 
     def test_to_is_column(self):
-        self.assertEqual(self.ed["_to"], "columns/daily_deliveries__delivery_date")
+        self.assertEqual(self.ed["_to"], "columns/column::DAILY_DELIVERIES.DELIVERY_DATE")
 
     def test_relationship_label(self):
         self.assertEqual(self.ed["relationship"], "CONTAINS")
