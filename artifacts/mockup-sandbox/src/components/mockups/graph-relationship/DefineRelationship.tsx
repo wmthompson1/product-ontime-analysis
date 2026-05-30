@@ -16,6 +16,8 @@ import type { EntityRecord, GroupedResults, SearchResult } from "./entityDisplay
 import { undoEdge, fetchGraphStats } from "./graphApi";
 import type { GraphStats } from "./graphApi";
 import { MOCK_SEARCH_DATA } from "./fixtures";
+import { useColumnsByTable } from "./useColumnsByTable";
+import type { ColumnMeta } from "./useColumnsByTable";
 
 // Pill bar now scopes the workspace by Perspective/Category (was: edge predicate filter).
 // Picking a Category here means "I'm building relationships within this domain scope" — and the
@@ -475,6 +477,28 @@ export function DefineRelationship() {
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
   const hasCategory = activeCategory !== "ALL";
 
+  // When CONTAINS is the active edge type, fetch columns for the selected source table.
+  // The hook caches results per-table and returns IDLE when edge type is not CONTAINS.
+  const isContains = selectedPredicate === "CONTAINS";
+  const {
+    columns: targetColumns,
+    isLoading: isLoadingColumns,
+    error: columnError,
+  } = useColumnsByTable(sourceShort, selectedPredicate);
+
+  // Keep selectedTarget in sync when switching into CONTAINS mode —
+  // reset to the first available column so the preview strip is never stale.
+  useEffect(() => {
+    if (isContains && targetColumns.length > 0) {
+      setSelectedTarget(targetColumns[0].qualified_name);
+    }
+    if (!isContains) {
+      // Restore a table-style selection when leaving CONTAINS mode.
+      setSelectedTarget(getFirstEntityDisplay(entityNamespaces));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isContains, targetColumns.length]);
+
   return (
     <div className="flex h-screen w-full bg-[#1e1e2e] text-sm font-['Inter'] overflow-hidden">
       {/* Icon sidebar */}
@@ -900,64 +924,76 @@ export function DefineRelationship() {
                 </div>
               </div>
 
-              {/* SELECT TARGET ENTITY */}
+              {/* SELECT TARGET ENTITY — switches to column list when CONTAINS is active */}
               <div className="p-3">
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
-                  Select Target Entity
+                  {isContains ? "Select Target Column" : "Select Target Entity"}
                 </p>
 
-                {/* Search + Match Mode toggle */}
-                <div className="flex items-stretch gap-1 mb-1.5">
-                  <div className="relative flex-1">
-                    <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
-                    <input
-                      value={targetSearch}
-                      onChange={(e) => setTargetSearch(e.target.value)}
-                      placeholder={
-                        targetMode === "Wildcard"
-                          ? "*_orders, quality_*"
-                          : targetMode === "Regex"
-                          ? "^quality_.*$"
-                          : "Search..."
-                      }
-                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
-                    />
+                {isContains ? null : (
+                  <div className="flex items-stretch gap-1 mb-1.5">
+                    <div className="relative flex-1">
+                      <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
+                      <input
+                        value={targetSearch}
+                        onChange={(e) => setTargetSearch(e.target.value)}
+                        placeholder={
+                          targetMode === "Wildcard"
+                            ? "*_orders, quality_*"
+                            : targetMode === "Regex"
+                            ? "^quality_.*$"
+                            : "Search..."
+                        }
+                        className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 pl-6 pr-2 py-1 focus:outline-none focus:border-slate-400"
+                      />
+                    </div>
+                    <div className="relative">
+                      <button
+                        onClick={() => setTargetModeOpen(!targetModeOpen)}
+                        className="h-full bg-slate-700/50 border border-slate-600 rounded text-[10px] text-slate-300 px-2 hover:bg-slate-600/60 flex items-center gap-1"
+                      >
+                        {targetMode}
+                        <ChevronDown size={10} />
+                      </button>
+                      {targetModeOpen && (
+                        <div className="absolute right-0 mt-1 z-10 bg-[#1e1e2e] border border-slate-600 rounded shadow-lg min-w-[110px]">
+                          {MATCH_MODES.map((m) => (
+                            <button
+                              key={m}
+                              onClick={() => {
+                                setTargetMode(m);
+                                setTargetModeOpen(false);
+                              }}
+                              className={`block w-full text-left px-2 py-1 text-[10px] hover:bg-slate-700/60 ${
+                                m === targetMode ? "text-emerald-300" : "text-slate-300"
+                              }`}
+                            >
+                              {m}
+                              {m === "Regex" && (
+                                <span className="ml-1 text-[8px] text-slate-500">advanced</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="relative">
-                    <button
-                      onClick={() => setTargetModeOpen(!targetModeOpen)}
-                      className="h-full bg-slate-700/50 border border-slate-600 rounded text-[10px] text-slate-300 px-2 hover:bg-slate-600/60 flex items-center gap-1"
-                    >
-                      {targetMode}
-                      <ChevronDown size={10} />
-                    </button>
-                    {targetModeOpen && (
-                      <div className="absolute right-0 mt-1 z-10 bg-[#1e1e2e] border border-slate-600 rounded shadow-lg min-w-[110px]">
-                        {MATCH_MODES.map((m) => (
-                          <button
-                            key={m}
-                            onClick={() => {
-                              setTargetMode(m);
-                              setTargetModeOpen(false);
-                            }}
-                            className={`block w-full text-left px-2 py-1 text-[10px] hover:bg-slate-700/60 ${
-                              m === targetMode ? "text-emerald-300" : "text-slate-300"
-                            }`}
-                          >
-                            {m}
-                            {m === "Regex" && (
-                              <span className="ml-1 text-[8px] text-slate-500">advanced</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
 
-                {/* Match count */}
+                {/* Match count — columns mode shows a simple count; table mode shows search results */}
                 <p className="text-[9px] text-slate-500 mb-1.5">
-                  {isLoadingEntities ? (
+                  {isContains ? (
+                    isLoadingColumns ? (
+                      <span className="animate-pulse text-slate-600">Loading columns…</span>
+                    ) : columnError ? (
+                      <span className="text-rose-400">Error: {columnError}</span>
+                    ) : (
+                      <span>
+                        {targetColumns.length} column{targetColumns.length === 1 ? "" : "s"} in{" "}
+                        <span className="text-slate-300 font-semibold">{sourceShort.toUpperCase()}</span>
+                      </span>
+                    )
+                  ) : isLoadingEntities ? (
                     <span className="animate-pulse text-slate-600">—</span>
                   ) : (
                     <>
@@ -974,9 +1010,52 @@ export function DefineRelationship() {
                   )}
                 </p>
 
-                {/* Grouped results list */}
+                {/* Results list — column list when CONTAINS, grouped table list otherwise */}
                 <div className="border border-slate-600 rounded bg-slate-800/40 max-h-[140px] overflow-y-auto">
-                  {isLoadingEntities ? (
+                  {isContains ? (
+                    isLoadingColumns ? (
+                      <div className="flex items-center gap-1.5 px-2 py-2">
+                        <RefreshCw size={11} className="text-slate-500 animate-spin" />
+                        <span className="text-[10px] text-slate-500 italic">Loading columns…</span>
+                      </div>
+                    ) : targetColumns.length === 0 ? (
+                      <p className="text-[10px] text-slate-500 italic px-2 py-1.5">No columns found</p>
+                    ) : (
+                      <>
+                        <div className="px-2 py-0.5 bg-slate-700/40 border-b border-slate-700 flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            Columns — {sourceShort.toUpperCase()}
+                          </span>
+                          <span className="text-[9px] text-slate-500">({targetColumns.length})</span>
+                        </div>
+                        {targetColumns.map((col: ColumnMeta) => {
+                          const isSelected = selectedTarget === col.qualified_name;
+                          return (
+                            <button
+                              key={col.qualified_name}
+                              onClick={() => setSelectedTarget(col.qualified_name)}
+                              className={`block w-full text-left px-2 py-0.5 text-[10px] border-l-2 ${
+                                isSelected
+                                  ? "bg-slate-700/60 text-emerald-300 border-emerald-400"
+                                  : "text-slate-300 border-transparent hover:bg-slate-700/40 hover:text-slate-100"
+                              }`}
+                            >
+                              <span className="font-medium">{col.column_name}</span>
+                              <span className="ml-1 text-[8px] text-slate-500">
+                                {col.data_type}
+                                {col.primary_key && (
+                                  <span className="ml-1 text-amber-400 font-semibold">PK</span>
+                                )}
+                                {col.not_null && !col.primary_key && (
+                                  <span className="ml-1 text-slate-600">NN</span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )
+                  ) : isLoadingEntities ? (
                     <div className="flex items-center gap-1.5 px-2 py-2">
                       <RefreshCw size={11} className="text-slate-500 animate-spin" />
                       <span className="text-[10px] text-slate-500 italic">Loading schema…</span>
@@ -1023,9 +1102,15 @@ export function DefineRelationship() {
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide">
                     Context:
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Collection: {selectedTarget.split(" ")[0].toUpperCase()}
-                  </p>
+                  {isContains ? (
+                    <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                      {selectedTarget}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Collection: {selectedTarget.split(" ")[0].toUpperCase()}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
