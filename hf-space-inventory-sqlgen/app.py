@@ -2370,6 +2370,62 @@ async def delete_commit_edge(edge_id: str):
     return {"ok": True, "message": f"Edge {edge_id!r} removed from ArangoDB"}
 
 
+@app.get("/mcp/tools/list_table_columns")
+async def list_table_columns(table: str):
+    """Return column metadata for a single ERP table.
+
+    Source: SQLite PRAGMA table_info — same source used by structural
+    containment sync to populate the 'columns' ArangoDB collection.
+
+    Returns:
+        {
+          "table_name": str,
+          "columns": [
+            {
+              "column_name": str,
+              "data_type": str,
+              "not_null": bool,
+              "primary_key": bool,
+              "qualified_name": str   # "table.column"
+            },
+            ...
+          ]
+        }
+    Raises HTTP 404 when the table does not exist in the SQLite database.
+    Raises HTTP 422 when no table name is supplied.
+    """
+    import sqlite3 as _sqlite3
+
+    if not table:
+        raise HTTPException(status_code=422, detail="table parameter is required")
+
+    try:
+        conn = _sqlite3.connect(SQLITE_DB_PATH)
+        conn.row_factory = _sqlite3.Row
+        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+        conn.close()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"SQLite error: {exc}")
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Table '{table}' not found or has no columns in the database",
+        )
+
+    columns = [
+        {
+            "column_name": row["name"],
+            "data_type": row["type"] or "TEXT",
+            "not_null": bool(row["notnull"]),
+            "primary_key": bool(row["pk"]),
+            "qualified_name": f"{table}.{row['name']}",
+        }
+        for row in rows
+    ]
+    return {"table_name": table, "columns": columns}
+
+
 @app.get("/mcp/tools/graph_stats")
 async def get_graph_stats():
     """Return total edge counts per collection from ArangoDB plus SQLite bridge row counts.
@@ -2398,7 +2454,7 @@ async def get_graph_stats():
 
     ARANGO_EDGE_COLLECTIONS = [
         "elevates", "bound_to", "HAS_COLUMN", "FOREIGN_KEY", "CAN_MEAN",
-        "Perspective_Intents", "Perspective_Concepts",
+        "Perspective_Intents", "Perspective_Concepts", "contains",
     ]
 
     counts: dict = {}

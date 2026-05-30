@@ -6,8 +6,8 @@ weights, binding keys, plus perspective bridge rows) into ArangoDB as
 a named graph.
 
 Graph structure:
-  Vertex collections: intents, concepts, bindings
-  Edge collections:   elevates, bound_to
+  Vertex collections: intents, concepts, bindings, tables, columns
+  Edge collections:   elevates, bound_to, contains
   Bridge document collections (composite-key, not graph edges):
     Perspective_Intents   key = (perspective, intent)
     Perspective_Concepts  key = (perspective, concept)
@@ -25,6 +25,12 @@ Traversal pattern (current):
   (:Intent) -[:ELEVATES {weight}]-> (:Concept)
   (:Intent) -[:BOUND_TO]-> (:Binding)
 Plus bridge-row lookups in Perspective_Intents / Perspective_Concepts.
+
+Structural containment layer (Plan-007):
+  (:Table) -[:CONTAINS]-> (:Column)
+  Sourced from schema_nodes (tables) + PRAGMA table_info (columns).
+  This physical layer is intentionally decoupled from the semantic layer.
+  Multi-tier traversal: tables -> contains -> columns -> CAN_MEAN -> concepts
 """
 
 import os
@@ -39,8 +45,8 @@ MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "ground_tr
 
 GRAPH_NAME = os.environ.get("ARANGO_DB", "manufacturing_graph")
 
-VERTEX_COLLECTIONS = ["intents", "concepts", "bindings"]
-EDGE_COLLECTIONS = ["elevates", "bound_to"]
+VERTEX_COLLECTIONS = ["intents", "concepts", "bindings", "tables", "columns"]
+EDGE_COLLECTIONS = ["elevates", "bound_to", "contains"]
 BRIDGE_COLLECTIONS = ["Perspective_Intents", "Perspective_Concepts"]
 
 LEGACY_VERTEX_COLLECTIONS = ["perspectives"]
@@ -56,6 +62,11 @@ EDGE_DEFINITIONS = [
         "edge_collection": "bound_to",
         "from_vertex_collections": ["intents"],
         "to_vertex_collections": ["bindings"],
+    },
+    {
+        "edge_collection": "contains",
+        "from_vertex_collections": ["tables"],
+        "to_vertex_collections": ["columns"],
     },
 ]
 
@@ -172,6 +183,54 @@ def ensure_graph(db) -> None:
     for coll_name in BRIDGE_COLLECTIONS:
         if not db.has_collection(coll_name):
             db.create_collection(coll_name)
+
+
+def load_schema_containment_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any]:
+    """Load table and column metadata for the structural containment layer.
+
+    Returns:
+        {
+          "tables": [{"table_name": str, "description": str}, ...],
+          "columns": [{"table_name": str, "column_name": str,
+                       "data_type": str, "not_null": bool, "pk": bool}, ...],
+        }
+
+    Column data comes from SQLite PRAGMA table_info run against each ERP table
+    listed in schema_nodes.  Tables that cannot be PRAGMA'd (e.g. views or
+    tables dropped between schema_nodes and the live DB) are skipped with a
+    warning in the caller.
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    table_rows = conn.execute(
+        "SELECT table_name, description FROM schema_nodes "
+        "WHERE table_type = 'Table' ORDER BY table_name"
+    ).fetchall()
+
+    tables: List[Dict[str, Any]] = [
+        {"table_name": r["table_name"], "description": r["description"] or ""}
+        for r in table_rows
+    ]
+
+    columns: List[Dict[str, Any]] = []
+    for tbl in tables:
+        tname = tbl["table_name"]
+        try:
+            col_rows = conn.execute(f"PRAGMA table_info({tname})").fetchall()
+            for col in col_rows:
+                columns.append({
+                    "table_name": tname,
+                    "column_name": col["name"],
+                    "data_type": col["type"] or "TEXT",
+                    "not_null": bool(col["notnull"]),
+                    "pk": bool(col["pk"]),
+                })
+        except Exception:
+            pass
+
+    conn.close()
+    return {"tables": tables, "columns": columns}
 
 
 def load_sqlite_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any]:
@@ -468,6 +527,80 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
     report.edges_synced = e_synced
     report.edges_new = e_new
     report.edges_updated = e_updated
+
+    # ── Structural Containment Layer (Plan-007) ───────────────────────────────
+    # tables (vertex) → contains (edge) → columns (vertex)
+    # Source: schema_nodes + PRAGMA table_info per ERP table.
+    # These collections are intentionally separate from the semantic layer.
+    try:
+        from arangodb_helpers.manufacturing_graph_version_0_0_1 import (
+            table_vertex, column_vertex, contains_edge,
+            TABLES_COLLECTION, COLUMNS_COLLECTION, CONTAINS_EDGE_COLLECTION,
+        )
+
+        containment_data = load_schema_containment_data(db_path)
+        tables_coll = graph.vertex_collection(TABLES_COLLECTION)
+        columns_coll = graph.vertex_collection(COLUMNS_COLLECTION)
+        contains_coll = graph.edge_collection(CONTAINS_EDGE_COLLECTION)
+
+        sc_v_synced: Dict[str, int] = {TABLES_COLLECTION: 0, COLUMNS_COLLECTION: 0}
+        sc_v_new: Dict[str, int] = {TABLES_COLLECTION: 0, COLUMNS_COLLECTION: 0}
+        sc_v_updated: Dict[str, int] = {TABLES_COLLECTION: 0, COLUMNS_COLLECTION: 0}
+        sc_e_synced: Dict[str, int] = {CONTAINS_EDGE_COLLECTION: 0}
+        sc_e_new: Dict[str, int] = {CONTAINS_EDGE_COLLECTION: 0}
+        sc_e_updated: Dict[str, int] = {CONTAINS_EDGE_COLLECTION: 0}
+
+        for tbl in containment_data["tables"]:
+            tname = tbl["table_name"]
+            doc = table_vertex(tname, description=tbl["description"],
+                               synced_at=report.timestamp)
+            try:
+                is_new = _upsert_vertex(tables_coll, tname, doc)
+                sc_v_synced[TABLES_COLLECTION] += 1
+                (sc_v_new if is_new else sc_v_updated)[TABLES_COLLECTION] += 1
+            except Exception as ex:
+                report.warnings.append(f"tables '{tname}': {ex}")
+
+        for col in containment_data["columns"]:
+            tname = col["table_name"]
+            cname = col["column_name"]
+            col_doc = column_vertex(
+                tname, cname,
+                data_type=col["data_type"],
+                not_null=col["not_null"],
+                pk=col["pk"],
+                synced_at=report.timestamp,
+            )
+            edge_doc = contains_edge(tname, cname, synced_at=report.timestamp)
+            col_key = col_doc["_key"]
+            edge_key = edge_doc["_key"]
+            try:
+                is_new = _upsert_vertex(columns_coll, col_key, col_doc)
+                sc_v_synced[COLUMNS_COLLECTION] += 1
+                (sc_v_new if is_new else sc_v_updated)[COLUMNS_COLLECTION] += 1
+            except Exception as ex:
+                report.warnings.append(f"columns '{col_key}': {ex}")
+            try:
+                from_id = edge_doc["_from"]
+                to_id = edge_doc["_to"]
+                clean_doc = {k: v for k, v in edge_doc.items()
+                             if k not in ("_key", "_from", "_to")}
+                is_new = _upsert_edge(contains_coll, from_id, to_id, edge_key, clean_doc)
+                sc_e_synced[CONTAINS_EDGE_COLLECTION] += 1
+                (sc_e_new if is_new else sc_e_updated)[CONTAINS_EDGE_COLLECTION] += 1
+            except Exception as ex:
+                report.warnings.append(f"contains '{edge_key}': {ex}")
+
+        report.vertices_synced.update(sc_v_synced)
+        report.vertices_new.update(sc_v_new)
+        report.vertices_updated.update(sc_v_updated)
+        report.edges_synced.update(sc_e_synced)
+        report.edges_new.update(sc_e_new)
+        report.edges_updated.update(sc_e_updated)
+
+    except Exception as ex:
+        report.warnings.append(f"Structural containment sync skipped: {ex}")
+
     return report
 
 
