@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "data_source": "manufacturing.db",
+  "note": "Source of truth for entity and field descriptions. SQLite import is planned (see migrations/) — do not hand-edit the DB table directly; run the import script instead to avoid overwrites.",
+  "entities": {
+
+    "Customer": {
+      "source": "crm.CUSTOMER",
+      "description": "Master record for each CRM customer account. Links to addresses, sales history, and support interactions. Primary join key for all CRM-scoped intents.",
+      "fields": {
+        "customer_id":  { "description": "Surrogate primary key. Referenced as FK in CustomerAddress and Sales." },
+        "first_name":   { "description": "Customer given name. Display use only — do not filter or group by this field." },
+        "last_name":    { "description": "Customer family name. Combine with first_name for full name display." },
+        "email":        { "description": "Primary contact email. Nullable — not all legacy records have email populated." },
+        "phone":        { "description": "Primary contact phone. Nullable." },
+        "created_at":   { "description": "Record creation timestamp. Use for cohort analysis and customer-since queries." }
+      }
+    },
+
+    "CustomerAddress": {
+      "source": "crm.CUSTOMER_ADDRESS",
+      "description": "Ship-to and bill-to addresses for each customer. One customer may have multiple address rows; the CRM_Join intent resolves the primary address via the customer_id FK join.",
+      "fields": {
+        "address_id":   { "description": "Surrogate primary key for the address row." },
+        "customer_id":  { "description": "FK to Customer.customer_id — the join key used by the CRM_Join intent." },
+        "street":       { "description": "Street line. Used in contact-record and delivery-address queries." },
+        "city":         { "description": "City. Common grouping dimension for regional sales analysis." },
+        "state":        { "description": "State / province code. Two-character ISO where available." },
+        "zip":          { "description": "Postal code. Nullable for international records." }
+      }
+    },
+
+    "Sales": {
+      "source": "crm.SALES",
+      "description": "Transaction-level sales records. Links each sale to a customer and a product line. Used by revenue-per-customer and sales-trend intents. The customer_id FK enables joining to Customer and CustomerAddress for enriched output.",
+      "fields": {
+        "sale_id":        { "description": "Surrogate primary key for the sales transaction." },
+        "customer_id":    { "description": "FK to Customer.customer_id — enables customer-revenue aggregation." },
+        "sale_date":      { "description": "Transaction date. Primary time dimension for trend and period-over-period queries." },
+        "amount_dollars": { "description": "Sale value in USD. The core metric for all revenue intents. Never null." },
+        "product_line":   { "description": "Product line label (e.g. 'Aerospace', 'Defense'). Nullable — legacy records may be unclassified." }
+      }
+    },
+
+    "ProductionSchedule": {
+      "source": "dbo.PRODUCTION_SCHEDULE",
+      "description": "Master production schedule — one row per scheduled production run. Drives throughput, OEE, and on-time delivery intents. Source table for the Manufacturing and Work_Orders perspectives.",
+      "fields": {
+        "schedule_id":    { "description": "Surrogate primary key." },
+        "line_id":        { "description": "FK to ProductionLines.line_id — identifies which line runs this job." },
+        "product_line":   { "description": "Product family (Aerospace, Defense, Commercial). Nullable for legacy runs." },
+        "planned_start":  { "description": "Planned start datetime. Delta from actual_start = schedule adherence." },
+        "planned_end":    { "description": "Planned end datetime. Delta from actual_end = on-time delivery metric." },
+        "actual_start":   { "description": "Actual start datetime. Null if run has not started yet." },
+        "actual_end":     { "description": "Actual end datetime. Null if run is still in progress." }
+      }
+    },
+
+    "QualityIncidents": {
+      "source": "dbo.QUALITY_INCIDENTS",
+      "description": "Quality event log — one row per defect or non-conformance event. Primary source for defect-severity and scrap-rate intents. Joins to ProductionSchedule via schedule_id for root-cause analysis.",
+      "fields": {
+        "incident_id":    { "description": "Surrogate primary key." },
+        "schedule_id":    { "description": "FK to ProductionSchedule — links defect to the specific production run." },
+        "defect_type":    { "description": "Categorical defect classification (e.g. 'Solder Void', 'Misalignment'). Core grouping dimension for quality intents." },
+        "severity":       { "description": "Severity level: 1=Minor, 2=Major, 3=Critical. Used for weighted defect-severity metrics." },
+        "detected_at":    { "description": "Timestamp of defect detection. Use for time-trend and shift-analysis queries." },
+        "resolved_at":    { "description": "Timestamp of resolution. Null if still open. Delta = resolution-cycle-time metric." }
+      }
+    },
+
+    "EquipmentMetrics": {
+      "source": "dbo.EQUIPMENT_METRICS",
+      "description": "Time-series equipment performance readings. Feeds OEE (Availability × Performance × Quality) calculations. One row per machine per measurement interval.",
+      "fields": {
+        "metric_id":      { "description": "Surrogate primary key." },
+        "equipment_id":   { "description": "FK to the equipment master. Identifies the machine." },
+        "recorded_at":    { "description": "Measurement timestamp. Primary time dimension for OEE trend queries." },
+        "availability":   { "description": "Availability ratio (0–1). Planned production time minus downtime divided by planned time." },
+        "performance":    { "description": "Performance ratio (0–1). Actual output rate versus ideal output rate." },
+        "quality_rate":   { "description": "Quality ratio (0–1). Good parts divided by total parts produced." },
+        "oee":            { "description": "Composite OEE score = availability × performance × quality_rate. Pre-computed for query performance." }
+      }
+    },
+
+    "Suppliers": {
+      "source": "dbo.SUPPLIERS",
+      "description": "Supplier master record. Used by procurement, payables, and parts-sourcing intents. Each supplier is linked to purchase orders and incoming inspection records.",
+      "fields": {
+        "supplier_id":    { "description": "Surrogate primary key." },
+        "supplier_name":  { "description": "Legal trading name of the supplier." },
+        "category":       { "description": "Commodity category (e.g. 'Raw Material', 'Sub-Assembly', 'MRO'). Primary grouping dimension for spend analysis." },
+        "country":        { "description": "Country of origin. Used for supply-chain risk and lead-time intents." },
+        "lead_days":      { "description": "Average lead time in calendar days. Key input for inventory and demand-forecast intents." },
+        "active":         { "description": "Boolean. False = supplier is deactivated; exclude from new-order routing queries." }
+      }
+    }
+
+  }
+}

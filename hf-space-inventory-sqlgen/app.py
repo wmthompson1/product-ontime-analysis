@@ -2436,6 +2436,45 @@ async def list_table_columns(table: str):
     return {"table_name": table, "columns": columns}
 
 
+@app.get("/mcp/tools/get_entity_config")
+async def get_entity_config(entity: str = ""):
+    """Return DAB-style entity + field descriptions from dab_config.json.
+
+    Source of truth is the flat JSON file — SQLite import is planned later.
+    No entity param → returns list of all entity names.
+    ?entity=Customer → returns that entity's full config block.
+    """
+    import json as _json
+
+    config_path = os.path.join(os.path.dirname(__file__), "dab_config.json")
+    try:
+        with open(config_path, "r") as f:
+            config = _json.load(f)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="dab_config.json not found")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Config read error: {exc}")
+
+    entities = config.get("entities", {})
+
+    if not entity:
+        return {
+            "schema_version": config.get("schema_version"),
+            "data_source": config.get("data_source"),
+            "entity_names": sorted(entities.keys()),
+            "entity_count": len(entities),
+        }
+
+    if entity not in entities:
+        # Case-insensitive fallback
+        match = next((k for k in entities if k.lower() == entity.lower()), None)
+        if not match:
+            raise HTTPException(status_code=404, detail=f"Entity '{entity}' not found in dab_config.json")
+        entity = match
+
+    return {"entity": entity, **entities[entity]}
+
+
 @app.get("/mcp/tools/graph_stats")
 async def get_graph_stats():
     """Return total edge counts per collection from ArangoDB plus SQLite bridge row counts.
@@ -4601,6 +4640,67 @@ Check that perspective-concept and intent-concept relationships are seeded.
             3. Paste context into Copilot Chat
             4. Ask follow-up questions about your manufacturing data
             """)
+
+        with gr.Tab("📋 Field Descriptions"):
+            gr.Markdown("### Entity Field Descriptions\nSource: `dab_config.json` — DAB-style entity and field metadata. SQLite import is planned; this file is the current source of truth.")
+
+            with gr.Row():
+                fd_entity_dd = gr.Dropdown(
+                    label="Entity",
+                    choices=[],
+                    value=None,
+                    interactive=True,
+                    scale=2,
+                )
+                fd_refresh_btn = gr.Button("↺ Refresh", scale=1, size="sm")
+
+            fd_entity_info = gr.Markdown(value="_Select an entity above._")
+
+            fd_fields_table = gr.Dataframe(
+                headers=["Field", "Source Column", "Description"],
+                datatype=["str", "str", "str"],
+                label="Field Descriptions",
+                interactive=False,
+                wrap=True,
+            )
+
+            def _fd_load_entities():
+                import json as _json
+                config_path = os.path.join(os.path.dirname(__file__), "dab_config.json")
+                try:
+                    with open(config_path) as f:
+                        cfg = _json.load(f)
+                    names = sorted(cfg.get("entities", {}).keys())
+                    first = names[0] if names else None
+                    return gr.Dropdown(choices=names, value=first)
+                except Exception as exc:
+                    return gr.Dropdown(choices=[], value=None)
+
+            def _fd_show_entity(entity_name):
+                import json as _json
+                if not entity_name:
+                    return "_Select an entity above._", []
+                config_path = os.path.join(os.path.dirname(__file__), "dab_config.json")
+                try:
+                    with open(config_path) as f:
+                        cfg = _json.load(f)
+                    ent = cfg.get("entities", {}).get(entity_name)
+                    if not ent:
+                        return f"_Entity `{entity_name}` not found._", []
+                    source = ent.get("source", "—")
+                    desc = ent.get("description", "—")
+                    info_md = f"**Source table:** `{source}`\n\n{desc}"
+                    rows = [
+                        [fname, fname, fdata.get("description", "—")]
+                        for fname, fdata in ent.get("fields", {}).items()
+                    ]
+                    return info_md, rows
+                except Exception as exc:
+                    return f"_Error loading config: {exc}_", []
+
+            fd_refresh_btn.click(fn=_fd_load_entities, outputs=fd_entity_dd)
+            fd_entity_dd.change(fn=_fd_show_entity, inputs=fd_entity_dd, outputs=[fd_entity_info, fd_fields_table])
+            demo.load(fn=_fd_load_entities, outputs=fd_entity_dd)
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
         demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)
