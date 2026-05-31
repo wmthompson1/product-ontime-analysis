@@ -1255,8 +1255,10 @@ async def execute_sql_endpoint(sql: str = Form(...)):
 
 @app.get("/mcp/tools/get_entity_categories")
 async def get_entity_categories():
-    """Return the 11 domain category names from schema_entity_categories (SQLite).
-    These drive the pill bar in the Define Relationship UI and map to ArangoDB vertex groupings."""
+    """Return domain category names from schema_entity_categories (SQLite).
+    These drive the pill bar in the Define Relationship UI. The selected category is
+    stamped as an edge property (category: <value>) on every committed edge document
+    in ArangoDB — same pattern as perspective. Categories are NOT vertex groupings."""
     try:
         engine = get_db_engine()
         if not engine:
