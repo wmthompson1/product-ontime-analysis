@@ -8,50 +8,179 @@
       "name": "Delivery Performance (by Perspective)",
       "file": "delivery_performance_perspectives.sql",
       "query_count": 3,
-      "description": "Same field (ontime_rate) interpreted by Ops, Supplier, and Finance perspectives"
+      "description": "Same field (ontime_rate) interpreted by Ops, Supplier, and Finance perspectives",
+      "table_usage": {
+        "file": "delivery_performance_perspectives.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "daily_deliveries": 3,
+              "suppliers": 1
+            }
+          }
+        ],
+        "totals": {
+          "daily_deliveries": 3,
+          "suppliers": 1
+        }
+      }
     },
     {
       "id": "quality_control",
       "name": "Quality Control",
       "file": "quality_control.sql",
       "query_count": 4,
-      "description": "Defect tracking, NCM management, quality incidents, employee accountability"
+      "description": "Defect tracking, NCM management, quality incidents, employee accountability",
+      "table_usage": {
+        "file": "quality_control.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "product_defects": 1,
+              "non_conformant_materials": 3,
+              "corrective_actions": 2,
+              "quality_incidents": 1,
+              "employee": 1
+            }
+          }
+        ],
+        "totals": {
+          "product_defects": 1,
+          "non_conformant_materials": 3,
+          "corrective_actions": 2,
+          "quality_incidents": 1,
+          "employee": 1
+        }
+      }
     },
     {
       "id": "supplier_performance",
       "name": "Supplier Performance",
       "file": "supplier_performance.sql",
       "query_count": 2,
-      "description": "On-time delivery, quality scorecards, supplier metrics"
+      "description": "On-time delivery, quality scorecards, supplier metrics",
+      "table_usage": {
+        "file": "supplier_performance.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "suppliers": 1,
+              "daily_deliveries": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "suppliers": 1,
+              "daily_deliveries": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "suppliers": 1,
+              "daily_deliveries": 1,
+              "product_lines": 1
+            }
+          }
+        ],
+        "totals": {
+          "suppliers": 3,
+          "daily_deliveries": 3,
+          "product_lines": 1
+        }
+      }
     },
     {
       "id": "equipment_reliability",
       "name": "Equipment Reliability",
       "file": "equipment_reliability.sql",
       "query_count": 3,
-      "description": "OEE metrics, downtime analysis, MTBF tracking"
+      "description": "OEE metrics, downtime analysis, MTBF tracking",
+      "table_usage": {
+        "file": "equipment_reliability.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "equipment_metrics": 2,
+              "downtime_events": 1,
+              "failure_events": 1
+            }
+          }
+        ],
+        "totals": {
+          "equipment_metrics": 2,
+          "downtime_events": 1,
+          "failure_events": 1
+        }
+      }
     },
     {
       "id": "production_analytics",
       "name": "Production Analytics",
       "file": "production_analytics.sql",
       "query_count": 3,
-      "description": "Schedule adherence, line performance, quality costs"
+      "description": "Schedule adherence, line performance, quality costs",
+      "table_usage": {
+        "file": "production_analytics.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "production_schedule": 2,
+              "production_lines": 1,
+              "quality_costs": 1
+            }
+          }
+        ],
+        "totals": {
+          "production_schedule": 2,
+          "production_lines": 1,
+          "quality_costs": 1
+        }
+      }
     }
   ],
   "tables_referenced": [
-    "product_defects",
-    "non_conformant_materials",
     "corrective_actions",
-    "quality_incidents",
-    "suppliers",
+    "customer",
+    "customer_address",
     "daily_deliveries",
-    "equipment_metrics",
     "downtime_events",
+    "employee",
+    "equipment_metrics",
     "failure_events",
-    "production_schedule",
+    "non_conformant_materials",
+    "product_defects",
+    "product_lines",
     "production_lines",
+    "production_schedule",
     "quality_costs",
-    "EMPLOYEE"
-  ]
+    "quality_incidents",
+    "sales",
+    "suppliers"
+  ],
+  "table_reference_counts": {
+    "daily_deliveries": 7,
+    "product_lines": 5,
+    "suppliers": 4,
+    "customer": 3,
+    "customer_address": 3,
+    "production_schedule": 3,
+    "non_conformant_materials": 3,
+    "product_defects": 2,
+    "equipment_metrics": 2,
+    "corrective_actions": 2,
+    "sales": 1,
+    "downtime_events": 1,
+    "failure_events": 1,
+    "production_lines": 1,
+    "quality_costs": 1,
+    "quality_incidents": 1,
+    "employee": 1
+  }
 }
