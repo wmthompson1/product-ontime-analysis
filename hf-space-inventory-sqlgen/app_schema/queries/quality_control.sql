@@ -1,4 +1,5 @@
 -- Ground Truth SQL: Quality Control Queries
+-- Perspective: Quality · Compliance
 -- Source: Flask Manufacturing App (LangChain Semantic Layer)
 -- Category: Quality Control Analytics
 

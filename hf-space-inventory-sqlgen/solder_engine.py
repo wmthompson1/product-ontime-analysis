@@ -798,6 +798,191 @@ class SolderEngine:
         summary["_global"] = dict(global_counter.most_common())
         return summary
 
+    # ── Perspective affinity index ────────────────────────────────────────────
+
+    #: Maps table name → perspectives it primarily signals.
+    #: Multi-perspective entries distribute affinity weight equally.
+    TABLE_PERSPECTIVE_MAP: Dict[str, List[str]] = {
+        # Finance / AP / Payables
+        "purchase_order":           ["Finance"],
+        "po_line":                  ["Finance"],
+        "invoice_header":           ["Finance"],
+        "receiving":                ["Finance", "Operations"],
+        "certification":            ["Finance", "Compliance", "Quality"],
+        "suppliers":                ["Finance", "Quality"],
+        "financial_impact":         ["Finance"],
+        "quality_costs":            ["Finance", "Quality"],
+        "daily_deliveries":         ["Finance", "Customer_Order"],
+        # Quality
+        "product_defects":          ["Quality"],
+        "non_conformant_materials": ["Quality", "Compliance"],
+        "corrective_actions":       ["Quality", "Compliance"],
+        "quality_incidents":        ["Quality"],
+        "production_quality":       ["Quality", "Operations"],
+        # Operations / Manufacturing / WIP
+        "production_schedule":      ["Operations", "Customer_Order"],
+        "production_lines":         ["Operations"],
+        "work_order":               ["Operations"],
+        "operation":                ["Operations"],
+        "shop_resource":            ["Operations"],
+        "labor_ticket":             ["Operations"],
+        "material_issue":           ["Operations"],
+        "equipment_metrics":        ["Operations"],
+        "downtime_events":          ["Operations"],
+        "failure_events":           ["Operations"],
+        "effectiveness_metrics":    ["Operations"],
+        "maintenance_targets":      ["Operations"],
+        "equipment_reliability":    ["Operations"],
+        "service":                  ["Operations"],
+        "product_lines":            ["Operations", "Customer_Order"],
+        # Customer / CRM
+        "customer":                 ["Customer", "Customer_Order"],
+        "customer_address":         ["Customer", "Customer_Order"],
+        "sales":                    ["Customer", "Customer_Order"],
+        # Compliance
+        "manufacturing_acronyms":   ["Compliance"],
+    }
+
+    _PERSP_LINE_RE = re.compile(r"^--\s*Perspectives?:\s*(.+)", re.IGNORECASE)
+    _CANON_PERSPECTIVES = frozenset(
+        ["Finance", "Quality", "Operations", "Customer", "Customer_Order", "Compliance"]
+    )
+
+    def _parse_declared_perspectives(self, sql_text: str) -> List[str]:
+        """Extract canonical perspective names from '-- Perspective: …' header lines
+        (first 20 lines only).  Multi-perspective headers like 'Finance · Quality'
+        return both names in order.
+        """
+        declared: List[str] = []
+        # Sort longest-first so Customer_Order matches before Customer
+        canons_sorted = sorted(self._CANON_PERSPECTIVES, key=len, reverse=True)
+        for line in sql_text.splitlines()[:20]:
+            m = self._PERSP_LINE_RE.match(line)
+            if not m:
+                continue
+            for tok in re.split(r"[·/,]", m.group(1)):
+                tok = re.sub(r"\(.*?\)", "", tok).strip().replace(" ", "_")
+                tok_norm = tok.lower()
+                # Try exact match first, then prefix (both length-sorted)
+                for canon in canons_sorted:
+                    if tok_norm == canon.lower() or tok_norm.startswith(canon.lower()):
+                        if canon not in declared:
+                            declared.append(canon)
+                        break
+        return declared
+
+    def _score_perspectives(self, table_refs: List[Tuple[str, int]]) -> Dict[str, float]:
+        """Return normalised perspective scores for a list of (table_name, ref_count) pairs."""
+        scores: Dict[str, float] = {}
+        total_w = 0.0
+        for tbl, cnt in table_refs:
+            mapping = self.TABLE_PERSPECTIVE_MAP.get(tbl.lower(), [])
+            if not mapping:
+                continue
+            w = cnt / len(mapping)
+            for p in mapping:
+                scores[p] = scores.get(p, 0.0) + w
+            total_w += cnt
+        if not total_w:
+            return {}
+        return {p: round(s / total_w, 3) for p, s in scores.items()}
+
+    def build_perspective_affinity_index(self, verbose: bool = True) -> Dict[str, Any]:
+        """Score every ground-truth SQL file against the perspective affinity map and
+        persist the result to SQLite ``query_shape_perspective``.
+
+        Resolution precedence:
+          1. Declared perspective(s) from ``-- Perspective:`` file header (SME-ground-truth)
+          2. Table affinity inference as fallback / conflict signal
+
+        Returns a summary dict keyed by category_id.
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+
+        cur.executescript("""
+            CREATE TABLE IF NOT EXISTS query_shape_perspective (
+                id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                category_id           TEXT NOT NULL,
+                query_name            TEXT NOT NULL,
+                declared_perspectives TEXT,
+                inferred_primary      TEXT NOT NULL,
+                inferred_scores_json  TEXT,
+                agreed                INTEGER,
+                resolved_perspective  TEXT NOT NULL,
+                created_at            TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(category_id, query_name)
+            );
+            DELETE FROM query_shape_perspective;
+        """)
+
+        # Load table usage grouped by (category_id, query_name)
+        usage_rows = cur.execute(
+            "SELECT category_id, query_name, table_name, reference_count "
+            "FROM ground_truth_table_usage"
+        ).fetchall()
+        groups: Dict[tuple, List] = {}
+        for r in usage_rows:
+            key = (r["category_id"], r["query_name"])
+            groups.setdefault(key, []).append((r["table_name"], r["reference_count"]))
+
+        # Build file→declared map
+        file_declared: Dict[str, List[str]] = {}
+        if os.path.isdir(QUERIES_DIR):
+            for entry in os.scandir(QUERIES_DIR):
+                if entry.name.endswith(".sql"):
+                    stem = os.path.splitext(entry.name)[0]
+                    file_declared[stem] = self._parse_declared_perspectives(
+                        open(entry.path).read()
+                    )
+
+        if verbose:
+            print(f"\n{'Category':<40} {'Declared':<28} {'Inferred':<16} {'Match'} Resolved")
+            print("─" * 108)
+
+        summary: Dict[str, Any] = {}
+
+        for (cat_id, q_name), table_refs in sorted(groups.items()):
+            norm = self._score_perspectives(table_refs)
+            ranked = sorted(norm.items(), key=lambda x: -x[1])
+            inferred_primary = ranked[0][0] if ranked else "UNMAPPED"
+
+            declared = file_declared.get(cat_id, [])
+            declared_str = " · ".join(declared)
+
+            if declared:
+                resolved = declared[0]
+                agreed = 1 if inferred_primary in declared else 0
+            else:
+                resolved = inferred_primary
+                agreed = -1   # no header declaration
+
+            cur.execute("""
+                INSERT OR REPLACE INTO query_shape_perspective
+                  (category_id, query_name, declared_perspectives, inferred_primary,
+                   inferred_scores_json, agreed, resolved_perspective)
+                VALUES (?,?,?,?,?,?,?)
+            """, (cat_id, q_name, declared_str, inferred_primary,
+                  json.dumps(norm), agreed, resolved))
+
+            summary[cat_id] = {
+                "query_name": q_name,
+                "declared": declared,
+                "inferred_primary": inferred_primary,
+                "inferred_scores": norm,
+                "resolved": resolved,
+                "agreed": agreed,
+            }
+
+            if verbose:
+                flag = "✓" if agreed == 1 else ("?" if agreed == -1 else "✗")
+                print(f"{cat_id:<40} {declared_str:<28} {inferred_primary:<16} {flag:<6} {resolved}")
+
+        conn.commit()
+        conn.close()
+        return summary
+
     def get_table_usage(self, table_name: str = None,
                         category_id: str = None) -> List[Dict[str, Any]]:
         """Query the ground_truth_table_usage index.

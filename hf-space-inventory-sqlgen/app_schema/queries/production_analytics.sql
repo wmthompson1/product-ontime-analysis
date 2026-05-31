@@ -1,4 +1,5 @@
 -- Ground Truth SQL: Production Analytics Queries
+-- Perspective: Operations · Finance
 -- Source: Flask Manufacturing App (LangChain Semantic Layer)
 -- Category: Production Performance
 

@@ -1,4 +1,5 @@
 -- Ground Truth SQL: Equipment Reliability Queries
+-- Perspective: Operations
 -- Source: Flask Manufacturing App (LangChain Semantic Layer)
 -- Category: Equipment & Maintenance Analytics
 
