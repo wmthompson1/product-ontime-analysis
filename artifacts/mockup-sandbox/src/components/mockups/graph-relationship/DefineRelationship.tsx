@@ -25,9 +25,10 @@ import type { ColumnMeta } from "./useColumnsByTable";
 // categories migrate FROM nodes TO edge properties).
 type CategoryScope = string;
 
-// Varied accent palette for the 11 perspectives + neutral for ALL.
+// Varied accent palette for the 12 perspectives + neutral for ALL.
 const CATEGORY_COLORS: Record<string, string> = {
   ALL: "bg-slate-600 text-slate-100",
+  CRM: "bg-sky-700 text-sky-100",
   Customer_Order: "bg-blue-700 text-blue-100",
   Demand_Forecast: "bg-indigo-700 text-indigo-100",
   Engineering: "bg-cyan-700 text-cyan-100",
@@ -123,6 +124,7 @@ const SEMANTIC_PREDICATES = [
 // Architectural roadmap: Categories will move FROM being nodes TO being edge properties.
 // Constraint: an Intent can only belong to ONE Category (single membership).
 const CATEGORIES = [
+  "CRM",
   "Customer_Order",
   "Demand_Forecast",
   "Engineering",
@@ -144,14 +146,27 @@ const GRAPH_ENTITIES: Array<{ name: string; children?: string[] }> = [
   { name: "Bindings" },
 ];
 
-// Mock intent set — three representative intents so we can demo the (intent, perspective)
-// composite identity rule. Real list comes from the intents collection in v2.
-const INTENTS = ["Avoid_Cost", "Quality_Defect", "Throughput_Boost"];
+// Mock intent set — representative intents covering manufacturing + CRM walkthrough.
+// Real list comes from the intents collection in v2.
+const INTENTS = [
+  // CRM intent walkthrough — joins customer → customer_address
+  "CRM_Join",
+  // Manufacturing intents
+  "Avoid_Cost",
+  "Quality_Defect",
+  "Throughput_Boost",
+];
 
 // Mock concept set — base concept names (perspective suffix emerges from the composite).
-// Real list comes from `schema_concepts` / reviewer_manifest.json (e.g. DEFECTSEVERITYCOST,
-// DEFECTSEVERITYQUALITY → same concept "DefectSeverity" resolved per perspective).
-const CONCEPTS = ["DefectSeverity", "DeliveryPerformance", "OEE"];
+// Real list comes from `schema_concepts` / reviewer_manifest.json.
+const CONCEPTS = [
+  // CRM concept elevated by CRM_Join intent
+  "CustomerProfile",
+  // Manufacturing concepts
+  "DefectSeverity",
+  "DeliveryPerformance",
+  "OEE",
+];
 
 // Edge ID convention (locked in conversation):
 //   {LLL}_{RRR}_{XXX}_{NNN}_{Perspective}

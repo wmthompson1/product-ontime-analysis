@@ -20,6 +20,37 @@ type FetchState = {
 const IDLE: FetchState = { columns: [], isLoading: false, error: null };
 
 // ---------------------------------------------------------------------------
+// Faux column fixtures for tables that exist only in the mockup (not in
+// manufacturing.db). Seeded into the per-instance cache on first call so the
+// real endpoint is never hit for these names.
+// ---------------------------------------------------------------------------
+const FIXTURE_COLUMNS: Record<string, ColumnMeta[]> = {
+  customer: [
+    { column_name: "customer_id", data_type: "INTEGER", not_null: true,  primary_key: true,  qualified_name: "customer.customer_id" },
+    { column_name: "first_name",  data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer.first_name" },
+    { column_name: "last_name",   data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer.last_name" },
+    { column_name: "email",       data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "customer.email" },
+    { column_name: "phone",       data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "customer.phone" },
+    { column_name: "created_at",  data_type: "DATETIME",not_null: true,  primary_key: false, qualified_name: "customer.created_at" },
+  ],
+  customer_address: [
+    { column_name: "address_id",  data_type: "INTEGER", not_null: true,  primary_key: true,  qualified_name: "customer_address.address_id" },
+    { column_name: "customer_id", data_type: "INTEGER", not_null: true,  primary_key: false, qualified_name: "customer_address.customer_id" },
+    { column_name: "street",      data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer_address.street" },
+    { column_name: "city",        data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer_address.city" },
+    { column_name: "state",       data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer_address.state" },
+    { column_name: "zip",         data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "customer_address.zip" },
+  ],
+  sales: [
+    { column_name: "sale_id",      data_type: "INTEGER", not_null: true,  primary_key: true,  qualified_name: "sales.sale_id" },
+    { column_name: "customer_id",  data_type: "INTEGER", not_null: true,  primary_key: false, qualified_name: "sales.customer_id" },
+    { column_name: "sale_date",    data_type: "DATETIME",not_null: true,  primary_key: false, qualified_name: "sales.sale_date" },
+    { column_name: "amount_dollars",data_type:"NUMERIC", not_null: true,  primary_key: false, qualified_name: "sales.amount_dollars" },
+    { column_name: "product_line", data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "sales.product_line" },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // useColumnsByTable
 //
 // Binds the column list to the currently selected source table.
@@ -54,6 +85,11 @@ export function useColumnsByTable(
     if (!table) {
       setState(IDLE);
       return;
+    }
+
+    // Seed fixture tables into cache so the network is never hit for them.
+    if (!cache.current.has(table) && FIXTURE_COLUMNS[table]) {
+      cache.current.set(table, FIXTURE_COLUMNS[table]);
     }
 
     // Cache hit — no fetch needed.
