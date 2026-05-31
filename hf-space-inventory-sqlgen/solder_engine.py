@@ -697,15 +697,26 @@ class SolderEngine:
         return result or [("all", sql_text)]
 
     def _extract_tables_from_sql(self, sql_text: str) -> List[str]:
-        """Return all table names referenced in a SQL string (SQLGlot walk)."""
+        """Return real base-table names referenced in a SQL string (SQLGlot walk).
+
+        CTE alias names are excluded: SQLGlot surfaces them as ``exp.Table``
+        nodes in the outer SELECT's FROM clause, but they are virtual tables
+        defined within the same statement, not schema objects.
+        """
         tables: List[str] = []
         try:
             for stmt in sqlglot.parse(sql_text, dialect="sqlite"):
                 if stmt is None:
                     continue
-                for node in stmt.walk():
-                    if isinstance(node, exp.Table) and node.name:
-                        tables.append(node.name.lower())
+                # Collect CTE alias names so we can ignore them below.
+                cte_names: set = set()
+                for cte in stmt.find_all(exp.CTE):
+                    if cte.alias:
+                        cte_names.add(cte.alias.lower())
+                for node in stmt.find_all(exp.Table):
+                    name = node.name
+                    if name and name.lower() not in cte_names:
+                        tables.append(name.lower())
         except Exception:
             pass
         return tables
