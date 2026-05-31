@@ -696,6 +696,49 @@ class SolderEngine:
                 result.append((query_name, sql_clean))
         return result or [("all", sql_text)]
 
+    def _count_select_participation(self, sql_text: str) -> Dict[str, int]:
+        """Count how many distinct SELECT nodes each base table participates in.
+
+        A table with ``select_count > 1`` in the same query block is being
+        sliced N times (discriminator / polymorphic pattern) where a single
+        pivot (CASE WHEN) could reduce it to one scan.
+
+        CTE aliases are excluded — only real schema objects are counted.
+        Nested SELECT nodes (subqueries) are counted independently so that
+        a subquery referencing the same table as an outer SELECT contributes
+        an additional participation hit.
+        """
+        participation: Counter = Counter()
+        try:
+            for stmt in sqlglot.parse(sql_text, dialect="sqlite"):
+                if stmt is None:
+                    continue
+                cte_names: set = {
+                    cte.alias.lower()
+                    for cte in stmt.find_all(exp.CTE)
+                    if cte.alias
+                }
+                for select_node in stmt.find_all(exp.Select):
+                    seen_in_this_select: set = set()
+                    # Walk tables inside this SELECT but stop at nested SELECT
+                    # nodes (subqueries) to avoid double-counting.
+                    for node in select_node.walk():
+                        if node is select_node:
+                            continue
+                        if isinstance(node, exp.Select):
+                            # Don't recurse into a subquery — it will be
+                            # counted when find_all reaches it as its own item.
+                            break
+                        if isinstance(node, exp.Table):
+                            name = node.name
+                            if name and name.lower() not in cte_names:
+                                seen_in_this_select.add(name.lower())
+                    for t in seen_in_this_select:
+                        participation[t] += 1
+        except Exception:
+            pass
+        return dict(participation)
+
     def _extract_tables_from_sql(self, sql_text: str) -> List[str]:
         """Return real base-table names referenced in a SQL string (SQLGlot walk).
 
@@ -750,12 +793,19 @@ class SolderEngine:
                 query_name      TEXT    NOT NULL,
                 table_name      TEXT    NOT NULL,
                 reference_count INTEGER NOT NULL DEFAULT 1,
+                select_count    INTEGER NOT NULL DEFAULT 1,
                 created_at      TEXT    DEFAULT CURRENT_TIMESTAMP
             );
             CREATE UNIQUE INDEX IF NOT EXISTS uq_gt_usage
                 ON ground_truth_table_usage (category_id, query_name, table_name);
             DELETE FROM ground_truth_table_usage;
         """)
+        # Add select_count column if upgrading an existing table without it.
+        try:
+            cur.execute("ALTER TABLE ground_truth_table_usage ADD COLUMN select_count INTEGER NOT NULL DEFAULT 1")
+            conn.commit()
+        except Exception:
+            pass  # column already exists
 
         global_counter: Counter = Counter()
         summary: Dict[str, Any] = {}
@@ -773,19 +823,27 @@ class SolderEngine:
             per_query_list: List[Dict] = []
 
             for query_name, q_sql in queries:
-                tables = self._extract_tables_from_sql(q_sql)
-                q_counts = Counter(tables)
+                tables      = self._extract_tables_from_sql(q_sql)
+                q_counts    = Counter(tables)
+                sel_counts  = self._count_select_participation(q_sql)
                 file_counter.update(q_counts)
                 global_counter.update(q_counts)
 
                 for table_name, ref_count in q_counts.items():
+                    s_count = sel_counts.get(table_name, 1)
                     cur.execute(
                         """INSERT OR REPLACE INTO ground_truth_table_usage
-                           (query_file, category_id, query_name, table_name, reference_count)
-                           VALUES (?, ?, ?, ?, ?)""",
-                        (file_name, category_id, query_name, table_name, ref_count),
+                           (query_file, category_id, query_name, table_name,
+                            reference_count, select_count)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (file_name, category_id, query_name, table_name,
+                         ref_count, s_count),
                     )
-                per_query_list.append({"query_name": query_name, "tables": dict(q_counts)})
+                per_query_list.append({
+                    "query_name": query_name,
+                    "tables": dict(q_counts),
+                    "select_counts": sel_counts,
+                })
 
             summary[category_id] = {"file": file_name, "per_query": per_query_list,
                                     "totals": dict(file_counter)}

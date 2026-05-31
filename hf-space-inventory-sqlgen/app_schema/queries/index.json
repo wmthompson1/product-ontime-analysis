@@ -17,6 +17,10 @@
             "tables": {
               "daily_deliveries": 3,
               "suppliers": 1
+            },
+            "select_counts": {
+              "daily_deliveries": 3,
+              "suppliers": 1
             }
           }
         ],
@@ -38,6 +42,13 @@
           {
             "query_name": "unnamed",
             "tables": {
+              "product_defects": 1,
+              "non_conformant_materials": 3,
+              "corrective_actions": 2,
+              "quality_incidents": 1,
+              "employee": 1
+            },
+            "select_counts": {
               "product_defects": 1,
               "non_conformant_materials": 3,
               "corrective_actions": 2,
@@ -69,11 +80,8 @@
             "tables": {
               "suppliers": 1,
               "daily_deliveries": 1
-            }
-          },
-          {
-            "query_name": "unnamed",
-            "tables": {
+            },
+            "select_counts": {
               "suppliers": 1,
               "daily_deliveries": 1
             }
@@ -81,6 +89,22 @@
           {
             "query_name": "unnamed",
             "tables": {
+              "suppliers": 1,
+              "daily_deliveries": 1
+            },
+            "select_counts": {
+              "suppliers": 1,
+              "daily_deliveries": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "suppliers": 1,
+              "daily_deliveries": 1,
+              "product_lines": 1
+            },
+            "select_counts": {
               "suppliers": 1,
               "daily_deliveries": 1,
               "product_lines": 1
@@ -109,6 +133,11 @@
               "equipment_metrics": 2,
               "downtime_events": 1,
               "failure_events": 1
+            },
+            "select_counts": {
+              "equipment_metrics": 2,
+              "downtime_events": 1,
+              "failure_events": 1
             }
           }
         ],
@@ -131,6 +160,11 @@
           {
             "query_name": "unnamed",
             "tables": {
+              "production_schedule": 2,
+              "production_lines": 1,
+              "quality_costs": 1
+            },
+            "select_counts": {
               "production_schedule": 2,
               "production_lines": 1,
               "quality_costs": 1
