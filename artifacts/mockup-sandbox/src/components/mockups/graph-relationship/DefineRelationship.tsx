@@ -964,18 +964,42 @@ export function DefineRelationship() {
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
                   Define Relationship (Edge)
                 </p>
-                <p className="text-[10px] text-slate-500 mb-1">Choose Edge Type</p>
-                <select
-                  value={selectedPredicate}
-                  onChange={(e) => setSelectedPredicate(e.target.value)}
-                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
-                >
-                  {(isStructural ? STRUCTURAL_PREDICATES : SEMANTIC_PREDICATES).map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-[10px] text-slate-500 mb-1">
+                  {isStructural ? "Choose Edge Type" : "Edge Type"}
+                  {!isStructural && (
+                    <span className="ml-1 text-slate-600 normal-case tracking-normal font-normal">
+                      — type freehand or pick a suggestion
+                    </span>
+                  )}
+                </p>
+
+                {isStructural ? (
+                  <select
+                    value={selectedPredicate}
+                    onChange={(e) => setSelectedPredicate(e.target.value)}
+                    className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                  >
+                    {STRUCTURAL_PREDICATES.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      list="semantic-predicates-datalist"
+                      value={selectedPredicate}
+                      onChange={(e) => setSelectedPredicate(e.target.value.toUpperCase())}
+                      placeholder="e.g. ELEVATES"
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-violet-500 placeholder-slate-600"
+                    />
+                    <datalist id="semantic-predicates-datalist">
+                      {SEMANTIC_PREDICATES.map((p) => (
+                        <option key={p} value={p} />
+                      ))}
+                    </datalist>
+                  </>
+                )}
 
                 {!isStructural && (
                   <>
@@ -1011,7 +1035,11 @@ export function DefineRelationship() {
                     {isStructural ? "Structural Meaning:" : "Relation Meaning (Table-Scoped):"}
                   </p>
                   <p className={`text-[10px] leading-relaxed ${isStructural ? "text-cyan-200/80" : "text-amber-200/80"}`}>
-                    {EDGE_MEANINGS[selectedPredicate] ?? "Select an edge type to see its meaning."}
+                    {EDGE_MEANINGS[selectedPredicate] ?? (
+                      selectedPredicate.trim()
+                        ? `Custom predicate "${selectedPredicate}" — no standard meaning defined. This edge type will be stored as-is on the graph edge.`
+                        : "Type a predicate name above, or pick one from the suggestions."
+                    )}
                   </p>
                 </div>
               </div>
