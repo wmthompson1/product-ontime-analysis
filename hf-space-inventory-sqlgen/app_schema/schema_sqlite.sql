@@ -467,13 +467,19 @@ INSERT INTO schema_entity_categories (category_name, display_order, description)
 ('Visual_Admin',           10, 'UI configuration and admin metadata'),
 ('Work_Orders',            11, 'Maintenance and shop-floor work orders');
 
--- Seed data: 5 Organizational Perspectives
-INSERT INTO schema_perspectives (perspective_name, description, stakeholder_role, priority_focus) VALUES
-('Quality', 'Product conformance, defect prevention, and continuous improvement', 'Quality Engineer, QA Manager', 'Defect rates, NCM resolution, process capability'),
-('Finance', 'Cost impact, revenue recognition, and financial exposure', 'Controller, Financial Analyst', 'Cost of quality, warranty reserves, revenue timing'),
-('Operations', 'Production efficiency, schedule adherence, and throughput', 'Production Manager, Plant Supervisor', 'OEE, cycle time, schedule variance'),
-('Compliance', 'Regulatory requirements, safety standards, and audit readiness', 'Compliance Officer, Safety Manager', 'Regulatory adherence, safety incidents, audit findings'),
-('Customer', 'Customer experience, brand perception, and delivery performance', 'Customer Success, Sales', 'On-time delivery, customer escapes, satisfaction scores');
+-- Seed data: 7 Organizational Perspectives
+-- IDs are explicit to prevent auto-increment from creating duplicates on re-seed.
+-- Perspective taxonomy is aligned with ERP module boundaries:
+--   Accounting sub-ledgers: Accounts_Payable, Accounts_Receivable, General_Ledger
+--   ERP modules: Quality, Work_Orders, Manufacturing, Inventory
+INSERT INTO schema_perspectives (perspective_id, perspective_name, description, stakeholder_role, priority_focus) VALUES
+(1, 'Quality',             'Product conformance, defect prevention, and continuous improvement',             'Quality Engineer, QA Manager',    'Defect rates, NCM resolution, process capability'),
+(2, 'Accounts_Payable',    'Supplier invoices, purchase orders, vendor receipts, and payables aging',        'AP Manager, Purchasing Manager',  'Invoice matching, payables aging, PO variance'),
+(3, 'Work_Orders',         'Routing of resources in sequence on a work order (operation table)',             'Production Planner, Shop Supervisor', 'Routing efficiency, SEQUENCE_NO, RESOURCE_ID, outside-service cycle time'),
+(4, 'General_Ledger',      'RM, WIP, FG, and COGS postings through the manufacturing cost flow',            'Controller, Cost Accountant',     'Inventory valuation, COGS, variance analysis'),
+(5, 'Accounts_Receivable', 'Customer orders, sales billing, delivery commitments, and receivables exposure', 'AR Manager, Sales Manager',       'Order fill rate, invoice aging, on-time delivery'),
+(7, 'Manufacturing',       'Production execution, schedule adherence, equipment effectiveness, and WIP',     'Production Manager, Plant Supervisor', 'OEE, schedule variance, WIP turns, cycle time, downtime'),
+(8, 'Inventory',           'Material movements, stock receipts, material issues to WIP, and on-hand accuracy', 'Materials Manager, Warehouse Supervisor', 'Stock accuracy, receipt qty vs ordered, material cost postings');
 
 -- Seed data: Perspective-Concept relationships (USES_DEFINITION)
 -- Quality perspective uses quality-focused concepts
@@ -482,30 +488,30 @@ INSERT INTO schema_perspective_concepts (perspective_id, concept_id, relationshi
 (1, 8, 'USES_DEFINITION', 2),   -- Quality uses DeliveryPerformanceSupplier
 (1, 16, 'USES_DEFINITION', 3),  -- Quality uses NCMDispositionQuality
 
--- Finance perspective uses cost-focused concepts
-(2, 2, 'USES_DEFINITION', 3),   -- Finance uses DefectSeverityCost
-(2, 5, 'USES_DEFINITION', 2),   -- Finance uses OrderAccountingState
-(2, 9, 'USES_DEFINITION', 2),   -- Finance uses DeliveryPerformanceFinance
-(2, 15, 'USES_DEFINITION', 2),  -- Finance uses FailureSeverityCost
-(2, 17, 'USES_DEFINITION', 3),  -- Finance uses NCMDispositionFinance
-(2, 19, 'USES_DEFINITION', 2),  -- Finance uses OEEStrategic
+-- Accounts_Payable perspective uses cost/payables concepts
+(2, 2, 'USES_DEFINITION', 3),   -- AP uses DefectSeverityCost
+(2, 5, 'USES_DEFINITION', 2),   -- AP uses OrderAccountingState
+(2, 9, 'USES_DEFINITION', 2),   -- AP uses DeliveryPerformanceFinance
+(2, 15, 'USES_DEFINITION', 2),  -- AP uses FailureSeverityCost
+(2, 17, 'USES_DEFINITION', 3),  -- AP uses NCMDispositionFinance
+(2, 19, 'USES_DEFINITION', 2),  -- AP uses OEEStrategic
 
--- Operations perspective uses operational concepts
-(3, 4, 'USES_DEFINITION', 2),   -- Operations uses OrderLifecycleState
-(3, 7, 'USES_DEFINITION', 3),   -- Operations uses DeliveryPerformanceOps
-(3, 10, 'USES_DEFINITION', 2),  -- Operations uses EquipmentStateProduction
-(3, 11, 'USES_DEFINITION', 2),  -- Operations uses EquipmentStateMaintenance
-(3, 13, 'USES_DEFINITION', 3),  -- Operations uses FailureSeverityProduction
-(3, 18, 'USES_DEFINITION', 3),  -- Operations uses OEEOperational
+-- Work_Orders perspective uses routing/sequencing concepts
+(3, 4, 'USES_DEFINITION', 2),   -- Work_Orders uses OrderLifecycleState
+(3, 7, 'USES_DEFINITION', 3),   -- Work_Orders uses DeliveryPerformanceOps
+(3, 10, 'USES_DEFINITION', 2),  -- Work_Orders uses EquipmentStateProduction
+(3, 11, 'USES_DEFINITION', 2),  -- Work_Orders uses EquipmentStateMaintenance
+(3, 13, 'USES_DEFINITION', 3),  -- Work_Orders uses FailureSeverityProduction
+(3, 18, 'USES_DEFINITION', 3),  -- Work_Orders uses OEEOperational
 
--- Compliance perspective uses safety/regulatory concepts
-(4, 12, 'USES_DEFINITION', 3),  -- Compliance uses EquipmentStateCompliance
-(4, 14, 'USES_DEFINITION', 3),  -- Compliance uses FailureSeveritySafety
+-- General_Ledger perspective uses GL/cost flow concepts
+(4, 12, 'USES_DEFINITION', 3),  -- GL uses EquipmentStateCompliance
+(4, 14, 'USES_DEFINITION', 3),  -- GL uses FailureSeveritySafety
 
--- Customer perspective uses customer-facing concepts
-(5, 3, 'USES_DEFINITION', 3),   -- Customer uses DefectSeverityCustomer
-(5, 6, 'USES_DEFINITION', 3),   -- Customer uses OrderCustomerState
-(5, 8, 'USES_DEFINITION', 2);   -- Customer uses DeliveryPerformanceSupplier (for visibility)
+-- Accounts_Receivable perspective uses customer-facing concepts
+(5, 3, 'USES_DEFINITION', 3),   -- AR uses DefectSeverityCustomer
+(5, 6, 'USES_DEFINITION', 3),   -- AR uses OrderCustomerState
+(5, 8, 'USES_DEFINITION', 2);   -- AR uses DeliveryPerformanceSupplier (for visibility)
 
 -- Schema Intents: Analytical goals that binary-switch concept weights
 -- Intent elevates one field interpretation to 1.0 while de-elevating alternatives to 0.0

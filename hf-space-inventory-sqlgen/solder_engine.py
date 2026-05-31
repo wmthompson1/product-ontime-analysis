@@ -922,7 +922,7 @@ class SolderEngine:
 
     def _parse_declared_perspectives(self, sql_text: str) -> List[str]:
         """Extract canonical perspective names from '-- Perspective: …' header lines
-        (first 20 lines only).  Multi-perspective headers like 'Finance · Quality'
+        (first 20 lines only).  Multi-perspective headers like 'Accounts_Payable · Quality'
         return both names in order.
         """
         declared: List[str] = []
