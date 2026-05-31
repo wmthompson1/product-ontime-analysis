@@ -872,18 +872,18 @@ class SolderEngine:
     #: Maps table name → perspectives it primarily signals.
     #: Multi-perspective entries distribute affinity weight equally.
     TABLE_PERSPECTIVE_MAP: Dict[str, List[str]] = {
-        # Accounts_Payable — supplier side of accounting
-        "purchase_order":           ["Accounts_Payable"],
-        "po_line":                  ["Accounts_Payable"],
-        "invoice_header":           ["Accounts_Payable"],
-        "receiving":                ["Accounts_Payable", "Inventory"],
-        "certification":            ["Accounts_Payable", "Quality"],
-        "suppliers":                ["Accounts_Payable", "Quality"],
-        # Accounts_Receivable / Customer_Order — customer/sales side
-        "customer":                 ["Accounts_Receivable", "Customer_Order"],
-        "customer_address":         ["Accounts_Receivable", "Customer_Order"],
-        "sales":                    ["Accounts_Receivable", "Customer_Order"],
-        "daily_deliveries":         ["Accounts_Payable", "Accounts_Receivable", "Customer_Order"],
+        # Payables — supplier side of accounting
+        "purchase_order":           ["Payables"],
+        "po_line":                  ["Payables"],
+        "invoice_header":           ["Payables"],
+        "receiving":                ["Payables", "Inventory_Transactions"],
+        "certification":            ["Payables", "Quality"],
+        "suppliers":                ["Payables", "Quality"],
+        # Receivables / CRM / Customer_Order — customer/sales side
+        "customer":                 ["Receivables", "CRM", "Customer_Order"],
+        "customer_address":         ["Receivables", "CRM"],
+        "sales":                    ["Receivables", "Customer_Order"],
+        "daily_deliveries":         ["Payables", "Receivables", "Customer_Order"],
         # General_Ledger — RM/WIP/FG/COGS cost flow
         "financial_impact":         ["General_Ledger"],
         "quality_costs":            ["General_Ledger", "Quality"],
@@ -910,15 +910,16 @@ class SolderEngine:
         "effectiveness_metrics":    ["Manufacturing"],
         "maintenance_targets":      ["Manufacturing"],
         "equipment_reliability":    ["Manufacturing"],
-        # Inventory — material movements and stock
-        "material_issue":           ["Inventory"],
+        # Inventory_Transactions — material movements and stock
+        "material_issue":           ["Inventory_Transactions"],
     }
 
     _PERSP_LINE_RE = re.compile(r"^--\s*Perspectives?:\s*(.+)", re.IGNORECASE)
     _CANON_PERSPECTIVES = frozenset(
-        ["Accounts_Payable", "Accounts_Receivable", "General_Ledger",
-         "Quality", "Work_Orders", "Manufacturing", "Inventory",
-         "Customer_Order", "Demand_Forecast", "Engineering", "Parts"]
+        ["Payables", "Receivables", "General_Ledger",
+         "Quality", "Work_Orders", "Manufacturing", "Inventory_Transactions",
+         "Customer_Order", "Demand_Forecast", "Engineering", "Parts",
+         "CRM", "Visual_Admin"]
     )
 
     def _parse_declared_perspectives(self, sql_text: str) -> List[str]:

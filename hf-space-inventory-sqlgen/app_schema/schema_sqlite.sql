@@ -473,17 +473,19 @@ INSERT INTO schema_entity_categories (category_name, display_order, description)
 --   Accounting sub-ledgers: Accounts_Payable, Accounts_Receivable, General_Ledger
 --   ERP modules: Quality, Work_Orders, Manufacturing, Inventory
 INSERT INTO schema_perspectives (perspective_id, perspective_name, description, stakeholder_role, priority_focus) VALUES
-(1, 'Quality',             'Product conformance, defect prevention, and continuous improvement',             'Quality Engineer, QA Manager',    'Defect rates, NCM resolution, process capability'),
-(2, 'Accounts_Payable',    'Supplier invoices, purchase orders, vendor receipts, and payables aging',        'AP Manager, Purchasing Manager',  'Invoice matching, payables aging, PO variance'),
-(3, 'Work_Orders',         'Routing of resources in sequence on a work order (operation table)',             'Production Planner, Shop Supervisor', 'Routing efficiency, SEQUENCE_NO, RESOURCE_ID, outside-service cycle time'),
-(4, 'General_Ledger',      'RM, WIP, FG, and COGS postings through the manufacturing cost flow',            'Controller, Cost Accountant',     'Inventory valuation, COGS, variance analysis'),
-(5, 'Accounts_Receivable', 'Customer orders, sales billing, delivery commitments, and receivables exposure', 'AR Manager, Sales Manager',       'Order fill rate, invoice aging, on-time delivery'),
-(7,  'Manufacturing',       'Production execution, schedule adherence, equipment effectiveness, and WIP',          'Production Manager, Plant Supervisor',       'OEE, schedule variance, WIP turns, cycle time, downtime'),
-(8,  'Inventory',           'Material movements, stock receipts, material issues to WIP, and on-hand accuracy',   'Materials Manager, Warehouse Supervisor',     'Stock accuracy, receipt qty vs ordered, material cost postings'),
-(9,  'Customer_Order',      'Order fulfillment, delivery commitments, and order-lifecycle tracking.',              'Sales Manager, Customer Success',            'On-time delivery, fill rate, order-to-ship cycle time'),
-(10, 'Demand_Forecast',     'Demand planning, forecast accuracy, and inventory replenishment signals.',            'Supply Chain Planner, Demand Manager',        'Forecast error (MAPE), bias, planning horizon coverage'),
-(11, 'Engineering',         'Engineering change orders, BOM management, and part revisions.',                      'Design Engineer, Manufacturing Engineer',     'ECO cycle time, BOM accuracy, revision control'),
-(12, 'Parts',               'Part master, revisions, classifications, and material specifications.',                'Materials Engineer, Configuration Manager',   'Part count, revision status, obsolescence rate');
+(1,  'Quality',               'Product conformance, defect prevention, and continuous improvement',               'Quality Engineer, QA Manager',        'Defect rates, NCM resolution, process capability'),
+(2,  'Payables',             'Supplier invoices, purchase orders, vendor receipts, and payables aging.',           'AP Manager, Purchasing Manager',      'Invoice matching, payables aging, PO variance'),
+(3,  'Work_Orders',          'Routing of resources in sequence on a work order (SEQUENCE_NO, RESOURCE_ID).',       'Production Planner, Shop Supervisor', 'Routing efficiency, operation sequence, outside-service cycle time'),
+(4,  'General_Ledger',       'RM, WIP, FG, and COGS postings through the manufacturing cost flow.',               'Controller, Cost Accountant',         'Inventory valuation, COGS, variance analysis'),
+(5,  'Receivables',          'Customer orders, sales billing, delivery commitments, and receivables exposure.',    'AR Manager, Sales Manager',           'Order fill rate, invoice aging, on-time delivery'),
+(6,  'CRM',                  'Customer relationship management: contacts, accounts, opportunities, and activity.', 'Sales Rep, Account Manager',          'Pipeline, customer lifetime value, contact coverage'),
+(7,  'Manufacturing',        'Production execution, schedule adherence, equipment effectiveness, and WIP.',        'Production Manager, Plant Supervisor','OEE, schedule variance, WIP turns, cycle time, downtime'),
+(8,  'Inventory_Transactions','Material movements, stock receipts, material issues to WIP, and on-hand accuracy.','Materials Manager, Warehouse Supervisor','Stock accuracy, receipt qty vs ordered, material cost postings'),
+(9,  'Customer_Order',       'Order fulfillment, delivery commitments, and order-lifecycle tracking.',             'Sales Manager, Customer Success',     'On-time delivery, fill rate, order-to-ship cycle time'),
+(10, 'Demand_Forecast',      'Demand planning, forecast accuracy, and inventory replenishment signals.',           'Supply Chain Planner, Demand Manager','Forecast error (MAPE), bias, planning horizon coverage'),
+(11, 'Engineering',          'Engineering change orders, BOM management, and part revisions.',                     'Design Engineer, Mfg Engineer',       'ECO cycle time, BOM accuracy, revision control'),
+(12, 'Parts',                'Part master, revisions, classifications, and material specifications.',              'Materials Engineer, Config Manager',  'Part count, revision status, obsolescence rate'),
+(13, 'Visual_Admin',         'UI configuration, admin metadata, and workspace layout settings.',                   'System Administrator',                'Config completeness, admin access, UI state');
 
 -- Seed data: Perspective-Concept relationships (USES_DEFINITION)
 -- Quality perspective uses quality-focused concepts

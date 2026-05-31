@@ -25,7 +25,7 @@ import type { ColumnMeta } from "./useColumnsByTable";
 // categories migrate FROM nodes TO edge properties).
 type CategoryScope = string;
 
-// Varied accent palette for the 12 perspectives + neutral for ALL.
+// Varied accent palette for the 13 perspectives + neutral for ALL.
 const CATEGORY_COLORS: Record<string, string> = {
   ALL: "bg-slate-600 text-slate-100",
   CRM: "bg-sky-700 text-sky-100",
@@ -37,6 +37,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Manufacturing: "bg-amber-700 text-amber-100",
   Parts: "bg-orange-700 text-orange-100",
   Payables: "bg-rose-700 text-rose-100",
+  Quality: "bg-green-700 text-green-100",
   Receivables: "bg-pink-700 text-pink-100",
   Visual_Admin: "bg-violet-700 text-violet-100",
   Work_Orders: "bg-fuchsia-700 text-fuchsia-100",

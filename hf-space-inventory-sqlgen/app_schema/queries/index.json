@@ -50,8 +50,8 @@
             },
             "select_counts": {
               "product_defects": 1,
-              "non_conformant_materials": 3,
               "corrective_actions": 2,
+              "non_conformant_materials": 3,
               "quality_incidents": 1,
               "employee": 1
             }

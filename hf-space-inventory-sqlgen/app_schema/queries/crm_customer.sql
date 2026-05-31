@@ -1,5 +1,5 @@
 -- Ground Truth SQL: CRM Customer Queries
--- Perspective: Accounts_Receivable
+-- Perspective: Receivables · CRM
 -- Category: crm
 -- Source: Manufacturing SQL Semantic Layer (Replit public repo)
 --

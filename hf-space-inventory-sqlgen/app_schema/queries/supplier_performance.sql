@@ -1,5 +1,5 @@
 -- Ground Truth SQL: Supplier / Payables Queries
--- Perspective: Accounts_Payable · Quality
+-- Perspective: Payables · Quality
 -- Category: supplier_performance
 -- Source: Manufacturing SQL Semantic Layer (Replit public repo)
 --
@@ -51,7 +51,7 @@ ORDER BY avg_ontime_pct ASC, avg_quality_score ASC;
 -- Typical:  "What penalties are owed for late deliveries since July 1st?"
 --           "Calculate vendor penalty exposure from July"
 -- Params:   :start_date
--- Perspective: Accounts_Payable — this is the primary payables query
+-- Perspective: Payables — this is the primary payables query
 -- ============================================================
 SELECT
     s.supplier_id,
@@ -81,7 +81,7 @@ ORDER BY estimated_penalty_credit DESC;
 -- Typical:  "Show me payables exposure by vendor from July 1st"
 --           "What do we owe suppliers this quarter?"
 -- Params:   :start_date, :supplier_id (optional)
--- Perspective: Accounts_Payable — pure payables roll-up
+-- Perspective: Payables — pure payables roll-up
 -- Note:     unit_cost is sourced from product_lines.unit_price as a proxy
 --           until a purchase_orders table is added to this schema.
 -- ============================================================

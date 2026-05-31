@@ -1,5 +1,5 @@
 -- Ground Truth SQL: Delivery Performance by Perspective
--- Perspective: Accounts_Payable · Accounts_Receivable
+-- Perspective: Payables · Receivables
 -- Demonstrates semantic disambiguation via organizational perspective
 -- Same field (daily_deliveries.ontime_rate) interpreted three different ways
 
