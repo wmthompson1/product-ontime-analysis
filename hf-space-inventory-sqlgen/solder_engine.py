@@ -21,10 +21,18 @@ from dataclasses import dataclass, field
 import sqlglot
 from sqlglot import exp
 
+import re
+from collections import Counter
+
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
 GROUND_TRUTH_DIR = os.path.join(SCHEMA_DIR, "ground_truth")
 MANIFEST_PATH = os.path.join(GROUND_TRUTH_DIR, "reviewer_manifest.json")
+QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
+QUERIES_INDEX_PATH = os.path.join(QUERIES_DIR, "index.json")
+
+_QUERY_HEADER_RE = re.compile(r"(?m)^--\s*={10,}.*?$")
+_QUERY_NAME_RE   = re.compile(r"--\s*Query\s+\d+\s*[—\-]+\s*(\S+)", re.IGNORECASE)
 
 
 @dataclass
@@ -652,3 +660,168 @@ class SolderEngine:
                 report += f"- `{b.binding_key}` ({b.perspective} / {b.concept_anchor}) - {b.logic_type}\n"
 
         return report
+
+    # ── Table-usage index ─────────────────────────────────────────────────────
+
+    def _split_queries(self, sql_text: str) -> List[Tuple[str, str]]:
+        """Split a multi-query SQL file into (query_name, sql_text) pairs.
+
+        Splits on the '-- ===…===' separator lines used in all ground-truth
+        files.  Returns [(name, sql), …]; name is taken from the
+        '-- Query N — name' line immediately after each separator.
+        """
+        parts = _QUERY_HEADER_RE.split(sql_text)
+        blocks: List[str] = []
+        current: List[str] = []
+        for part in sql_text.splitlines(keepends=True):
+            if _QUERY_HEADER_RE.match(part.rstrip()):
+                if current:
+                    blocks.append("".join(current))
+                current = [part]
+            else:
+                current.append(part)
+        if current:
+            blocks.append("".join(current))
+
+        result = []
+        for block in blocks:
+            name_match = _QUERY_NAME_RE.search(block)
+            query_name = name_match.group(1) if name_match else "unnamed"
+            sql_lines = [
+                ln for ln in block.splitlines()
+                if not ln.strip().startswith("--")
+            ]
+            sql_clean = "\n".join(sql_lines).strip()
+            if sql_clean:
+                result.append((query_name, sql_clean))
+        return result or [("all", sql_text)]
+
+    def _extract_tables_from_sql(self, sql_text: str) -> List[str]:
+        """Return all table names referenced in a SQL string (SQLGlot walk)."""
+        tables: List[str] = []
+        try:
+            for stmt in sqlglot.parse(sql_text, dialect="sqlite"):
+                if stmt is None:
+                    continue
+                for node in stmt.walk():
+                    if isinstance(node, exp.Table) and node.name:
+                        tables.append(node.name.lower())
+        except Exception:
+            pass
+        return tables
+
+    def build_table_usage_index(self, verbose: bool = True) -> Dict[str, Any]:
+        """Parse every ground-truth SQL file in QUERIES_DIR with SQLGlot,
+        count table references per query, and persist:
+
+          - SQLite  ``ground_truth_table_usage``  (per-query, per-table rows)
+          - ``app_schema/queries/index.json``      (table_usage per category)
+
+        Returns a summary dict: {category_id: {totals, per_query}, global: Counter}.
+        """
+        if not os.path.exists(QUERIES_INDEX_PATH):
+            return {"error": f"index.json not found at {QUERIES_INDEX_PATH}"}
+
+        with open(QUERIES_INDEX_PATH) as fh:
+            index = json.load(fh)
+
+        category_map: Dict[str, str] = {
+            c["file"]: c["id"] for c in index.get("categories", [])
+        }
+
+        conn = sqlite3.connect(self.db_path)
+        cur  = conn.cursor()
+        cur.executescript("""
+            CREATE TABLE IF NOT EXISTS ground_truth_table_usage (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                query_file      TEXT    NOT NULL,
+                category_id     TEXT    NOT NULL,
+                query_name      TEXT    NOT NULL,
+                table_name      TEXT    NOT NULL,
+                reference_count INTEGER NOT NULL DEFAULT 1,
+                created_at      TEXT    DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_gt_usage
+                ON ground_truth_table_usage (category_id, query_name, table_name);
+            DELETE FROM ground_truth_table_usage;
+        """)
+
+        global_counter: Counter = Counter()
+        summary: Dict[str, Any] = {}
+
+        for sql_file in sorted(
+            (f for f in os.scandir(QUERIES_DIR) if f.name.endswith(".sql")),
+            key=lambda e: e.name,
+        ):
+            file_name   = sql_file.name
+            category_id = category_map.get(file_name, os.path.splitext(file_name)[0])
+            sql_text    = open(sql_file.path).read()
+            queries     = self._split_queries(sql_text)
+
+            file_counter: Counter = Counter()
+            per_query_list: List[Dict] = []
+
+            for query_name, q_sql in queries:
+                tables = self._extract_tables_from_sql(q_sql)
+                q_counts = Counter(tables)
+                file_counter.update(q_counts)
+                global_counter.update(q_counts)
+
+                for table_name, ref_count in q_counts.items():
+                    cur.execute(
+                        """INSERT OR REPLACE INTO ground_truth_table_usage
+                           (query_file, category_id, query_name, table_name, reference_count)
+                           VALUES (?, ?, ?, ?, ?)""",
+                        (file_name, category_id, query_name, table_name, ref_count),
+                    )
+                per_query_list.append({"query_name": query_name, "tables": dict(q_counts)})
+
+            summary[category_id] = {"file": file_name, "per_query": per_query_list,
+                                    "totals": dict(file_counter)}
+            if verbose:
+                print(f"  {file_name}: {len(queries)} queries, "
+                      f"{len(file_counter)} tables → {dict(file_counter)}")
+
+        conn.commit()
+        conn.close()
+
+        # ── Update index.json ------------------------------------------------
+        for cat in index.get("categories", []):
+            usage = summary.get(cat["id"])
+            if usage:
+                cat["table_usage"] = usage
+        index["tables_referenced"]       = sorted(global_counter.keys())
+        index["table_reference_counts"]  = dict(global_counter.most_common())
+        with open(QUERIES_INDEX_PATH, "w") as fh:
+            json.dump(index, fh, indent=2)
+
+        summary["_global"] = dict(global_counter.most_common())
+        return summary
+
+    def get_table_usage(self, table_name: str = None,
+                        category_id: str = None) -> List[Dict[str, Any]]:
+        """Query the ground_truth_table_usage index.
+
+        Filters by table_name and/or category_id (both optional).
+        Returns rows ordered by reference_count DESC.
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            clauses, params = [], []
+            if table_name:
+                clauses.append("table_name = ?")
+                params.append(table_name.lower())
+            if category_id:
+                clauses.append("category_id = ?")
+                params.append(category_id)
+            where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+            rows = conn.execute(
+                f"SELECT query_file, category_id, query_name, table_name, reference_count "
+                f"FROM ground_truth_table_usage {where} "
+                f"ORDER BY reference_count DESC, category_id, query_name",
+                params,
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
