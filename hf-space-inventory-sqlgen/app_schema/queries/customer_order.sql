@@ -1,5 +1,5 @@
 -- Ground Truth SQL: Customer Order Queries
--- Perspective: Customer_Order
+-- Perspective: Accounts_Receivable
 -- Category: customer_order
 -- Source: Manufacturing SQL Semantic Layer (Replit public repo)
 --

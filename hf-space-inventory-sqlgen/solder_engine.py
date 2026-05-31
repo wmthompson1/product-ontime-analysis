@@ -803,22 +803,28 @@ class SolderEngine:
     #: Maps table name → perspectives it primarily signals.
     #: Multi-perspective entries distribute affinity weight equally.
     TABLE_PERSPECTIVE_MAP: Dict[str, List[str]] = {
-        # Finance / AP / Payables
-        "purchase_order":           ["Finance"],
-        "po_line":                  ["Finance"],
-        "invoice_header":           ["Finance"],
-        "receiving":                ["Finance", "Inventory"],
-        "certification":            ["Finance", "Compliance", "Quality"],
-        "suppliers":                ["Finance", "Quality"],
-        "financial_impact":         ["Finance"],
-        "quality_costs":            ["Finance", "Quality"],
-        "daily_deliveries":         ["Finance", "Customer_Order"],
-        # Quality
+        # Accounts_Payable — supplier side of accounting
+        "purchase_order":           ["Accounts_Payable"],
+        "po_line":                  ["Accounts_Payable"],
+        "invoice_header":           ["Accounts_Payable"],
+        "receiving":                ["Accounts_Payable", "Inventory"],
+        "certification":            ["Accounts_Payable", "Quality"],
+        "suppliers":                ["Accounts_Payable", "Quality"],
+        # Accounts_Receivable — customer/sales side of accounting
+        "customer":                 ["Accounts_Receivable"],
+        "customer_address":         ["Accounts_Receivable"],
+        "sales":                    ["Accounts_Receivable"],
+        "daily_deliveries":         ["Accounts_Payable", "Accounts_Receivable"],
+        # General_Ledger — RM/WIP/FG/COGS cost flow
+        "financial_impact":         ["General_Ledger"],
+        "quality_costs":            ["General_Ledger", "Quality"],
+        # Quality — defect prevention, NCM, corrective actions
         "product_defects":          ["Quality"],
-        "non_conformant_materials": ["Quality", "Compliance"],
-        "corrective_actions":       ["Quality", "Compliance"],
+        "non_conformant_materials": ["Quality"],
+        "corrective_actions":       ["Quality"],
         "quality_incidents":        ["Quality"],
         "production_quality":       ["Quality", "Manufacturing"],
+        "manufacturing_acronyms":   ["Quality"],
         # Work_Orders — routing of resources in sequence (the operation table concept)
         "operation":                ["Work_Orders"],
         "shop_resource":            ["Work_Orders"],
@@ -826,9 +832,9 @@ class SolderEngine:
         "labor_ticket":             ["Work_Orders"],
         # Manufacturing — production execution, WIP, equipment, schedule
         "work_order":               ["Manufacturing"],
-        "production_schedule":      ["Manufacturing", "Customer_Order"],
+        "production_schedule":      ["Manufacturing", "Accounts_Receivable"],
         "production_lines":         ["Manufacturing"],
-        "product_lines":            ["Manufacturing", "Customer_Order"],
+        "product_lines":            ["Manufacturing", "Accounts_Receivable"],
         "equipment_metrics":        ["Manufacturing"],
         "downtime_events":          ["Manufacturing"],
         "failure_events":           ["Manufacturing"],
@@ -837,18 +843,12 @@ class SolderEngine:
         "equipment_reliability":    ["Manufacturing"],
         # Inventory — material movements and stock
         "material_issue":           ["Inventory"],
-        # Customer / CRM
-        "customer":                 ["Customer", "Customer_Order"],
-        "customer_address":         ["Customer", "Customer_Order"],
-        "sales":                    ["Customer", "Customer_Order"],
-        # Compliance
-        "manufacturing_acronyms":   ["Compliance"],
     }
 
     _PERSP_LINE_RE = re.compile(r"^--\s*Perspectives?:\s*(.+)", re.IGNORECASE)
     _CANON_PERSPECTIVES = frozenset(
-        ["Finance", "Quality", "Work_Orders", "Manufacturing", "Inventory",
-         "Customer", "Customer_Order", "Compliance"]
+        ["Accounts_Payable", "Accounts_Receivable", "General_Ledger",
+         "Quality", "Work_Orders", "Manufacturing", "Inventory"]
     )
 
     def _parse_declared_perspectives(self, sql_text: str) -> List[str]:
