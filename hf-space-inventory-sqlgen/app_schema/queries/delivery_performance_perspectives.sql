@@ -1,5 +1,5 @@
 -- Ground Truth SQL: Delivery Performance by Perspective
--- Perspective: Operations · Finance · Customer_Order
+-- Perspective: Manufacturing · Finance · Customer_Order
 -- Demonstrates semantic disambiguation via organizational perspective
 -- Same field (daily_deliveries.ontime_rate) interpreted three different ways
 

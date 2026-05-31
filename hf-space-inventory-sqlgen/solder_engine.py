@@ -807,7 +807,7 @@ class SolderEngine:
         "purchase_order":           ["Finance"],
         "po_line":                  ["Finance"],
         "invoice_header":           ["Finance"],
-        "receiving":                ["Finance", "Operations"],
+        "receiving":                ["Finance", "Inventory"],
         "certification":            ["Finance", "Compliance", "Quality"],
         "suppliers":                ["Finance", "Quality"],
         "financial_impact":         ["Finance"],
@@ -818,23 +818,25 @@ class SolderEngine:
         "non_conformant_materials": ["Quality", "Compliance"],
         "corrective_actions":       ["Quality", "Compliance"],
         "quality_incidents":        ["Quality"],
-        "production_quality":       ["Quality", "Operations"],
-        # Operations / Manufacturing / WIP
-        "production_schedule":      ["Operations", "Customer_Order"],
-        "production_lines":         ["Operations"],
-        "work_order":               ["Operations"],
-        "operation":                ["Operations"],
-        "shop_resource":            ["Operations"],
-        "labor_ticket":             ["Operations"],
-        "material_issue":           ["Operations"],
-        "equipment_metrics":        ["Operations"],
-        "downtime_events":          ["Operations"],
-        "failure_events":           ["Operations"],
-        "effectiveness_metrics":    ["Operations"],
-        "maintenance_targets":      ["Operations"],
-        "equipment_reliability":    ["Operations"],
-        "service":                  ["Operations"],
-        "product_lines":            ["Operations", "Customer_Order"],
+        "production_quality":       ["Quality", "Manufacturing"],
+        # Work_Orders — routing of resources in sequence (the operation table concept)
+        "operation":                ["Work_Orders"],
+        "shop_resource":            ["Work_Orders"],
+        "service":                  ["Work_Orders"],
+        "labor_ticket":             ["Work_Orders"],
+        # Manufacturing — production execution, WIP, equipment, schedule
+        "work_order":               ["Manufacturing"],
+        "production_schedule":      ["Manufacturing", "Customer_Order"],
+        "production_lines":         ["Manufacturing"],
+        "product_lines":            ["Manufacturing", "Customer_Order"],
+        "equipment_metrics":        ["Manufacturing"],
+        "downtime_events":          ["Manufacturing"],
+        "failure_events":           ["Manufacturing"],
+        "effectiveness_metrics":    ["Manufacturing"],
+        "maintenance_targets":      ["Manufacturing"],
+        "equipment_reliability":    ["Manufacturing"],
+        # Inventory — material movements and stock
+        "material_issue":           ["Inventory"],
         # Customer / CRM
         "customer":                 ["Customer", "Customer_Order"],
         "customer_address":         ["Customer", "Customer_Order"],
@@ -845,7 +847,8 @@ class SolderEngine:
 
     _PERSP_LINE_RE = re.compile(r"^--\s*Perspectives?:\s*(.+)", re.IGNORECASE)
     _CANON_PERSPECTIVES = frozenset(
-        ["Finance", "Quality", "Operations", "Customer", "Customer_Order", "Compliance"]
+        ["Finance", "Quality", "Work_Orders", "Manufacturing", "Inventory",
+         "Customer", "Customer_Order", "Compliance"]
     )
 
     def _parse_declared_perspectives(self, sql_text: str) -> List[str]:
