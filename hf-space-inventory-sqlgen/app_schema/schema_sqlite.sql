@@ -478,8 +478,12 @@ INSERT INTO schema_perspectives (perspective_id, perspective_name, description, 
 (3, 'Work_Orders',         'Routing of resources in sequence on a work order (operation table)',             'Production Planner, Shop Supervisor', 'Routing efficiency, SEQUENCE_NO, RESOURCE_ID, outside-service cycle time'),
 (4, 'General_Ledger',      'RM, WIP, FG, and COGS postings through the manufacturing cost flow',            'Controller, Cost Accountant',     'Inventory valuation, COGS, variance analysis'),
 (5, 'Accounts_Receivable', 'Customer orders, sales billing, delivery commitments, and receivables exposure', 'AR Manager, Sales Manager',       'Order fill rate, invoice aging, on-time delivery'),
-(7, 'Manufacturing',       'Production execution, schedule adherence, equipment effectiveness, and WIP',     'Production Manager, Plant Supervisor', 'OEE, schedule variance, WIP turns, cycle time, downtime'),
-(8, 'Inventory',           'Material movements, stock receipts, material issues to WIP, and on-hand accuracy', 'Materials Manager, Warehouse Supervisor', 'Stock accuracy, receipt qty vs ordered, material cost postings');
+(7,  'Manufacturing',       'Production execution, schedule adherence, equipment effectiveness, and WIP',          'Production Manager, Plant Supervisor',       'OEE, schedule variance, WIP turns, cycle time, downtime'),
+(8,  'Inventory',           'Material movements, stock receipts, material issues to WIP, and on-hand accuracy',   'Materials Manager, Warehouse Supervisor',     'Stock accuracy, receipt qty vs ordered, material cost postings'),
+(9,  'Customer_Order',      'Order fulfillment, delivery commitments, and order-lifecycle tracking.',              'Sales Manager, Customer Success',            'On-time delivery, fill rate, order-to-ship cycle time'),
+(10, 'Demand_Forecast',     'Demand planning, forecast accuracy, and inventory replenishment signals.',            'Supply Chain Planner, Demand Manager',        'Forecast error (MAPE), bias, planning horizon coverage'),
+(11, 'Engineering',         'Engineering change orders, BOM management, and part revisions.',                      'Design Engineer, Manufacturing Engineer',     'ECO cycle time, BOM accuracy, revision control'),
+(12, 'Parts',               'Part master, revisions, classifications, and material specifications.',                'Materials Engineer, Configuration Manager',   'Part count, revision status, obsolescence rate');
 
 -- Seed data: Perspective-Concept relationships (USES_DEFINITION)
 -- Quality perspective uses quality-focused concepts

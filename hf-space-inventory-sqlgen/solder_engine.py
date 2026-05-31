@@ -879,11 +879,11 @@ class SolderEngine:
         "receiving":                ["Accounts_Payable", "Inventory"],
         "certification":            ["Accounts_Payable", "Quality"],
         "suppliers":                ["Accounts_Payable", "Quality"],
-        # Accounts_Receivable — customer/sales side of accounting
-        "customer":                 ["Accounts_Receivable"],
-        "customer_address":         ["Accounts_Receivable"],
-        "sales":                    ["Accounts_Receivable"],
-        "daily_deliveries":         ["Accounts_Payable", "Accounts_Receivable"],
+        # Accounts_Receivable / Customer_Order — customer/sales side
+        "customer":                 ["Accounts_Receivable", "Customer_Order"],
+        "customer_address":         ["Accounts_Receivable", "Customer_Order"],
+        "sales":                    ["Accounts_Receivable", "Customer_Order"],
+        "daily_deliveries":         ["Accounts_Payable", "Accounts_Receivable", "Customer_Order"],
         # General_Ledger — RM/WIP/FG/COGS cost flow
         "financial_impact":         ["General_Ledger"],
         "quality_costs":            ["General_Ledger", "Quality"],
@@ -901,9 +901,9 @@ class SolderEngine:
         "labor_ticket":             ["Work_Orders"],
         # Manufacturing — production execution, WIP, equipment, schedule
         "work_order":               ["Manufacturing"],
-        "production_schedule":      ["Manufacturing", "Accounts_Receivable"],
+        "production_schedule":      ["Manufacturing", "Customer_Order"],
         "production_lines":         ["Manufacturing"],
-        "product_lines":            ["Manufacturing", "Accounts_Receivable"],
+        "product_lines":            ["Manufacturing", "Customer_Order"],
         "equipment_metrics":        ["Manufacturing"],
         "downtime_events":          ["Manufacturing"],
         "failure_events":           ["Manufacturing"],
@@ -917,7 +917,8 @@ class SolderEngine:
     _PERSP_LINE_RE = re.compile(r"^--\s*Perspectives?:\s*(.+)", re.IGNORECASE)
     _CANON_PERSPECTIVES = frozenset(
         ["Accounts_Payable", "Accounts_Receivable", "General_Ledger",
-         "Quality", "Work_Orders", "Manufacturing", "Inventory"]
+         "Quality", "Work_Orders", "Manufacturing", "Inventory",
+         "Customer_Order", "Demand_Forecast", "Engineering", "Parts"]
     )
 
     def _parse_declared_perspectives(self, sql_text: str) -> List[str]:
