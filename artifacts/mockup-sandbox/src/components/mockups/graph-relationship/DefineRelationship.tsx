@@ -108,9 +108,9 @@ function searchEntities(
 // The grouped results list renders items as `"${rec.table_name} (${source})"`,
 // so selectedTarget must use that same format (see useState initializer below).
 
-const PREDICATES = [
-  "CONTAINS",
-  "FOREIGN_KEY",
+const STRUCTURAL_PREDICATES = ["CONTAINS", "FOREIGN_KEY"];
+
+const SEMANTIC_PREDICATES = [
   "ELEVATES",
   "SUPPRESSES",
   "MAPS_TO_CONCEPT",
@@ -312,12 +312,15 @@ function NavItem({ icon, active }: { icon: React.ReactNode; active?: boolean }) 
   );
 }
 
+type FormMode = "structural" | "semantic";
+
 export function DefineRelationship() {
+  const [formMode, setFormMode] = useState<FormMode>("structural");
   const [activeCategory, setActiveCategory] = useState<CategoryScope>("ALL");
   const [selectedSource, setSelectedSource] = useState(
     getFirstEntityDisplay(MOCK_SEARCH_DATA)
   );
-  const [selectedPredicate, setSelectedPredicate] = useState("FOREIGN_KEY");
+  const [selectedPredicate, setSelectedPredicate] = useState("CONTAINS");
   const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
   const [selectedConcept, setSelectedConcept] = useState(CONCEPTS[0]);
   const [selectedTarget, setSelectedTarget] = useState(
@@ -468,6 +471,24 @@ export function DefineRelationship() {
     fetchCategories().then(setCategories).catch(() => { /* keep mock fallback */ });
     refreshGraphStats();
   }, []);
+
+  const isStructural = formMode === "structural";
+
+  const handleModeSwitch = (newMode: FormMode) => {
+    if (newMode === formMode) return;
+    const firstEntity = getFirstEntityDisplay(entityNamespaces);
+    setFormMode(newMode);
+    setSelectedSource(firstEntity);
+    setSelectedTarget(firstEntity);
+    setSelectedPredicate(newMode === "structural" ? "CONTAINS" : "ELEVATES");
+    setSelectedIntent(intents[0] ?? "");
+    setSelectedConcept(concepts[0] ?? "");
+    setActiveCategory("ALL");
+    setSourceSearch("");
+    setTargetSearch("");
+    setSourceMode("Contains");
+    setTargetMode("Contains");
+  };
 
   const sourceResults = searchEntities(sourceSearch, sourceMode, entityNamespaces);
   const targetResults = searchEntities(targetSearch, targetMode, entityNamespaces);
@@ -655,12 +676,17 @@ export function DefineRelationship() {
           </div>
         )}
 
-        {/* Category pill bar */}
-        <div className="px-5 py-2.5 border-b border-slate-700/40 flex items-center gap-2 flex-wrap bg-[#1e1e2e]/60">
+        {/* Category pill bar — semantic mode only; greyed out in structural */}
+        <div className={`px-5 py-2.5 border-b border-slate-700/40 flex items-center gap-2 flex-wrap bg-[#1e1e2e]/60 transition-opacity ${isStructural ? "opacity-30 pointer-events-none select-none" : ""}`}>
           <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mr-1">
             Category:
           </span>
-          {(categories as CategoryScope[]).map((cat) => (
+          {isStructural && (
+            <span className="text-[10px] text-slate-600 italic">
+              Not applicable to structural edges
+            </span>
+          )}
+          {!isStructural && (categories as CategoryScope[]).map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
@@ -683,57 +709,108 @@ export function DefineRelationship() {
                 Relationship Definition Workspace
               </p>
             </div>
-            <div className="px-4 py-2.5">
+            <div className="px-4 py-2.5 flex items-center justify-between">
               <p className="text-[11px] text-slate-400">
                 Link an existing Entity to another Entity via a defined Relation
               </p>
+              {/* Hard-toggle: switching clears all form state */}
+              <div className="flex rounded overflow-hidden border border-slate-600 shrink-0 ml-4">
+                <button
+                  onClick={() => handleModeSwitch("structural")}
+                  className={`px-3 py-1 text-[10px] font-semibold tracking-wide transition-colors ${
+                    isStructural
+                      ? "bg-cyan-700 text-cyan-100"
+                      : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+                  }`}
+                >
+                  Structural
+                </button>
+                <button
+                  onClick={() => handleModeSwitch("semantic")}
+                  className={`px-3 py-1 text-[10px] font-semibold tracking-wide transition-colors border-l border-slate-600 ${
+                    !isStructural
+                      ? "bg-violet-700 text-violet-100"
+                      : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
+                  }`}
+                >
+                  Semantic
+                </button>
+              </div>
             </div>
 
-            {/* IDENTITY STRIP — edge ID + edge properties above the fold. */}
+            {/* IDENTITY STRIP — structural vs semantic layouts */}
             <div className="px-4 pb-3 pt-1 border-t border-slate-600/60 bg-slate-900/30">
               <p className="text-[9px] font-bold tracking-widest text-slate-500 uppercase mb-1.5">
                 Live Identity Preview
               </p>
-              <div className="grid grid-cols-3 gap-2">
-                {/* Directional edge ID */}
-                <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
-                  <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
-                    rel_edge_id
-                  </p>
-                  <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
-                    {edgeId}
-                  </p>
-                  <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
-                    Directional edge (source→target)
-                  </p>
-                </div>
 
-                {/* edge.category — domain category from pill bar */}
-                <div className={`border rounded px-2 py-1.5 ${hasCategory ? "border-violet-500/60 bg-violet-900/20" : "border-slate-600 bg-slate-800/40"}`}>
-                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${hasCategory ? "text-violet-300/70" : "text-slate-500"}`}>
-                    edge.category
-                  </p>
-                  <p className={`text-[11px] font-mono break-all leading-tight ${hasCategory ? "text-violet-200" : "text-slate-500 italic"}`}>
-                    {hasCategory ? activeCategory : "— pick a category —"}
-                  </p>
-                  <p className={`mt-0.5 text-[9px] leading-tight ${hasCategory ? "text-violet-300/50" : "text-slate-600"}`}>
-                    Edge property (domain scope)
-                  </p>
+              {isStructural ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Structural edge key — EDGE_TYPE:src->tgt */}
+                  <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
+                    <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
+                      edge_key
+                    </p>
+                    <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
+                      {selectedPredicate}:{sourceShort.toUpperCase()}→{targetShort.toUpperCase()}
+                    </p>
+                    <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
+                      Physical containment / FK — no intent scope
+                    </p>
+                  </div>
+                  {/* edge_type */}
+                  <div className="border border-slate-600 rounded bg-slate-800/40 px-2 py-1.5">
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">
+                      edge_type
+                    </p>
+                    <p className="text-[11px] text-slate-200 font-mono leading-tight">
+                      {selectedPredicate}
+                    </p>
+                    <p className="mt-0.5 text-[9px] text-slate-600 leading-tight">
+                      Structural — no category / perspective
+                    </p>
+                  </div>
                 </div>
-
-                {/* edge.perspective — same scope as category */}
-                <div className={`border rounded px-2 py-1.5 ${hasCategory ? "border-fuchsia-500/60 bg-fuchsia-900/20" : "border-slate-600 bg-slate-800/40"}`}>
-                  <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${hasCategory ? "text-fuchsia-300/70" : "text-slate-500"}`}>
-                    edge.perspective
-                  </p>
-                  <p className={`text-[11px] font-mono break-all leading-tight ${hasCategory ? "text-fuchsia-200" : "text-slate-500 italic"}`}>
-                    {hasCategory ? activeCategory : "— pick a category —"}
-                  </p>
-                  <p className={`mt-0.5 text-[9px] leading-tight ${hasCategory ? "text-fuchsia-300/50" : "text-slate-600"}`}>
-                    Edge property (analytical scope)
-                  </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Directional semantic edge ID */}
+                  <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
+                    <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
+                      rel_edge_id
+                    </p>
+                    <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
+                      {edgeId}
+                    </p>
+                    <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
+                      Directional edge (source→target)
+                    </p>
+                  </div>
+                  {/* edge.category */}
+                  <div className={`border rounded px-2 py-1.5 ${hasCategory ? "border-violet-500/60 bg-violet-900/20" : "border-slate-600 bg-slate-800/40"}`}>
+                    <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${hasCategory ? "text-violet-300/70" : "text-slate-500"}`}>
+                      edge.category
+                    </p>
+                    <p className={`text-[11px] font-mono break-all leading-tight ${hasCategory ? "text-violet-200" : "text-slate-500 italic"}`}>
+                      {hasCategory ? activeCategory : "— pick a category —"}
+                    </p>
+                    <p className={`mt-0.5 text-[9px] leading-tight ${hasCategory ? "text-violet-300/50" : "text-slate-600"}`}>
+                      Edge property (domain scope)
+                    </p>
+                  </div>
+                  {/* edge.perspective */}
+                  <div className={`border rounded px-2 py-1.5 ${hasCategory ? "border-fuchsia-500/60 bg-fuchsia-900/20" : "border-slate-600 bg-slate-800/40"}`}>
+                    <p className={`text-[9px] uppercase tracking-wide mb-0.5 ${hasCategory ? "text-fuchsia-300/70" : "text-slate-500"}`}>
+                      edge.perspective
+                    </p>
+                    <p className={`text-[11px] font-mono break-all leading-tight ${hasCategory ? "text-fuchsia-200" : "text-slate-500 italic"}`}>
+                      {hasCategory ? activeCategory : "— pick a category —"}
+                    </p>
+                    <p className={`mt-0.5 text-[9px] leading-tight ${hasCategory ? "text-fuchsia-300/50" : "text-slate-600"}`}>
+                      Edge property (analytical scope)
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Three-column panel */}
@@ -878,48 +955,48 @@ export function DefineRelationship() {
                   onChange={(e) => setSelectedPredicate(e.target.value)}
                   className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
                 >
-                  {PREDICATES.map((p) => (
+                  {(isStructural ? STRUCTURAL_PREDICATES : SEMANTIC_PREDICATES).map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>
                   ))}
                 </select>
 
-                <p className="text-[10px] text-slate-500 mb-1 mt-2">Choose Intent</p>
-                <select
-                  value={selectedIntent}
-                  onChange={(e) => setSelectedIntent(e.target.value)}
-                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
-                >
-                  {intents.map((i) => (
-                    <option key={i} value={i}>
-                      {i}
-                    </option>
-                  ))}
-                </select>
+                {!isStructural && (
+                  <>
+                    <p className="text-[10px] text-slate-500 mb-1 mt-2">Choose Intent</p>
+                    <select
+                      value={selectedIntent}
+                      onChange={(e) => setSelectedIntent(e.target.value)}
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                    >
+                      {intents.map((i) => (
+                        <option key={i} value={i}>{i}</option>
+                      ))}
+                    </select>
 
-                <p className="text-[10px] text-slate-500 mb-1 mt-2">
-                  Choose Concept <span className="text-slate-600">(elevated by intent)</span>
-                </p>
-                <select
-                  value={selectedConcept}
-                  onChange={(e) => setSelectedConcept(e.target.value)}
-                  className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
-                >
-                  {concepts.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                    <p className="text-[10px] text-slate-500 mb-1 mt-2">
+                      Choose Concept <span className="text-slate-600">(elevated by intent)</span>
+                    </p>
+                    <select
+                      value={selectedConcept}
+                      onChange={(e) => setSelectedConcept(e.target.value)}
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                    >
+                      {concepts.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
 
                 {/* Relation meaning box */}
-                <div className="mt-2 border border-amber-500/60 rounded bg-amber-900/20 p-2">
-                  <p className="text-[10px] font-bold text-amber-300 mb-1">
-                    Relation Meaning (Table-Scoped):
+                <div className={`mt-2 border rounded p-2 ${isStructural ? "border-cyan-500/40 bg-cyan-900/10" : "border-amber-500/60 bg-amber-900/20"}`}>
+                  <p className={`text-[10px] font-bold mb-1 ${isStructural ? "text-cyan-300" : "text-amber-300"}`}>
+                    {isStructural ? "Structural Meaning:" : "Relation Meaning (Table-Scoped):"}
                   </p>
-                  <p className="text-[10px] text-amber-200/80 leading-relaxed">
-                    {EDGE_MEANINGS[selectedPredicate] ?? "Select a predicate to see its meaning."}
+                  <p className={`text-[10px] leading-relaxed ${isStructural ? "text-cyan-200/80" : "text-amber-200/80"}`}>
+                    {EDGE_MEANINGS[selectedPredicate] ?? "Select an edge type to see its meaning."}
                   </p>
                 </div>
               </div>
@@ -1146,25 +1223,37 @@ export function DefineRelationship() {
                 </div>
               </div>
 
-              {/* Horizontal context strip — replaces the old vertical sidebar Edge Property Panel.
-                  Just the supporting attributes; identities live in the strip above. */}
+              {/* Horizontal context strip — attrs differ by form mode */}
               <div className="flex-1 flex items-center gap-1.5 flex-wrap justify-end">
                 <span className="text-[9px] uppercase tracking-widest text-slate-500 mr-1">Attrs:</span>
                 <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
                   edge_type: <span className="text-slate-200">{selectedPredicate}</span>
                 </span>
-                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
-                  intent: <span className="text-violet-300">{selectedIntent}</span>
-                </span>
-                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
-                  concept: <span className="text-fuchsia-300">{selectedConcept}</span>
-                </span>
-                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
-                  category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
-                </span>
-                <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">
-                  weight: <span className="text-slate-200">{selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}</span>
-                </span>
+                {isStructural ? (
+                  <>
+                    <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
+                      from: <span className="text-cyan-300">{sourceShort.toUpperCase()}</span>
+                    </span>
+                    <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
+                      to: <span className="text-cyan-300">{targetShort.toUpperCase()}</span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
+                      intent: <span className="text-violet-300">{selectedIntent}</span>
+                    </span>
+                    <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
+                      concept: <span className="text-fuchsia-300">{selectedConcept}</span>
+                    </span>
+                    <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-300">
+                      category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
+                    </span>
+                    <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">
+                      weight: <span className="text-slate-200">{selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}</span>
+                    </span>
+                  </>
+                )}
                 <Pencil size={11} className="text-slate-500 cursor-pointer hover:text-slate-300 ml-1" />
               </div>
             </div>
