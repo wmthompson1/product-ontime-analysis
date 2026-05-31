@@ -53,20 +53,20 @@ const FIXTURE_COLUMNS: Record<string, ColumnMeta[]> = {
 // ---------------------------------------------------------------------------
 // useColumnsByTable
 //
-// Binds the column list to the currently selected source table.
-// Only fires when edgeType === "CONTAINS" and tableName is non-empty.
+// Fetches the column list for a given table whenever `active` is true.
 // Results are cached in-memory by table name for the component lifetime —
 // switching tables and back doesn't trigger a redundant network round-trip.
 //
 // Usage:
-//   const { columns, isLoading, error } = useColumnsByTable(sourceTable, selectedEdgeType);
+//   const { columns, isLoading, error } = useColumnsByTable(tableName, active);
 //
-// When edgeType !== "CONTAINS" the hook returns IDLE immediately so the
-// caller can branch on edgeType without needing an extra conditional.
+// Pass active=false to keep the hook idle (returns IDLE immediately).
+// The caller controls when to activate — e.g. for CONTAINS edges or when
+// the semantic "target is a column" checkbox is checked.
 // ---------------------------------------------------------------------------
 export function useColumnsByTable(
   tableName: string,
-  edgeType: string,
+  active: boolean,
 ): FetchState {
   const [state, setState] = useState<FetchState>(IDLE);
 
@@ -75,8 +75,7 @@ export function useColumnsByTable(
   const cache = useRef<Map<string, ColumnMeta[]>>(new Map());
 
   useEffect(() => {
-    // Only active for CONTAINS edges.
-    if (edgeType !== "CONTAINS") {
+    if (!active) {
       setState(IDLE);
       return;
     }

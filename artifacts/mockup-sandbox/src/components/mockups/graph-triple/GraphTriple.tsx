@@ -3,7 +3,6 @@ import { ArrowRight, Check, X, RotateCcw, Search, Zap } from "lucide-react";
 
 type Predicate =
   | "ELEVATES"
-  | "SUPPRESSES"
   | "HAS_COLUMN"
   | "FOREIGN_KEY"
   | "MAPS_TO_CONCEPT"
@@ -27,13 +26,12 @@ interface Triple {
 }
 
 const PREDICATE_META: Record<Predicate, { color: string; bg: string; desc: string; allowedSubject: EntityType[]; allowedObject: EntityType[] }> = {
-  ELEVATES:        { color: "text-amber-700",   bg: "bg-amber-50 border-amber-300",   desc: "Intent promotes Concept (weight +1)",              allowedSubject: ["intent"],  allowedObject: ["concept"] },
-  SUPPRESSES:      { color: "text-rose-700",     bg: "bg-rose-50 border-rose-300",     desc: "Intent demotes Concept (weight −1)",               allowedSubject: ["intent"],  allowedObject: ["concept"] },
-  HAS_COLUMN:      { color: "text-cyan-700",     bg: "bg-cyan-50 border-cyan-300",     desc: "Table owns this column node",                      allowedSubject: ["table"],   allowedObject: ["column"] },
-  FOREIGN_KEY:     { color: "text-indigo-700",   bg: "bg-indigo-50 border-indigo-300", desc: "Referential integrity link between tables",        allowedSubject: ["table"],   allowedObject: ["table"] },
-  MAPS_TO_CONCEPT: { color: "text-emerald-700",  bg: "bg-emerald-50 border-emerald-300", desc: "ERP table bridges to a semantic concept",       allowedSubject: ["table"],   allowedObject: ["concept"] },
-  BOUND_TO:        { color: "text-violet-700",   bg: "bg-violet-50 border-violet-300", desc: "Binding resolves to approved SME SQL snippet",     allowedSubject: ["binding"], allowedObject: ["concept"] },
-  OPERATES_WITHIN: { color: "text-fuchsia-700",  bg: "bg-fuchsia-50 border-fuchsia-300", desc: "Intent scoped to a perspective/domain",         allowedSubject: ["intent"],  allowedObject: ["concept"] },
+  ELEVATES:        { color: "text-amber-700",   bg: "bg-amber-50 border-amber-300",     desc: "Binary gate: weight=1 activates, weight=0 deactivates. Table or column → Concept. AI selects among weight=1 ground truths.", allowedSubject: ["table", "column"], allowedObject: ["concept"] },
+  HAS_COLUMN:      { color: "text-cyan-700",     bg: "bg-cyan-50 border-cyan-300",       desc: "Table owns this column node. Column name is the semantic claim.",                                                              allowedSubject: ["table"],           allowedObject: ["column"] },
+  FOREIGN_KEY:     { color: "text-indigo-700",   bg: "bg-indigo-50 border-indigo-300",   desc: "Referential integrity link between tables.",                                                                                   allowedSubject: ["table"],           allowedObject: ["table"] },
+  MAPS_TO_CONCEPT: { color: "text-emerald-700",  bg: "bg-emerald-50 border-emerald-300", desc: "ERP table bridges to a semantic concept.",                                                                                     allowedSubject: ["table"],           allowedObject: ["concept"] },
+  BOUND_TO:        { color: "text-violet-700",   bg: "bg-violet-50 border-violet-300",   desc: "Binding resolves to approved SME SQL snippet.",                                                                                allowedSubject: ["binding"],         allowedObject: ["concept"] },
+  OPERATES_WITHIN: { color: "text-fuchsia-700",  bg: "bg-fuchsia-50 border-fuchsia-300", desc: "Intent scoped to a perspective/domain. Perspective is an edge property, not a node.",                                        allowedSubject: ["intent"],          allowedObject: ["concept"] },
 };
 
 const TYPE_BADGE: Record<EntityType, string> = {

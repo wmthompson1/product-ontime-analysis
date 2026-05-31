@@ -45,12 +45,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const EDGE_MEANINGS: Record<string, string> = {
   CONTAINS: "Defined as: Structural containment — a table node owns its column nodes. Physical layer only, no business meaning. edge_type stored on the contains edge collection.",
-  FOREIGN_KEY: "Defined as: structural referential integrity link between ERP tables. Table-Scoped. NOT GLOBAL MEANING.",
-  ELEVATES: "Defined as: Intent promotes this Concept when routing a question. Semantic weight = 1. NOT GLOBAL MEANING.",
-  SUPPRESSES: "Defined as: Intent demotes this Concept when routing a question. Semantic weight = -1. NOT GLOBAL MEANING.",
+  FOREIGN_KEY: "Defined as: Structural referential integrity link between ERP tables. Table-Scoped. NOT GLOBAL MEANING.",
+  ELEVATES: "Defined as: Binary gate — weight=1 includes this table or column in the candidate set for its Concept; weight=0 deactivates it. The AI selects among weight=1 ground truths; it never generates SQL. NOT GLOBAL MEANING.",
   MAPS_TO_CONCEPT: "Defined as: ERP table is bridged to a semantic Concept node. MAPS_TO_CONCEPT bridge. NOT GLOBAL MEANING.",
-  OPERATES_WITHIN: "Defined as: Intent is scoped to a Perspective domain (e.g. quality, finance). NOT GLOBAL MEANING.",
-  HAS_COLUMN: "Defined as: Structural edge linking table node to its atomic column node. NOT GLOBAL MEANING.",
+  OPERATES_WITHIN: "Defined as: Intent is scoped to a Perspective domain (e.g. Quality, Payables). Perspective is an edge property, not a node. NOT GLOBAL MEANING.",
+  HAS_COLUMN: "Defined as: Semantic edge linking a table node to a named column node. Column names carry deterministic meaning — the column name IS the semantic claim. NOT GLOBAL MEANING.",
   BOUND_TO: "Defined as: Binding resolves to an APPROVED SME SQL snippet for this Concept. NOT GLOBAL MEANING.",
 };
 
@@ -114,7 +113,6 @@ const STRUCTURAL_PREDICATES = ["CONTAINS", "FOREIGN_KEY"];
 
 const SEMANTIC_PREDICATES = [
   "ELEVATES",
-  "SUPPRESSES",
   "MAPS_TO_CONCEPT",
   "OPERATES_WITHIN",
   "HAS_COLUMN",
@@ -354,6 +352,12 @@ export function DefineRelationship() {
   const [targetMode, setTargetMode] = useState<MatchMode>("Contains");
   const [targetModeOpen, setTargetModeOpen] = useState(false);
 
+  // Semantic "target is a column" mode — lets any semantic predicate target a column node.
+  // Auto-set to true (and locked) for HAS_COLUMN; user-toggleable for all other semantic predicates.
+  // columnContextTable is the table whose columns are browsed; defaults to sourceShort when set.
+  const [isColumnTarget, setIsColumnTarget] = useState(false);
+  const [columnContextTable, setColumnContextTable] = useState("");
+
   // Draft Arango data — populated by stubs on mount; swap stub bodies to connect real Arango.
   // See docs/arango_graph_queries_new.md for the AQL behind each fetch function.
   const [entityNamespaces, setEntityNamespaces] = useState<SearchResult>(MOCK_SEARCH_DATA);
@@ -504,6 +508,8 @@ export function DefineRelationship() {
     setTargetSearch("");
     setSourceMode("Contains");
     setTargetMode("Contains");
+    setIsColumnTarget(false);
+    setColumnContextTable("");
   };
 
   const sourceResults = searchEntities(sourceSearch, sourceMode, entityNamespaces);
@@ -514,27 +520,47 @@ export function DefineRelationship() {
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
   const hasCategory = activeCategory !== "ALL";
 
-  // When CONTAINS is the active edge type, fetch columns for the selected source table.
-  // The hook caches results per-table and returns IDLE when edge type is not CONTAINS.
   const isContains = selectedPredicate === "CONTAINS";
+  // HAS_COLUMN always requires a column target; other semantic predicates are user-toggled.
+  const isHasColumn = selectedPredicate === "HAS_COLUMN";
+
+  // Auto-enable isColumnTarget when predicate demands it; auto-clear when switching away.
+  useEffect(() => {
+    if (isHasColumn) {
+      setIsColumnTarget(true);
+    } else if (!isContains) {
+      // Predicate changed to something neutral — reset column target mode.
+      setIsColumnTarget(false);
+      setColumnContextTable("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPredicate]);
+
+  // Which table to fetch columns from:
+  //   • CONTAINS path  → always the source table
+  //   • Semantic column path → user's chosen columnContextTable (falls back to sourceShort)
+  const isColumnPickerActive = isContains || isColumnTarget;
+  const columnFetchTable = isContains
+    ? sourceShort
+    : (columnContextTable || sourceShort);
+
   const {
     columns: targetColumns,
     isLoading: isLoadingColumns,
     error: columnError,
-  } = useColumnsByTable(sourceShort, selectedPredicate);
+  } = useColumnsByTable(columnFetchTable, isColumnPickerActive);
 
-  // Keep selectedTarget in sync when switching into CONTAINS mode —
-  // reset to the first available column so the preview strip is never stale.
+  // Keep selectedTarget in sync when entering/leaving column-picker mode.
   useEffect(() => {
-    if (isContains && targetColumns.length > 0) {
+    if (isColumnPickerActive && targetColumns.length > 0) {
       setSelectedTarget(targetColumns[0].qualified_name);
     }
-    if (!isContains) {
-      // Restore a table-style selection when leaving CONTAINS mode.
+    if (!isColumnPickerActive) {
+      // Restore a table-style selection when leaving column-picker mode.
       setSelectedTarget(getFirstEntityDisplay(entityNamespaces));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isContains, targetColumns.length]);
+  }, [isColumnPickerActive, targetColumns.length]);
 
   return (
     <div className="flex h-screen w-full bg-[#1e1e2e] text-sm font-['Inter'] overflow-hidden">
@@ -1045,13 +1071,64 @@ export function DefineRelationship() {
                 </div>
               </div>
 
-              {/* SELECT TARGET ENTITY — switches to column list when CONTAINS is active */}
+              {/* SELECT TARGET ENTITY — switches to column list when CONTAINS or isColumnTarget is active */}
               <div className="p-3">
+
+                {/* "Target is a column" checkbox — semantic mode only; locked for HAS_COLUMN */}
+                {!isContains && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <input
+                      type="checkbox"
+                      id="is-column-target"
+                      checked={isColumnTarget}
+                      disabled={isHasColumn}
+                      onChange={(e) => {
+                        setIsColumnTarget(e.target.checked);
+                        if (!e.target.checked) setColumnContextTable("");
+                      }}
+                      className="accent-cyan-400 cursor-pointer disabled:cursor-default"
+                    />
+                    <label
+                      htmlFor="is-column-target"
+                      className={`text-[10px] select-none ${isHasColumn ? "text-slate-500 cursor-default" : "text-slate-400 cursor-pointer hover:text-slate-200"}`}
+                    >
+                      Target is a column
+                    </label>
+                    {isHasColumn && (
+                      <span className="text-[9px] text-cyan-600 italic">— required by HAS_COLUMN</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Table selector for semantic column mode */}
+                {isColumnTarget && !isContains && (
+                  <div className="mb-2">
+                    <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-1">Column source table</p>
+                    <select
+                      value={columnContextTable}
+                      onChange={(e) => {
+                        setColumnContextTable(e.target.value);
+                        setSelectedTarget("");
+                      }}
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-cyan-500"
+                    >
+                      <option value="">— pick a table —</option>
+                      {Object.entries(entityNamespaces.grouped_results).flatMap(([src, recs]) =>
+                        recs.map((rec) => (
+                          <option key={rec.qualified_name} value={rec.table_name}>
+                            {rec.table_name} ({src})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                )}
+
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">
-                  {isContains ? "Select Target Column" : "Select Target Entity"}
+                  {isColumnPickerActive ? "Select Target Column" : "Select Target Entity"}
                 </p>
 
-                {isContains ? null : (
+                {isColumnPickerActive ? null : (
                   <div className="flex items-stretch gap-1 mb-1.5">
                     <div className="relative flex-1">
                       <Search size={11} className="absolute left-2 top-1.5 text-slate-500" />
@@ -1103,7 +1180,7 @@ export function DefineRelationship() {
 
                 {/* Match count — columns mode shows a simple count; table mode shows search results */}
                 <p className="text-[9px] text-slate-500 mb-1.5">
-                  {isContains ? (
+                  {isColumnPickerActive ? (
                     isLoadingColumns ? (
                       <span className="animate-pulse text-slate-600">Loading columns…</span>
                     ) : columnError ? (
@@ -1113,7 +1190,7 @@ export function DefineRelationship() {
                     ) : (
                       <span>
                         {targetColumns.length} column{targetColumns.length === 1 ? "" : "s"} in{" "}
-                        <span className="text-slate-300 font-semibold">{sourceShort.toUpperCase()}</span>
+                        <span className="text-slate-300 font-semibold">{columnFetchTable.toUpperCase()}</span>
                       </span>
                     )
                   ) : isLoadingEntities ? (
@@ -1133,9 +1210,9 @@ export function DefineRelationship() {
                   )}
                 </p>
 
-                {/* Results list — column list when CONTAINS, grouped table list otherwise */}
+                {/* Results list — column list when column picker is active, grouped table list otherwise */}
                 <div className="border border-slate-600 rounded bg-slate-800/40 max-h-[140px] overflow-y-auto">
-                  {isContains ? (
+                  {isColumnPickerActive ? (
                     isLoadingColumns ? (
                       <div className="flex items-center gap-1.5 px-2 py-2">
                         <RefreshCw size={11} className="text-slate-500 animate-spin" />
@@ -1147,7 +1224,7 @@ export function DefineRelationship() {
                       <>
                         <div className="px-2 py-0.5 bg-slate-700/40 border-b border-slate-700 flex items-center justify-between">
                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                            Columns — {sourceShort.toUpperCase()}
+                            Columns — {columnFetchTable.toUpperCase()}
                           </span>
                           <span className="text-[9px] text-slate-500">({targetColumns.length})</span>
                         </div>
@@ -1225,7 +1302,7 @@ export function DefineRelationship() {
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide">
                     Context:
                   </p>
-                  {isContains ? (
+                  {isColumnPickerActive ? (
                     <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
                       {selectedTarget}
                     </p>

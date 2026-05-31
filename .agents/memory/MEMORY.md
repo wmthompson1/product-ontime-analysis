@@ -1,0 +1,1 @@
+- [Solder Pattern architecture](solder-pattern-architecture.md) — graph has only table+column nodes; ELEVATES is the universal semantic predicate; weight is a binary gate; AI selects, never generates.
