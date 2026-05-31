@@ -103,18 +103,27 @@ export function useColumnsByTable(
 
     fetch(`/mcp/tools/list_table_columns?table=${encodeURIComponent(table)}`)
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // 500/502/503 = proxy unreachable or backend not yet up.
+        // Treat as "no columns available" so the UI degrades gracefully
+        // rather than showing a red error. Don't cache — next table switch
+        // will retry automatically.
+        if (!res.ok) {
+          if (cancelled) return;
+          setState({ columns: [], isLoading: false, error: `unavailable:${res.status}` });
+          return null;
+        }
         return res.json() as Promise<{ columns: ColumnMeta[] }>;
       })
-      .then(({ columns }) => {
-        if (cancelled) return;
-        cache.current.set(table, columns);
-        setState({ columns, isLoading: false, error: null });
+      .then((data) => {
+        if (!data || cancelled) return;
+        cache.current.set(table, data.columns);
+        setState({ columns: data.columns, isLoading: false, error: null });
       })
-      .catch((err: unknown) => {
+      .catch(() => {
+        // Network error (ECONNREFUSED proxied as 502, fetch throws on DNS/TLS
+        // failures). Same soft-degrade: show empty, don't cache, allow retry.
         if (cancelled) return;
-        const msg = err instanceof Error ? err.message : String(err);
-        setState({ columns: [], isLoading: false, error: msg });
+        setState({ columns: [], isLoading: false, error: "unavailable:network" });
       });
 
     return () => {

@@ -1078,7 +1078,9 @@ export function DefineRelationship() {
                     isLoadingColumns ? (
                       <span className="animate-pulse text-slate-600">Loading columns…</span>
                     ) : columnError ? (
-                      <span className="text-rose-400">Error: {columnError}</span>
+                      <span className="text-amber-500">
+                        Columns unavailable — switch tables to retry
+                      </span>
                     ) : (
                       <span>
                         {targetColumns.length} column{targetColumns.length === 1 ? "" : "s"} in{" "}
