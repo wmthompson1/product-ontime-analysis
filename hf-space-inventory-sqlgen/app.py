@@ -1255,17 +1255,19 @@ async def execute_sql_endpoint(sql: str = Form(...)):
 
 @app.get("/mcp/tools/get_entity_categories")
 async def get_entity_categories():
-    """Return domain category names from schema_entity_categories (SQLite).
-    These drive the pill bar in the Define Relationship UI. The selected category is
-    stamped as an edge property (category: <value>) on every committed edge document
-    in ArangoDB — same pattern as perspective. Categories are NOT vertex groupings."""
+    """Return perspective names from schema_perspectives (SQLite) as the category pill list.
+
+    'Category' is the user-facing label for 'Perspective' — they are the same concept.
+    The selected value is stamped as both edge.category and edge.perspective on every
+    committed ArangoDB edge document. Source of truth is schema_perspectives, not the
+    legacy schema_entity_categories table."""
     try:
         engine = get_db_engine()
         if not engine:
             return {"categories": [], "source": "unavailable"}
         with engine.connect() as conn:
             rows = conn.execute(
-                text("SELECT category_name FROM schema_entity_categories ORDER BY display_order, category_name")
+                text("SELECT perspective_name FROM schema_perspectives ORDER BY perspective_id")
             ).fetchall()
         return {"categories": [r[0] for r in rows], "source": "sqlite"}
     except Exception as exc:
