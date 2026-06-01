@@ -521,6 +521,8 @@ export function DefineRelationship() {
   const hasCategory = activeCategory !== "ALL";
 
   const isContains = selectedPredicate === "CONTAINS";
+  // FOREIGN_KEY self-loop: same table on both ends is physically meaningless and blocked.
+  const isSelfLoop = selectedPredicate === "FOREIGN_KEY" && sourceShort === targetShort;
   // HAS_COLUMN always requires a column target; other semantic predicates are user-toggled.
   const isHasColumn = selectedPredicate === "HAS_COLUMN";
 
@@ -535,6 +537,16 @@ export function DefineRelationship() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPredicate]);
+
+  // Clear selectedTarget when source table changes while CONTAINS is active.
+  // Prevents a stale `old_table.col` qualified_name remaining selected after the
+  // user switches to a different source table.
+  useEffect(() => {
+    if (isContains) {
+      setSelectedTarget("");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceShort]);
 
   // Which table to fetch columns from:
   //   • CONTAINS path  → always the source table
@@ -787,32 +799,73 @@ export function DefineRelationship() {
               </p>
 
               {isStructural ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {/* Structural edge key — EDGE_TYPE:src->tgt */}
-                  <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
-                    <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
-                      edge_key
-                    </p>
-                    <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
-                      {selectedPredicate}:{sourceShort.toUpperCase()}→{targetShort.toUpperCase()}
-                    </p>
-                    <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
-                      Physical containment / FK — no intent scope
-                    </p>
+                isContains ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* edge_key — full qualified_name as TGT for CONTAINS */}
+                    <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
+                      <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
+                        edge_key
+                      </p>
+                      <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
+                        {selectedPredicate}:{sourceShort.toUpperCase()}→{selectedTarget || "—"}
+                      </p>
+                      <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
+                        Structural containment — pick a column
+                      </p>
+                    </div>
+                    {/* col_key — ArangoDB vertex key for the column node */}
+                    <div className="border border-teal-500/60 rounded bg-teal-900/20 px-2 py-1.5">
+                      <p className="text-[9px] text-teal-300/70 uppercase tracking-wide mb-0.5">
+                        col_key
+                      </p>
+                      <p className="text-[11px] text-teal-200 font-mono break-all leading-tight">
+                        {selectedTarget ? `nodes::${selectedTarget}` : "—"}
+                      </p>
+                      <p className="mt-0.5 text-[9px] text-teal-300/50 leading-tight">
+                        Column vertex key (nodes collection)
+                      </p>
+                    </div>
+                    {/* edge_type */}
+                    <div className="border border-slate-600 rounded bg-slate-800/40 px-2 py-1.5">
+                      <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">
+                        edge_type
+                      </p>
+                      <p className="text-[11px] text-slate-200 font-mono leading-tight">
+                        {selectedPredicate}
+                      </p>
+                      <p className="mt-0.5 text-[9px] text-slate-600 leading-tight">
+                        Structural — no category / perspective
+                      </p>
+                    </div>
                   </div>
-                  {/* edge_type */}
-                  <div className="border border-slate-600 rounded bg-slate-800/40 px-2 py-1.5">
-                    <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">
-                      edge_type
-                    </p>
-                    <p className="text-[11px] text-slate-200 font-mono leading-tight">
-                      {selectedPredicate}
-                    </p>
-                    <p className="mt-0.5 text-[9px] text-slate-600 leading-tight">
-                      Structural — no category / perspective
-                    </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Structural edge key — EDGE_TYPE:src->tgt */}
+                    <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
+                      <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
+                        edge_key
+                      </p>
+                      <p className="text-[11px] text-cyan-200 font-mono break-all leading-tight">
+                        {selectedPredicate}:{sourceShort.toUpperCase()}→{targetShort.toUpperCase()}
+                      </p>
+                      <p className="mt-0.5 text-[9px] text-cyan-300/50 leading-tight">
+                        Physical FK — no intent scope
+                      </p>
+                    </div>
+                    {/* edge_type */}
+                    <div className="border border-slate-600 rounded bg-slate-800/40 px-2 py-1.5">
+                      <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-0.5">
+                        edge_type
+                      </p>
+                      <p className="text-[11px] text-slate-200 font-mono leading-tight">
+                        {selectedPredicate}
+                      </p>
+                      <p className="mt-0.5 text-[9px] text-slate-600 leading-tight">
+                        Structural — no category / perspective
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {/* Directional semantic edge ID */}
@@ -1001,15 +1054,25 @@ export function DefineRelationship() {
                 </p>
 
                 {isStructural ? (
-                  <select
-                    value={selectedPredicate}
-                    onChange={(e) => setSelectedPredicate(e.target.value)}
-                    className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
-                  >
-                    {STRUCTURAL_PREDICATES.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                  <>
+                    <select
+                      value={selectedPredicate}
+                      onChange={(e) => setSelectedPredicate(e.target.value)}
+                      className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-slate-400"
+                    >
+                      {STRUCTURAL_PREDICATES.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                    {isSelfLoop && (
+                      <div className="mt-1.5 flex items-start gap-1.5 rounded border border-amber-500/60 bg-amber-900/20 px-2 py-1">
+                        <span className="text-amber-400 mt-0.5 shrink-0">⚠</span>
+                        <p className="text-[10px] text-amber-300 leading-snug">
+                          FOREIGN_KEY self-loop: source and target are the same table. Self-referential FK edges are not supported — pick a different target.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     <input
@@ -1567,7 +1630,7 @@ export function DefineRelationship() {
           <div className="flex items-center gap-3">
           <button
             className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[11px] font-bold tracking-widest uppercase py-2.5 rounded transition-colors"
-            disabled={isCommitting}
+            disabled={isCommitting || isSelfLoop}
             onClick={async () => {
               setIsCommitting(true);
               const snapshotPredicate = selectedPredicate;
