@@ -11,6 +11,9 @@ on:
       - 'hf-space-inventory-sqlgen/app_schema/ground_truth/reviewer_manifest.json'
       - 'hf-space-inventory-sqlgen/graph_sync.py'
       - 'hf-space-inventory-sqlgen/scripts/install_sync_triggers.py'
+      - 'hf-space-inventory-sqlgen/dab_config.json'
+      - 'hf-space-inventory-sqlgen/scripts/sync_db_to_dab_config.py'
+      - 'hf-space-inventory-sqlgen/scripts/reconstruct_containment_graph.py'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -61,6 +64,24 @@ jobs:
         if: ${{ github.event.inputs.dry_run != 'true' && env.ARANGO_HOST != '' }}
         working-directory: hf-space-inventory-sqlgen
         run: python graph_sync.py
+
+      - name: Dry-run DAB config sync (preview)
+        working-directory: hf-space-inventory-sqlgen
+        run: python scripts/sync_db_to_dab_config.py --dry-run
+
+      - name: Live DAB config sync
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        working-directory: hf-space-inventory-sqlgen
+        run: python scripts/sync_db_to_dab_config.py
+
+      - name: Dry-run containment graph reconstruction (preview)
+        working-directory: hf-space-inventory-sqlgen
+        run: python scripts/reconstruct_containment_graph.py --dry-run
+
+      - name: Live containment graph reconstruction
+        if: ${{ github.event.inputs.dry_run != 'true' && env.ARANGO_HOST != '' }}
+        working-directory: hf-space-inventory-sqlgen
+        run: python scripts/reconstruct_containment_graph.py
 
       - name: Health check — bridge collection counts match SQLite
         if: ${{ github.event.inputs.dry_run != 'true' && env.ARANGO_HOST != '' }}
