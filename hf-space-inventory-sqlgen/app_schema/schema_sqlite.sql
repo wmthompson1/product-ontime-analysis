@@ -48,6 +48,20 @@ CREATE TABLE IF NOT EXISTS suppliers (
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ground truth query → table usage index (also created at runtime by solder_engine.py)
+CREATE TABLE IF NOT EXISTS ground_truth_table_usage (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    query_file      TEXT    NOT NULL,
+    category_id     TEXT    NOT NULL,
+    query_name      TEXT    NOT NULL,
+    table_name      TEXT    NOT NULL,
+    reference_count INTEGER NOT NULL DEFAULT 1,
+    select_count    INTEGER NOT NULL DEFAULT 1,
+    created_at      TEXT    DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_gt_usage
+    ON ground_truth_table_usage (category_id, query_name, table_name);
+
 -- =============================================================================
 -- SEMANTIC LAYER: Perspective & Intent Graph Constructs
 -- Based on treating perspective and intent as first-class graph constructs
@@ -225,6 +239,7 @@ CREATE TABLE IF NOT EXISTS schema_intents (
     intent_category TEXT NOT NULL,  -- maps to query categories (quality_control, supplier_performance, etc.)
     description TEXT,
     typical_question TEXT,  -- example natural language question for this intent
+    primary_binding_key TEXT,  -- default binding key for SolderEngine query assembly
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
