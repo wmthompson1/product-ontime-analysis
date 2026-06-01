@@ -1,275 +1,16 @@
 -- SQLite Schema for Manufacturing Analytics
 -- Generated from PostgreSQL schema
-
-CREATE TABLE IF NOT EXISTS corrective_actions (
-    capa_id INTEGER NOT NULL,
-    ncm_id INTEGER,
-    action_description text,
-    target_date DATE,
-    actual_date DATE,
-    effectiveness_score REAL,
-    status TEXT,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS daily_deliveries (
-    delivery_id INTEGER NOT NULL,
-    supplier_id INTEGER,
-    delivery_date DATE NOT NULL,
-    planned_quantity INTEGER,
-    actual_quantity INTEGER,
-    ontime_rate REAL,
-    quality_score REAL,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS downtime_events (
-    event_id INTEGER NOT NULL,
-    line_id INTEGER,
-    equipment_id INTEGER,
-    event_start_time DATETIME NOT NULL,
-    event_end_time DATETIME,
-    downtime_duration_minutes INTEGER,
-    downtime_category TEXT NOT NULL,
-    downtime_reason TEXT,
-    impact_severity TEXT,
-    production_loss_units INTEGER,
-    cost_impact REAL,
-    resolution_method text,
-    reported_by TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS effectiveness_metrics (
-    metric_id INTEGER NOT NULL,
-    measurement_date DATE NOT NULL,
-    metric_type TEXT NOT NULL,
-    metric_value REAL NOT NULL,
-    target_value REAL,
-    variance_percentage REAL,
-    measurement_unit TEXT,
-    department TEXT,
-    measurement_method TEXT,
-    confidence_level REAL,
-    data_source TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS equipment_metrics (
-    equipment_id INTEGER NOT NULL,
-    line_id TEXT NOT NULL,
-    equipment_type TEXT,
-    equipment_name TEXT,
-    measurement_date DATE NOT NULL,
-    availability_rate REAL,
-    performance_rate REAL,
-    quality_rate REAL,
-    oee_score REAL,
-    downtime_hours REAL,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS equipment_reliability (
-    reliability_id INTEGER NOT NULL,
-    equipment_id INTEGER,
-    measurement_period DATE NOT NULL,
-    mtbf_hours REAL,
-    target_mtbf REAL,
-    failure_count INTEGER,
-    operating_hours REAL,
-    reliability_score REAL,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS failure_events (
-    failure_id INTEGER NOT NULL,
-    equipment_id INTEGER NOT NULL,
-    failure_date DATETIME NOT NULL,
-    failure_type TEXT NOT NULL,
-    failure_mode TEXT,
-    severity_level TEXT NOT NULL,
-    downtime_hours REAL,
-    repair_cost REAL,
-    parts_replaced text,
-    technician_assigned TEXT,
-    failure_description text,
-    root_cause_analysis text,
-    preventive_action text,
-    mtbf_impact REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS financial_impact (
-    impact_id INTEGER NOT NULL,
-    event_date DATE NOT NULL,
-    impact_type TEXT NOT NULL,
-    impact_category TEXT,
-    gross_impact REAL NOT NULL,
-    recovery_amount REAL DEFAULT 0,
-    net_impact REAL NOT NULL,
-    affected_product_lines INTEGER,
-    root_cause_category TEXT,
-    business_unit TEXT,
-    impact_duration_days INTEGER,
-    mitigation_cost REAL,
-    lessons_learned text,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS industry_benchmarks (
-    benchmark_id INTEGER NOT NULL,
-    metric_name TEXT NOT NULL,
-    industry_sector TEXT,
-    benchmark_value REAL,
-    measurement_unit TEXT,
-    benchmark_class TEXT,
-    last_updated DATE,
-    source TEXT,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS maintenance_targets (
-    target_id INTEGER NOT NULL,
-    equipment_type TEXT NOT NULL,
-    target_mtbf REAL,
-    target_availability REAL,
-    target_reliability REAL,
-    maintenance_interval_hours INTEGER,
-    industry_sector TEXT,
-    target_class TEXT,
-    last_updated DATE DEFAULT CURRENT_DATE,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS manufacturing_acronyms (
-    acronym_id INTEGER NOT NULL,
-    acronym TEXT NOT NULL,
-    definition text NOT NULL,
-    table_name TEXT,
-    category TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS non_conformant_materials (
-    ncm_id INTEGER NOT NULL,
-    incident_date DATE NOT NULL,
-    product_line TEXT,
-    supplier_id INTEGER,
-    material_type TEXT,
-    defect_description text,
-    quantity_affected INTEGER,
-    severity TEXT,
-    root_cause text,
-    cost_impact REAL,
-    status TEXT,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS product_defects (
-    defect_id INTEGER NOT NULL,
-    product_line TEXT NOT NULL,
-    production_date DATE NOT NULL,
-    defect_type TEXT,
-    defect_count INTEGER,
-    total_produced INTEGER,
-    defect_rate REAL,
-    severity TEXT,
-    root_cause text,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS product_lines (
-    product_line_id INTEGER NOT NULL,
-    product_line_name TEXT NOT NULL,
-    product_category TEXT,
-    target_volume INTEGER,
-    unit_price REAL,
-    profit_margin REAL,
-    launch_date DATE,
-    lifecycle_stage TEXT,
-    primary_market TEXT,
-    complexity_rating TEXT,
-    regulatory_requirements text,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS production_lines (
-    line_id INTEGER NOT NULL,
-    line_name TEXT NOT NULL,
-    facility_location TEXT,
-    line_type TEXT,
-    theoretical_capacity INTEGER,
-    actual_capacity INTEGER,
-    efficiency_rating REAL,
-    installation_date DATE,
-    last_maintenance_date DATE,
-    status TEXT DEFAULT 'Active',
-    supervisor TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS production_quality (
-    quality_id INTEGER NOT NULL,
-    product_line TEXT NOT NULL,
-    production_date DATE NOT NULL,
-    defect_rate REAL,
-    total_produced INTEGER,
-    defect_count INTEGER,
-    shift_id TEXT,
-    line_supervisor TEXT,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS production_schedule (
-    schedule_id INTEGER NOT NULL,
-    line_id TEXT NOT NULL,
-    product_line TEXT,
-    planned_start DATETIME,
-    planned_end DATETIME,
-    actual_start DATETIME,
-    actual_end DATETIME,
-    target_quantity INTEGER,
-    actual_quantity INTEGER,
-    efficiency_score REAL,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS products (
-    id INTEGER NOT NULL,
-    description text NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS quality_costs (
-    cost_id INTEGER NOT NULL,
-    product_line_id INTEGER,
-    cost_date DATE NOT NULL,
-    cost_category TEXT NOT NULL,
-    cost_subcategory TEXT,
-    cost_amount REAL NOT NULL,
-    units_affected INTEGER,
-    cost_per_unit REAL,
-    cost_driver TEXT,
-    prevention_opportunity text,
-    department_charged TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS quality_incidents (
-    incident_id INTEGER NOT NULL,
-    product_line TEXT NOT NULL,
-    incident_date DATE NOT NULL,
-    incident_type TEXT NOT NULL,
-    severity_level TEXT NOT NULL,
-    affected_units INTEGER,
-    cost_impact REAL,
-    detection_method TEXT,
-    status TEXT DEFAULT 'Open',
-    assigned_to TEXT,
-    resolution_date DATE,
-    root_cause text,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+--
+-- NOTE: The following 21 PoC tables were removed in the drop_poc_tables migration
+-- (May 2026) because they were never populated with data:
+--   corrective_actions, daily_deliveries, downtime_events, effectiveness_metrics,
+--   equipment_metrics, equipment_reliability, failure_events, financial_impact,
+--   industry_benchmarks, maintenance_targets, manufacturing_acronyms,
+--   non_conformant_materials, product_defects, product_lines, production_lines,
+--   production_quality, production_schedule, products, quality_costs,
+--   quality_incidents, users
+-- Run hf-space-inventory-sqlgen/migrations/drop_poc_tables.py to apply to
+-- an existing database.
 
 CREATE TABLE IF NOT EXISTS schema_edges (
     edge_id INTEGER NOT NULL,
@@ -294,28 +35,7 @@ CREATE TABLE IF NOT EXISTS schema_nodes (
 
 INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES
 ('EMPLOYEE',                'Table', 'Employee master records'),
-('corrective_actions',      'Table', 'Corrective action tracking'),
-('daily_deliveries',        'Table', 'Daily delivery records'),
-('downtime_events',         'Table', 'Equipment and line downtime events'),
-('effectiveness_metrics',   'Table', 'Operational effectiveness KPIs'),
-('equipment_metrics',       'Table', 'Equipment performance metrics'),
-('equipment_reliability',   'Table', 'Equipment reliability measurements'),
-('failure_events',          'Table', 'Failure event log'),
-('financial_impact',        'Table', 'Financial impact assessments'),
-('industry_benchmarks',     'Table', 'Industry benchmark comparisons'),
-('maintenance_targets',     'Table', 'Maintenance schedule targets'),
-('manufacturing_acronyms',  'Table', 'Manufacturing acronym reference'),
-('non_conformant_materials','Table', 'Non-conformant material records'),
-('product_defects',         'Table', 'Product defect tracking'),
-('product_lines',           'Table', 'Product line definitions'),
-('production_lines',        'Table', 'Production line master'),
-('production_quality',      'Table', 'Production quality measurements'),
-('production_schedule',     'Table', 'Production scheduling records'),
-('products',                'Table', 'Product master'),
-('quality_costs',           'Table', 'Quality cost tracking'),
-('quality_incidents',       'Table', 'Quality incident reports'),
-('suppliers',               'Table', 'Supplier master'),
-('users',                   'Table', 'Application users');
+('suppliers',               'Table', 'Supplier master');
 
 CREATE TABLE IF NOT EXISTS suppliers (
     supplier_id INTEGER NOT NULL,
@@ -326,12 +46,6 @@ CREATE TABLE IF NOT EXISTS suppliers (
     performance_rating REAL,
     certification_level TEXT,
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL
 );
 
 -- =============================================================================
@@ -400,26 +114,10 @@ INSERT INTO schema_concepts (concept_name, concept_type, description, domain) VA
 ('OEEStrategic', 'metric', 'OEE for capital investment decisions', 'finance');
 
 -- Seed data: Link ambiguous fields to concepts
-INSERT INTO schema_concept_fields (table_name, field_name, concept_id, is_primary_meaning, context_hint) VALUES
--- product_defects.severity mappings
-('product_defects', 'severity', 1, 1, 'Default: quality control classification'),
-('product_defects', 'severity', 2, 0, 'When analyzing cost impact or warranty exposure'),
-('product_defects', 'severity', 3, 0, 'When assessing customer-facing risk'),
-
--- failure_events.severity_level mappings
-('failure_events', 'severity_level', 13, 1, 'Default: production impact assessment'),
-('failure_events', 'severity_level', 14, 0, 'When safety review is required'),
-('failure_events', 'severity_level', 15, 0, 'When estimating repair budget'),
-
--- equipment_metrics.oee_score mappings
-('equipment_metrics', 'oee_score', 19, 1, 'Default: daily/shift performance'),
-('equipment_metrics', 'oee_score', 20, 0, 'When planning capital expenditure'),
-
--- daily_deliveries metrics mappings
-('daily_deliveries', 'ontime_rate', 7, 1, 'Default: operational planning'),
-('daily_deliveries', 'ontime_rate', 8, 0, 'When evaluating supplier performance'),
-('daily_deliveries', 'ontime_rate', 9, 0, 'When calculating penalties or credits'),
-('daily_deliveries', 'quality_score', 8, 1, 'Default: supplier scorecard');
+-- NOTE: All concept_field rows referencing empty PoC tables were removed in
+-- the drop_poc_tables migration. The tables they referenced (product_defects,
+-- failure_events, equipment_metrics, daily_deliveries) no longer exist.
+-- Add rows here when new populated tables with ambiguous fields are onboarded.
 
 -- Schema Perspectives: Organizational viewpoints that constrain valid meanings
 CREATE TABLE IF NOT EXISTS schema_perspectives (
@@ -578,25 +276,19 @@ CREATE TABLE IF NOT EXISTS schema_intent_perspectives (
 );
 
 -- Seed data: Analytical Intents aligned with ground truth query categories
+-- NOTE: Equipment Reliability intents (oee_operational, oee_capital_planning,
+--   maintenance_scheduling) and Production Analytics intents (schedule_adherence,
+--   line_efficiency, quality_cost_allocation) were removed — their query files
+--   exclusively referenced empty PoC tables dropped in drop_poc_tables migration.
 INSERT INTO schema_intents (intent_name, intent_category, description, typical_question) VALUES
 -- Quality Control intents
 ('defect_cost_analysis', 'quality_control', 'Analyze defects from cost/financial impact perspective', 'What is the cost impact of defects by severity?'),
 ('defect_quality_trending', 'quality_control', 'Track defect rates and quality trends over time', 'What is the defect rate trend by product line?'),
 ('defect_customer_impact', 'quality_control', 'Assess defects from customer experience perspective', 'Which defects are most likely to reach customers?'),
 
--- Supplier Performance intents  
+-- Supplier Performance intents
 ('supplier_scorecard', 'supplier_performance', 'Evaluate supplier delivery and quality metrics', 'Which suppliers have the best on-time delivery?'),
-('supplier_cost_penalties', 'supplier_performance', 'Analyze supplier performance for penalty/credit calculations', 'What penalties are owed for late deliveries?'),
-
--- Equipment Reliability intents
-('oee_operational', 'equipment_reliability', 'Track OEE for shift/line performance management', 'What is the OEE trend for each production line?'),
-('oee_capital_planning', 'equipment_reliability', 'Use OEE for capital investment decisions', 'Which equipment needs replacement based on OEE?'),
-('maintenance_scheduling', 'equipment_reliability', 'Plan maintenance based on failure patterns', 'Which equipment is due for preventive maintenance?'),
-
--- Production Analytics intents
-('schedule_adherence', 'production_analytics', 'Measure production schedule performance', 'How well are we meeting production schedules?'),
-('line_efficiency', 'production_analytics', 'Analyze production line throughput and efficiency', 'Which lines are underperforming on throughput?'),
-('quality_cost_allocation', 'production_analytics', 'Allocate quality costs to products/lines', 'What are the quality costs per product line?');
+('supplier_cost_penalties', 'supplier_performance', 'Analyze supplier performance for penalty/credit calculations', 'What penalties are owed for late deliveries?');
 
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
 -- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed
@@ -625,34 +317,9 @@ INSERT INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight,
 -- supplier_cost_penalties (intent 5) elevates DeliveryPerformanceFinance
 (5, 7, 0, 'Operational planning not for penalty calc'),
 (5, 8, 0, 'Scorecard metrics not for penalty calc'),
-(5, 9, 1, 'ELEVATED: Financial penalty calculations'),
-
--- oee_operational (intent 6) elevates OEEOperational
-(6, 18, 1, 'ELEVATED: Daily/shift OEE for operations'),
-(6, 19, 0, 'Strategic OEE not for daily operations'),
-
--- oee_capital_planning (intent 7) elevates OEEStrategic
-(7, 18, 0, 'Operational OEE not for capital planning'),
-(7, 19, 1, 'ELEVATED: Strategic OEE for investment decisions'),
-
--- maintenance_scheduling (intent 8) elevates EquipmentStateMaintenance
-(8, 10, 0, 'Production state not for maintenance scheduling'),
-(8, 11, 1, 'ELEVATED: Maintenance planning state'),
-(8, 12, 0, 'Compliance state not for maintenance scheduling'),
-
--- schedule_adherence (intent 9) elevates OrderLifecycleState
-(9, 4, 1, 'ELEVATED: Order lifecycle for schedule tracking'),
-(9, 5, 0, 'Accounting state not for schedule adherence'),
-(9, 6, 0, 'Customer visibility not for schedule adherence'),
-
--- line_efficiency (intent 10) elevates OEEOperational
-(10, 18, 1, 'ELEVATED: Operational OEE for line efficiency'),
-(10, 19, 0, 'Strategic OEE not for line efficiency analysis'),
-
--- quality_cost_allocation (intent 11) elevates DefectSeverityCost
-(11, 1, 0, 'Quality classification not for cost allocation'),
-(11, 2, 1, 'ELEVATED: Cost impact for quality cost allocation'),
-(11, 3, 0, 'Customer perspective not for cost allocation');
+(5, 9, 1, 'ELEVATED: Financial penalty calculations');
+-- NOTE: Intents 6-11 (equipment_reliability and production_analytics categories)
+-- were removed — their query files exclusively referenced empty PoC tables.
 
 -- Seed data: Link intents to ground truth queries
 INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name) VALUES
@@ -663,17 +330,9 @@ INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_
 
 -- Supplier Performance queries
 (4, 'supplier_performance', 'supplier_performance.sql', 0, 'Supplier delivery scorecard'),
-(5, 'supplier_performance', 'supplier_performance.sql', 1, 'Late delivery penalty calculation'),
-
--- Equipment Reliability queries
-(6, 'equipment_reliability', 'equipment_reliability.sql', 0, 'Daily OEE by line'),
-(7, 'equipment_reliability', 'equipment_reliability.sql', 1, 'Equipment replacement candidates'),
-(8, 'equipment_reliability', 'equipment_reliability.sql', 2, 'Maintenance schedule gaps'),
-
--- Production Analytics queries
-(9, 'production_analytics', 'production_analytics.sql', 0, 'Schedule adherence report'),
-(10, 'production_analytics', 'production_analytics.sql', 1, 'Line efficiency comparison'),
-(11, 'production_analytics', 'production_analytics.sql', 2, 'Quality cost by product');
+(5, 'supplier_performance', 'supplier_performance.sql', 1, 'Late delivery penalty calculation');
+-- NOTE: Equipment Reliability and Production Analytics intent-query rows removed
+-- (query files exclusively referenced empty PoC tables).
 
 -- Seed data: OPERATES_WITHIN relationships (Intent → Perspective)
 -- Maps each intent to its constraining perspective(s)
@@ -687,15 +346,7 @@ INSERT INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor
 
 -- Supplier Performance intents
 (4, 1, 1, 'supplier_scorecard operates within Quality perspective'),
-(5, 2, 1, 'supplier_cost_penalties operates within Finance perspective'),
-
--- Equipment Reliability intents
-(6, 3, 1, 'oee_operational operates within Operations perspective'),
-(7, 2, 1, 'oee_capital_planning operates within Finance perspective'),
-(8, 3, 1, 'maintenance_scheduling operates within Operations perspective'),
-
--- Production Analytics intents
-(9, 3, 1, 'schedule_adherence operates within Operations perspective'),
-(10, 3, 1, 'line_efficiency operates within Operations perspective'),
-(11, 2, 1, 'quality_cost_allocation operates within Finance perspective');
+(5, 2, 1, 'supplier_cost_penalties operates within Finance perspective');
+-- NOTE: Equipment Reliability and Production Analytics intent perspectives removed
+-- (intents dropped with their empty-table query files).
 
