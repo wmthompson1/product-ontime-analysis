@@ -74,6 +74,16 @@ jobs:
         working-directory: hf-space-inventory-sqlgen
         run: python scripts/sync_db_to_dab_config.py
 
+      - name: Commit updated dab_config.json if changed
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          git diff --quiet hf-space-inventory-sqlgen/dab_config.json && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add hf-space-inventory-sqlgen/dab_config.json
+          git commit -m "chore: automated DAB config sync [skip ci]"
+          git push
+
       - name: Dry-run containment graph reconstruction (preview)
         working-directory: hf-space-inventory-sqlgen
         run: python scripts/reconstruct_containment_graph.py --dry-run
