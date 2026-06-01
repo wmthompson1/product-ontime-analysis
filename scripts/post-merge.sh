@@ -23,4 +23,18 @@ if [ -f hf-space-inventory-sqlgen/scripts/check_legacy_perspective_refs.py ]; th
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py || {
+    echo "post-merge: DAB sync tests failed"
+    exit 1
+  }
+fi
+
+if [ -f hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py || {
+    echo "post-merge: graph reconstructor tests failed"
+    exit 1
+  }
+fi
+
 echo "post-merge: OK"
