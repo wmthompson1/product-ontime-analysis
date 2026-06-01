@@ -1,9 +1,16 @@
 """Tests for reconstruct_containment_graph dry-run logic and key conventions.
 
-No ArangoDB connection is required — all tests exercise either:
-  - _run_dry()  : the dry-run path, which parses rows and prints what it would do
-  - key helpers : table_key / column_key / contains_edge_key from
-                  arangodb_helpers.manufacturing_graph_version_0_0_1
+Two test modes:
+
+Dry-run / key-format tests (always run):
+    No ArangoDB connection required.  Exercises _run_dry() and the key helpers
+    from arangodb_helpers.manufacturing_graph_version_0_0_1.
+
+Live ArangoDB tests (gated on ARANGO_DB env var):
+    Connect to a real ArangoDB instance and verify that reconstruct() correctly
+    upserts vertices/edges on the first call, then returns 0 upserts on the
+    second call (idempotency).  Throwaway documents are inserted and cleaned up
+    so the tests are safe to run against a production database.
 
 Coverage:
 - Valid table→column rows produce two vertex ops and one edge op in dry-run output.
@@ -12,6 +19,7 @@ Coverage:
 - Key format regression guard: table_key and column_key follow the ``type::NAME``
   convention (uppercase, double-colon prefix) so that a future key-convention
   change immediately breaks this test.
+- Live: first reconstruct() call writes vertices + edge; second call reports 0 upserts.
 
 Run:
     python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py
@@ -217,6 +225,158 @@ def test_dry_run_summary_line_present():
 
 
 # ---------------------------------------------------------------------------
+# Live ArangoDB tests (gated on ARANGO_DB env var)
+# ---------------------------------------------------------------------------
+
+_LIVE_TEST_TABLE = "__TEST_RECONSTRUCT_TBL__"
+_LIVE_TEST_COL = "__TEST_COL__"
+
+
+def _live_arango_connection():
+    """Connect to ArangoDB using the same env vars as reconstruct_containment_graph.
+
+    Returns (client, db) on success, or raises an exception on failure.
+    Does NOT call sys.exit — callers are responsible for handling errors.
+    """
+    from arango import ArangoClient
+
+    raw_host = (
+        os.environ.get("ARANGO_HOST")
+        or os.environ.get("DATABASE_HOST", "http://localhost:8529")
+    ).strip()
+    if "arangodb.cloud" in raw_host and ":" not in raw_host.split("//", 1)[-1]:
+        raw_host = f"{raw_host}:8529"
+
+    db_name = os.environ.get("ARANGO_DB", "manufacturing_graph")
+    username = os.environ.get("ARANGO_USER", "root")
+    password = os.environ.get("ARANGO_ROOT_PASSWORD", "")
+
+    client = ArangoClient(hosts=raw_host)
+    sys_db = client.db("_system", username=username, password=password)
+    if not sys_db.has_database(db_name):
+        raise RuntimeError(f"ArangoDB database {db_name!r} does not exist")
+    return client, client.db(db_name, username=username, password=password)
+
+
+def _make_temp_sqlite_with_test_row() -> str:
+    """Create a temporary SQLite database with one test table→column row.
+
+    Returns the path to the temp file; the caller must delete it.
+    """
+    import sqlite3
+    import tempfile
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    path = tmp.name
+
+    conn = sqlite3.connect(path)
+    conn.execute(
+        """
+        CREATE TABLE schema_topology_metadata (
+            id               INTEGER PRIMARY KEY,
+            source_node_type TEXT,
+            target_node_type TEXT,
+            source_key       TEXT,
+            target_key       TEXT,
+            edge_predicate   TEXT,
+            weight           REAL,
+            notes            TEXT
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO schema_topology_metadata "
+        "VALUES (1, 'table', 'column', ?, ?, 'CONTAINS', 1.0, '')",
+        (_LIVE_TEST_TABLE, _LIVE_TEST_COL),
+    )
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _cleanup_live_test_docs(db) -> None:
+    """Remove the throwaway vertices and edge written by the live test."""
+    sut._ensure_collections(db)
+    for coll_name, key in [
+        (TABLES_COLLECTION,   table_key(_LIVE_TEST_TABLE)),
+        (COLUMNS_COLLECTION,  column_key(_LIVE_TEST_TABLE, _LIVE_TEST_COL)),
+        (CONTAINS_EDGE_COLLECTION, contains_edge_key(_LIVE_TEST_TABLE, _LIVE_TEST_COL)),
+    ]:
+        try:
+            coll = db.collection(coll_name)
+            if coll.has(key):
+                coll.delete(key)
+        except Exception as exc:
+            print(f"WARN: could not delete test doc '{key}' from '{coll_name}': {exc}")
+
+
+def _capture_reconstruct(dry_run: bool = False) -> str:
+    """Run sut.reconstruct() and return combined stdout as a string."""
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        sut.reconstruct(dry_run=dry_run)
+    return buf.getvalue()
+
+
+def test_live_reconstruct_idempotency():
+    """Live ArangoDB: reconstruct() is idempotent — second run produces 0 upserts.
+
+    Skipped when ARANGO_DB env var is not set.
+
+    Steps:
+      1. Create a throwaway SQLite DB with one test table→column CONTAINS row.
+      2. Call reconstruct() (live) — writes table vertex, column vertex, contains edge.
+      3. Call reconstruct() again — every document is unchanged, so 0 upserts expected.
+      4. Clean up the throwaway documents from ArangoDB and delete the temp SQLite file.
+    """
+    if not os.environ.get("ARANGO_DB"):
+        print("SKIP: ARANGO_DB not set — live ArangoDB reconstruct test skipped")
+        return
+
+    try:
+        _, db = _live_arango_connection()
+    except Exception as exc:
+        print(f"SKIP: could not connect to ArangoDB: {exc}")
+        return
+
+    tmp_path = _make_temp_sqlite_with_test_row()
+    original_sqlite_path = sut.SQLITE_DB_PATH
+    sut.SQLITE_DB_PATH = tmp_path
+
+    try:
+        # First call — creates the table vertex, column vertex, and contains edge.
+        out1 = _capture_reconstruct(dry_run=False)
+        assert "vertices upserted:" in out1, (
+            f"First reconstruct() run missing upsert summary line. Got:\n{out1}"
+        )
+
+        # Second call — all documents are identical; must report 0 upserts.
+        out2 = _capture_reconstruct(dry_run=False)
+        assert "vertices upserted: 0" in out2, (
+            "Second reconstruct() run must report vertices upserted: 0 "
+            f"(idempotency). Got:\n{out2}"
+        )
+        assert "edges upserted: 0" in out2, (
+            "Second reconstruct() run must report edges upserted: 0 "
+            f"(idempotency). Got:\n{out2}"
+        )
+
+        print(
+            "PASS: reconstruct() is idempotent — "
+            "second live run reports 0 vertex upserts and 0 edge upserts"
+        )
+
+    finally:
+        sut.SQLITE_DB_PATH = original_sqlite_path
+        _cleanup_live_test_docs(db)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------
 
@@ -231,6 +391,7 @@ def main() -> int:
         test_key_format_column_vertex,
         test_contains_edge_key_matches_column_key,
         test_dry_run_summary_line_present,
+        test_live_reconstruct_idempotency,
     ]
     failed = 0
     for t in tests:
