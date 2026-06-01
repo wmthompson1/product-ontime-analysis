@@ -26,7 +26,7 @@ import install_sync_triggers as ist
 
 
 def _make_test_db() -> sqlite3.Connection:
-    """Create a minimal in-memory DB with the three watched tables."""
+    """Create a minimal in-memory DB with all watched tables."""
     conn = sqlite3.connect(":memory:")
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS schema_intents (
@@ -56,6 +56,12 @@ def _make_test_db() -> sqlite3.Connection:
             intent_id  INTEGER,
             concept_id INTEGER,
             intent_factor_weight REAL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS schema_nodes (
+            table_name  TEXT NOT NULL UNIQUE,
+            table_type  TEXT,
+            description TEXT,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
         );
     """)
     return conn
@@ -150,6 +156,17 @@ class TestInstallSyncTriggers(unittest.TestCase):
             "SELECT COUNT(*) FROM graph_sync_queue WHERE source_table='schema_intent_concepts'"
         ).fetchone()[0]
         self.assertGreater(count, 0, "schema_intent_concepts trigger should fire")
+
+    def test_schema_nodes_trigger(self):
+        ist.install(self.conn)
+        self.conn.execute(
+            "INSERT INTO schema_nodes (table_name, table_type) VALUES ('work_order', 'Table')"
+        )
+        self.conn.commit()
+        count = self.conn.execute(
+            "SELECT COUNT(*) FROM graph_sync_queue WHERE source_table='schema_nodes' AND operation='INSERT'"
+        ).fetchone()[0]
+        self.assertEqual(count, 1, "schema_nodes INSERT trigger should queue one row")
 
     def test_verify_passes_after_install(self):
         ist.install(self.conn)

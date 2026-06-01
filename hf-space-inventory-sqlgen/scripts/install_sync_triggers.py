@@ -40,6 +40,7 @@ WATCHED_TABLES = [
     "schema_intent_perspectives",
     "schema_perspective_concepts",
     "schema_intent_concepts",
+    "schema_nodes",
 ]
 
 OPERATIONS = ["INSERT", "UPDATE", "DELETE"]
