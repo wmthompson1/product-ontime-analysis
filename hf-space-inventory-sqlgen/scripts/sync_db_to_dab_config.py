@@ -4,6 +4,10 @@ Reads ``dab_field_definitions WHERE certified = 1 AND source_database = <SQL_MCP
 merges each ``field_definition`` value into the matching entity/field ``description`` in
 ``dab_config.json``, and writes the file back atomically (write-to-tmp + rename).
 
+Also detects and removes entities in dab_config.json whose source table no longer exists in
+manufacturing.db (renamed or dropped tables).  In --dry-run mode these are flagged as warnings
+instead of being removed.
+
 Re-running against an unchanged database produces no diff.
 
 Usage:
@@ -71,6 +75,18 @@ def _build_entity_index(config: Dict[str, Any]) -> Dict[str, Tuple[str, str]]:
     return index
 
 
+def _read_db_tables(db_path: str) -> set:
+    """Return a set of lowercase table names that exist in the SQLite database."""
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    finally:
+        conn.close()
+    return {row[0].lower() for row in rows}
+
+
 def _read_certified_rows(
     db_path: str, source_database: str
 ) -> List[Dict[str, str]]:
@@ -100,6 +116,26 @@ def _read_certified_rows(
 # ---------------------------------------------------------------------------
 
 
+def _find_stale_entities(
+    config: Dict[str, Any], db_tables: set
+) -> List[Tuple[str, str]]:
+    """Return a list of (entity_key, source_table) pairs whose source table is absent from the DB.
+
+    The entity source field is like "crm.CUSTOMER" or "dbo.SUPPLIERS".
+    We extract the last segment (after the dot) and compare case-insensitively against
+    the set of lowercase table names from sqlite_master.
+    """
+    stale: List[Tuple[str, str]] = []
+    for entity_key, entity_val in config.get("entities", {}).items():
+        source: str = entity_val.get("source", "")
+        raw_table = source.split(".")[-1] if source else ""
+        if not raw_table:
+            continue
+        if raw_table.lower() not in db_tables:
+            stale.append((entity_key, raw_table))
+    return stale
+
+
 def sync(dry_run: bool = False) -> None:
     db_path = os.path.abspath(SQLITE_DB_PATH)
     cfg_path = os.path.abspath(DAB_CONFIG_PATH)
@@ -117,11 +153,45 @@ def sync(dry_run: bool = False) -> None:
         f"certified rows read: {len(rows)}"
     )
 
+    config = _load_dab_config(cfg_path)
+
+    # ------------------------------------------------------------------
+    # Stale-entity detection: entities in dab_config.json whose source
+    # table no longer exists in manufacturing.db (renamed or dropped).
+    # ------------------------------------------------------------------
+    db_tables = _read_db_tables(db_path)
+    stale_entities = _find_stale_entities(config, db_tables)
+
+    if stale_entities:
+        if dry_run:
+            print(
+                f"[sync_db_to_dab_config] DRY-RUN — {len(stale_entities)} stale "
+                f"entity/entities would be removed (source table absent from DB):"
+            )
+        else:
+            print(
+                f"[sync_db_to_dab_config] Removing {len(stale_entities)} stale "
+                f"entity/entities (source table absent from DB):"
+            )
+        for entity_key, source_table in stale_entities:
+            print(f"  {entity_key!r}  (source table: {source_table!r})")
+            if not dry_run:
+                del config["entities"][entity_key]
+    else:
+        print("[sync_db_to_dab_config] No stale entities detected.")
+
     if not rows:
         print("[sync_db_to_dab_config] Nothing to sync — no certified rows.")
-        return
+        if dry_run:
+            print(
+                f"[sync_db_to_dab_config] DRY-RUN — would remove {len(stale_entities)} "
+                f"stale entity/entities, 0 field(s) updated."
+            )
+            return
+        # Still write the file if stale entities were found and this is a live run
+        if not stale_entities:
+            return
 
-    config = _load_dab_config(cfg_path)
     entity_index = _build_entity_index(config)
 
     fields_updated = 0
@@ -172,7 +242,8 @@ def sync(dry_run: bool = False) -> None:
 
     if dry_run:
         print(
-            f"[sync_db_to_dab_config] DRY-RUN — would update {fields_updated} field(s), "
+            f"[sync_db_to_dab_config] DRY-RUN — would remove {len(stale_entities)} stale "
+            f"entity/entities, update {fields_updated} field(s), "
             f"{fields_not_matched} not matched."
         )
         return
@@ -198,6 +269,7 @@ def sync(dry_run: bool = False) -> None:
 
     print(
         f"[sync_db_to_dab_config] Done — "
+        f"stale entities removed: {len(stale_entities)}, "
         f"fields updated: {fields_updated}, "
         f"not matched: {fields_not_matched}."
     )
