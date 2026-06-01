@@ -7,11 +7,20 @@ never populated.  Also retires their orphaned schema metadata.
 Re-runnable: every step is idempotent (DROP TABLE IF EXISTS, DELETE with
 WHERE, etc.).  Runs inside a single transaction so it is fully atomic.
 
+ArangoDB purge (Step 11):
+  After the SQLite cleanup this script also removes the stale table:: and
+  column:: vertices — and their contains edges — from the ArangoDB
+  manufacturing_graph so the live graph matches the database.  The step
+  is skipped gracefully when ARANGO_HOST / ARANGO_DB env vars are absent.
+
 Usage:
     python hf-space-inventory-sqlgen/migrations/drop_poc_tables.py
 
 Or with an explicit DB path:
     python hf-space-inventory-sqlgen/migrations/drop_poc_tables.py /path/to/manufacturing.db
+
+Skip ArangoDB step explicitly:
+    SKIP_ARANGO=1 python hf-space-inventory-sqlgen/migrations/drop_poc_tables.py
 """
 
 import os
@@ -212,6 +221,129 @@ def run(db_path: str) -> None:
 
     finally:
         conn.close()
+
+    # 11. Purge stale ArangoDB vertices and edges for the dropped tables.
+    purge_arango_stale_vertices(EMPTY_TABLES)
+
+
+# ---------------------------------------------------------------------------
+# ArangoDB purge — Step 11
+# ---------------------------------------------------------------------------
+
+def purge_arango_stale_vertices(tables: list) -> None:
+    """Remove stale table/column vertices and contains edges from ArangoDB.
+
+    For each table name in *tables* this function:
+      - Deletes all ``column::TABLE.*`` vertices from the ``columns``
+        collection (AQL prefix filter on ``table_name`` property).
+      - Deletes the matching ``contains`` edges (same ``_key`` values as
+        the column vertices, so one AQL pass covers both).
+      - Deletes the ``table::TABLE`` vertex from the ``tables`` collection.
+
+    Idempotent: already-absent documents are silently skipped (IGNORE).
+    Skipped entirely when:
+      - ``SKIP_ARANGO=1`` env var is set, OR
+      - ``ARANGO_HOST`` or ``ARANGO_DB`` env vars are absent.
+    """
+    if os.environ.get("SKIP_ARANGO"):
+        print("\n  [ArangoDB] SKIP_ARANGO=1 — skipping graph purge.")
+        return
+
+    arango_host = (
+        os.environ.get("ARANGO_HOST") or
+        os.environ.get("DATABASE_HOST", "")
+    ).strip()
+    arango_db_name = os.environ.get("ARANGO_DB", "").strip()
+
+    if not arango_host or not arango_db_name:
+        print(
+            "\n  [ArangoDB] ARANGO_HOST / ARANGO_DB not set — "
+            "skipping graph purge.  Run this step manually once ArangoDB "
+            "is reachable, or re-run this migration with those env vars set."
+        )
+        return
+
+    try:
+        from arango import ArangoClient
+    except ImportError:
+        print(
+            "\n  [ArangoDB] python-arango not installed — "
+            "skipping graph purge."
+        )
+        return
+
+    username = os.environ.get("ARANGO_USER", "root")
+    password = os.environ.get("ARANGO_ROOT_PASSWORD", "")
+
+    # Normalise host (ArangoCloud omits port in some env configs).
+    if "arangodb.cloud" in arango_host and ":" not in arango_host.split("//", 1)[-1]:
+        arango_host = f"{arango_host}:8529"
+
+    try:
+        client = ArangoClient(hosts=arango_host)
+        db = client.db(arango_db_name, username=username, password=password)
+        # Quick connectivity check
+        db.collections()
+    except Exception as exc:
+        print(f"\n  [ArangoDB] Connection failed ({exc}) — skipping graph purge.")
+        return
+
+    print(f"\n  [ArangoDB] Connected to {arango_host}/{arango_db_name}")
+
+    total_cols_removed = 0
+    total_edges_removed = 0
+    total_tables_removed = 0
+
+    for table in tables:
+        table_upper = table.strip().upper()
+        table_vertex_key = f"table::{table_upper}"
+        col_prefix = f"column::{table_upper}."
+
+        # --- columns + contains edges ---
+        # AQL: collect keys of all column vertices for this table, then remove
+        # both the column vertex and the identically-keyed contains edge.
+        aql_cols = """
+        FOR doc IN columns
+          FILTER doc.table_name == @tname
+          REMOVE { _key: doc._key } IN columns OPTIONS { ignoreErrors: true }
+          RETURN doc._key
+        """
+        aql_edges = """
+        FOR doc IN contains
+          FILTER STARTS_WITH(doc._key, @prefix)
+          REMOVE { _key: doc._key } IN contains OPTIONS { ignoreErrors: true }
+          RETURN doc._key
+        """
+        aql_table = """
+        REMOVE { _key: @tkey } IN tables OPTIONS { ignoreErrors: true }
+        RETURN @tkey
+        """
+
+        try:
+            col_keys = list(db.aql.execute(aql_cols, bind_vars={"tname": table_upper}))
+            total_cols_removed += len(col_keys)
+        except Exception as exc:
+            print(f"    WARNING: columns AQL for {table}: {exc}")
+
+        try:
+            edge_keys = list(db.aql.execute(aql_edges, bind_vars={"prefix": col_prefix}))
+            total_edges_removed += len(edge_keys)
+        except Exception as exc:
+            print(f"    WARNING: contains AQL for {table}: {exc}")
+
+        try:
+            removed = list(db.aql.execute(aql_table, bind_vars={"tkey": table_vertex_key}))
+            # REMOVE with ignoreErrors returns nothing on miss; len > 0 means removed
+            total_tables_removed += 1 if removed else 0
+        except Exception as exc:
+            print(f"    WARNING: tables AQL for {table}: {exc}")
+
+    print(
+        f"  [ArangoDB] Purge complete: "
+        f"{total_tables_removed} table vertices, "
+        f"{total_cols_removed} column vertices, "
+        f"{total_edges_removed} contains edges removed."
+    )
 
 
 if __name__ == "__main__":
