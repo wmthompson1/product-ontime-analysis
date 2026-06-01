@@ -20,6 +20,10 @@ Coverage:
   convention (uppercase, double-colon prefix) so that a future key-convention
   change immediately breaks this test.
 - Live: first reconstruct() call writes vertices + edge; second call reports 0 upserts.
+- Live: rows with unknown edge_predicate produce rows_skipped > 0 and write nothing to
+  ArangoDB (collection count before == collection count after).
+- Live: rows with unsupported node types produce rows_skipped > 0 and write nothing to
+  ArangoDB (collection count before == collection count after).
 
 Run:
     python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py
@@ -376,6 +380,181 @@ def test_live_reconstruct_idempotency():
             pass
 
 
+def _collection_counts(db) -> dict:
+    """Return a dict of {collection_name: document_count} for the three containment
+    collections.  Used to verify that a reconstruct() call with only skippable rows
+    leaves ArangoDB completely untouched.
+    """
+    sut._ensure_collections(db)
+    return {
+        TABLES_COLLECTION:        db.collection(TABLES_COLLECTION).count(),
+        COLUMNS_COLLECTION:       db.collection(COLUMNS_COLLECTION).count(),
+        CONTAINS_EDGE_COLLECTION: db.collection(CONTAINS_EDGE_COLLECTION).count(),
+    }
+
+
+def _make_temp_sqlite_with_row(row_kwargs: dict) -> str:
+    """Create a throwaway SQLite database containing one schema_topology_metadata row
+    built from *row_kwargs* (id, source_node_type, target_node_type, source_key,
+    target_key, edge_predicate, weight, notes).  Returns the temp file path.
+    """
+    import sqlite3
+    import tempfile
+
+    defaults = dict(
+        id=1,
+        source_node_type="table",
+        target_node_type="column",
+        source_key="__UNUSED__",
+        target_key="__UNUSED_COL__",
+        edge_predicate="CONTAINS",
+        weight=1.0,
+        notes="",
+    )
+    defaults.update(row_kwargs)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    path = tmp.name
+
+    conn = sqlite3.connect(path)
+    conn.execute(
+        """
+        CREATE TABLE schema_topology_metadata (
+            id               INTEGER PRIMARY KEY,
+            source_node_type TEXT,
+            target_node_type TEXT,
+            source_key       TEXT,
+            target_key       TEXT,
+            edge_predicate   TEXT,
+            weight           REAL,
+            notes            TEXT
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO schema_topology_metadata "
+        "VALUES (:id, :source_node_type, :target_node_type, "
+        ":source_key, :target_key, :edge_predicate, :weight, :notes)",
+        defaults,
+    )
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_live_unknown_predicate_writes_nothing():
+    """Live ArangoDB: a row with an unknown edge_predicate must be skipped and must
+    not write any documents to ArangoDB.
+
+    Verification:
+    - The summary line reports rows_skipped >= 1.
+    - Collection counts for tables, columns, and contains are identical before and
+      after the reconstruct() call.
+
+    Skipped when ARANGO_DB env var is not set.
+    """
+    if not os.environ.get("ARANGO_DB"):
+        print("SKIP: ARANGO_DB not set — live unknown-predicate test skipped")
+        return
+
+    try:
+        _, db = _live_arango_connection()
+    except Exception as exc:
+        print(f"SKIP: could not connect to ArangoDB: {exc}")
+        return
+
+    counts_before = _collection_counts(db)
+
+    tmp_path = _make_temp_sqlite_with_row({"edge_predicate": "NONEXISTENT_PRED"})
+    original_sqlite_path = sut.SQLITE_DB_PATH
+    sut.SQLITE_DB_PATH = tmp_path
+
+    try:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            sut.reconstruct(dry_run=False)
+        out = buf.getvalue()
+
+        assert "rows skipped: 1" in out, (
+            f"Expected 'rows skipped: 1' in live output for unknown predicate. Got:\n{out}"
+        )
+
+        counts_after = _collection_counts(db)
+        assert counts_before == counts_after, (
+            f"ArangoDB collection counts changed after a skipped-predicate row.\n"
+            f"Before: {counts_before}\nAfter:  {counts_after}"
+        )
+
+        print(
+            "PASS: live reconstruct() with unknown edge_predicate reports rows_skipped=1 "
+            "and leaves ArangoDB collections unchanged"
+        )
+    finally:
+        sut.SQLITE_DB_PATH = original_sqlite_path
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
+def test_live_unsupported_node_type_writes_nothing():
+    """Live ArangoDB: a row with an unsupported source_node_type must be skipped and
+    must not write any documents to ArangoDB.
+
+    Verification:
+    - The summary line reports rows_skipped >= 1.
+    - Collection counts for tables, columns, and contains are identical before and
+      after the reconstruct() call.
+
+    Skipped when ARANGO_DB env var is not set.
+    """
+    if not os.environ.get("ARANGO_DB"):
+        print("SKIP: ARANGO_DB not set — live unsupported-node-type test skipped")
+        return
+
+    try:
+        _, db = _live_arango_connection()
+    except Exception as exc:
+        print(f"SKIP: could not connect to ArangoDB: {exc}")
+        return
+
+    counts_before = _collection_counts(db)
+
+    tmp_path = _make_temp_sqlite_with_row(
+        {"source_node_type": "schema", "edge_predicate": "CONTAINS"}
+    )
+    original_sqlite_path = sut.SQLITE_DB_PATH
+    sut.SQLITE_DB_PATH = tmp_path
+
+    try:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            sut.reconstruct(dry_run=False)
+        out = buf.getvalue()
+
+        assert "rows skipped: 1" in out, (
+            f"Expected 'rows skipped: 1' in live output for unsupported node type. Got:\n{out}"
+        )
+
+        counts_after = _collection_counts(db)
+        assert counts_before == counts_after, (
+            f"ArangoDB collection counts changed after a skipped-node-type row.\n"
+            f"Before: {counts_before}\nAfter:  {counts_after}"
+        )
+
+        print(
+            "PASS: live reconstruct() with unsupported node type reports rows_skipped=1 "
+            "and leaves ArangoDB collections unchanged"
+        )
+    finally:
+        sut.SQLITE_DB_PATH = original_sqlite_path
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+
+
 # ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------
@@ -392,6 +571,8 @@ def main() -> int:
         test_contains_edge_key_matches_column_key,
         test_dry_run_summary_line_present,
         test_live_reconstruct_idempotency,
+        test_live_unknown_predicate_writes_nothing,
+        test_live_unsupported_node_type_writes_nothing,
     ]
     failed = 0
     for t in tests:
