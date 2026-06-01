@@ -87,6 +87,8 @@ class SyncReport:
     edges_synced: Dict[str, int] = field(default_factory=dict)
     edges_new: Dict[str, int] = field(default_factory=dict)
     edges_updated: Dict[str, int] = field(default_factory=dict)
+    vertices_pruned: Dict[str, int] = field(default_factory=dict)
+    edges_pruned: Dict[str, int] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     dry_run: bool = False
@@ -102,6 +104,14 @@ class SyncReport:
     @property
     def total_edges(self) -> int:
         return sum(self.edges_synced.values())
+
+    @property
+    def total_pruned_vertices(self) -> int:
+        return sum(self.vertices_pruned.values())
+
+    @property
+    def total_pruned_edges(self) -> int:
+        return sum(self.edges_pruned.values())
 
     def summary(self) -> str:
         mode = "DRY RUN" if self.dry_run else "LIVE SYNC"
@@ -128,6 +138,16 @@ class SyncReport:
                 lines.append(f"  {coll}: {synced} to sync")
             else:
                 lines.append(f"  {coll}: {synced} synced ({new} new, {updated} updated)")
+        if self.vertices_pruned or self.edges_pruned:
+            lines.append("")
+            total_pv = self.total_pruned_vertices
+            total_pe = self.total_pruned_edges
+            prune_label = "would prune" if self.dry_run else "pruned"
+            lines.append(f"Stale containment ({prune_label}: {total_pv} vertices, {total_pe} edges):")
+            for coll, count in self.vertices_pruned.items():
+                lines.append(f"  {coll}: {count} vertices {prune_label}")
+            for coll, count in self.edges_pruned.items():
+                lines.append(f"  {coll}: {count} edges {prune_label}")
         if self.warnings:
             lines.append("")
             lines.append("Warnings:")
@@ -318,9 +338,121 @@ def _upsert_edge(collection, from_id: str, to_id: str, key: str, doc: Dict[str, 
         return True
 
 
+def prune_stale_containment(
+    db,
+    db_path: str = SQLITE_DB_PATH,
+    report: Optional["SyncReport"] = None,
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    """Remove table/column vertices (and their CONTAINS edges) that no longer
+    exist in the SQLite ``schema_nodes`` table.
+
+    This reconcile pass is intentionally gated — call it only when the caller
+    explicitly requests a purge (``--purge-stale`` / ``GRAPH_PRUNE_STALE=1``).
+
+    Returns a dict with keys:
+        tables_pruned  : int   — table vertices removed (or would remove in dry-run)
+        columns_pruned : int   — column vertices removed
+        edges_pruned   : int   — contains edges removed
+        stale_table_names : List[str]  — names of the stale tables detected
+    """
+    from arangodb_helpers.manufacturing_graph_version_0_0_1 import (
+        table_key, TABLES_COLLECTION, COLUMNS_COLLECTION, CONTAINS_EDGE_COLLECTION,
+    )
+
+    result: Dict[str, Any] = {
+        "tables_pruned": 0,
+        "columns_pruned": 0,
+        "edges_pruned": 0,
+        "stale_table_names": [],
+    }
+
+    conn = sqlite3.connect(db_path)
+    live_rows = conn.execute(
+        "SELECT table_name FROM schema_nodes WHERE table_type = 'Table'"
+    ).fetchall()
+    conn.close()
+    live_keys: set = {table_key(r[0]) for r in live_rows}
+
+    tables_coll = db.collection(TABLES_COLLECTION)
+    cursor = db.aql.execute(
+        f"FOR t IN {TABLES_COLLECTION} RETURN t._key",
+        batch_size=500,
+    )
+    arango_keys: set = set(cursor)
+
+    stale_keys = arango_keys - live_keys
+    if not stale_keys:
+        return result
+
+    for stale_key in sorted(stale_keys):
+        tbl_id = f"{TABLES_COLLECTION}/{stale_key}"
+        stale_name = stale_key.replace("table::", "", 1)
+        result["stale_table_names"].append(stale_name)
+
+        edges_deleted = 0
+        cols_deleted = 0
+
+        if not dry_run:
+            edge_cursor = db.aql.execute(
+                f"FOR e IN {CONTAINS_EDGE_COLLECTION} "
+                f"FILTER e._from == @tbl_id "
+                f"REMOVE e IN {CONTAINS_EDGE_COLLECTION} "
+                f"RETURN 1",
+                bind_vars={"tbl_id": tbl_id},
+                batch_size=500,
+            )
+            edges_deleted = sum(1 for _ in edge_cursor)
+
+            col_cursor = db.aql.execute(
+                f"FOR c IN {COLUMNS_COLLECTION} "
+                f"FILTER c.table_name == @tname "
+                f"REMOVE c IN {COLUMNS_COLLECTION} "
+                f"RETURN 1",
+                bind_vars={"tname": stale_name},
+                batch_size=500,
+            )
+            cols_deleted = sum(1 for _ in col_cursor)
+
+            if tables_coll.has(stale_key):
+                tables_coll.delete(stale_key)
+        else:
+            edge_cursor = db.aql.execute(
+                f"FOR e IN {CONTAINS_EDGE_COLLECTION} "
+                f"FILTER e._from == @tbl_id "
+                f"RETURN 1",
+                bind_vars={"tbl_id": tbl_id},
+                batch_size=500,
+            )
+            edges_deleted = sum(1 for _ in edge_cursor)
+
+            col_cursor = db.aql.execute(
+                f"FOR c IN {COLUMNS_COLLECTION} "
+                f"FILTER c.table_name == @tname "
+                f"RETURN 1",
+                bind_vars={"tname": stale_name},
+                batch_size=500,
+            )
+            cols_deleted = sum(1 for _ in col_cursor)
+
+        result["tables_pruned"] += 1
+        result["columns_pruned"] += cols_deleted
+        result["edges_pruned"] += edges_deleted
+
+        if report is not None:
+            action = "would prune" if dry_run else "pruned"
+            report.warnings.append(
+                f"Stale table {action}: {stale_name!r} "
+                f"({cols_deleted} columns, {edges_deleted} edges)"
+            )
+
+    return result
+
+
 def sync_graph(db_path: str = SQLITE_DB_PATH,
                manifest_path: str = MANIFEST_PATH,
-               dry_run: bool = False) -> SyncReport:
+               dry_run: bool = False,
+               purge_stale: bool = False) -> SyncReport:
     report = SyncReport(timestamp=datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     try:
@@ -601,6 +733,18 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
         report.edges_new.update(sc_e_new)
         report.edges_updated.update(sc_e_updated)
 
+        if purge_stale:
+            try:
+                prune_result = prune_stale_containment(
+                    db, db_path=db_path, report=report, dry_run=dry_run
+                )
+                if prune_result["tables_pruned"] > 0:
+                    report.vertices_pruned[TABLES_COLLECTION] = prune_result["tables_pruned"]
+                    report.vertices_pruned[COLUMNS_COLLECTION] = prune_result["columns_pruned"]
+                    report.edges_pruned[CONTAINS_EDGE_COLLECTION] = prune_result["edges_pruned"]
+            except Exception as ex:
+                report.warnings.append(f"Stale containment prune failed: {ex}")
+
     except Exception as ex:
         report.warnings.append(f"Structural containment sync skipped: {ex}")
 
@@ -611,6 +755,7 @@ if __name__ == "__main__":
     import sys
 
     dry = "--dry-run" in sys.argv
+    purge = "--purge-stale" in sys.argv or os.environ.get("GRAPH_PRUNE_STALE", "").strip() == "1"
 
     print("=" * 60)
     print("ArangoDB GRAPH SYNC")
@@ -621,7 +766,10 @@ if __name__ == "__main__":
     else:
         print("MODE: LIVE SYNC\n")
 
-    report = sync_graph(dry_run=dry)
+    if purge:
+        print("PRUNE: stale containment vertices/edges will be removed\n")
+
+    report = sync_graph(dry_run=dry, purge_stale=purge)
     print(report.summary())
 
     sys.exit(0 if report.success else 1)

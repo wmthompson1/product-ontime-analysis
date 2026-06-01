@@ -86,6 +86,9 @@ jobs:
       - name: ArangoDB purge migration tests
         run: python hf-space-inventory-sqlgen/tests/test_drop_poc_tables_arango_purge.py
 
+      - name: Stale containment prune tests
+        run: python -m pytest hf-space-inventory-sqlgen/tests/test_prune_stale_containment.py -v
+
       - name: Bridge collection health tests
         run: python hf-space-inventory-sqlgen/tests/test_bridge_collection_health.py
 
@@ -131,6 +134,7 @@ jobs:
           echo "| Delete/commit-edge 404 | double-undo, missing edge 404 paths |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Duplicate-edge protection | AQL UPSERT idempotency for all 5 predicates |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ArangoDB purge migration | skip paths, key format, 21-table AQL coverage |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Stale containment prune | --purge-stale flag, GRAPH_PRUNE_STALE env var, dry-run safety, report counts |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Bridge collection health | ArangoDB ↔ SQLite count parity |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Bridge health status | status string format, skip paths |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Semantic warning fields | cypher_warning / aql_warning always present |" >> "$GITHUB_STEP_SUMMARY"
