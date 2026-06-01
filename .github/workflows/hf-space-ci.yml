@@ -92,6 +92,9 @@ jobs:
       - name: Bridge collection health tests
         run: python hf-space-inventory-sqlgen/tests/test_bridge_collection_health.py
 
+      - name: DAB config stale-entity tests
+        run: python hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py
+
       - name: Bridge health status tests
         run: |
           if [ -f hf-space-inventory-sqlgen/tests/test_bridge_health_status.py ]; then
@@ -136,6 +139,7 @@ jobs:
           echo "| ArangoDB purge migration | skip paths, key format, 21-table AQL coverage |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Stale containment prune | --purge-stale flag, GRAPH_PRUNE_STALE env var, dry-run safety, report counts |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Bridge collection health | ArangoDB ↔ SQLite count parity |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| DAB config stale-entity | _find_stale_entities all-present/one-stale/all-stale/no-source + dry-run safety + live removal |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Bridge health status | status string format, skip paths |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Semantic warning fields | cypher_warning / aql_warning always present |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Graph syntax disclaimer | disclaimer wording, both functions |" >> "$GITHUB_STEP_SUMMARY"

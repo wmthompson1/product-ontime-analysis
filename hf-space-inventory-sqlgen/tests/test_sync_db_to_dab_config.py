@@ -1,4 +1,4 @@
-"""Tests for sync_db_to_dab_config.sync().
+"""Tests for sync_db_to_dab_config.sync() and _find_stale_entities().
 
 Creates an in-memory / temp-file setup so no live database is required.
 
@@ -9,6 +9,12 @@ Coverage:
 - Rows from a different source_database are ignored.
 - The "note" field in the output JSON is set to the generated-from-SQLite string.
 - Re-running sync() against an unchanged DB produces no diff (idempotency).
+- _find_stale_entities(): all tables present (no stale returned).
+- _find_stale_entities(): one stale entity detected.
+- _find_stale_entities(): all entities stale.
+- _find_stale_entities(): entity with missing source field is skipped.
+- --dry-run does not mutate the config file (stale entities stay on disk).
+- Live run removes only the stale entity and leaves valid ones intact.
 
 Run:
     python hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py
@@ -300,6 +306,156 @@ def test_idempotency():
 
 
 # ---------------------------------------------------------------------------
+# Stale-entity detection tests (_find_stale_entities)
+# ---------------------------------------------------------------------------
+
+
+def test_find_stale_no_stale_when_all_tables_present():
+    """All entity source tables exist in the DB → empty stale list."""
+    db_tables = {"customers", "orders", "products"}
+    config = {
+        "entities": {
+            "Customer": {"source": "dbo.CUSTOMERS", "fields": {}},
+            "Order":    {"source": "dbo.ORDERS",    "fields": {}},
+            "Product":  {"source": "dbo.PRODUCTS",  "fields": {}},
+        }
+    }
+    result = sut._find_stale_entities(config, db_tables)
+    assert result == [], f"Expected no stale entities, got: {result}"
+    print("PASS: _find_stale_entities — no stale when all tables present")
+
+
+def test_find_stale_one_missing_table():
+    """One entity whose source table is absent → returned in stale list."""
+    db_tables = {"customers", "orders"}
+    config = {
+        "entities": {
+            "Customer":  {"source": "dbo.CUSTOMERS",   "fields": {}},
+            "Order":     {"source": "dbo.ORDERS",      "fields": {}},
+            "OldLedger": {"source": "dbo.OLD_LEDGER",  "fields": {}},
+        }
+    }
+    result = sut._find_stale_entities(config, db_tables)
+    assert len(result) == 1, f"Expected 1 stale entity, got: {result}"
+    entity_key, source_table = result[0]
+    assert entity_key == "OldLedger", f"Expected OldLedger stale, got: {entity_key}"
+    assert source_table.lower() == "old_ledger", f"Unexpected source_table: {source_table}"
+    print("PASS: _find_stale_entities — one stale entity detected")
+
+
+def test_find_stale_all_entities_stale():
+    """All entity source tables absent → all returned as stale."""
+    db_tables: set = set()
+    config = {
+        "entities": {
+            "Alpha": {"source": "dbo.ALPHA", "fields": {}},
+            "Beta":  {"source": "dbo.BETA",  "fields": {}},
+        }
+    }
+    result = sut._find_stale_entities(config, db_tables)
+    assert len(result) == 2, f"Expected 2 stale entities, got: {result}"
+    keys = {r[0] for r in result}
+    assert "Alpha" in keys and "Beta" in keys, f"Unexpected keys: {keys}"
+    print("PASS: _find_stale_entities — all entities stale")
+
+
+def test_find_stale_entity_missing_source_field():
+    """Entity with no 'source' key is skipped (not flagged as stale)."""
+    db_tables = {"customers"}
+    config = {
+        "entities": {
+            "Customer": {"source": "dbo.CUSTOMERS", "fields": {}},
+            "NoSource": {"fields": {}},
+        }
+    }
+    result = sut._find_stale_entities(config, db_tables)
+    assert result == [], (
+        f"Entity with no 'source' must be skipped, not flagged stale. Got: {result}"
+    )
+    print("PASS: _find_stale_entities — entity missing source field is skipped")
+
+
+# ---------------------------------------------------------------------------
+# Dry-run / live-run mutation tests (integration: sync() with temp files)
+# ---------------------------------------------------------------------------
+
+
+def _run_sync_with_temp_files(db_tables: list, config_dict: dict, dry_run: bool) -> tuple:
+    """Create temp DB + config files, call sync(), return (original_cfg, on_disk_cfg)."""
+    import copy
+
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE dab_field_definitions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_database TEXT, schema_name TEXT,
+            table_name TEXT, column_name TEXT,
+            field_definition TEXT, certified INTEGER DEFAULT 0
+        )
+        """
+    )
+    for tbl in db_tables:
+        conn.execute(f'CREATE TABLE IF NOT EXISTS "{tbl}" (_id INTEGER PRIMARY KEY)')
+    conn.commit()
+    conn.close()
+
+    fd2, cfg_path = tempfile.mkstemp(suffix=".json")
+    with os.fdopen(fd2, "w", encoding="utf-8") as fh:
+        json.dump(config_dict, fh)
+
+    original_cfg = copy.deepcopy(config_dict)
+    try:
+        _run_sync(db_path, cfg_path, source_db="__no_source__", dry_run=dry_run)
+        on_disk = _load_cfg(cfg_path)
+    finally:
+        os.unlink(db_path)
+        os.unlink(cfg_path)
+
+    return original_cfg, on_disk
+
+
+def test_dry_run_does_not_remove_stale_entity():
+    """--dry-run must NOT remove stale entities from the config file on disk."""
+    config = {
+        "entities": {
+            "Ghost": {"source": "dbo.GHOST_TABLE", "fields": {}},
+            "Real":  {"source": "dbo.REAL_TABLE",  "fields": {}},
+        }
+    }
+    _, on_disk = _run_sync_with_temp_files(
+        db_tables=["real_table"],
+        config_dict=config,
+        dry_run=True,
+    )
+    entities = on_disk.get("entities", {})
+    assert "Ghost" in entities, "dry-run must not delete the stale entity from disk"
+    assert "Real" in entities, "dry-run must keep valid entities"
+    print("PASS: dry-run does not remove stale entity from config file")
+
+
+def test_live_run_removes_stale_entity_only():
+    """Live run must remove the stale entity and leave valid ones intact."""
+    config = {
+        "entities": {
+            "Ghost": {"source": "dbo.GHOST_TABLE", "fields": {}},
+            "Real":  {"source": "dbo.REAL_TABLE",  "fields": {}},
+        }
+    }
+    _, on_disk = _run_sync_with_temp_files(
+        db_tables=["real_table"],
+        config_dict=config,
+        dry_run=False,
+    )
+    entities = on_disk.get("entities", {})
+    assert "Ghost" not in entities, "live run must delete stale entity from config"
+    assert "Real" in entities, "live run must keep valid entity intact"
+    print("PASS: live run removes only the stale entity, valid entity survives")
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------
 
@@ -310,6 +466,12 @@ def main() -> int:
         test_different_source_database_ignored,
         test_note_field_updated,
         test_idempotency,
+        test_find_stale_no_stale_when_all_tables_present,
+        test_find_stale_one_missing_table,
+        test_find_stale_all_entities_stale,
+        test_find_stale_entity_missing_source_field,
+        test_dry_run_does_not_remove_stale_entity,
+        test_live_run_removes_stale_entity_only,
     ]
     failed = 0
     for t in tests:
