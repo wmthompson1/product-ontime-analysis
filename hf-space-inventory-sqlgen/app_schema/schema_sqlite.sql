@@ -34,8 +34,21 @@ CREATE TABLE IF NOT EXISTS schema_nodes (
 );
 
 INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES
-('EMPLOYEE',                'Table', 'Employee master records'),
-('suppliers',               'Table', 'Supplier master');
+-- Core semantic layer tables (always present)
+('EMPLOYEE',        'Table', 'Employee master records'),
+('suppliers',       'Table', 'Supplier master — name, category, certification level, payment terms, lead time'),
+-- ERP tables added by add_purchasing_wip_tables migration
+('certification',   'Table', 'Supplier certification records (CoC, FAI, PPAP, 8130-3, Material Test Report)'),
+('invoice_header',  'Table', 'AP invoice headers linked to purchase orders — three-way match and payment status'),
+('labor_ticket',    'Table', 'Labor time postings against work order operations (clock-in/out, hours, cost)'),
+('material_issue',  'Table', 'Raw material issues from stock to WIP work orders (quantity, unit cost, total cost)'),
+('operation',       'Table', 'Work order routing steps — sequence, resource, estimated vs actual hours and costs'),
+('po_line',         'Table', 'Purchase order line items (part, quantity, unit cost, line total)'),
+('purchase_order',  'Table', 'Purchase order headers for material and outside-service buys'),
+('receiving',       'Table', 'Goods receipts against purchase orders — quantity ordered vs received, inspection status'),
+('service',         'Table', 'Outside service definitions (anodize, heat treat, NDT, plating, painting)'),
+('shop_resource',   'Table', 'Shop work centers and outside-service buckets (machine, labor, service types)'),
+('work_order',      'Table', 'Work order master — part, quantity, status, routing template, accumulated actual costs');
 
 CREATE TABLE IF NOT EXISTS suppliers (
     supplier_id INTEGER NOT NULL,
