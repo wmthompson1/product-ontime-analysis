@@ -56,12 +56,17 @@ _MINIMAL_DAB_CONFIG = {
 }
 
 
-def _make_sqlite_db(rows: list[dict]) -> str:
+def _make_sqlite_db(rows: list[dict], extra_tables: list[str] | None = None) -> str:
     """Write a temp SQLite file with dab_field_definitions populated from *rows*.
 
     Each dict in *rows* must supply:
         source_database, schema_name, table_name, column_name,
         field_definition, certified  (1 or 0)
+
+    *extra_tables* — additional table names to CREATE as empty stubs so that
+    _find_stale_entities() in sync_db_to_dab_config doesn't treat the
+    corresponding dab_config.json entities as stale (their source tables must
+    appear in sqlite_master for the check to pass).
     """
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
@@ -79,6 +84,8 @@ def _make_sqlite_db(rows: list[dict]) -> str:
         )
         """
     )
+    for tbl in (extra_tables or []):
+        conn.execute(f'CREATE TABLE IF NOT EXISTS "{tbl}" (_id INTEGER PRIMARY KEY)')
     conn.executemany(
         """
         INSERT INTO dab_field_definitions
@@ -136,7 +143,8 @@ def test_certified_rows_merged():
                 "field_definition": "Full legal name of the customer.",
                 "certified": 1,
             }
-        ]
+        ],
+        extra_tables=["CUSTOMER", "ORDER"],
     )
     cfg_path = _make_dab_config(config)
     try:
@@ -167,7 +175,8 @@ def test_uncertified_rows_ignored():
                 "field_definition": "This should NOT appear.",
                 "certified": 0,
             }
-        ]
+        ],
+        extra_tables=["CUSTOMER", "ORDER"],
     )
     cfg_path = _make_dab_config(config)
     try:
@@ -198,7 +207,8 @@ def test_different_source_database_ignored():
                 "field_definition": "Should be ignored.",
                 "certified": 1,
             }
-        ]
+        ],
+        extra_tables=["CUSTOMER", "ORDER"],
     )
     cfg_path = _make_dab_config(config)
     try:
@@ -230,7 +240,8 @@ def test_note_field_updated():
                 "field_definition": "Primary key.",
                 "certified": 1,
             }
-        ]
+        ],
+        extra_tables=["CUSTOMER", "ORDER"],
     )
     cfg_path = _make_dab_config(config)
     try:
@@ -264,7 +275,8 @@ def test_idempotency():
                 "field_definition": "Idempotency test value.",
                 "certified": 1,
             }
-        ]
+        ],
+        extra_tables=["CUSTOMER", "ORDER"],
     )
     cfg_path = _make_dab_config(config)
     try:
