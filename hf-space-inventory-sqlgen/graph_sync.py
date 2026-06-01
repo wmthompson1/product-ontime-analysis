@@ -589,15 +589,26 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
     e_new = {"elevates": 0, "bound_to": 0}
     e_updated = {"elevates": 0, "bound_to": 0}
 
+    # Build intent → [perspective_names] lookup from already-loaded bridge data.
+    # Used to stamp perspectives onto elevates and bound_to edges so consumers
+    # can filter/route by perspective without a separate bridge-collection lookup.
+    _intent_perspectives: Dict[str, list] = {}
+    for ip in data["intent_perspectives"]:
+        _intent_perspectives.setdefault(ip["intent_name"], []).append(
+            ip["perspective_name"]
+        )
+
     el_coll = graph.edge_collection("elevates")
     for ic in data["intent_concepts"]:
         from_id = f"intents/{ic['intent_name']}"
         to_id = f"concepts/{ic['concept_name']}"
         key = f"{ic['intent_name']}__{ic['concept_name']}"
+        weight = ic.get("intent_factor_weight", 0)
         doc = {
-            "weight": ic.get("intent_factor_weight", 0),
+            "weight": weight,
             "explanation": ic.get("explanation", ""),
-            "relationship": "ELEVATES" if ic.get("intent_factor_weight", 0) >= 1 else "NEUTRAL" if ic.get("intent_factor_weight", 0) == 0 else "SUPPRESSES",
+            "relationship": "ELEVATES" if weight >= 1 else "NEUTRAL" if weight == 0 else "SUPPRESSES",
+            "perspectives": sorted(_intent_perspectives.get(ic["intent_name"], [])),
             "synced_at": report.timestamp,
         }
         try:
@@ -645,6 +656,7 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             key = f"{intent['intent_name']}__{bk}"
             doc = {
                 "relationship": "BOUND_TO",
+                "perspectives": sorted(_intent_perspectives.get(intent["intent_name"], [])),
                 "synced_at": report.timestamp,
             }
             try:
