@@ -50,3 +50,6 @@ hf-space-inventory-sqlgen/app_schema/manufacturing.db
 *.db-shm
 *.db-wal
 *.db.bak
+
+# Runtime-generated CI/health-check artifacts
+drift_report.txt
