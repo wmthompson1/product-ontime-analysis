@@ -522,7 +522,7 @@ export function DefineRelationship() {
 
   const isContains = selectedPredicate === "CONTAINS";
   // FOREIGN_KEY self-loop: same table on both ends is physically meaningless and blocked.
-  const isSelfLoop = selectedPredicate === "FOREIGN_KEY" && sourceShort === targetShort;
+  const isSelfLoop = isStructural && selectedPredicate === "FOREIGN_KEY" && sourceShort === targetShort;
   // HAS_COLUMN always requires a column target; other semantic predicates are user-toggled.
   const isHasColumn = selectedPredicate === "HAS_COLUMN";
 
