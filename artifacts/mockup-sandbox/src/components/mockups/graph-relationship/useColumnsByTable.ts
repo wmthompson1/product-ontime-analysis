@@ -128,7 +128,7 @@ export function useColumnsByTable(
     return () => {
       cancelled = true;
     };
-  }, [tableName, edgeType]);
+  }, [tableName, active]);
 
   return state;
 }
