@@ -1,0 +1,15 @@
+plan_id: plan-012-dual-layer-delineation
+status: pending
+
+tasks:
+  - task_id: task-012-001
+    title: "Implement Dual-Layer Payload Serialization Hooks"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 6
+    dependencies: [task-009-001]
+    artifact: scripts/utils/graph_naming_adapters.py
+    notes: >
+      Updates serialization blocks to parse out structural_properties and semantic_properties separately. 
+      Enforces zero-leak metadata protection: structural records are strictly stripped of intents, concepts, 
+      perspectives, and weights.

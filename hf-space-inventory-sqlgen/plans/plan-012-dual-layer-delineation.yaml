@@ -1,0 +1,29 @@
+plan_id: plan-012-dual-layer-delineation
+title: "Plan-012: Structural vs. Semantic Layer Delineation"
+topic: "Isolating Deterministic Topologies from Contextual Cognitive Routing Layers"
+created: "2026-05-30"
+status: Pending
+delegated_by: User
+assigned_to:
+  - copilot-cli
+  - documentation-writer
+
+objective: >
+  To separate the graph layer into two isolated sub-graphs (Structural and Semantic) 
+  by establishing distinct JSON schema serializers, separating UI dropdown scopes, 
+  and enforcing strict vertex containment rules during the SQLite-to-ArangoDB sync pass.
+
+steps:
+  - number: 1
+    title: "Enforce Form Dropdown Mutation by Layer Type"
+    description: >
+      Update the graph definition UI. Selecting a structural edge type (CONTAINS, FOREIGN_KEY) 
+      locks source/target inputs to Tables/Columns and hides semantic inputs. Selecting a semantic edge 
+      type activates fields for Intent, Concept, Category, Perspective, and Weight.
+
+  - number: 2
+    title: "Deploy Layer-Isolated Python Serializers"
+    description: >
+      Build validation hooks inside the synchronization engine to guarantee that no structural 
+      edge writes semantic metadata properties to disk, and that vertex collection routing 
+      strictly prevents cross-contamination.

@@ -53,6 +53,19 @@ QUERY_API_KEY = os.environ.get("QUERY_API_KEY", "")
 SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
 db_engine = None
 
+# Plan-009: four-part column key defaults used by the metadata write paths.
+SQL_MCP_SOURCE_DATABASE = os.environ.get("SQL_MCP_SOURCE_DATABASE", "manufacturing")
+SQL_MCP_DEFAULT_SCHEMA  = os.environ.get("SQL_MCP_DEFAULT_SCHEMA",  "dbo")
+
+# Metadata tables excluded from the user-facing table list returned by
+# get_all_tables().  They are internal infrastructure, not ERP source tables.
+APP_METADATA_TABLES: set = {
+    "api_field_descriptions",
+    "schema_topology_metadata",
+    "dab_field_definitions",
+    "column_bindings",
+}
+
 from bridge_health import BRIDGE_HEALTH_MAP, run_bridge_health_check_impl as _bridge_health_check_impl
 
 
@@ -63,6 +76,120 @@ def get_db_engine():
         db_engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}")
         init_sqlite_db()
     return db_engine
+
+def ensure_app_metadata_tables(conn) -> None:
+    """Ensure Plan-009 metadata tables exist and handle legacy schema migration.
+
+    Two concerns:
+    (a) Legacy migration for api_field_descriptions — if the table exists but
+        lacks source_database / schema_name columns (old two-column PK), rename
+        it to _legacy, recreate with the four-column PK, migrate existing rows
+        using SQL_MCP_SOURCE_DATABASE / SQL_MCP_DEFAULT_SCHEMA env defaults,
+        then drop the legacy table.
+    (b) Additive CREATE TABLE IF NOT EXISTS guards for all four metadata tables
+        (api_field_descriptions, schema_topology_metadata, dab_field_definitions,
+        column_bindings) so this function is safe to call on every startup.
+    """
+    import sqlite3
+
+    cur = conn.cursor()
+
+    # ── (a) legacy migration ──────────────────────────────────────────────────
+    cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='api_field_descriptions'"
+    )
+    if cur.fetchone():
+        cur.execute("PRAGMA table_info(api_field_descriptions)")
+        existing_cols = {row[1] for row in cur.fetchall()}
+        if "source_database" not in existing_cols or "schema_name" not in existing_cols:
+            # Old schema detected — rename, recreate, migrate, drop.
+            cur.execute(
+                "ALTER TABLE api_field_descriptions RENAME TO api_field_descriptions_legacy"
+            )
+            cur.execute("""
+                CREATE TABLE api_field_descriptions (
+                    source_database TEXT    NOT NULL,
+                    schema_name     TEXT    NOT NULL,
+                    table_name      TEXT    NOT NULL,
+                    column_name     TEXT    NOT NULL,
+                    display_name    TEXT,
+                    description     TEXT,
+                    example_value   TEXT,
+                    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (source_database, schema_name, table_name, column_name)
+                )
+            """)
+            # Migrate rows; fill missing key parts from env defaults.
+            legacy_cols = existing_cols
+            sel_cols = []
+            for c in ("table_name", "column_name", "display_name", "description", "example_value"):
+                sel_cols.append(c if c in legacy_cols else f"NULL AS {c}")
+            cur.execute(f"""
+                INSERT OR IGNORE INTO api_field_descriptions
+                    (source_database, schema_name, table_name, column_name,
+                     display_name, description, example_value)
+                SELECT
+                    '{SQL_MCP_SOURCE_DATABASE}',
+                    '{SQL_MCP_DEFAULT_SCHEMA}',
+                    {', '.join(sel_cols)}
+                FROM api_field_descriptions_legacy
+            """)
+            cur.execute("DROP TABLE api_field_descriptions_legacy")
+            conn.commit()
+            print("api_field_descriptions: legacy schema migrated to four-column PK.")
+
+    # ── (b) additive guards ───────────────────────────────────────────────────
+    cur.executescript("""
+        CREATE TABLE IF NOT EXISTS api_field_descriptions (
+            source_database TEXT    NOT NULL,
+            schema_name     TEXT    NOT NULL,
+            table_name      TEXT    NOT NULL,
+            column_name     TEXT    NOT NULL,
+            display_name    TEXT,
+            description     TEXT,
+            example_value   TEXT,
+            updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (source_database, schema_name, table_name, column_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS schema_topology_metadata (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_node_type TEXT    NOT NULL
+                CHECK(source_node_type IN ('database', 'schema', 'table', 'column')),
+            target_node_type TEXT    NOT NULL
+                CHECK(target_node_type IN ('database', 'schema', 'table', 'column')),
+            source_key       TEXT    NOT NULL,
+            target_key       TEXT    NOT NULL,
+            edge_predicate   TEXT    NOT NULL DEFAULT 'CONTAINS',
+            weight           INTEGER NOT NULL DEFAULT 1,
+            notes            TEXT,
+            created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(source_node_type, target_node_type, source_key, target_key, edge_predicate)
+        );
+
+        CREATE TABLE IF NOT EXISTS dab_field_definitions (
+            source_database  TEXT    NOT NULL,
+            schema_name      TEXT    NOT NULL,
+            table_name       TEXT    NOT NULL,
+            column_name      TEXT    NOT NULL,
+            field_definition TEXT,
+            certified        INTEGER NOT NULL DEFAULT 0 CHECK(certified IN (0, 1)),
+            updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (source_database, schema_name, table_name, column_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS column_bindings (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            intent_name TEXT    NOT NULL,
+            slot_name   TEXT    NOT NULL,
+            table_name  TEXT    NOT NULL,
+            column_name TEXT    NOT NULL,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(intent_name, slot_name)
+        );
+    """)
+    conn.commit()
+
 
 def init_sqlite_db():
     """Initialize SQLite database from schema file.
@@ -88,6 +215,7 @@ def init_sqlite_db():
     try:
         conn.executescript(schema_sql)
         conn.commit()
+        ensure_app_metadata_tables(conn)
     except Exception as e:
         # Log but don't fail - some statements may already exist
         print(f"Database init warning: {e}")
@@ -161,7 +289,13 @@ def get_table_create_sql_legacy(table_name: str) -> str:
         return f"-- Error: {str(e)}"
 
 def get_all_tables() -> List[str]:
-    """Get list of all tables in the SQLite database"""
+    """Get list of ERP/structural tables in the SQLite database.
+
+    APP_METADATA_TABLES (Plan-009 infrastructure tables) are excluded so they
+    never appear in the Schema Browser or ground-truth table list.
+    Source: SQLite PRAGMA table_info — same source used by structural
+    containment graph sync.
+    """
     engine = get_db_engine()
     if not engine:
         return []
@@ -169,9 +303,271 @@ def get_all_tables() -> List[str]:
     try:
         inspector = inspect(engine)
         inspector.clear_cache()
-        return inspector.get_table_names()
+        return [t for t in inspector.get_table_names() if t not in APP_METADATA_TABLES]
     except Exception:
         return []
+
+def _get_structural_schema_snapshot() -> Dict[str, Dict[str, Any]]:
+    """Return the structural schema as a nested dict keyed by table → column.
+
+    Built from SQLite PRAGMA table_info — this is the immutable structural
+    base used by get_unified_schema().  Only ERP tables are included
+    (APP_METADATA_TABLES are excluded, matching get_all_tables()).
+
+    Shape:
+      {
+        "TABLE_NAME": {
+          "column_name": {
+            "type": "TEXT",
+            "notnull": 0,
+            "pk": 0,
+          },
+          ...
+        },
+        ...
+      }
+    """
+    import sqlite3
+    snapshot: Dict[str, Dict[str, Any]] = {}
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        )
+        tables = [row[0] for row in cur.fetchall() if row[0] not in APP_METADATA_TABLES]
+        for tbl in tables:
+            cur.execute(f"PRAGMA table_info({tbl})")
+            cols: Dict[str, Any] = {}
+            for row in cur.fetchall():
+                # row: (cid, name, type, notnull, dflt_value, pk)
+                cols[row[1]] = {
+                    "type":    row[2] or "TEXT",
+                    "notnull": row[3],
+                    "pk":      row[5],
+                }
+            if cols:
+                snapshot[tbl] = cols
+        conn.close()
+    except Exception as exc:
+        print(f"_get_structural_schema_snapshot warning: {exc}")
+    return snapshot
+
+
+def get_unified_schema() -> Dict[str, Dict[str, Any]]:
+    """Return the structural schema enriched with Plan-009 metadata overlays.
+
+    Layer order:
+      1. STRUCTURAL BASE — PRAGMA table_info for all ERP tables.
+      2. api_field_descriptions overlay — adds display_name, description,
+         example_value per column (matched on table_name + column_name within
+         the configured source_database / schema_name defaults).
+      3. dab_field_definitions overlay — adds field_definition, certified.
+
+    Orphaned metadata rows (no matching structural column) are silently skipped
+    so stale rows never corrupt the output.
+
+    Return shape mirrors _get_structural_schema_snapshot() but with extra keys:
+      {
+        "TABLE_NAME": {
+          "column_name": {
+            "type": "TEXT", "notnull": 0, "pk": 0,
+            "display_name": ..., "description": ..., "example_value": ...,
+            "field_definition": ..., "certified": 0,
+          }
+        }
+      }
+    """
+    import sqlite3
+    schema = _get_structural_schema_snapshot()
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        cur = conn.cursor()
+
+        # ── overlay 1: api_field_descriptions ─────────────────────────────────
+        cur.execute("""
+            SELECT table_name, column_name, display_name, description, example_value
+            FROM   api_field_descriptions
+            WHERE  source_database = ? AND schema_name = ?
+        """, (SQL_MCP_SOURCE_DATABASE, SQL_MCP_DEFAULT_SCHEMA))
+        for tbl, col, display_name, desc, example in cur.fetchall():
+            if tbl in schema and col in schema[tbl]:
+                schema[tbl][col]["display_name"]  = display_name
+                schema[tbl][col]["description"]   = desc
+                schema[tbl][col]["example_value"] = example
+
+        # ── overlay 2: dab_field_definitions ──────────────────────────────────
+        cur.execute("""
+            SELECT table_name, column_name, field_definition, certified
+            FROM   dab_field_definitions
+            WHERE  source_database = ? AND schema_name = ?
+        """, (SQL_MCP_SOURCE_DATABASE, SQL_MCP_DEFAULT_SCHEMA))
+        for tbl, col, field_def, certified in cur.fetchall():
+            if tbl in schema and col in schema[tbl]:
+                schema[tbl][col]["field_definition"] = field_def
+                schema[tbl][col]["certified"]        = certified
+
+        conn.close()
+    except Exception as exc:
+        print(f"get_unified_schema warning: {exc}")
+    return schema
+
+
+# ── metadata read/write helpers ────────────────────────────────────────────────
+
+def _validate_column_exists(table_name: str, column_name: str) -> bool:
+    """Return True if (table_name, column_name) exists in the structural schema."""
+    snap = _get_structural_schema_snapshot()
+    return table_name in snap and column_name in snap[table_name]
+
+
+def get_field_description_record(
+    table_name: str,
+    column_name: str,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Optional[Dict[str, Any]]:
+    """Return the api_field_descriptions row for a column, or None if absent."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT display_name, description, example_value, updated_at
+            FROM   api_field_descriptions
+            WHERE  source_database = ? AND schema_name = ?
+              AND  table_name = ? AND column_name = ?
+        """, (source_database, schema_name, table_name, column_name))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            return {
+                "source_database": source_database,
+                "schema_name":     schema_name,
+                "table_name":      table_name,
+                "column_name":     column_name,
+                "display_name":    row[0],
+                "description":     row[1],
+                "example_value":   row[2],
+                "updated_at":      row[3],
+            }
+        return None
+    except Exception as exc:
+        print(f"get_field_description_record warning: {exc}")
+        return None
+
+
+def save_field_description(
+    table_name: str,
+    column_name: str,
+    display_name: Optional[str] = None,
+    description: Optional[str] = None,
+    example_value: Optional[str] = None,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Dict[str, Any]:
+    """Upsert an api_field_descriptions row.
+
+    Validates that (table_name, column_name) exists in the structural schema
+    before writing.  Returns {"ok": True} or {"ok": False, "error": "..."}.
+    """
+    import sqlite3
+    if not _validate_column_exists(table_name, column_name):
+        return {"ok": False, "error": f"Column '{table_name}.{column_name}' not found in structural schema."}
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.execute("""
+            INSERT INTO api_field_descriptions
+                (source_database, schema_name, table_name, column_name,
+                 display_name, description, example_value, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(source_database, schema_name, table_name, column_name)
+            DO UPDATE SET
+                display_name  = excluded.display_name,
+                description   = excluded.description,
+                example_value = excluded.example_value,
+                updated_at    = CURRENT_TIMESTAMP
+        """, (source_database, schema_name, table_name, column_name,
+              display_name, description, example_value))
+        conn.commit()
+        conn.close()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def get_dab_field_definition_record(
+    table_name: str,
+    column_name: str,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Optional[Dict[str, Any]]:
+    """Return the dab_field_definitions row for a column, or None if absent."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT field_definition, certified, updated_at
+            FROM   dab_field_definitions
+            WHERE  source_database = ? AND schema_name = ?
+              AND  table_name = ? AND column_name = ?
+        """, (source_database, schema_name, table_name, column_name))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            return {
+                "source_database":  source_database,
+                "schema_name":      schema_name,
+                "table_name":       table_name,
+                "column_name":      column_name,
+                "field_definition": row[0],
+                "certified":        bool(row[1]),
+                "updated_at":       row[2],
+            }
+        return None
+    except Exception as exc:
+        print(f"get_dab_field_definition_record warning: {exc}")
+        return None
+
+
+def save_dab_field_definition(
+    table_name: str,
+    column_name: str,
+    field_definition: Optional[str] = None,
+    certified: bool = False,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Dict[str, Any]:
+    """Upsert a dab_field_definitions row.
+
+    Validates structural column existence before writing.
+    Returns {"ok": True} or {"ok": False, "error": "..."}.
+    """
+    import sqlite3
+    if not _validate_column_exists(table_name, column_name):
+        return {"ok": False, "error": f"Column '{table_name}.{column_name}' not found in structural schema."}
+    certified_int = 1 if certified else 0
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.execute("""
+            INSERT INTO dab_field_definitions
+                (source_database, schema_name, table_name, column_name,
+                 field_definition, certified, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(source_database, schema_name, table_name, column_name)
+            DO UPDATE SET
+                field_definition = excluded.field_definition,
+                certified        = excluded.certified,
+                updated_at       = CURRENT_TIMESTAMP
+        """, (source_database, schema_name, table_name, column_name,
+              field_definition, certified_int))
+        conn.commit()
+        conn.close()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
 
 def execute_readonly_sql(sql: str) -> Dict[str, Any]:
     """Execute read-only SQL query (SELECT only)"""
@@ -4646,11 +5042,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
             """)
 
         with gr.Tab("📋 Field Descriptions"):
-            gr.Markdown("### Entity Field Descriptions\nSource: `dab_config.json` — DAB-style entity and field metadata. SQLite import is planned; this file is the current source of truth.")
+            gr.Markdown(
+                "### Entity Field Descriptions\n"
+                "Source: **SQLite** (`api_field_descriptions` + `dab_field_definitions`) "
+                "overlaid on the structural schema. `dab_config.json` remains on disk as a "
+                "legacy reference until the wave-6 sync script writes to it."
+            )
 
             with gr.Row():
                 fd_entity_dd = gr.Dropdown(
-                    label="Entity",
+                    label="Entity (table)",
                     choices=[],
                     value=None,
                     interactive=True,
@@ -4661,46 +5062,56 @@ Check that perspective-concept and intent-concept relationships are seeded.
             fd_entity_info = gr.Markdown(value="_Select an entity above._")
 
             fd_fields_table = gr.Dataframe(
-                headers=["Field", "Source Column", "Description"],
-                datatype=["str", "str", "str"],
-                label="Field Descriptions",
+                headers=["Column", "Type", "PK", "Description", "Display Name", "Certified"],
+                datatype=["str", "str", "str", "str", "str", "str"],
+                label="Field Descriptions (unified schema)",
                 interactive=False,
                 wrap=True,
             )
 
             def _fd_load_entities():
-                import json as _json
-                config_path = os.path.join(os.path.dirname(__file__), "dab_config.json")
                 try:
-                    with open(config_path) as f:
-                        cfg = _json.load(f)
-                    names = sorted(cfg.get("entities", {}).keys())
+                    schema = get_unified_schema()
+                    names = sorted(schema.keys())
                     first = names[0] if names else None
                     return gr.Dropdown(choices=names, value=first)
-                except Exception as exc:
+                except Exception:
                     return gr.Dropdown(choices=[], value=None)
 
             def _fd_show_entity(entity_name):
-                import json as _json
                 if not entity_name:
                     return "_Select an entity above._", []
-                config_path = os.path.join(os.path.dirname(__file__), "dab_config.json")
                 try:
-                    with open(config_path) as f:
-                        cfg = _json.load(f)
-                    ent = cfg.get("entities", {}).get(entity_name)
-                    if not ent:
-                        return f"_Entity `{entity_name}` not found._", []
-                    source = ent.get("source", "—")
-                    desc = ent.get("description", "—")
-                    info_md = f"**Source table:** `{source}`\n\n{desc}"
-                    rows = [
-                        [fname, fname, fdata.get("description", "—")]
-                        for fname, fdata in ent.get("fields", {}).items()
-                    ]
+                    schema = get_unified_schema()
+                    cols = schema.get(entity_name)
+                    if not cols:
+                        return f"_Table `{entity_name}` not found in structural schema._", []
+                    col_count = len(cols)
+                    desc_count = sum(
+                        1 for c in cols.values() if c.get("description")
+                    )
+                    certified_count = sum(
+                        1 for c in cols.values() if c.get("certified")
+                    )
+                    info_md = (
+                        f"**Table:** `{entity_name}` — "
+                        f"{col_count} column(s), "
+                        f"{desc_count} described, "
+                        f"{certified_count} certified"
+                    )
+                    rows = []
+                    for col_name, meta in cols.items():
+                        rows.append([
+                            col_name,
+                            meta.get("type", "—"),
+                            "✓" if meta.get("pk") else "",
+                            meta.get("description") or "—",
+                            meta.get("display_name") or "—",
+                            "✓" if meta.get("certified") else "",
+                        ])
                     return info_md, rows
                 except Exception as exc:
-                    return f"_Error loading config: {exc}_", []
+                    return f"_Error loading schema: {exc}_", []
 
             fd_refresh_btn.click(fn=_fd_load_entities, outputs=fd_entity_dd)
             fd_entity_dd.change(fn=_fd_show_entity, inputs=fd_entity_dd, outputs=[fd_entity_info, fd_fields_table])

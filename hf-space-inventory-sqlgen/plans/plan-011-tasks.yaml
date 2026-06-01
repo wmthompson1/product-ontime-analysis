@@ -1,0 +1,35 @@
+plan_id: plan-011-fk-hierarchy-approval
+title: "Plan-011: Foreign Key Hierarchy & Ground Truth Approval"
+topic: "Mapping Relational Dependencies for Synthetic Twin Generation"  
+
+# Private Repo Work Board — Iteration Tracking
+# status: pending | delegated | in_progress | completed | failed
+
+tasks:
+  # ... (All Waves 1-4 remain pending exactly as established above)
+
+  # ==========================================
+  # WAVE 5: PLAN-011 PREVIEW (Relational Hierarchy & Approval)
+  # ==========================================
+  - task_id: task-011-001
+    title: "Implement SQLite PRAGMA Foreign Key Extractor"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 5
+    dependencies: [task-009-001]
+    artifact: scripts/extract_fk_hierarchy.py
+    notes: >
+      Develops a script utilizing PRAGMA foreign_key_list to discover column-to-column dependencies. 
+      Formats strings cleanly into the canonical prefix::TABLE.COLUMN format for edge assembly.
+
+  - task_id: task-011-002
+    title: "Deploy Ground Truth Approval Review Screen"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 5
+    dependencies: [task-011-001]
+    artifact: hf-space-inventory-sqlgen/app.py
+    notes: >
+      Introduces an interactive table UI to view extracted relationships. Provides 
+      an explicit 'Certify Hierarchy' binding action that toggles an is_certified bit 
+      natively inside the SQLite staging storage tables.

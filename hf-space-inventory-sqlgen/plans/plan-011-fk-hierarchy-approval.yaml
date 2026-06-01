@@ -1,0 +1,36 @@
+plan_id: plan-011-fk-hierarchy-approval
+title: "Plan-011: Foreign Key Hierarchy & Ground Truth Approval"
+topic: "Mapping Relational Dependencies for Synthetic Twin Generation"
+created: "2026-05-30"
+status: Pending
+delegated_by: User
+assigned_to:
+  - copilot-cli
+  - documentation-writer
+
+objective: >
+  To extract, normalize, and store foreign key dependency mappings within the local 
+  SQLite metadata layers, exposing explicit 'REFERENCES' edge matrices to drive 
+  topological ordering for synthetic data generation and Text-to-SQL join discovery.
+
+steps:
+  - number: 1
+    title: "Extract Foreign Key Constraints via SQLite PRAGMA"
+    description: >
+      Utilize 'PRAGMA foreign_key_list(table_name)' against the core SQLite database 
+      to programmatically discover relationships, capturing the local column, destination table, 
+      and destination primary key column.
+
+  - number: 2
+    title: "Build Ground Truth Approval Interface"
+    description: >
+      Expose a specialized 'Ground Truth Approval' matrix inside the UI layout, allowing a 
+      Subject Matter Expert (SME) to review extracted relationships, override edge behaviors, 
+      and mark the hierarchy state as certified.
+
+  - number: 3
+    title: "Materialize REFERENCES Edges in ArangoDB"
+    description: >
+      Construct a serialization routine to stream certified relationships out of the SQLite 
+      persistence layer into an active 'references' edge collection, linking columns to columns 
+      using the canonical 'prefix::TABLE.COLUMN' naming format.

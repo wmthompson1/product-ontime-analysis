@@ -378,3 +378,63 @@ INSERT INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor
 -- NOTE: Equipment Reliability and Production Analytics intent perspectives removed
 -- (intents dropped with their empty-table query files).
 
+-- =============================================================================
+-- APP METADATA TABLES (Plan-009)
+-- These three tables are the SQLite source of truth for DAB field definitions
+-- and graph topology annotations.  dab_config.json is a synced artifact, not
+-- a source of truth.  Excluded from get_all_tables() via APP_METADATA_TABLES.
+-- =============================================================================
+
+-- API / DAB field descriptions: display name, description, and example value
+-- keyed on the four-part column identity.
+CREATE TABLE IF NOT EXISTS api_field_descriptions (
+    source_database TEXT    NOT NULL,
+    schema_name     TEXT    NOT NULL,
+    table_name      TEXT    NOT NULL,
+    column_name     TEXT    NOT NULL,
+    display_name    TEXT,
+    description     TEXT,
+    example_value   TEXT,
+    updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (source_database, schema_name, table_name, column_name)
+);
+
+-- Structural containment topology annotations: records the intended edge type
+-- between node pairs in the containment graph (database → schema → table → column).
+CREATE TABLE IF NOT EXISTS schema_topology_metadata (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_node_type TEXT    NOT NULL CHECK(source_node_type IN ('database', 'schema', 'table', 'column')),
+    target_node_type TEXT    NOT NULL CHECK(target_node_type IN ('database', 'schema', 'table', 'column')),
+    source_key       TEXT    NOT NULL,
+    target_key       TEXT    NOT NULL,
+    edge_predicate   TEXT    NOT NULL DEFAULT 'CONTAINS',
+    weight           INTEGER NOT NULL DEFAULT 1,
+    notes            TEXT,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_node_type, target_node_type, source_key, target_key, edge_predicate)
+);
+
+-- DAB field definitions: certified, SME-approved field definition text keyed
+-- on the same four-part column identity as api_field_descriptions.
+CREATE TABLE IF NOT EXISTS dab_field_definitions (
+    source_database  TEXT    NOT NULL,
+    schema_name      TEXT    NOT NULL,
+    table_name       TEXT    NOT NULL,
+    column_name      TEXT    NOT NULL,
+    field_definition TEXT,
+    certified        INTEGER NOT NULL DEFAULT 0 CHECK(certified IN (0, 1)),
+    updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (source_database, schema_name, table_name, column_name)
+);
+
+-- Column bindings: maps semantic intent slots to physical columns.
+-- Created here as an additive guard; populated by the solder engine.
+CREATE TABLE IF NOT EXISTS column_bindings (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_name     TEXT    NOT NULL,
+    slot_name       TEXT    NOT NULL,
+    table_name      TEXT    NOT NULL,
+    column_name     TEXT    NOT NULL,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(intent_name, slot_name)
+);
