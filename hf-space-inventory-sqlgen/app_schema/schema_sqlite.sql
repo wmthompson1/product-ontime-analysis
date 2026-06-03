@@ -36,29 +36,246 @@ CREATE TABLE IF NOT EXISTS schema_nodes (
 INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES
 -- Core semantic layer tables (always present)
 ('EMPLOYEE',        'Table', 'Employee master records'),
+-- Purchasing / WIP digital twin — master data
+('part',            'Table', 'Part / item master — description, class, UOM, cost, revision, material spec, CAGE code'),
 ('suppliers',       'Table', 'Supplier master — name, category, certification level, payment terms, lead time'),
--- ERP tables added by add_purchasing_wip_tables migration
-('certification',   'Table', 'Supplier certification records (CoC, FAI, PPAP, 8130-3, Material Test Report)'),
-('invoice_header',  'Table', 'AP invoice headers linked to purchase orders — three-way match and payment status'),
-('labor_ticket',    'Table', 'Labor time postings against work order operations (clock-in/out, hours, cost)'),
-('material_issue',  'Table', 'Raw material issues from stock to WIP work orders (quantity, unit cost, total cost)'),
-('operation',       'Table', 'Work order routing steps — sequence, resource, estimated vs actual hours and costs'),
-('po_line',         'Table', 'Purchase order line items (part, quantity, unit cost, line total)'),
-('purchase_order',  'Table', 'Purchase order headers for material and outside-service buys'),
-('receiving',       'Table', 'Goods receipts against purchase orders — quantity ordered vs received, inspection status'),
-('service',         'Table', 'Outside service definitions (anodize, heat treat, NDT, plating, painting)'),
 ('shop_resource',   'Table', 'Shop work centers and outside-service buckets (machine, labor, service types)'),
-('work_order',      'Table', 'Work order master — part, quantity, status, routing template, accumulated actual costs');
+('service',         'Table', 'Outside service definitions (anodize, heat treat, NDT, plating, painting)'),
+-- Purchasing / WIP digital twin — transactional
+('purchase_order',  'Table', 'Purchase order headers for material and outside-service buys'),
+('po_line',         'Table', 'Purchase order line items (part, quantity, unit cost, line total)'),
+('receiving',       'Table', 'Goods receipts against purchase orders — quantity ordered vs received, inspection status'),
+('invoice_header',  'Table', 'AP invoice headers linked to purchase orders — three-way match and payment status'),
+('certification',   'Table', 'Supplier certification records (CoC, FAI, PPAP, 8130-3, Material Test Report)'),
+('work_order',      'Table', 'Work order master — part, quantity, status, routing template, accumulated actual costs'),
+('operation',       'Table', 'Work order routing steps — sequence, resource, estimated vs actual hours and costs'),
+('material_issue',  'Table', 'Raw material issues from stock to WIP work orders (quantity, unit cost, total cost)'),
+('labor_ticket',    'Table', 'Labor time postings against work order operations (clock-in/out, hours, cost)');
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FK EDGE REGISTRY  (used by graph_sync to build containment / join graph)
+-- ─────────────────────────────────────────────────────────────────────────────
+INSERT OR IGNORE INTO schema_edges
+    (edge_id, from_table, to_table, relationship_type, join_column, weight, natural_language_alias) VALUES
+-- Purchasing chain
+(1,  'po_line',       'purchase_order', 'FOREIGN_KEY', 'po_id',        1, 'PO lines belong to a purchase order'),
+(2,  'po_line',       'part',           'FOREIGN_KEY', 'part_id',       1, 'PO line references a part'),
+(3,  'receiving',     'purchase_order', 'FOREIGN_KEY', 'po_id',         1, 'Receipt closes against a purchase order'),
+(4,  'receiving',     'suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Receipt records the delivering supplier'),
+(5,  'receiving',     'part',           'FOREIGN_KEY', 'part_id',       1, 'Receipt records the received part'),
+(6,  'invoice_header','purchase_order', 'FOREIGN_KEY', 'po_id',         1, 'Invoice matches to a purchase order'),
+(7,  'invoice_header','suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Invoice issued by a supplier'),
+(8,  'purchase_order','suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Purchase order placed with a supplier'),
+(9,  'certification', 'receiving',      'FOREIGN_KEY', 'receipt_id',    1, 'Cert attached to a receiving line'),
+(10, 'certification', 'part',           'FOREIGN_KEY', 'part_id',       1, 'Cert covers a specific part'),
+-- WIP chain
+(11, 'work_order',    'part',           'FOREIGN_KEY', 'part_id',       1, 'Work order manufactures a part'),
+(12, 'operation',     'work_order',     'FOREIGN_KEY', 'wo_id',         1, 'Routing step belongs to a work order'),
+(13, 'operation',     'shop_resource',  'FOREIGN_KEY', 'resource_id',   1, 'Routing step runs on a shop resource'),
+(14, 'material_issue','work_order',     'FOREIGN_KEY', 'wo_id',         1, 'Material issued to a work order'),
+(15, 'material_issue','part',           'FOREIGN_KEY', 'part_id',       1, 'Material issue consumes a part'),
+(16, 'labor_ticket',  'work_order',     'FOREIGN_KEY', 'wo_id',         1, 'Labor ticket posted against a work order'),
+-- Outside service cross-link
+(17, 'purchase_order','work_order',     'FOREIGN_KEY', 'wo_id',         1, 'Outside-service PO tied to a work order'),
+(18, 'operation',     'service',        'FOREIGN_KEY', 'service_id',    1, 'Outside-service op uses a service definition'),
+(19, 'operation',     'suppliers',      'FOREIGN_KEY', 'vendor_id',     1, 'Outside-service op dispatched to a supplier');
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ERP TABLE DDL  (aerospace manufacturing — Purchasing / WIP digital twin)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS part (
+    part_id          TEXT PRIMARY KEY,          -- e.g. P-12345
+    part_description TEXT NOT NULL,
+    part_class       TEXT NOT NULL CHECK(part_class IN ('RAW','HARDWARE','MAKE','BUY','OUTSIDE_SERVICE')),
+    unit_of_measure  TEXT NOT NULL DEFAULT 'EA',  -- EA / LB / FT / IN
+    unit_cost        REAL DEFAULT 0.0,
+    lead_time_days   INTEGER DEFAULT 0,
+    reorder_point    REAL DEFAULT 0.0,
+    on_hand_qty      REAL DEFAULT 0.0,
+    revision         TEXT DEFAULT 'A',           -- drawing revision level
+    cage_code        TEXT,                        -- 5-char CAGE code (aerospace supplier ID)
+    drawing_number   TEXT,
+    material_spec    TEXT,                        -- e.g. AMS 4928 / 6061-T6 / 304 SS
+    active           INTEGER DEFAULT 1,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS suppliers (
-    supplier_id INTEGER NOT NULL,
-    supplier_name TEXT NOT NULL,
-    contact_email TEXT,
-    phone TEXT,
-    address text,
-    performance_rating REAL,
-    certification_level TEXT,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
+    supplier_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_name      TEXT NOT NULL,
+    contact_email      TEXT,
+    phone              TEXT,
+    address            TEXT,
+    performance_rating REAL DEFAULT 0.0,
+    certification_level TEXT,                    -- AS9100D / ISO9001 / NADCAP / etc.
+    category           TEXT,                     -- material / outside_service / hardware
+    payment_terms      TEXT DEFAULT 'Net30',
+    lead_time_days     INTEGER DEFAULT 14,
+    outside_service    INTEGER DEFAULT 0,        -- 1 = primarily an outside-service vendor
+    active             INTEGER DEFAULT 1,
+    created_date       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order (
+    po_id         TEXT PRIMARY KEY,              -- e.g. PO-240001
+    supplier_id   TEXT NOT NULL,                 -- FK → suppliers
+    po_type       TEXT NOT NULL CHECK(po_type IN ('material','outside_service')),
+    po_date       DATE NOT NULL,
+    required_date DATE,
+    status        TEXT NOT NULL,                 -- Open / Partial / Closed / Cancelled
+    total_cost    REAL DEFAULT 0.0,
+    wo_id         TEXT,                          -- FK → work_order (outside_service POs)
+    service_id    TEXT,                          -- FK → service (outside_service POs)
+    buyer_id      TEXT DEFAULT 'BUYER-1',
+    site_id       TEXT DEFAULT 'SITE-1',
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS po_line (
+    line_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id            TEXT NOT NULL,              -- FK → purchase_order
+    part_id          TEXT NOT NULL,              -- FK → part
+    part_description TEXT NOT NULL,
+    quantity         REAL NOT NULL,
+    unit_cost        REAL NOT NULL,
+    line_total       REAL NOT NULL,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS receiving (
+    receipt_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id             TEXT NOT NULL,             -- FK → purchase_order
+    supplier_id       TEXT NOT NULL,             -- FK → suppliers
+    part_id           TEXT NOT NULL,             -- FK → part
+    quantity_ordered  REAL NOT NULL,
+    quantity_received REAL NOT NULL,
+    receipt_date      DATE NOT NULL,
+    inspection_status TEXT NOT NULL DEFAULT 'Pending',  -- Pending / Passed / Failed / Waived
+    cert_required     INTEGER DEFAULT 0,         -- 1 = CoC / FAI / 8130-3 required
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS invoice_header (
+    invoice_id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    po_id                  TEXT NOT NULL,        -- FK → purchase_order
+    supplier_id            TEXT NOT NULL,        -- FK → suppliers
+    invoice_number         TEXT NOT NULL UNIQUE,
+    invoice_date           DATE NOT NULL,
+    due_date               DATE NOT NULL,
+    amount_dollars         REAL NOT NULL,
+    status                 TEXT NOT NULL DEFAULT 'Open',  -- Open / Paid / Disputed / Void
+    payment_date           DATE,
+    three_way_match_status TEXT DEFAULT 'Pending',        -- Pending / Matched / Exception
+    created_at             DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS certification (
+    cert_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    receipt_id  INTEGER,                         -- FK → receiving (NULL = stand-alone cert)
+    part_id     TEXT NOT NULL,                   -- FK → part
+    supplier_id TEXT NOT NULL,                   -- FK → suppliers
+    cert_type   TEXT NOT NULL,                   -- CoC / FAI / PPAP / 8130-3 / Material_Test_Report
+    issued_date DATE NOT NULL,
+    expiry_date DATE,
+    status      TEXT DEFAULT 'Active' CHECK(status IN ('Active','Expired','Revoked')),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS shop_resource (
+    resource_id     TEXT PRIMARY KEY,
+    description     TEXT NOT NULL,
+    resource_type   TEXT NOT NULL CHECK(resource_type IN ('M','L','S')),
+    -- M=Machine  L=Labor  S=Outside Service bucket
+    run_cost_per_hr REAL DEFAULT 0.0,
+    bur_per_hr_run  REAL DEFAULT 0.0,
+    active          INTEGER DEFAULT 1,
+    created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS service (
+    service_id     TEXT PRIMARY KEY,
+    description    TEXT NOT NULL,
+    default_vendor TEXT,                         -- FK → suppliers
+    base_charge    REAL DEFAULT 0.0,
+    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS work_order (
+    wo_id            TEXT PRIMARY KEY,           -- e.g. WO-240001
+    workorder_type   TEXT NOT NULL CHECK(workorder_type IN ('M','W')),
+    -- M=Manufacturing  W=Rework
+    part_id          TEXT NOT NULL,              -- FK → part
+    part_description TEXT NOT NULL,
+    quantity         REAL NOT NULL,
+    status           TEXT NOT NULL,              -- Open / Released / Closed / Cancelled
+    open_date        DATE,
+    close_date       DATE,
+    required_date    DATE,
+    routing_template TEXT,                       -- AIRFRAME / FASTENER / MACHINED / WELDMENT
+    act_lab_cost     REAL DEFAULT 0.0,
+    act_bur_cost     REAL DEFAULT 0.0,
+    act_ser_cost     REAL DEFAULT 0.0,
+    act_mat_cost     REAL DEFAULT 0.0,
+    outside_service  INTEGER DEFAULT 0,          -- 1 if any op routes outside
+    site_id          TEXT DEFAULT 'SITE-1',
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS operation (
+    rowid_pk           INTEGER PRIMARY KEY AUTOINCREMENT,
+    wo_id              TEXT NOT NULL,            -- FK → work_order
+    workorder_type     TEXT NOT NULL,
+    sequence_no        INTEGER NOT NULL,         -- multiples of 10
+    resource_id        TEXT NOT NULL,            -- FK → shop_resource
+    service_id         TEXT,                     -- FK → service (outside ops only)
+    vendor_id          TEXT,                     -- FK → suppliers (outside ops only)
+    run_type           TEXT DEFAULT 'HR',        -- HR=per hour  PC=per piece
+    setup_hrs          REAL DEFAULT 0.0,
+    run_hrs            REAL DEFAULT 0.0,
+    act_setup_hrs      REAL DEFAULT 0.0,
+    act_run_hrs        REAL DEFAULT 0.0,
+    est_atl_lab_cost   REAL DEFAULT 0.0,
+    est_atl_bur_cost   REAL DEFAULT 0.0,
+    est_atl_ser_cost   REAL DEFAULT 0.0,
+    act_atl_lab_cost   REAL DEFAULT 0.0,
+    act_atl_bur_cost   REAL DEFAULT 0.0,
+    act_atl_ser_cost   REAL DEFAULT 0.0,
+    status             TEXT DEFAULT 'Q',         -- Q=Queued  S=Started  C=Complete
+    sched_start_date   DATETIME,
+    sched_finish_date  DATETIME,
+    service_begin_date DATETIME,
+    close_date         DATETIME,
+    last_disp_date     DATETIME,                 -- last outside-service dispatch date
+    last_recv_date     DATETIME,                 -- last outside-service receipt date
+    UNIQUE(wo_id, sequence_no)
+);
+
+CREATE TABLE IF NOT EXISTS material_issue (
+    issue_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    wo_id            TEXT NOT NULL,              -- FK → work_order
+    part_id          TEXT NOT NULL,              -- FK → part
+    part_description TEXT NOT NULL,
+    quantity         REAL NOT NULL,
+    unit_cost        REAL NOT NULL,
+    total_cost       REAL NOT NULL,
+    issue_date       DATE NOT NULL,
+    issued_by        TEXT NOT NULL,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS labor_ticket (
+    ticket_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    wo_id       TEXT NOT NULL,                   -- FK → work_order
+    sequence_no INTEGER NOT NULL,                -- matches operation.sequence_no
+    employee_id TEXT NOT NULL,
+    resource_id TEXT NOT NULL,                   -- FK → shop_resource
+    clock_in    DATETIME NOT NULL,
+    clock_out   DATETIME NOT NULL,
+    total_hours REAL NOT NULL,
+    labor_cost  REAL NOT NULL,                   -- total_hours × run_cost_per_hr
+    burden_cost REAL NOT NULL,                   -- total_hours × bur_per_hr_run
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Ground truth query → table usage index (also created at runtime by solder_engine.py)
