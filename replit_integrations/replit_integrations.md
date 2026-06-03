@@ -5,6 +5,43 @@ from this public repo's root via `PYTHONPATH`.
 
 ---
 
+## ⚠️ Runtime Path Execution Constraints
+
+The local private repository maps SQLMesh models under nested structures
+(`SQL-Projects/Utilities/SQLMesh/`).
+
+### Path Alignment Rules (queue-router-agent)
+- When initializing SQLMesh contexts via Python runtimes, the execution engine must
+  explicitly prepend the `SQL-Projects` parent directory to `sys.path` or set the
+  local shell's `PYTHONPATH` variable.
+- This prevents `ModuleNotFoundError: No module named 'Utilities'` failures during
+  model loading passes.
+
+---
+
+## 📐 Approved Architectural Decisions (Plan-008 Integration)
+
+### 1. Query Performance Strategy
+- **Decision:** Option A — Execute direct database queries on every function invocation.
+- **Rationale:** Keeps memory footprints minimal within the Replit container. Since
+  metadata operations pull trivial row counts from a local SQLite instance, the overhead
+  is negligible and guarantees fresh, synchronized data states.
+
+### 2. Architecture Layout & Modularization
+- **Decision:** Option A — Implement procedural, module-level functional exports.
+- **Rationale:** Preserves complete functional symmetry with production automation
+  scripts inside `scripts/`. Avoids complex class instantiations or connection-pooling
+  mechanisms where simple contextual handles are sufficient.
+
+### 3. Cross-Repository Graph Validation
+- **Decision:** Option B — Include offline ArangoDB `_key` format assertions directly
+  in the metadata demo workflows.
+- **Rationale:** Validates that key patterns match standard string conventions
+  (e.g., double-colon layout `prefix::TABLE.COLUMN`) directly from SQLite records,
+  ensuring graph sync readiness without establishing live network transports.
+
+---
+
 ## Graph Metadata Extraction
 
 ### What these modules do
