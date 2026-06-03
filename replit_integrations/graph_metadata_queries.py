@@ -95,6 +95,166 @@ def get_graph_metadata(
     return df
 
 
+def get_table_columns(
+    table_name: str,
+    db_path: str = None,
+) -> "pd.DataFrame":
+    """Return column metadata for a table via PRAGMA table_info().
+
+    SQLite has no ``information_schema``.  This function is the canonical
+    replacement: it calls ``PRAGMA table_info(<table>)`` and returns the
+    result as a DataFrame with human-readable column names.
+
+    Args:
+        table_name: Physical table name in manufacturing.db.
+        db_path:    Absolute path to manufacturing.db.  When ``None`` the
+                    path is resolved by :func:`get_manufacturing_db_path`.
+
+    Returns:
+        DataFrame with columns:
+            cid           – 0-based column index
+            name          – column name
+            type          – declared type (TEXT / INTEGER / REAL / BLOB / …)
+            notnull       – 1 if NOT NULL constraint present, else 0
+            default_value – default expression, or None
+            pk            – 1 if column is part of the PRIMARY KEY, else 0
+
+    Raises:
+        FileNotFoundError:        If the database file cannot be located.
+        sqlite3.OperationalError: If the table does not exist.
+    """
+    if db_path is None:
+        db_path = get_manufacturing_db_path()
+
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        if not rows:
+            raise sqlite3.OperationalError(
+                f"PRAGMA table_info returned no rows for table '{table_name}'. "
+                "Check that the table exists."
+            )
+        df = pd.DataFrame(
+            rows,
+            columns=["cid", "name", "type", "notnull", "default_value", "pk"],
+        )
+    finally:
+        conn.close()
+
+    return df
+
+
+def get_table_foreign_keys(
+    table_name: str,
+    db_path: str = None,
+) -> "pd.DataFrame":
+    """Return foreign-key constraints for a table via PRAGMA foreign_key_list().
+
+    SQLite stores FK metadata in PRAGMA, not in information_schema.
+    Returns an empty DataFrame (with column names) when the table has no FKs.
+
+    Args:
+        table_name: Physical table name in manufacturing.db.
+        db_path:    Absolute path to manufacturing.db.  When ``None`` the
+                    path is resolved by :func:`get_manufacturing_db_path`.
+
+    Returns:
+        DataFrame with columns:
+            fk_id       – FK constraint index (0-based, per SQLite)
+            seq         – column sequence within the FK (for composite FKs)
+            ref_table   – referenced (parent) table name
+            from_col    – column in this table that carries the FK value
+            to_col      – column in the parent table being referenced
+            on_update   – referential action on UPDATE (NO ACTION / CASCADE / …)
+            on_delete   – referential action on DELETE
+            match       – MATCH clause (NONE for most SQLite FKs)
+
+    Raises:
+        FileNotFoundError:        If the database file cannot be located.
+        sqlite3.OperationalError: If the table does not exist.
+    """
+    if db_path is None:
+        db_path = get_manufacturing_db_path()
+
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(f"PRAGMA foreign_key_list({table_name})").fetchall()
+        df = pd.DataFrame(
+            rows,
+            columns=["fk_id", "seq", "ref_table", "from_col", "to_col",
+                     "on_update", "on_delete", "match"],
+        )
+    finally:
+        conn.close()
+
+    return df
+
+
+def get_all_table_names(
+    include_views: bool = False,
+    db_path: str = None,
+) -> "pd.DataFrame":
+    """Return every physical table name from sqlite_master.
+
+    Uses ``sqlite_master`` (the SQLite equivalent of
+    ``information_schema.tables``) rather than PRAGMA so the result
+    flows through the standard :func:`get_graph_metadata` path.
+
+    Args:
+        include_views: When ``True`` also return rows with type='view'.
+        db_path:       Absolute path to manufacturing.db.
+
+    Returns:
+        DataFrame with columns:
+            name  – table (or view) name
+            type  – 'table' or 'view'
+            sql   – the original CREATE TABLE / CREATE VIEW statement
+    """
+    types = "('table', 'view')" if include_views else "('table')"
+    query = (
+        f"SELECT name, type, sql FROM sqlite_master "
+        f"WHERE type IN {types} AND name NOT LIKE 'sqlite_%' "
+        f"ORDER BY name"
+    )
+    return get_graph_metadata(query, db_path=db_path)
+
+
+def get_table_index_info(
+    table_name: str,
+    db_path: str = None,
+) -> "pd.DataFrame":
+    """Return index metadata for a table via PRAGMA index_list() + index_info().
+
+    Args:
+        table_name: Physical table name in manufacturing.db.
+        db_path:    Absolute path to manufacturing.db.
+
+    Returns:
+        DataFrame with columns:
+            index_name  – index name (auto-named or user-defined)
+            unique      – 1 if unique index, else 0
+            col_rank    – ordinal position of column within the index
+            col_name    – column name covered by the index
+    """
+    if db_path is None:
+        db_path = get_manufacturing_db_path()
+
+    conn = sqlite3.connect(db_path)
+    try:
+        indexes = conn.execute(f"PRAGMA index_list({table_name})").fetchall()
+        rows = []
+        for idx in indexes:
+            idx_name, unique = idx[1], idx[2]
+            cols = conn.execute(f"PRAGMA index_info({idx_name})").fetchall()
+            for col in cols:
+                rows.append((idx_name, unique, col[0], col[2]))
+        df = pd.DataFrame(rows, columns=["index_name", "unique", "col_rank", "col_name"])
+    finally:
+        conn.close()
+
+    return df
+
+
 def close_connection() -> None:
     """Resource cleanup stub.
 

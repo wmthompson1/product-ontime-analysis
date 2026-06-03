@@ -8,11 +8,44 @@ Pass the return value directly to ``get_graph_metadata()`` in graph_metadata_que
 All queries are read-only SELECTs against the semantic layer tables defined in
 hf-space-inventory-sqlgen/app_schema/schema_sqlite.sql.
 
-Usage:
-    from replit_integrations.graph_metadata_queries import get_graph_metadata
-    from replit_integrations.metadata_query_templates import list_perspectives
+─── SQLite vs information_schema ──────────────────────────────────────────────
+SQLite has no information_schema.  Use these equivalents instead:
 
+  information_schema.columns          → PRAGMA table_info(<table>)
+  information_schema.table_constraints→ PRAGMA foreign_key_list(<table>)
+  information_schema.tables           → sqlite_master WHERE type='table'
+  information_schema.indexes          → PRAGMA index_list / index_info
+
+The functions below that wrap sqlite_master return plain SQL strings and work
+directly with get_graph_metadata().
+
+PRAGMA calls (table_info, foreign_key_list, index_list) are NOT valid SQL
+strings for pd.read_sql_query — use the dedicated wrappers in
+graph_metadata_queries.py instead:
+
+    get_table_columns(table_name)       → DataFrame  (PRAGMA table_info)
+    get_table_foreign_keys(table_name)  → DataFrame  (PRAGMA foreign_key_list)
+    get_table_index_info(table_name)    → DataFrame  (PRAGMA index_list/info)
+    get_all_table_names()               → DataFrame  (sqlite_master)
+───────────────────────────────────────────────────────────────────────────────
+
+Usage:
+    from replit_integrations.graph_metadata_queries import (
+        get_graph_metadata, get_table_columns, get_table_foreign_keys,
+    )
+    from replit_integrations.metadata_query_templates import (
+        list_perspectives, sqlite_all_erp_tables,
+    )
+
+    # Semantic-layer query (regular SQL)
     df = get_graph_metadata(list_perspectives())
+
+    # Structural introspection (PRAGMA wrapper)
+    cols = get_table_columns("purchase_order")
+    fks  = get_table_foreign_keys("po_line")
+
+    # sqlite_master query (regular SQL, works with get_graph_metadata)
+    tables = get_graph_metadata(sqlite_all_erp_tables())
 """
 
 
@@ -412,4 +445,144 @@ JOIN schema_intent_concepts sic
 JOIN schema_concepts sc ON sc.concept_id = sic.concept_id
 WHERE sic.concept_id = ?
 ORDER BY cb.intent_name, cb.slot_name
+""".strip()
+
+
+# =============================================================================
+# SQLITE INTROSPECTION queries  (sqlite_master — information_schema equivalent)
+# =============================================================================
+#
+# SQLite has no information_schema.  Use these patterns instead:
+#
+#   information_schema.tables        → sqlite_master WHERE type='table'
+#   information_schema.columns       → PRAGMA table_info(<table>)        *
+#   information_schema.key_col_usage → PRAGMA foreign_key_list(<table>)  *
+#   information_schema.statistics    → PRAGMA index_list / index_info     *
+#
+# * PRAGMA calls are NOT valid SQL strings — use the dedicated wrappers in
+#   graph_metadata_queries.py (get_table_columns, get_table_foreign_keys,
+#   get_table_index_info) which return DataFrames directly.
+#
+# The functions below return plain SQL strings that work with
+# get_graph_metadata() because they query sqlite_master as a normal table.
+# =============================================================================
+
+
+def sqlite_all_erp_tables() -> str:
+    """Return all non-system user tables from sqlite_master.
+
+    Equivalent to:
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public'
+
+    Excludes internal SQLite tables (names starting with ``sqlite_``).
+
+    Columns: name (table name), sql (CREATE TABLE statement)
+    """
+    return """
+SELECT
+    name,
+    sql
+FROM sqlite_master
+WHERE type = 'table'
+  AND name NOT LIKE 'sqlite_%'
+ORDER BY name
+""".strip()
+
+
+def sqlite_table_ddl(table_name: str) -> str:
+    """Return the original CREATE TABLE statement for a specific table.
+
+    Equivalent to retrieving a single row from information_schema.tables
+    and reconstructing its DDL.  SQLite stores the verbatim CREATE TABLE
+    SQL in sqlite_master, so this is exact — not reconstructed.
+
+    Args:
+        table_name: Physical table name, e.g. ``'purchase_order'``.
+
+    Returns:
+        SQL string with a single ``?`` placeholder; pass ``[table_name]``
+        as the ``params`` argument to ``get_graph_metadata()``.
+
+    Columns: name, sql
+    """
+    return """
+SELECT
+    name,
+    sql
+FROM sqlite_master
+WHERE type = 'table'
+  AND name = ?
+""".strip()
+
+
+def sqlite_schema_summary() -> str:
+    """Return a compact summary of all objects in sqlite_master.
+
+    Covers tables, views, indexes, and triggers — the full scope of
+    objects that information_schema would expose across multiple views.
+
+    Columns: type, name, tbl_name (parent table for indexes/triggers)
+    """
+    return """
+SELECT
+    type,
+    name,
+    tbl_name
+FROM sqlite_master
+WHERE name NOT LIKE 'sqlite_%'
+ORDER BY type, name
+""".strip()
+
+
+def sqlite_erp_column_inventory() -> str:
+    """Cross-table column inventory for all registered ERP tables.
+
+    Joins schema_nodes (ERP table registry) with api_field_descriptions
+    to produce a single flat view of every documented column.
+
+    Use get_table_columns(table_name) from graph_metadata_queries to get
+    the physical PRAGMA-level column definitions (type, notnull, pk, etc.).
+    This query surfaces the *semantic* column descriptions layer on top.
+
+    Columns: table_name, column_name, display_name, description, example_value
+    """
+    return """
+SELECT
+    sn.table_name,
+    afd.column_name,
+    afd.display_name,
+    afd.description,
+    afd.example_value
+FROM schema_nodes sn
+LEFT JOIN api_field_descriptions afd
+       ON afd.table_name = sn.table_name
+WHERE sn.table_type = 'Table'
+ORDER BY sn.table_name, afd.column_name
+""".strip()
+
+
+def sqlite_fk_graph_vs_schema_edges() -> str:
+    """Cross-reference schema_edges (semantic FK registry) against schema_nodes.
+
+    Returns the join graph — every registered FK edge enriched with the
+    descriptions of both the source and target tables.  Useful for validating
+    that schema_edges covers all ERP table relationships.
+
+    Columns: edge_id, from_table, from_desc, to_table, to_desc,
+             join_column, natural_language_alias
+    """
+    return """
+SELECT
+    se.edge_id,
+    se.from_table,
+    sn_from.description   AS from_desc,
+    se.to_table,
+    sn_to.description     AS to_desc,
+    se.join_column,
+    se.natural_language_alias
+FROM schema_edges se
+LEFT JOIN schema_nodes sn_from ON sn_from.table_name = se.from_table
+LEFT JOIN schema_nodes sn_to   ON sn_to.table_name   = se.to_table
+ORDER BY se.from_table, se.to_table
 """.strip()

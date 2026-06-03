@@ -13,17 +13,17 @@
 -- an existing database.
 
 CREATE TABLE IF NOT EXISTS schema_edges (
-    edge_id INTEGER NOT NULL,
-    from_table TEXT,
-    to_table TEXT,
-    relationship_type TEXT,
-    join_column TEXT,
-    weight INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    join_column_description text,
+    edge_id                INTEGER PRIMARY KEY,   -- unique FK edge id; INSERT OR IGNORE is idempotent
+    from_table             TEXT,
+    to_table               TEXT,
+    relationship_type      TEXT,
+    join_column            TEXT,
+    weight                 INTEGER DEFAULT 1,
+    created_at             DATETIME DEFAULT CURRENT_TIMESTAMP,
+    join_column_description TEXT,
     natural_language_alias TEXT,
-    few_shot_example text,
-    context text
+    few_shot_example       TEXT,
+    context                TEXT
 );
 
 CREATE TABLE IF NOT EXISTS schema_nodes (
