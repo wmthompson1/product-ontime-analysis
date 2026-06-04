@@ -339,6 +339,97 @@
             "created_at": "2026-02-10T23:07:52.850232",
             "reviewed_at": "2026-04-10T17:34:07.938805",
             "archived_reason": "References empty PoC tables dropped in drop_poc_tables migration"
+        },
+        "operations_oeeoperational_20260604_000007": {
+            "concept_anchor": "OEEOPERATIONAL",
+            "perspective": "Operations",
+            "category": "equipment_reliability",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/operations_oeeoperational_20260604_000007.sql",
+            "sme_justification": "OEE operational proxy: actual vs. scheduled run hours per active shop resource, grouped by resource for shift-level line efficiency and throughput reporting",
+            "validation_status": "APPROVED",
+            "binding_key": "operations_oeeoperational_20260604_000007",
+            "created_at": "2026-06-04T00:00:07Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:07Z"
+        },
+        "operations_oeestrategic_20260604_000008": {
+            "concept_anchor": "OEESTRATEGIC",
+            "perspective": "Operations",
+            "category": "equipment_reliability",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/operations_oeestrategic_20260604_000008.sql",
+            "sme_justification": "OEE strategic proxy: cost efficiency and utilization aggregated by resource type for capital investment, capacity planning, and equipment replacement decisions",
+            "validation_status": "APPROVED",
+            "binding_key": "operations_oeestrategic_20260604_000008",
+            "created_at": "2026-06-04T00:00:08Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:08Z"
+        },
+        "operations_equipmentstatemaintenance_20260604_000009": {
+            "concept_anchor": "EQUIPMENTSTATEMAINTENANCE",
+            "perspective": "Operations",
+            "category": "equipment_reliability",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/operations_equipmentstatemaintenance_20260604_000009.sql",
+            "sme_justification": "Maintenance scheduling view: open-operation count, remaining run hours, and last close date per active shop resource — identifies resources due for PM or blocked by open operations",
+            "validation_status": "APPROVED",
+            "binding_key": "operations_equipmentstatemaintenance_20260604_000009",
+            "created_at": "2026-06-04T00:00:09Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:09Z"
+        },
+        "operations_equipmentstatecompliance_20260604_000010": {
+            "concept_anchor": "EQUIPMENTSTATECOMPLIANCE",
+            "perspective": "Quality",
+            "category": "equipment_reliability",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/operations_equipmentstatecompliance_20260604_000010.sql",
+            "sme_justification": "Compliance view: cert-required receipts with inspection and certificate status joined to shop resources — verifies cert-required material processed on each resource has a current certificate",
+            "validation_status": "APPROVED",
+            "binding_key": "operations_equipmentstatecompliance_20260604_000010",
+            "created_at": "2026-06-04T00:00:10Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:10Z"
+        },
+        "operations_equipmentstateproduction_20260604_000011": {
+            "concept_anchor": "EQUIPMENTSTATEPRODUCTION",
+            "perspective": "Manufacturing",
+            "category": "equipment_reliability",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/operations_equipmentstateproduction_20260604_000011.sql",
+            "sme_justification": "Production scheduling view: active shop resources with their current open work order operations, scheduled windows, and estimated cost — used by supervisors for machine loading and scheduling decisions",
+            "validation_status": "APPROVED",
+            "binding_key": "operations_equipmentstateproduction_20260604_000011",
+            "created_at": "2026-06-04T00:00:11Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:11Z"
+        },
+        "sales_ordercustomerstate_20260604_000012": {
+            "concept_anchor": "ORDERCUSTOMERSTATE",
+            "perspective": "Customer",
+            "category": "production_analytics",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/sales_ordercustomerstate_20260604_000012.sql",
+            "sme_justification": "Customer-facing work order delivery status: classifies each order as On Time, Late, Overdue, At Risk, or On Schedule against required delivery dates",
+            "validation_status": "APPROVED",
+            "binding_key": "sales_ordercustomerstate_20260604_000012",
+            "created_at": "2026-06-04T00:00:12Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:12Z"
+        },
+        "operations_deliveryperformanceops_20260604_000013": {
+            "concept_anchor": "DELIVERYPERFORMANCEOPS",
+            "perspective": "Operations",
+            "category": "delivery_performance",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/operations_deliveryperformanceops_20260604_000013.sql",
+            "sme_justification": "Operations delivery performance: inbound on-time receipt rate per PO compared to required date — flags overdue open POs for expediting and tracks material delivery reliability",
+            "validation_status": "APPROVED",
+            "binding_key": "operations_deliveryperformanceops_20260604_000013",
+            "created_at": "2026-06-04T00:00:13Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-06-04T00:00:13Z"
         }
     }
 }
