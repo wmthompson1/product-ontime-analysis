@@ -1,70 +1,153 @@
-subject	predicate	object	weight	subject_type	object_type
-General_Ledger	USES_DEFINITION	concept#12	3	perspective	concept
-General_Ledger	USES_DEFINITION	concept#14	3	perspective	concept
-Payables	USES_DEFINITION	DefectSeverityCost	3	perspective	concept
-Payables	USES_DEFINITION	concept#5	2	perspective	concept
-Payables	USES_DEFINITION	DeliveryPerformanceFinance	2	perspective	concept
-Payables	USES_DEFINITION	concept#15	2	perspective	concept
-Payables	USES_DEFINITION	concept#17	3	perspective	concept
-Payables	USES_DEFINITION	concept#19	2	perspective	concept
-Quality	USES_DEFINITION	DefectSeverityQuality	3	perspective	concept
-Quality	USES_DEFINITION	DeliveryPerformanceSupplier	2	perspective	concept
-Quality	USES_DEFINITION	concept#16	3	perspective	concept
-Receivables	USES_DEFINITION	DefectSeverityCustomer	3	perspective	concept
-Receivables	USES_DEFINITION	concept#6	3	perspective	concept
-Receivables	USES_DEFINITION	DeliveryPerformanceSupplier	2	perspective	concept
-Work_Orders	USES_DEFINITION	concept#4	2	perspective	concept
-Work_Orders	USES_DEFINITION	DeliveryPerformanceOps	3	perspective	concept
-Work_Orders	USES_DEFINITION	concept#10	2	perspective	concept
-Work_Orders	USES_DEFINITION	concept#11	2	perspective	concept
-Work_Orders	USES_DEFINITION	concept#13	3	perspective	concept
-Work_Orders	USES_DEFINITION	concept#18	3	perspective	concept
-CRM	OPERATES_WITHIN	crm_customer_revenue	1	perspective	intent
-Finance	OPERATES_WITHIN	defect_cost_analysis	1	perspective	intent
-Payables	OPERATES_WITHIN	defect_cost_analysis	1	perspective	intent
-Payables	OPERATES_WITHIN	supplier_cost_penalties	1	perspective	intent
-Payables	OPERATES_WITHIN	supplier_payables_exposure	1	perspective	intent
-Payables	OPERATES_WITHIN	supplier_scorecard	1	perspective	intent
-Quality	OPERATES_WITHIN	defect_quality_trending	1	perspective	intent
-Quality	OPERATES_WITHIN	supplier_scorecard	1	perspective	intent
-Receivables	OPERATES_WITHIN	crm_customer_address_lookup	1	perspective	intent
-Receivables	OPERATES_WITHIN	crm_customer_profile	1	perspective	intent
-Receivables	OPERATES_WITHIN	crm_customer_revenue	1	perspective	intent
-Receivables	OPERATES_WITHIN	defect_customer_impact	1	perspective	intent
-defect_cost_analysis	ELEVATES	DefectSeverityCost	1	intent	concept
-defect_cost_analysis	ELEVATES	DefectSeverityCustomer	0	intent	concept
-defect_cost_analysis	ELEVATES	DefectSeverityQuality	0	intent	concept
-defect_customer_impact	ELEVATES	DefectSeverityCustomer	1	intent	concept
-defect_customer_impact	ELEVATES	DefectSeverityCost	0	intent	concept
-defect_customer_impact	ELEVATES	DefectSeverityQuality	0	intent	concept
-defect_quality_trending	ELEVATES	DefectSeverityQuality	1	intent	concept
-defect_quality_trending	ELEVATES	DefectSeverityCost	0	intent	concept
-defect_quality_trending	ELEVATES	DefectSeverityCustomer	0	intent	concept
-supplier_cost_penalties	ELEVATES	DeliveryPerformanceFinance	1	intent	concept
-supplier_cost_penalties	ELEVATES	DeliveryPerformanceOps	0	intent	concept
-supplier_cost_penalties	ELEVATES	DeliveryPerformanceSupplier	0	intent	concept
-supplier_scorecard	ELEVATES	DeliveryPerformanceSupplier	1	intent	concept
-supplier_scorecard	ELEVATES	DeliveryPerformanceFinance	0	intent	concept
-supplier_scorecard	ELEVATES	DeliveryPerformanceOps	0	intent	concept
-DefectSeverityCost	CAN_MEAN	stg_manufacturing_flat.ncm_cost	0	concept	column
-DefectSeverityCustomer	CAN_MEAN	stg_manufacturing_flat.customer_impact_flag	0	concept	column
-DefectSeverityQuality	CAN_MEAN	stg_manufacturing_flat.quality_score	0	concept	column
-certification	FOREIGN_KEY	part	1	table	table
-certification	FOREIGN_KEY	receiving	1	table	table
-invoice_header	FOREIGN_KEY	purchase_order	1	table	table
-invoice_header	FOREIGN_KEY	suppliers	1	table	table
-labor_ticket	FOREIGN_KEY	work_order	1	table	table
-material_issue	FOREIGN_KEY	part	1	table	table
-material_issue	FOREIGN_KEY	work_order	1	table	table
-operation	FOREIGN_KEY	service	1	table	table
-operation	FOREIGN_KEY	shop_resource	1	table	table
-operation	FOREIGN_KEY	suppliers	1	table	table
-operation	FOREIGN_KEY	work_order	1	table	table
-po_line	FOREIGN_KEY	part	1	table	table
-po_line	FOREIGN_KEY	purchase_order	1	table	table
-purchase_order	FOREIGN_KEY	suppliers	1	table	table
-purchase_order	FOREIGN_KEY	work_order	1	table	table
-receiving	FOREIGN_KEY	part	1	table	table
-receiving	FOREIGN_KEY	purchase_order	1	table	table
-receiving	FOREIGN_KEY	suppliers	1	table	table
-work_order	FOREIGN_KEY	part	1	table	table
+subject	predicate	object
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.CERT_ID
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.RECEIPT_ID
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.PART_ID
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.SUPPLIER_ID
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.CERT_TYPE
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.ISSUED_DATE
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.EXPIRY_DATE
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.STATUS
+tables/table::CERTIFICATION	has_column	columns/column::CERTIFICATION.CREATED_AT
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.INVOICE_ID
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.PO_ID
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.SUPPLIER_ID
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.INVOICE_NUMBER
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.INVOICE_DATE
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.DUE_DATE
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.AMOUNT_DOLLARS
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.STATUS
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.PAYMENT_DATE
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.THREE_WAY_MATCH_STATUS
+tables/table::INVOICE_HEADER	has_column	columns/column::INVOICE_HEADER.CREATED_AT
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.TICKET_ID
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.WO_ID
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.SEQUENCE_NO
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.EMPLOYEE_ID
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.RESOURCE_ID
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.CLOCK_IN
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.CLOCK_OUT
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.TOTAL_HOURS
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.LABOR_COST
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.BURDEN_COST
+tables/table::LABOR_TICKET	has_column	columns/column::LABOR_TICKET.CREATED_AT
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.ISSUE_ID
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.WO_ID
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.PART_ID
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.PART_DESCRIPTION
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.QUANTITY
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.UNIT_COST
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.TOTAL_COST
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.ISSUE_DATE
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.ISSUED_BY
+tables/table::MATERIAL_ISSUE	has_column	columns/column::MATERIAL_ISSUE.CREATED_AT
+tables/table::OPERATION	has_column	columns/column::OPERATION.ROWID_PK
+tables/table::OPERATION	has_column	columns/column::OPERATION.WO_ID
+tables/table::OPERATION	has_column	columns/column::OPERATION.WORKORDER_TYPE
+tables/table::OPERATION	has_column	columns/column::OPERATION.SEQUENCE_NO
+tables/table::OPERATION	has_column	columns/column::OPERATION.RESOURCE_ID
+tables/table::OPERATION	has_column	columns/column::OPERATION.SERVICE_ID
+tables/table::OPERATION	has_column	columns/column::OPERATION.VENDOR_ID
+tables/table::OPERATION	has_column	columns/column::OPERATION.RUN_TYPE
+tables/table::OPERATION	has_column	columns/column::OPERATION.SETUP_HRS
+tables/table::OPERATION	has_column	columns/column::OPERATION.RUN_HRS
+tables/table::OPERATION	has_column	columns/column::OPERATION.ACT_SETUP_HRS
+tables/table::OPERATION	has_column	columns/column::OPERATION.ACT_RUN_HRS
+tables/table::OPERATION	has_column	columns/column::OPERATION.EST_ATL_LAB_COST
+tables/table::OPERATION	has_column	columns/column::OPERATION.EST_ATL_BUR_COST
+tables/table::OPERATION	has_column	columns/column::OPERATION.EST_ATL_SER_COST
+tables/table::OPERATION	has_column	columns/column::OPERATION.ACT_ATL_LAB_COST
+tables/table::OPERATION	has_column	columns/column::OPERATION.ACT_ATL_BUR_COST
+tables/table::OPERATION	has_column	columns/column::OPERATION.ACT_ATL_SER_COST
+tables/table::OPERATION	has_column	columns/column::OPERATION.STATUS
+tables/table::OPERATION	has_column	columns/column::OPERATION.SCHED_START_DATE
+tables/table::OPERATION	has_column	columns/column::OPERATION.SCHED_FINISH_DATE
+tables/table::OPERATION	has_column	columns/column::OPERATION.SERVICE_BEGIN_DATE
+tables/table::OPERATION	has_column	columns/column::OPERATION.CLOSE_DATE
+tables/table::OPERATION	has_column	columns/column::OPERATION.LAST_DISP_DATE
+tables/table::OPERATION	has_column	columns/column::OPERATION.LAST_RECV_DATE
+tables/table::PART	has_column	columns/column::PART.PART_ID
+tables/table::PART	has_column	columns/column::PART.PART_DESCRIPTION
+tables/table::PART	has_column	columns/column::PART.PART_CLASS
+tables/table::PART	has_column	columns/column::PART.UNIT_OF_MEASURE
+tables/table::PART	has_column	columns/column::PART.UNIT_COST
+tables/table::PART	has_column	columns/column::PART.LEAD_TIME_DAYS
+tables/table::PART	has_column	columns/column::PART.REORDER_POINT
+tables/table::PART	has_column	columns/column::PART.ON_HAND_QTY
+tables/table::PART	has_column	columns/column::PART.REVISION
+tables/table::PART	has_column	columns/column::PART.CAGE_CODE
+tables/table::PART	has_column	columns/column::PART.DRAWING_NUMBER
+tables/table::PART	has_column	columns/column::PART.MATERIAL_SPEC
+tables/table::PART	has_column	columns/column::PART.ACTIVE
+tables/table::PART	has_column	columns/column::PART.CREATED_AT
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.LINE_ID
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.PO_ID
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.PART_ID
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.PART_DESCRIPTION
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.QUANTITY
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.UNIT_COST
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.LINE_TOTAL
+tables/table::PO_LINE	has_column	columns/column::PO_LINE.CREATED_AT
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.PO_ID
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.SUPPLIER_ID
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.PO_TYPE
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.PO_DATE
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.REQUIRED_DATE
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.STATUS
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.TOTAL_COST
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.WO_ID
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.SERVICE_ID
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.BUYER_ID
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.SITE_ID
+tables/table::PURCHASE_ORDER	has_column	columns/column::PURCHASE_ORDER.CREATED_AT
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.RECEIPT_ID
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.PO_ID
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.SUPPLIER_ID
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.PART_ID
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.QUANTITY_ORDERED
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.QUANTITY_RECEIVED
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.RECEIPT_DATE
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.INSPECTION_STATUS
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.CERT_REQUIRED
+tables/table::RECEIVING	has_column	columns/column::RECEIVING.CREATED_AT
+tables/table::SERVICE	has_column	columns/column::SERVICE.SERVICE_ID
+tables/table::SERVICE	has_column	columns/column::SERVICE.DESCRIPTION
+tables/table::SERVICE	has_column	columns/column::SERVICE.DEFAULT_VENDOR
+tables/table::SERVICE	has_column	columns/column::SERVICE.BASE_CHARGE
+tables/table::SERVICE	has_column	columns/column::SERVICE.CREATED_AT
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.RESOURCE_ID
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.DESCRIPTION
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.RESOURCE_TYPE
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.RUN_COST_PER_HR
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.BUR_PER_HR_RUN
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.ACTIVE
+tables/table::SHOP_RESOURCE	has_column	columns/column::SHOP_RESOURCE.CREATED_AT
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.SUPPLIER_ID
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.SUPPLIER_NAME
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.CONTACT_EMAIL
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.PHONE
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.ADDRESS
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.PERFORMANCE_RATING
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.CERTIFICATION_LEVEL
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.CREATED_DATE
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.CATEGORY
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.PAYMENT_TERMS
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.LEAD_TIME_DAYS
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.OUTSIDE_SERVICE
+tables/table::SUPPLIERS	has_column	columns/column::SUPPLIERS.ACTIVE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.WO_ID
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.WORKORDER_TYPE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.PART_ID
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.PART_DESCRIPTION
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.QUANTITY
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.STATUS
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.OPEN_DATE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.CLOSE_DATE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.REQUIRED_DATE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.ROUTING_TEMPLATE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.ACT_LAB_COST
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.ACT_BUR_COST
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.ACT_SER_COST
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.ACT_MAT_COST
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.OUTSIDE_SERVICE
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.SITE_ID
+tables/table::WORK_ORDER	has_column	columns/column::WORK_ORDER.CREATED_AT

@@ -1,731 +1,3039 @@
 {
-  "generated_at": "2026-06-04T07:14:09.457510+00:00",
+  "generated_at": "2026-06-04T07:40:36.653624+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
-  "description": "Semantic graph exported from SQLite (parity view of ArangoDB manufacturing_graph).",
+  "description": "Structural containment graph exported from SQLite (parity view of the ArangoDB manufacturing_graph physical layer: tables + columns + has_column).",
   "counts": {
-    "nodes_total": 51,
-    "edges_total": 69,
+    "nodes_total": 166,
+    "edges_total": 152,
     "nodes_by_type": {
-      "column": 3,
-      "concept": 19,
-      "intent": 9,
-      "perspective": 7,
-      "table": 13
+      "table": 14,
+      "column": 152
     },
     "edges_by_predicate": {
-      "CAN_MEAN": 3,
-      "ELEVATES": 15,
-      "FOREIGN_KEY": 19,
-      "OPERATES_WITHIN": 12,
-      "USES_DEFINITION": 20
+      "has_column": 152
     }
   },
   "integrity": {
-    "unresolved_concept_refs": 13
+    "tables_without_columns": [
+      "EMPLOYEE"
+    ]
   },
   "nodes": [
     {
-      "id": "column::stg_manufacturing_flat.customer_impact_flag",
-      "label": "stg_manufacturing_flat.customer_impact_flag",
-      "type": "column"
+      "_id": "tables/table::EMPLOYEE",
+      "_key": "table::EMPLOYEE",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "EMPLOYEE",
+      "table_name": "EMPLOYEE",
+      "description": "Employee master records"
     },
     {
-      "id": "column::stg_manufacturing_flat.ncm_cost",
-      "label": "stg_manufacturing_flat.ncm_cost",
-      "type": "column"
+      "_id": "tables/table::CERTIFICATION",
+      "_key": "table::CERTIFICATION",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "CERTIFICATION",
+      "table_name": "certification",
+      "description": "Supplier certification records (CoC, FAI, PPAP, 8130-3, Material Test Report)"
     },
     {
-      "id": "column::stg_manufacturing_flat.quality_score",
-      "label": "stg_manufacturing_flat.quality_score",
-      "type": "column"
+      "_id": "tables/table::INVOICE_HEADER",
+      "_key": "table::INVOICE_HEADER",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "INVOICE_HEADER",
+      "table_name": "invoice_header",
+      "description": "AP invoice headers linked to purchase orders \u2014 three-way match and payment status"
     },
     {
-      "id": "concept::DefectSeverityCost",
-      "label": "DefectSeverityCost",
-      "type": "concept"
+      "_id": "tables/table::LABOR_TICKET",
+      "_key": "table::LABOR_TICKET",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "LABOR_TICKET",
+      "table_name": "labor_ticket",
+      "description": "Labor time postings against work order operations (clock-in/out, hours, cost)"
     },
     {
-      "id": "concept::DefectSeverityCustomer",
-      "label": "DefectSeverityCustomer",
-      "type": "concept"
+      "_id": "tables/table::MATERIAL_ISSUE",
+      "_key": "table::MATERIAL_ISSUE",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "MATERIAL_ISSUE",
+      "table_name": "material_issue",
+      "description": "Raw material issues from stock to WIP work orders (quantity, unit cost, total cost)"
     },
     {
-      "id": "concept::DefectSeverityQuality",
-      "label": "DefectSeverityQuality",
-      "type": "concept"
+      "_id": "tables/table::OPERATION",
+      "_key": "table::OPERATION",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "OPERATION",
+      "table_name": "operation",
+      "description": "Work order routing steps \u2014 sequence, resource, estimated vs actual hours and costs"
     },
     {
-      "id": "concept::DeliveryPerformanceFinance",
-      "label": "DeliveryPerformanceFinance",
-      "type": "concept"
+      "_id": "tables/table::PART",
+      "_key": "table::PART",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "PART",
+      "table_name": "part",
+      "description": "Part / item master \u2014 description, class, UOM, cost, revision, material spec, CAGE code"
     },
     {
-      "id": "concept::DeliveryPerformanceOps",
-      "label": "DeliveryPerformanceOps",
-      "type": "concept"
+      "_id": "tables/table::PO_LINE",
+      "_key": "table::PO_LINE",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "PO_LINE",
+      "table_name": "po_line",
+      "description": "Purchase order line items (part, quantity, unit cost, line total)"
     },
     {
-      "id": "concept::DeliveryPerformanceSupplier",
-      "label": "DeliveryPerformanceSupplier",
-      "type": "concept"
+      "_id": "tables/table::PURCHASE_ORDER",
+      "_key": "table::PURCHASE_ORDER",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "PURCHASE_ORDER",
+      "table_name": "purchase_order",
+      "description": "Purchase order headers for material and outside-service buys"
     },
     {
-      "id": "concept::concept#10",
-      "label": "concept#10",
-      "type": "concept",
-      "unresolved": true
+      "_id": "tables/table::RECEIVING",
+      "_key": "table::RECEIVING",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "RECEIVING",
+      "table_name": "receiving",
+      "description": "Goods receipts against purchase orders \u2014 quantity ordered vs received, inspection status"
     },
     {
-      "id": "concept::concept#11",
-      "label": "concept#11",
-      "type": "concept",
-      "unresolved": true
+      "_id": "tables/table::SERVICE",
+      "_key": "table::SERVICE",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "SERVICE",
+      "table_name": "service",
+      "description": "Outside service definitions (anodize, heat treat, NDT, plating, painting)"
     },
     {
-      "id": "concept::concept#12",
-      "label": "concept#12",
-      "type": "concept",
-      "unresolved": true
+      "_id": "tables/table::SHOP_RESOURCE",
+      "_key": "table::SHOP_RESOURCE",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "SHOP_RESOURCE",
+      "table_name": "shop_resource",
+      "description": "Shop work centers and outside-service buckets (machine, labor, service types)"
     },
     {
-      "id": "concept::concept#13",
-      "label": "concept#13",
-      "type": "concept",
-      "unresolved": true
+      "_id": "tables/table::SUPPLIERS",
+      "_key": "table::SUPPLIERS",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "SUPPLIERS",
+      "table_name": "suppliers",
+      "description": "Supplier master"
     },
     {
-      "id": "concept::concept#14",
-      "label": "concept#14",
-      "type": "concept",
-      "unresolved": true
+      "_id": "tables/table::WORK_ORDER",
+      "_key": "table::WORK_ORDER",
+      "collection": "tables",
+      "node_type": "table",
+      "label": "WORK_ORDER",
+      "table_name": "work_order",
+      "description": "Work order master \u2014 part, quantity, status, routing template, accumulated actual costs"
     },
     {
-      "id": "concept::concept#15",
-      "label": "concept#15",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.CERT_ID",
+      "_key": "column::CERTIFICATION.CERT_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.CERT_ID",
+      "table_name": "CERTIFICATION",
+      "column_name": "CERT_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#16",
-      "label": "concept#16",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.RECEIPT_ID",
+      "_key": "column::CERTIFICATION.RECEIPT_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.RECEIPT_ID",
+      "table_name": "CERTIFICATION",
+      "column_name": "RECEIPT_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#17",
-      "label": "concept#17",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.PART_ID",
+      "_key": "column::CERTIFICATION.PART_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.PART_ID",
+      "table_name": "CERTIFICATION",
+      "column_name": "PART_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#18",
-      "label": "concept#18",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.SUPPLIER_ID",
+      "_key": "column::CERTIFICATION.SUPPLIER_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.SUPPLIER_ID",
+      "table_name": "CERTIFICATION",
+      "column_name": "SUPPLIER_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#19",
-      "label": "concept#19",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.CERT_TYPE",
+      "_key": "column::CERTIFICATION.CERT_TYPE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.CERT_TYPE",
+      "table_name": "CERTIFICATION",
+      "column_name": "CERT_TYPE",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#4",
-      "label": "concept#4",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.ISSUED_DATE",
+      "_key": "column::CERTIFICATION.ISSUED_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.ISSUED_DATE",
+      "table_name": "CERTIFICATION",
+      "column_name": "ISSUED_DATE",
+      "column_type": "DATE",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#5",
-      "label": "concept#5",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.EXPIRY_DATE",
+      "_key": "column::CERTIFICATION.EXPIRY_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.EXPIRY_DATE",
+      "table_name": "CERTIFICATION",
+      "column_name": "EXPIRY_DATE",
+      "column_type": "DATE",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "concept::concept#6",
-      "label": "concept#6",
-      "type": "concept",
-      "unresolved": true
+      "_id": "columns/column::CERTIFICATION.STATUS",
+      "_key": "column::CERTIFICATION.STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.STATUS",
+      "table_name": "CERTIFICATION",
+      "column_name": "STATUS",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "intent::crm_customer_address_lookup",
-      "label": "crm_customer_address_lookup",
-      "type": "intent"
+      "_id": "columns/column::CERTIFICATION.CREATED_AT",
+      "_key": "column::CERTIFICATION.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "CERTIFICATION.CREATED_AT",
+      "table_name": "CERTIFICATION",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::CERTIFICATION"
     },
     {
-      "id": "intent::crm_customer_profile",
-      "label": "crm_customer_profile",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.INVOICE_ID",
+      "_key": "column::INVOICE_HEADER.INVOICE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.INVOICE_ID",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "INVOICE_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::crm_customer_revenue",
-      "label": "crm_customer_revenue",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.PO_ID",
+      "_key": "column::INVOICE_HEADER.PO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.PO_ID",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "PO_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::defect_cost_analysis",
-      "label": "defect_cost_analysis",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.SUPPLIER_ID",
+      "_key": "column::INVOICE_HEADER.SUPPLIER_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.SUPPLIER_ID",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "SUPPLIER_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::defect_customer_impact",
-      "label": "defect_customer_impact",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.INVOICE_NUMBER",
+      "_key": "column::INVOICE_HEADER.INVOICE_NUMBER",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.INVOICE_NUMBER",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "INVOICE_NUMBER",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::defect_quality_trending",
-      "label": "defect_quality_trending",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.INVOICE_DATE",
+      "_key": "column::INVOICE_HEADER.INVOICE_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.INVOICE_DATE",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "INVOICE_DATE",
+      "column_type": "DATE",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::supplier_cost_penalties",
-      "label": "supplier_cost_penalties",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.DUE_DATE",
+      "_key": "column::INVOICE_HEADER.DUE_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.DUE_DATE",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "DUE_DATE",
+      "column_type": "DATE",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::supplier_payables_exposure",
-      "label": "supplier_payables_exposure",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.AMOUNT_DOLLARS",
+      "_key": "column::INVOICE_HEADER.AMOUNT_DOLLARS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.AMOUNT_DOLLARS",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "AMOUNT_DOLLARS",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "intent::supplier_scorecard",
-      "label": "supplier_scorecard",
-      "type": "intent"
+      "_id": "columns/column::INVOICE_HEADER.STATUS",
+      "_key": "column::INVOICE_HEADER.STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.STATUS",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "STATUS",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "perspective::CRM",
-      "label": "CRM",
-      "type": "perspective"
+      "_id": "columns/column::INVOICE_HEADER.PAYMENT_DATE",
+      "_key": "column::INVOICE_HEADER.PAYMENT_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.PAYMENT_DATE",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "PAYMENT_DATE",
+      "column_type": "DATE",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "perspective::Finance",
-      "label": "Finance",
-      "type": "perspective"
+      "_id": "columns/column::INVOICE_HEADER.THREE_WAY_MATCH_STATUS",
+      "_key": "column::INVOICE_HEADER.THREE_WAY_MATCH_STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.THREE_WAY_MATCH_STATUS",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "THREE_WAY_MATCH_STATUS",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "perspective::General_Ledger",
-      "label": "General_Ledger",
-      "type": "perspective"
+      "_id": "columns/column::INVOICE_HEADER.CREATED_AT",
+      "_key": "column::INVOICE_HEADER.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "INVOICE_HEADER.CREATED_AT",
+      "table_name": "INVOICE_HEADER",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::INVOICE_HEADER"
     },
     {
-      "id": "perspective::Payables",
-      "label": "Payables",
-      "type": "perspective"
+      "_id": "columns/column::LABOR_TICKET.TICKET_ID",
+      "_key": "column::LABOR_TICKET.TICKET_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.TICKET_ID",
+      "table_name": "LABOR_TICKET",
+      "column_name": "TICKET_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "perspective::Quality",
-      "label": "Quality",
-      "type": "perspective"
+      "_id": "columns/column::LABOR_TICKET.WO_ID",
+      "_key": "column::LABOR_TICKET.WO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.WO_ID",
+      "table_name": "LABOR_TICKET",
+      "column_name": "WO_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "perspective::Receivables",
-      "label": "Receivables",
-      "type": "perspective"
+      "_id": "columns/column::LABOR_TICKET.SEQUENCE_NO",
+      "_key": "column::LABOR_TICKET.SEQUENCE_NO",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.SEQUENCE_NO",
+      "table_name": "LABOR_TICKET",
+      "column_name": "SEQUENCE_NO",
+      "column_type": "INTEGER",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "perspective::Work_Orders",
-      "label": "Work_Orders",
-      "type": "perspective"
+      "_id": "columns/column::LABOR_TICKET.EMPLOYEE_ID",
+      "_key": "column::LABOR_TICKET.EMPLOYEE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.EMPLOYEE_ID",
+      "table_name": "LABOR_TICKET",
+      "column_name": "EMPLOYEE_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::certification",
-      "label": "certification",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.RESOURCE_ID",
+      "_key": "column::LABOR_TICKET.RESOURCE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.RESOURCE_ID",
+      "table_name": "LABOR_TICKET",
+      "column_name": "RESOURCE_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::invoice_header",
-      "label": "invoice_header",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.CLOCK_IN",
+      "_key": "column::LABOR_TICKET.CLOCK_IN",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.CLOCK_IN",
+      "table_name": "LABOR_TICKET",
+      "column_name": "CLOCK_IN",
+      "column_type": "DATETIME",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::labor_ticket",
-      "label": "labor_ticket",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.CLOCK_OUT",
+      "_key": "column::LABOR_TICKET.CLOCK_OUT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.CLOCK_OUT",
+      "table_name": "LABOR_TICKET",
+      "column_name": "CLOCK_OUT",
+      "column_type": "DATETIME",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::material_issue",
-      "label": "material_issue",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.TOTAL_HOURS",
+      "_key": "column::LABOR_TICKET.TOTAL_HOURS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.TOTAL_HOURS",
+      "table_name": "LABOR_TICKET",
+      "column_name": "TOTAL_HOURS",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::operation",
-      "label": "operation",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.LABOR_COST",
+      "_key": "column::LABOR_TICKET.LABOR_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.LABOR_COST",
+      "table_name": "LABOR_TICKET",
+      "column_name": "LABOR_COST",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::part",
-      "label": "part",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.BURDEN_COST",
+      "_key": "column::LABOR_TICKET.BURDEN_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.BURDEN_COST",
+      "table_name": "LABOR_TICKET",
+      "column_name": "BURDEN_COST",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::po_line",
-      "label": "po_line",
-      "type": "table"
+      "_id": "columns/column::LABOR_TICKET.CREATED_AT",
+      "_key": "column::LABOR_TICKET.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "LABOR_TICKET.CREATED_AT",
+      "table_name": "LABOR_TICKET",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::LABOR_TICKET"
     },
     {
-      "id": "table::purchase_order",
-      "label": "purchase_order",
-      "type": "table"
+      "_id": "columns/column::MATERIAL_ISSUE.ISSUE_ID",
+      "_key": "column::MATERIAL_ISSUE.ISSUE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.ISSUE_ID",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "ISSUE_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::MATERIAL_ISSUE"
     },
     {
-      "id": "table::receiving",
-      "label": "receiving",
-      "type": "table"
+      "_id": "columns/column::MATERIAL_ISSUE.WO_ID",
+      "_key": "column::MATERIAL_ISSUE.WO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.WO_ID",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "WO_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
     },
     {
-      "id": "table::service",
-      "label": "service",
-      "type": "table"
+      "_id": "columns/column::MATERIAL_ISSUE.PART_ID",
+      "_key": "column::MATERIAL_ISSUE.PART_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.PART_ID",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "PART_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
     },
     {
-      "id": "table::shop_resource",
-      "label": "shop_resource",
-      "type": "table"
+      "_id": "columns/column::MATERIAL_ISSUE.PART_DESCRIPTION",
+      "_key": "column::MATERIAL_ISSUE.PART_DESCRIPTION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.PART_DESCRIPTION",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "PART_DESCRIPTION",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
     },
     {
-      "id": "table::suppliers",
-      "label": "suppliers",
-      "type": "table"
+      "_id": "columns/column::MATERIAL_ISSUE.QUANTITY",
+      "_key": "column::MATERIAL_ISSUE.QUANTITY",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.QUANTITY",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "QUANTITY",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
     },
     {
-      "id": "table::work_order",
-      "label": "work_order",
-      "type": "table"
+      "_id": "columns/column::MATERIAL_ISSUE.UNIT_COST",
+      "_key": "column::MATERIAL_ISSUE.UNIT_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.UNIT_COST",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "UNIT_COST",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
+    },
+    {
+      "_id": "columns/column::MATERIAL_ISSUE.TOTAL_COST",
+      "_key": "column::MATERIAL_ISSUE.TOTAL_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.TOTAL_COST",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "TOTAL_COST",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
+    },
+    {
+      "_id": "columns/column::MATERIAL_ISSUE.ISSUE_DATE",
+      "_key": "column::MATERIAL_ISSUE.ISSUE_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.ISSUE_DATE",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "ISSUE_DATE",
+      "column_type": "DATE",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
+    },
+    {
+      "_id": "columns/column::MATERIAL_ISSUE.ISSUED_BY",
+      "_key": "column::MATERIAL_ISSUE.ISSUED_BY",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.ISSUED_BY",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "ISSUED_BY",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
+    },
+    {
+      "_id": "columns/column::MATERIAL_ISSUE.CREATED_AT",
+      "_key": "column::MATERIAL_ISSUE.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "MATERIAL_ISSUE.CREATED_AT",
+      "table_name": "MATERIAL_ISSUE",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::MATERIAL_ISSUE"
+    },
+    {
+      "_id": "columns/column::OPERATION.ROWID_PK",
+      "_key": "column::OPERATION.ROWID_PK",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.ROWID_PK",
+      "table_name": "OPERATION",
+      "column_name": "ROWID_PK",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.WO_ID",
+      "_key": "column::OPERATION.WO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.WO_ID",
+      "table_name": "OPERATION",
+      "column_name": "WO_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.WORKORDER_TYPE",
+      "_key": "column::OPERATION.WORKORDER_TYPE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.WORKORDER_TYPE",
+      "table_name": "OPERATION",
+      "column_name": "WORKORDER_TYPE",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.SEQUENCE_NO",
+      "_key": "column::OPERATION.SEQUENCE_NO",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.SEQUENCE_NO",
+      "table_name": "OPERATION",
+      "column_name": "SEQUENCE_NO",
+      "column_type": "INTEGER",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.RESOURCE_ID",
+      "_key": "column::OPERATION.RESOURCE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.RESOURCE_ID",
+      "table_name": "OPERATION",
+      "column_name": "RESOURCE_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.SERVICE_ID",
+      "_key": "column::OPERATION.SERVICE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.SERVICE_ID",
+      "table_name": "OPERATION",
+      "column_name": "SERVICE_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.VENDOR_ID",
+      "_key": "column::OPERATION.VENDOR_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.VENDOR_ID",
+      "table_name": "OPERATION",
+      "column_name": "VENDOR_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.RUN_TYPE",
+      "_key": "column::OPERATION.RUN_TYPE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.RUN_TYPE",
+      "table_name": "OPERATION",
+      "column_name": "RUN_TYPE",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.SETUP_HRS",
+      "_key": "column::OPERATION.SETUP_HRS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.SETUP_HRS",
+      "table_name": "OPERATION",
+      "column_name": "SETUP_HRS",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.RUN_HRS",
+      "_key": "column::OPERATION.RUN_HRS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.RUN_HRS",
+      "table_name": "OPERATION",
+      "column_name": "RUN_HRS",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.ACT_SETUP_HRS",
+      "_key": "column::OPERATION.ACT_SETUP_HRS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.ACT_SETUP_HRS",
+      "table_name": "OPERATION",
+      "column_name": "ACT_SETUP_HRS",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.ACT_RUN_HRS",
+      "_key": "column::OPERATION.ACT_RUN_HRS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.ACT_RUN_HRS",
+      "table_name": "OPERATION",
+      "column_name": "ACT_RUN_HRS",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.EST_ATL_LAB_COST",
+      "_key": "column::OPERATION.EST_ATL_LAB_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.EST_ATL_LAB_COST",
+      "table_name": "OPERATION",
+      "column_name": "EST_ATL_LAB_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.EST_ATL_BUR_COST",
+      "_key": "column::OPERATION.EST_ATL_BUR_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.EST_ATL_BUR_COST",
+      "table_name": "OPERATION",
+      "column_name": "EST_ATL_BUR_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.EST_ATL_SER_COST",
+      "_key": "column::OPERATION.EST_ATL_SER_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.EST_ATL_SER_COST",
+      "table_name": "OPERATION",
+      "column_name": "EST_ATL_SER_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.ACT_ATL_LAB_COST",
+      "_key": "column::OPERATION.ACT_ATL_LAB_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.ACT_ATL_LAB_COST",
+      "table_name": "OPERATION",
+      "column_name": "ACT_ATL_LAB_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.ACT_ATL_BUR_COST",
+      "_key": "column::OPERATION.ACT_ATL_BUR_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.ACT_ATL_BUR_COST",
+      "table_name": "OPERATION",
+      "column_name": "ACT_ATL_BUR_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.ACT_ATL_SER_COST",
+      "_key": "column::OPERATION.ACT_ATL_SER_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.ACT_ATL_SER_COST",
+      "table_name": "OPERATION",
+      "column_name": "ACT_ATL_SER_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.STATUS",
+      "_key": "column::OPERATION.STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.STATUS",
+      "table_name": "OPERATION",
+      "column_name": "STATUS",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.SCHED_START_DATE",
+      "_key": "column::OPERATION.SCHED_START_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.SCHED_START_DATE",
+      "table_name": "OPERATION",
+      "column_name": "SCHED_START_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.SCHED_FINISH_DATE",
+      "_key": "column::OPERATION.SCHED_FINISH_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.SCHED_FINISH_DATE",
+      "table_name": "OPERATION",
+      "column_name": "SCHED_FINISH_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.SERVICE_BEGIN_DATE",
+      "_key": "column::OPERATION.SERVICE_BEGIN_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.SERVICE_BEGIN_DATE",
+      "table_name": "OPERATION",
+      "column_name": "SERVICE_BEGIN_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.CLOSE_DATE",
+      "_key": "column::OPERATION.CLOSE_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.CLOSE_DATE",
+      "table_name": "OPERATION",
+      "column_name": "CLOSE_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.LAST_DISP_DATE",
+      "_key": "column::OPERATION.LAST_DISP_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.LAST_DISP_DATE",
+      "table_name": "OPERATION",
+      "column_name": "LAST_DISP_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::OPERATION.LAST_RECV_DATE",
+      "_key": "column::OPERATION.LAST_RECV_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "OPERATION.LAST_RECV_DATE",
+      "table_name": "OPERATION",
+      "column_name": "LAST_RECV_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::OPERATION"
+    },
+    {
+      "_id": "columns/column::PART.PART_ID",
+      "_key": "column::PART.PART_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.PART_ID",
+      "table_name": "PART",
+      "column_name": "PART_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.PART_DESCRIPTION",
+      "_key": "column::PART.PART_DESCRIPTION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.PART_DESCRIPTION",
+      "table_name": "PART",
+      "column_name": "PART_DESCRIPTION",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.PART_CLASS",
+      "_key": "column::PART.PART_CLASS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.PART_CLASS",
+      "table_name": "PART",
+      "column_name": "PART_CLASS",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.UNIT_OF_MEASURE",
+      "_key": "column::PART.UNIT_OF_MEASURE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.UNIT_OF_MEASURE",
+      "table_name": "PART",
+      "column_name": "UNIT_OF_MEASURE",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.UNIT_COST",
+      "_key": "column::PART.UNIT_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.UNIT_COST",
+      "table_name": "PART",
+      "column_name": "UNIT_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.LEAD_TIME_DAYS",
+      "_key": "column::PART.LEAD_TIME_DAYS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.LEAD_TIME_DAYS",
+      "table_name": "PART",
+      "column_name": "LEAD_TIME_DAYS",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.REORDER_POINT",
+      "_key": "column::PART.REORDER_POINT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.REORDER_POINT",
+      "table_name": "PART",
+      "column_name": "REORDER_POINT",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.ON_HAND_QTY",
+      "_key": "column::PART.ON_HAND_QTY",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.ON_HAND_QTY",
+      "table_name": "PART",
+      "column_name": "ON_HAND_QTY",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.REVISION",
+      "_key": "column::PART.REVISION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.REVISION",
+      "table_name": "PART",
+      "column_name": "REVISION",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.CAGE_CODE",
+      "_key": "column::PART.CAGE_CODE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.CAGE_CODE",
+      "table_name": "PART",
+      "column_name": "CAGE_CODE",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.DRAWING_NUMBER",
+      "_key": "column::PART.DRAWING_NUMBER",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.DRAWING_NUMBER",
+      "table_name": "PART",
+      "column_name": "DRAWING_NUMBER",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.MATERIAL_SPEC",
+      "_key": "column::PART.MATERIAL_SPEC",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.MATERIAL_SPEC",
+      "table_name": "PART",
+      "column_name": "MATERIAL_SPEC",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.ACTIVE",
+      "_key": "column::PART.ACTIVE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.ACTIVE",
+      "table_name": "PART",
+      "column_name": "ACTIVE",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PART.CREATED_AT",
+      "_key": "column::PART.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PART.CREATED_AT",
+      "table_name": "PART",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PART"
+    },
+    {
+      "_id": "columns/column::PO_LINE.LINE_ID",
+      "_key": "column::PO_LINE.LINE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.LINE_ID",
+      "table_name": "PO_LINE",
+      "column_name": "LINE_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.PO_ID",
+      "_key": "column::PO_LINE.PO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.PO_ID",
+      "table_name": "PO_LINE",
+      "column_name": "PO_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.PART_ID",
+      "_key": "column::PO_LINE.PART_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.PART_ID",
+      "table_name": "PO_LINE",
+      "column_name": "PART_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.PART_DESCRIPTION",
+      "_key": "column::PO_LINE.PART_DESCRIPTION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.PART_DESCRIPTION",
+      "table_name": "PO_LINE",
+      "column_name": "PART_DESCRIPTION",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.QUANTITY",
+      "_key": "column::PO_LINE.QUANTITY",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.QUANTITY",
+      "table_name": "PO_LINE",
+      "column_name": "QUANTITY",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.UNIT_COST",
+      "_key": "column::PO_LINE.UNIT_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.UNIT_COST",
+      "table_name": "PO_LINE",
+      "column_name": "UNIT_COST",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.LINE_TOTAL",
+      "_key": "column::PO_LINE.LINE_TOTAL",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.LINE_TOTAL",
+      "table_name": "PO_LINE",
+      "column_name": "LINE_TOTAL",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PO_LINE.CREATED_AT",
+      "_key": "column::PO_LINE.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PO_LINE.CREATED_AT",
+      "table_name": "PO_LINE",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PO_LINE"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.PO_ID",
+      "_key": "column::PURCHASE_ORDER.PO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.PO_ID",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "PO_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.SUPPLIER_ID",
+      "_key": "column::PURCHASE_ORDER.SUPPLIER_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.SUPPLIER_ID",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "SUPPLIER_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.PO_TYPE",
+      "_key": "column::PURCHASE_ORDER.PO_TYPE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.PO_TYPE",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "PO_TYPE",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.PO_DATE",
+      "_key": "column::PURCHASE_ORDER.PO_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.PO_DATE",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "PO_DATE",
+      "column_type": "DATE",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.REQUIRED_DATE",
+      "_key": "column::PURCHASE_ORDER.REQUIRED_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.REQUIRED_DATE",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "REQUIRED_DATE",
+      "column_type": "DATE",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.STATUS",
+      "_key": "column::PURCHASE_ORDER.STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.STATUS",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "STATUS",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.TOTAL_COST",
+      "_key": "column::PURCHASE_ORDER.TOTAL_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.TOTAL_COST",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "TOTAL_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.WO_ID",
+      "_key": "column::PURCHASE_ORDER.WO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.WO_ID",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "WO_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.SERVICE_ID",
+      "_key": "column::PURCHASE_ORDER.SERVICE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.SERVICE_ID",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "SERVICE_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.BUYER_ID",
+      "_key": "column::PURCHASE_ORDER.BUYER_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.BUYER_ID",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "BUYER_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.SITE_ID",
+      "_key": "column::PURCHASE_ORDER.SITE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.SITE_ID",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "SITE_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::PURCHASE_ORDER.CREATED_AT",
+      "_key": "column::PURCHASE_ORDER.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "PURCHASE_ORDER.CREATED_AT",
+      "table_name": "PURCHASE_ORDER",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::PURCHASE_ORDER"
+    },
+    {
+      "_id": "columns/column::RECEIVING.RECEIPT_ID",
+      "_key": "column::RECEIVING.RECEIPT_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.RECEIPT_ID",
+      "table_name": "RECEIVING",
+      "column_name": "RECEIPT_ID",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.PO_ID",
+      "_key": "column::RECEIVING.PO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.PO_ID",
+      "table_name": "RECEIVING",
+      "column_name": "PO_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.SUPPLIER_ID",
+      "_key": "column::RECEIVING.SUPPLIER_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.SUPPLIER_ID",
+      "table_name": "RECEIVING",
+      "column_name": "SUPPLIER_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.PART_ID",
+      "_key": "column::RECEIVING.PART_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.PART_ID",
+      "table_name": "RECEIVING",
+      "column_name": "PART_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.QUANTITY_ORDERED",
+      "_key": "column::RECEIVING.QUANTITY_ORDERED",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.QUANTITY_ORDERED",
+      "table_name": "RECEIVING",
+      "column_name": "QUANTITY_ORDERED",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.QUANTITY_RECEIVED",
+      "_key": "column::RECEIVING.QUANTITY_RECEIVED",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.QUANTITY_RECEIVED",
+      "table_name": "RECEIVING",
+      "column_name": "QUANTITY_RECEIVED",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.RECEIPT_DATE",
+      "_key": "column::RECEIVING.RECEIPT_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.RECEIPT_DATE",
+      "table_name": "RECEIVING",
+      "column_name": "RECEIPT_DATE",
+      "column_type": "DATE",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.INSPECTION_STATUS",
+      "_key": "column::RECEIVING.INSPECTION_STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.INSPECTION_STATUS",
+      "table_name": "RECEIVING",
+      "column_name": "INSPECTION_STATUS",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.CERT_REQUIRED",
+      "_key": "column::RECEIVING.CERT_REQUIRED",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.CERT_REQUIRED",
+      "table_name": "RECEIVING",
+      "column_name": "CERT_REQUIRED",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::RECEIVING.CREATED_AT",
+      "_key": "column::RECEIVING.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "RECEIVING.CREATED_AT",
+      "table_name": "RECEIVING",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::RECEIVING"
+    },
+    {
+      "_id": "columns/column::SERVICE.SERVICE_ID",
+      "_key": "column::SERVICE.SERVICE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SERVICE.SERVICE_ID",
+      "table_name": "SERVICE",
+      "column_name": "SERVICE_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::SERVICE"
+    },
+    {
+      "_id": "columns/column::SERVICE.DESCRIPTION",
+      "_key": "column::SERVICE.DESCRIPTION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SERVICE.DESCRIPTION",
+      "table_name": "SERVICE",
+      "column_name": "DESCRIPTION",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::SERVICE"
+    },
+    {
+      "_id": "columns/column::SERVICE.DEFAULT_VENDOR",
+      "_key": "column::SERVICE.DEFAULT_VENDOR",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SERVICE.DEFAULT_VENDOR",
+      "table_name": "SERVICE",
+      "column_name": "DEFAULT_VENDOR",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SERVICE"
+    },
+    {
+      "_id": "columns/column::SERVICE.BASE_CHARGE",
+      "_key": "column::SERVICE.BASE_CHARGE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SERVICE.BASE_CHARGE",
+      "table_name": "SERVICE",
+      "column_name": "BASE_CHARGE",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SERVICE"
+    },
+    {
+      "_id": "columns/column::SERVICE.CREATED_AT",
+      "_key": "column::SERVICE.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SERVICE.CREATED_AT",
+      "table_name": "SERVICE",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SERVICE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.RESOURCE_ID",
+      "_key": "column::SHOP_RESOURCE.RESOURCE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.RESOURCE_ID",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "RESOURCE_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.DESCRIPTION",
+      "_key": "column::SHOP_RESOURCE.DESCRIPTION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.DESCRIPTION",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "DESCRIPTION",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.RESOURCE_TYPE",
+      "_key": "column::SHOP_RESOURCE.RESOURCE_TYPE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.RESOURCE_TYPE",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "RESOURCE_TYPE",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.RUN_COST_PER_HR",
+      "_key": "column::SHOP_RESOURCE.RUN_COST_PER_HR",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.RUN_COST_PER_HR",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "RUN_COST_PER_HR",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.BUR_PER_HR_RUN",
+      "_key": "column::SHOP_RESOURCE.BUR_PER_HR_RUN",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.BUR_PER_HR_RUN",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "BUR_PER_HR_RUN",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.ACTIVE",
+      "_key": "column::SHOP_RESOURCE.ACTIVE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.ACTIVE",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "ACTIVE",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SHOP_RESOURCE.CREATED_AT",
+      "_key": "column::SHOP_RESOURCE.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SHOP_RESOURCE.CREATED_AT",
+      "table_name": "SHOP_RESOURCE",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SHOP_RESOURCE"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.SUPPLIER_ID",
+      "_key": "column::SUPPLIERS.SUPPLIER_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.SUPPLIER_ID",
+      "table_name": "SUPPLIERS",
+      "column_name": "SUPPLIER_ID",
+      "column_type": "INTEGER",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.SUPPLIER_NAME",
+      "_key": "column::SUPPLIERS.SUPPLIER_NAME",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.SUPPLIER_NAME",
+      "table_name": "SUPPLIERS",
+      "column_name": "SUPPLIER_NAME",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.CONTACT_EMAIL",
+      "_key": "column::SUPPLIERS.CONTACT_EMAIL",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.CONTACT_EMAIL",
+      "table_name": "SUPPLIERS",
+      "column_name": "CONTACT_EMAIL",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.PHONE",
+      "_key": "column::SUPPLIERS.PHONE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.PHONE",
+      "table_name": "SUPPLIERS",
+      "column_name": "PHONE",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.ADDRESS",
+      "_key": "column::SUPPLIERS.ADDRESS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.ADDRESS",
+      "table_name": "SUPPLIERS",
+      "column_name": "ADDRESS",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.PERFORMANCE_RATING",
+      "_key": "column::SUPPLIERS.PERFORMANCE_RATING",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.PERFORMANCE_RATING",
+      "table_name": "SUPPLIERS",
+      "column_name": "PERFORMANCE_RATING",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.CERTIFICATION_LEVEL",
+      "_key": "column::SUPPLIERS.CERTIFICATION_LEVEL",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.CERTIFICATION_LEVEL",
+      "table_name": "SUPPLIERS",
+      "column_name": "CERTIFICATION_LEVEL",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.CREATED_DATE",
+      "_key": "column::SUPPLIERS.CREATED_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.CREATED_DATE",
+      "table_name": "SUPPLIERS",
+      "column_name": "CREATED_DATE",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.CATEGORY",
+      "_key": "column::SUPPLIERS.CATEGORY",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.CATEGORY",
+      "table_name": "SUPPLIERS",
+      "column_name": "CATEGORY",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.PAYMENT_TERMS",
+      "_key": "column::SUPPLIERS.PAYMENT_TERMS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.PAYMENT_TERMS",
+      "table_name": "SUPPLIERS",
+      "column_name": "PAYMENT_TERMS",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.LEAD_TIME_DAYS",
+      "_key": "column::SUPPLIERS.LEAD_TIME_DAYS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.LEAD_TIME_DAYS",
+      "table_name": "SUPPLIERS",
+      "column_name": "LEAD_TIME_DAYS",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.OUTSIDE_SERVICE",
+      "_key": "column::SUPPLIERS.OUTSIDE_SERVICE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.OUTSIDE_SERVICE",
+      "table_name": "SUPPLIERS",
+      "column_name": "OUTSIDE_SERVICE",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::SUPPLIERS.ACTIVE",
+      "_key": "column::SUPPLIERS.ACTIVE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "SUPPLIERS.ACTIVE",
+      "table_name": "SUPPLIERS",
+      "column_name": "ACTIVE",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::SUPPLIERS"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.WO_ID",
+      "_key": "column::WORK_ORDER.WO_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.WO_ID",
+      "table_name": "WORK_ORDER",
+      "column_name": "WO_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": true,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.WORKORDER_TYPE",
+      "_key": "column::WORK_ORDER.WORKORDER_TYPE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.WORKORDER_TYPE",
+      "table_name": "WORK_ORDER",
+      "column_name": "WORKORDER_TYPE",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.PART_ID",
+      "_key": "column::WORK_ORDER.PART_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.PART_ID",
+      "table_name": "WORK_ORDER",
+      "column_name": "PART_ID",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.PART_DESCRIPTION",
+      "_key": "column::WORK_ORDER.PART_DESCRIPTION",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.PART_DESCRIPTION",
+      "table_name": "WORK_ORDER",
+      "column_name": "PART_DESCRIPTION",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.QUANTITY",
+      "_key": "column::WORK_ORDER.QUANTITY",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.QUANTITY",
+      "table_name": "WORK_ORDER",
+      "column_name": "QUANTITY",
+      "column_type": "REAL",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.STATUS",
+      "_key": "column::WORK_ORDER.STATUS",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.STATUS",
+      "table_name": "WORK_ORDER",
+      "column_name": "STATUS",
+      "column_type": "TEXT",
+      "notnull": true,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.OPEN_DATE",
+      "_key": "column::WORK_ORDER.OPEN_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.OPEN_DATE",
+      "table_name": "WORK_ORDER",
+      "column_name": "OPEN_DATE",
+      "column_type": "DATE",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.CLOSE_DATE",
+      "_key": "column::WORK_ORDER.CLOSE_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.CLOSE_DATE",
+      "table_name": "WORK_ORDER",
+      "column_name": "CLOSE_DATE",
+      "column_type": "DATE",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.REQUIRED_DATE",
+      "_key": "column::WORK_ORDER.REQUIRED_DATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.REQUIRED_DATE",
+      "table_name": "WORK_ORDER",
+      "column_name": "REQUIRED_DATE",
+      "column_type": "DATE",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.ROUTING_TEMPLATE",
+      "_key": "column::WORK_ORDER.ROUTING_TEMPLATE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.ROUTING_TEMPLATE",
+      "table_name": "WORK_ORDER",
+      "column_name": "ROUTING_TEMPLATE",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.ACT_LAB_COST",
+      "_key": "column::WORK_ORDER.ACT_LAB_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.ACT_LAB_COST",
+      "table_name": "WORK_ORDER",
+      "column_name": "ACT_LAB_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.ACT_BUR_COST",
+      "_key": "column::WORK_ORDER.ACT_BUR_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.ACT_BUR_COST",
+      "table_name": "WORK_ORDER",
+      "column_name": "ACT_BUR_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.ACT_SER_COST",
+      "_key": "column::WORK_ORDER.ACT_SER_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.ACT_SER_COST",
+      "table_name": "WORK_ORDER",
+      "column_name": "ACT_SER_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.ACT_MAT_COST",
+      "_key": "column::WORK_ORDER.ACT_MAT_COST",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.ACT_MAT_COST",
+      "table_name": "WORK_ORDER",
+      "column_name": "ACT_MAT_COST",
+      "column_type": "REAL",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.OUTSIDE_SERVICE",
+      "_key": "column::WORK_ORDER.OUTSIDE_SERVICE",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.OUTSIDE_SERVICE",
+      "table_name": "WORK_ORDER",
+      "column_name": "OUTSIDE_SERVICE",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.SITE_ID",
+      "_key": "column::WORK_ORDER.SITE_ID",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.SITE_ID",
+      "table_name": "WORK_ORDER",
+      "column_name": "SITE_ID",
+      "column_type": "TEXT",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
+    },
+    {
+      "_id": "columns/column::WORK_ORDER.CREATED_AT",
+      "_key": "column::WORK_ORDER.CREATED_AT",
+      "collection": "columns",
+      "node_type": "column",
+      "label": "WORK_ORDER.CREATED_AT",
+      "table_name": "WORK_ORDER",
+      "column_name": "CREATED_AT",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "primary_key": false,
+      "parent_table_key": "table::WORK_ORDER"
     }
   ],
   "edges": [
     {
-      "from": "perspective::General_Ledger",
-      "to": "concept::concept#12",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.CERT_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::General_Ledger",
-      "to": "concept::concept#14",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.RECEIPT_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "concept::DefectSeverityCost",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.PART_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "concept::concept#5",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.SUPPLIER_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "concept::DeliveryPerformanceFinance",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.CERT_TYPE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "concept::concept#15",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.ISSUED_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "concept::concept#17",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.EXPIRY_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "concept::concept#19",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Quality",
-      "to": "concept::DefectSeverityQuality",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::CERTIFICATION",
+      "_to": "columns/column::CERTIFICATION.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Quality",
-      "to": "concept::DeliveryPerformanceSupplier",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.INVOICE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Quality",
-      "to": "concept::concept#16",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.PO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "concept::DefectSeverityCustomer",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.SUPPLIER_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "concept::concept#6",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.INVOICE_NUMBER",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "concept::DeliveryPerformanceSupplier",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.INVOICE_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Work_Orders",
-      "to": "concept::concept#4",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.DUE_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Work_Orders",
-      "to": "concept::DeliveryPerformanceOps",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.AMOUNT_DOLLARS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Work_Orders",
-      "to": "concept::concept#10",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Work_Orders",
-      "to": "concept::concept#11",
-      "predicate": "USES_DEFINITION",
-      "weight": 2
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.PAYMENT_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Work_Orders",
-      "to": "concept::concept#13",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.THREE_WAY_MATCH_STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Work_Orders",
-      "to": "concept::concept#18",
-      "predicate": "USES_DEFINITION",
-      "weight": 3
+      "_from": "tables/table::INVOICE_HEADER",
+      "_to": "columns/column::INVOICE_HEADER.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::CRM",
-      "to": "intent::crm_customer_revenue",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.TICKET_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Finance",
-      "to": "intent::defect_cost_analysis",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.WO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "intent::defect_cost_analysis",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.SEQUENCE_NO",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "intent::supplier_cost_penalties",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.EMPLOYEE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "intent::supplier_payables_exposure",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.RESOURCE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Payables",
-      "to": "intent::supplier_scorecard",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.CLOCK_IN",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Quality",
-      "to": "intent::defect_quality_trending",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.CLOCK_OUT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Quality",
-      "to": "intent::supplier_scorecard",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.TOTAL_HOURS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "intent::crm_customer_address_lookup",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.LABOR_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "intent::crm_customer_profile",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.BURDEN_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "intent::crm_customer_revenue",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::LABOR_TICKET",
+      "_to": "columns/column::LABOR_TICKET.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "perspective::Receivables",
-      "to": "intent::defect_customer_impact",
-      "predicate": "OPERATES_WITHIN",
-      "weight": 1
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.ISSUE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_cost_analysis",
-      "to": "concept::DefectSeverityCost",
-      "predicate": "ELEVATES",
-      "weight": 1
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.WO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_cost_analysis",
-      "to": "concept::DefectSeverityCustomer",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.PART_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_cost_analysis",
-      "to": "concept::DefectSeverityQuality",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.PART_DESCRIPTION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_customer_impact",
-      "to": "concept::DefectSeverityCustomer",
-      "predicate": "ELEVATES",
-      "weight": 1
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.QUANTITY",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_customer_impact",
-      "to": "concept::DefectSeverityCost",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.UNIT_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_customer_impact",
-      "to": "concept::DefectSeverityQuality",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.TOTAL_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_quality_trending",
-      "to": "concept::DefectSeverityQuality",
-      "predicate": "ELEVATES",
-      "weight": 1
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.ISSUE_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_quality_trending",
-      "to": "concept::DefectSeverityCost",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.ISSUED_BY",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::defect_quality_trending",
-      "to": "concept::DefectSeverityCustomer",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::MATERIAL_ISSUE",
+      "_to": "columns/column::MATERIAL_ISSUE.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::supplier_cost_penalties",
-      "to": "concept::DeliveryPerformanceFinance",
-      "predicate": "ELEVATES",
-      "weight": 1
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.ROWID_PK",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::supplier_cost_penalties",
-      "to": "concept::DeliveryPerformanceOps",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.WO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::supplier_cost_penalties",
-      "to": "concept::DeliveryPerformanceSupplier",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.WORKORDER_TYPE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::supplier_scorecard",
-      "to": "concept::DeliveryPerformanceSupplier",
-      "predicate": "ELEVATES",
-      "weight": 1
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.SEQUENCE_NO",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::supplier_scorecard",
-      "to": "concept::DeliveryPerformanceFinance",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.RESOURCE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "intent::supplier_scorecard",
-      "to": "concept::DeliveryPerformanceOps",
-      "predicate": "ELEVATES",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.SERVICE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "concept::DefectSeverityCost",
-      "to": "column::stg_manufacturing_flat.ncm_cost",
-      "predicate": "CAN_MEAN",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.VENDOR_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "concept::DefectSeverityCustomer",
-      "to": "column::stg_manufacturing_flat.customer_impact_flag",
-      "predicate": "CAN_MEAN",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.RUN_TYPE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "concept::DefectSeverityQuality",
-      "to": "column::stg_manufacturing_flat.quality_score",
-      "predicate": "CAN_MEAN",
-      "weight": 0
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.SETUP_HRS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::certification",
-      "to": "table::part",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "part_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.RUN_HRS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::certification",
-      "to": "table::receiving",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "receipt_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.ACT_SETUP_HRS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::invoice_header",
-      "to": "table::purchase_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "po_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.ACT_RUN_HRS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::invoice_header",
-      "to": "table::suppliers",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "supplier_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.EST_ATL_LAB_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::labor_ticket",
-      "to": "table::work_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "wo_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.EST_ATL_BUR_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::material_issue",
-      "to": "table::part",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "part_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.EST_ATL_SER_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::material_issue",
-      "to": "table::work_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "wo_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.ACT_ATL_LAB_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::operation",
-      "to": "table::service",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "service_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.ACT_ATL_BUR_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::operation",
-      "to": "table::shop_resource",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "resource_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.ACT_ATL_SER_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::operation",
-      "to": "table::suppliers",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "vendor_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::operation",
-      "to": "table::work_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "wo_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.SCHED_START_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::po_line",
-      "to": "table::part",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "part_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.SCHED_FINISH_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::po_line",
-      "to": "table::purchase_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "po_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.SERVICE_BEGIN_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::purchase_order",
-      "to": "table::suppliers",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "supplier_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.CLOSE_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::purchase_order",
-      "to": "table::work_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "wo_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.LAST_DISP_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::receiving",
-      "to": "table::part",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "part_id"
+      "_from": "tables/table::OPERATION",
+      "_to": "columns/column::OPERATION.LAST_RECV_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::receiving",
-      "to": "table::purchase_order",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "po_id"
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.PART_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::receiving",
-      "to": "table::suppliers",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "supplier_id"
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.PART_DESCRIPTION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     },
     {
-      "from": "table::work_order",
-      "to": "table::part",
-      "predicate": "FOREIGN_KEY",
-      "weight": 1,
-      "join_column": "part_id"
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.PART_CLASS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.UNIT_OF_MEASURE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.UNIT_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.LEAD_TIME_DAYS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.REORDER_POINT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.ON_HAND_QTY",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.REVISION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.CAGE_CODE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.DRAWING_NUMBER",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.MATERIAL_SPEC",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.ACTIVE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PART",
+      "_to": "columns/column::PART.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.LINE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.PO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.PART_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.PART_DESCRIPTION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.QUANTITY",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.UNIT_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.LINE_TOTAL",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PO_LINE",
+      "_to": "columns/column::PO_LINE.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.PO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.SUPPLIER_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.PO_TYPE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.PO_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.REQUIRED_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.TOTAL_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.WO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.SERVICE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.BUYER_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.SITE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::PURCHASE_ORDER",
+      "_to": "columns/column::PURCHASE_ORDER.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.RECEIPT_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.PO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.SUPPLIER_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.PART_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.QUANTITY_ORDERED",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.QUANTITY_RECEIVED",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.RECEIPT_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.INSPECTION_STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.CERT_REQUIRED",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::RECEIVING",
+      "_to": "columns/column::RECEIVING.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SERVICE",
+      "_to": "columns/column::SERVICE.SERVICE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SERVICE",
+      "_to": "columns/column::SERVICE.DESCRIPTION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SERVICE",
+      "_to": "columns/column::SERVICE.DEFAULT_VENDOR",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SERVICE",
+      "_to": "columns/column::SERVICE.BASE_CHARGE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SERVICE",
+      "_to": "columns/column::SERVICE.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.RESOURCE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.DESCRIPTION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.RESOURCE_TYPE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.RUN_COST_PER_HR",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.BUR_PER_HR_RUN",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.ACTIVE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SHOP_RESOURCE",
+      "_to": "columns/column::SHOP_RESOURCE.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.SUPPLIER_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.SUPPLIER_NAME",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.CONTACT_EMAIL",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.PHONE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.ADDRESS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.PERFORMANCE_RATING",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.CERTIFICATION_LEVEL",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.CREATED_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.CATEGORY",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.PAYMENT_TERMS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.LEAD_TIME_DAYS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.OUTSIDE_SERVICE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::SUPPLIERS",
+      "_to": "columns/column::SUPPLIERS.ACTIVE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.WO_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.WORKORDER_TYPE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.PART_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.PART_DESCRIPTION",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.QUANTITY",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.STATUS",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.OPEN_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.CLOSE_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.REQUIRED_DATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.ROUTING_TEMPLATE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.ACT_LAB_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.ACT_BUR_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.ACT_SER_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.ACT_MAT_COST",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.OUTSIDE_SERVICE",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.SITE_ID",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
+    },
+    {
+      "_from": "tables/table::WORK_ORDER",
+      "_to": "columns/column::WORK_ORDER.CREATED_AT",
+      "predicate": "has_column",
+      "edge_type": "CONTAINS"
     }
   ]
 }
