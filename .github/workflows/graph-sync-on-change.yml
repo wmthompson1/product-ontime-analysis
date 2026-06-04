@@ -100,7 +100,7 @@ jobs:
           echo "Set ARANGO_HOST, ARANGO_DB, ARANGO_USER, ARANGO_ROOT_PASSWORD"
           echo "as repository secrets to enable live sync."
 
-      - name: Sweep 1 — coverage gap check
+      - name: Sweep 1 & 2 — coverage gap + column-parity check
         continue-on-error: true
         run: |
           python scripts/verify_metadata_meaning.py --skip-on-no-arango \
@@ -108,6 +108,8 @@ jobs:
           python3 - <<'PYEOF' >> "$GITHUB_ENV"
 import re, os
 content = open('/tmp/sweep1_output.txt').read()
+
+# ── Sweep 1 — coverage gaps ──────────────────────────────────────────
 if 'SKIP:' in content:
     status = 'skipped'
     gap_count = ''
@@ -120,6 +122,20 @@ else:
     status = 'failed' if (gap_count and gap_count != '0') else 'unknown'
 print(f'SWEEP1_STATUS={status}')
 print(f'SWEEP1_GAP_COUNT={gap_count}')
+
+# ── Sweep 2 — AQL-to-SQLite column parity ────────────────────────────
+if 'SKIP:' in content:
+    s2_status = 'skipped'
+    s2_missing = ''
+elif 'Sweep 2 PASSED' in content:
+    s2_status = 'passed'
+    s2_missing = '0'
+else:
+    m2 = re.search(r'MISSING_IN_SQLITE:\s*(\d+)', content)
+    s2_missing = m2.group(1) if m2 else ''
+    s2_status = 'failed' if (s2_missing and s2_missing != '0') else 'unknown'
+print(f'SWEEP2_STATUS={s2_status}')
+print(f'SWEEP2_MISSING_COUNT={s2_missing}')
 PYEOF
 
       - name: Notify on failure
@@ -150,6 +166,19 @@ PYEOF
             SWEEP1_SUMMARY=":question: Sweep 1: status unknown"
           fi
 
+          # Resolve Sweep 2 (column parity) status for display
+          SWEEP2_STATUS="${SWEEP2_STATUS:-}"
+          SWEEP2_MISSING_COUNT="${SWEEP2_MISSING_COUNT:-}"
+          if [ "${SWEEP2_STATUS}" = "passed" ]; then
+            SWEEP2_SUMMARY=":white_check_mark: Sweep 2: all columns resolve"
+          elif [ "${SWEEP2_STATUS}" = "failed" ] && [ -n "${SWEEP2_MISSING_COUNT}" ]; then
+            SWEEP2_SUMMARY=":warning: Sweep 2: ${SWEEP2_MISSING_COUNT} ArangoDB column key(s) missing in SQLite"
+          elif [ "${SWEEP2_STATUS}" = "skipped" ]; then
+            SWEEP2_SUMMARY=":fast_forward: Sweep 2: skipped (ArangoDB not reachable)"
+          else
+            SWEEP2_SUMMARY=":question: Sweep 2: status unknown"
+          fi
+
           # Write a GitHub Actions step summary visible in the workflow UI
           {
             echo "## :rotating_light: Graph Sync Failed"
@@ -162,6 +191,9 @@ PYEOF
             echo ""
             echo "### Sweep 1 Coverage"
             echo "${SWEEP1_SUMMARY}"
+            echo ""
+            echo "### Sweep 2 Column Parity"
+            echo "${SWEEP2_SUMMARY}"
             if [ -n "${DRIFT_DETAILS}" ]; then
               echo ""
               echo "### Drift Details"
@@ -175,7 +207,7 @@ PYEOF
 
           # Optionally POST to Slack webhook if secret is configured
           if [ -n "${GRAPH_SYNC_ALERT_WEBHOOK}" ]; then
-            PAYLOAD=$(SWEEP1_STATUS="${SWEEP1_STATUS}" SWEEP1_GAP_COUNT="${SWEEP1_GAP_COUNT}" python3 - <<'PYEOF'
+            PAYLOAD=$(SWEEP1_STATUS="${SWEEP1_STATUS}" SWEEP1_GAP_COUNT="${SWEEP1_GAP_COUNT}" SWEEP2_STATUS="${SWEEP2_STATUS}" SWEEP2_MISSING_COUNT="${SWEEP2_MISSING_COUNT}" python3 - <<'PYEOF'
 import datetime, json, os
 
 ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -196,6 +228,17 @@ elif sweep1_status == "skipped":
 else:
     sweep1_text = ":question: *Sweep 1:* status unknown"
 
+sweep2_status        = os.environ.get("SWEEP2_STATUS", "")
+sweep2_missing_count = os.environ.get("SWEEP2_MISSING_COUNT", "")
+if sweep2_status == "passed":
+    sweep2_text = ":white_check_mark: *Sweep 2:* all columns resolve"
+elif sweep2_status == "failed" and sweep2_missing_count:
+    sweep2_text = f":warning: *Sweep 2:* {sweep2_missing_count} ArangoDB column key(s) missing in SQLite"
+elif sweep2_status == "skipped":
+    sweep2_text = ":fast_forward: *Sweep 2:* skipped (ArangoDB not reachable)"
+else:
+    sweep2_text = ":question: *Sweep 2:* status unknown"
+
 fields = [
     {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
     {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
@@ -210,6 +253,10 @@ blocks = [
     {
         "type": "section",
         "text": {"type": "mrkdwn", "text": sweep1_text}
+    },
+    {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": sweep2_text}
     },
 ]
 if drift:
