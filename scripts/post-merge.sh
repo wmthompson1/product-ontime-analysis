@@ -51,4 +51,11 @@ if [ -f hf-space-inventory-sqlgen/tests/test_sweep1_coverage_gaps.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_approved_snippets_execute.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_approved_snippets_execute.py || {
+    echo "post-merge: approved snippet execution tests failed"
+    exit 1
+  }
+fi
+
 echo "post-merge: OK"

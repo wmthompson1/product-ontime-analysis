@@ -86,11 +86,12 @@
             "logic_type": "DIRECT",
             "file_path": "hf-space-inventory-sqlgen/app_schema/ground_truth/finance_ncm_cost_20260208_150000.sql",
             "sme_justification": "NCM cost analysis with repair and scrap cost aggregation for financial defect severity assessment",
-            "validation_status": "APPROVED",
+            "validation_status": "ARCHIVED",
             "binding_key": "finance_ncm_cost_20260208_150000",
             "created_at": "2026-02-08T15:00:00Z",
             "approved_by": "seed_data",
-            "approved_at": "2026-02-08T15:01:00Z"
+            "approved_at": "2026-02-08T15:01:00Z",
+            "archived_reason": "References empty PoC tables dropped in drop_poc_tables migration"
         },
         "quality_defectseverityquality_20260208_150100": {
             "concept_anchor": "DEFECTSEVERITYQUALITY",
@@ -99,11 +100,12 @@
             "logic_type": "DIRECT",
             "file_path": "hf-space-inventory-sqlgen/app_schema/ground_truth/quality_defectseverityquality_20260208_150100.sql",
             "sme_justification": "Quality-focused defect severity with root cause and quality score for trending analysis",
-            "validation_status": "APPROVED",
+            "validation_status": "ARCHIVED",
             "binding_key": "quality_defectseverityquality_20260208_150100",
             "created_at": "2026-02-08T15:01:00Z",
             "approved_by": "seed_data",
-            "approved_at": "2026-02-08T15:01:30Z"
+            "approved_at": "2026-02-08T15:01:30Z",
+            "archived_reason": "References empty PoC tables dropped in drop_poc_tables migration"
         },
         "customer_defectseveritycustomer_20260208_150200": {
             "concept_anchor": "DEFECTSEVERITYCUSTOMER",
@@ -112,11 +114,12 @@
             "logic_type": "DIRECT",
             "file_path": "hf-space-inventory-sqlgen/app_schema/ground_truth/customer_defectseveritycustomer_20260208_150200.sql",
             "sme_justification": "Customer impact tracking for defect severity with complaint and notification data",
-            "validation_status": "APPROVED",
+            "validation_status": "ARCHIVED",
             "binding_key": "customer_defectseveritycustomer_20260208_150200",
             "created_at": "2026-02-08T15:02:00Z",
             "approved_by": "seed_data",
-            "approved_at": "2026-02-08T15:02:30Z"
+            "approved_at": "2026-02-08T15:02:30Z",
+            "archived_reason": "References empty PoC tables dropped in drop_poc_tables migration"
         },
         "operations_deliveryperformanceops_20260208_160001": {
             "concept_anchor": "DELIVERYPERFORMANCEOPS",
