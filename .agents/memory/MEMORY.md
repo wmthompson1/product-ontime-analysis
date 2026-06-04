@@ -1,2 +1,3 @@
 - [Solder Pattern architecture](solder-pattern-architecture.md) — graph has only table+column nodes; ELEVATES is the universal semantic predicate; weight is a binary gate; AI selects, never generates.
 - [Public vs private repo duality](repo-duality.md) — public repo mirrors private Windows/SQL Server repo structure; scripts exist here as prototypes, may only run --dry-run in CI.
+- [Live graph key/edge conventions](live-graph-key-conventions.md) — live ArangoDB uses raw table keys, column::TABLE.COL keeping schema+case, edges in manufacturing_graph_edges; arangodb_helpers' uppercase table:: is prototype-only.
