@@ -10,6 +10,7 @@ the full FastAPI + Gradio application stack.
 from __future__ import annotations
 
 import os
+from typing import Any, Dict, List
 
 BRIDGE_HEALTH_MAP: dict[str, str] = {
     "Perspective_Intents": "schema_intent_perspectives",
@@ -172,3 +173,173 @@ def run_bridge_health_check_impl(
         overall = "❌  OUT OF SYNC — counts differ (see details below)"
 
     return overall, timestamp, "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Sweep 1 coverage gaps — concepts in ELEVATES edges without approved SQL
+# ---------------------------------------------------------------------------
+
+def get_sweep1_coverage_gaps(
+    manifest_path: str,
+    *,
+    _arango_env_getter=None,
+    _arango_factory=None,
+) -> Dict[str, Any]:
+    """Identify ELEVATES edge concepts that lack an APPROVED SQL binding.
+
+    Mirrors the Sweep 1 logic from ``scripts/verify_metadata_meaning.py`` so
+    the Bridge Health panel can surface coverage gaps without running the CLI.
+
+    Parameters
+    ----------
+    manifest_path:
+        Filesystem path to ``reviewer_manifest.json``.
+    _arango_env_getter:
+        Injection seam — replaces ``os.environ.get`` for the ARANGO_HOST
+        lookup in tests.
+    _arango_factory:
+        Injection seam — callable that returns a mock ArangoDB ``db`` object
+        in tests.
+
+    Returns
+    -------
+    dict with keys:
+        ``status``        — "ok" | "gaps" | "skip" | "error"
+        ``total_edges``   — int, number of ELEVATES edges found
+        ``pass_count``    — int, edges with an approved binding
+        ``gap_concepts``  — list of dicts: {intent_name, concept_name, concept_anchor}
+        ``skip_count``    — int, edges with dangling vertex references (skipped)
+        ``message``       — human-readable summary string
+    """
+    from metadata_query_templates import get_ground_truth_bindings
+
+    _env_get = _arango_env_getter if _arango_env_getter is not None else (
+        lambda key: os.environ.get(key)
+    )
+
+    if not _env_get("ARANGO_HOST"):
+        return {
+            "status": "skip",
+            "total_edges": 0,
+            "pass_count": 0,
+            "gap_concepts": [],
+            "skip_count": 0,
+            "message": "ArangoDB not configured (ARANGO_HOST not set) — coverage check skipped.",
+        }
+
+    if _arango_factory is not None:
+        try:
+            db = _arango_factory()
+        except Exception as exc:
+            return {
+                "status": "error",
+                "total_edges": 0,
+                "pass_count": 0,
+                "gap_concepts": [],
+                "skip_count": 0,
+                "message": f"ArangoDB connection failed: {exc}",
+            }
+    else:
+        try:
+            from graph_sync import get_arango_client, get_arango_db
+            client = get_arango_client()
+            db = get_arango_db(client)
+        except Exception as exc:
+            return {
+                "status": "error",
+                "total_edges": 0,
+                "pass_count": 0,
+                "gap_concepts": [],
+                "skip_count": 0,
+                "message": f"ArangoDB connection failed: {exc}",
+            }
+
+    aql = """
+    FOR e IN elevates
+        LET intent_doc  = DOCUMENT(e._from)
+        LET concept_doc = DOCUMENT(e._to)
+        RETURN {
+            intent_key  : intent_doc._key,
+            intent_name : intent_doc.intent_name,
+            concept_key : concept_doc._key,
+            concept_name: concept_doc.concept_name,
+            weight      : e.weight
+        }
+    """
+    try:
+        cursor = db.aql.execute(aql, batch_size=200)
+        edges: List[Dict[str, Any]] = list(cursor)
+    except Exception as exc:
+        return {
+            "status": "error",
+            "total_edges": 0,
+            "pass_count": 0,
+            "gap_concepts": [],
+            "skip_count": 0,
+            "message": f"Could not query ELEVATES edges: {exc}",
+        }
+
+    if not edges:
+        return {
+            "status": "skip",
+            "total_edges": 0,
+            "pass_count": 0,
+            "gap_concepts": [],
+            "skip_count": 0,
+            "message": "No ELEVATES edges found — graph may be empty or unsynced.",
+        }
+
+    bindings = get_ground_truth_bindings(manifest_path)
+    approved_anchors: Dict[str, str] = {}
+    for b in bindings:
+        anchor = (b.get("concept_anchor") or "").upper().strip()
+        if anchor and anchor not in approved_anchors:
+            approved_anchors[anchor] = b.get("file_path") or b["binding_key"]
+
+    gap_concepts: List[Dict[str, str]] = []
+    pass_count = 0
+    skip_count = 0
+
+    for edge in edges:
+        intent_label = edge.get("intent_name") or edge.get("intent_key") or ""
+        concept_label = edge.get("concept_name") or edge.get("concept_key") or ""
+
+        if not intent_label or not concept_label:
+            skip_count += 1
+            continue
+
+        concept_raw = concept_label
+        if concept_raw.lower().startswith("concept::"):
+            concept_raw = concept_raw[len("concept::"):]
+        concept_anchor = concept_raw.upper().strip()
+
+        if concept_anchor in approved_anchors:
+            pass_count += 1
+        else:
+            gap_concepts.append({
+                "intent_name": intent_label,
+                "concept_name": concept_label,
+                "concept_anchor": concept_anchor,
+            })
+
+    total_checked = pass_count + len(gap_concepts)
+    if gap_concepts:
+        status = "gaps"
+        message = (
+            f"{len(gap_concepts)} concept(s) without an approved SQL snippet "
+            f"(out of {total_checked} triples checked)"
+        )
+    else:
+        status = "ok"
+        message = (
+            f"All {pass_count} semantic triple(s) have an approved SQL binding."
+        )
+
+    return {
+        "status": status,
+        "total_edges": len(edges),
+        "pass_count": pass_count,
+        "gap_concepts": gap_concepts,
+        "skip_count": skip_count,
+        "message": message,
+    }

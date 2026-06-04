@@ -66,7 +66,11 @@ APP_METADATA_TABLES: set = {
     "column_bindings",
 }
 
-from bridge_health import BRIDGE_HEALTH_MAP, run_bridge_health_check_impl as _bridge_health_check_impl
+from bridge_health import (
+    BRIDGE_HEALTH_MAP,
+    run_bridge_health_check_impl as _bridge_health_check_impl,
+    get_sweep1_coverage_gaps as _get_sweep1_coverage_gaps,
+)
 
 
 def get_db_engine():
@@ -4932,12 +4936,90 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
             health_detail = gr.Code(label="Count Comparison", language=None, lines=14)
 
+            gr.Markdown("---")
+            gr.Markdown("### Semantic Triple Coverage (Sweep 1)")
+            gr.Markdown(
+                "Lists concepts that appear in ELEVATES edges but have no matching APPROVED SQL binding "
+                "in the reviewer manifest — the same gaps reported by `verify_metadata_meaning.py` Sweep 1."
+            )
+
+            with gr.Row():
+                coverage_badge = gr.Textbox(
+                    label="Coverage Status",
+                    interactive=False,
+                    value="Not checked yet — click Check Now",
+                )
+
+            coverage_detail = gr.Code(
+                label="Concepts Without an Approved SQL Snippet",
+                language=None,
+                lines=12,
+            )
+
+            def _format_coverage(result: dict) -> str:
+                """Render the coverage gap dict as a readable plain-text report."""
+                status = result.get("status", "error")
+                msg = result.get("message", "")
+                gap_concepts = result.get("gap_concepts", [])
+                pass_count = result.get("pass_count", 0)
+                skip_count = result.get("skip_count", 0)
+
+                if status in ("skip", "error"):
+                    return msg
+
+                lines = [msg, ""]
+                if not gap_concepts:
+                    lines.append("No coverage gaps — every ELEVATES concept has an APPROVED SQL binding.")
+                    return "\n".join(lines)
+
+                col_w = [30, 30, 36]
+                header = (
+                    f"{'Intent (Subject)':<{col_w[0]}} "
+                    f"{'Concept (Object)':<{col_w[1]}} "
+                    f"{'Concept Anchor':<{col_w[2]}}"
+                )
+                lines.append(header)
+                lines.append("-" * (sum(col_w) + 2))
+                for gap in gap_concepts:
+                    lines.append(
+                        f"{gap['intent_name'][:col_w[0]]:<{col_w[0]}} "
+                        f"{gap['concept_name'][:col_w[1]]:<{col_w[1]}} "
+                        f"{gap['concept_anchor'][:col_w[2]]:<{col_w[2]}}"
+                    )
+                lines.append("-" * (sum(col_w) + 2))
+                lines.append(
+                    f"Triples with gaps: {len(gap_concepts)}  |  "
+                    f"Triples OK: {pass_count}"
+                    + (f"  |  Skipped (dangling): {skip_count}" if skip_count else "")
+                )
+                lines.append("")
+                lines.append(
+                    "Add an APPROVED SQL snippet for each concept above to the reviewer manifest, "
+                    "then re-run graph_sync.py."
+                )
+                return "\n".join(lines)
+
             def run_bridge_health_check():
-                return _bridge_health_check_impl(SQLITE_DB_PATH, BRIDGE_HEALTH_MAP)
+                bridge_result = _bridge_health_check_impl(SQLITE_DB_PATH, BRIDGE_HEALTH_MAP)
+                coverage_result = _get_sweep1_coverage_gaps(MANIFEST_PATH)
+
+                status = coverage_result.get("status", "error")
+                gap_concepts = coverage_result.get("gap_concepts", [])
+                if status == "ok":
+                    badge = f"✅  All triples covered — {coverage_result.get('pass_count', 0)} approved binding(s)"
+                elif status == "gaps":
+                    badge = f"⚠️  {len(gap_concepts)} concept(s) without an approved SQL snippet"
+                elif status == "skip":
+                    badge = "—  Skipped (ArangoDB not configured)"
+                else:
+                    badge = f"❌  Error — {coverage_result.get('message', '')}"
+
+                coverage_text = _format_coverage(coverage_result)
+                return (*bridge_result, badge, coverage_text)
 
             health_check_btn.click(
                 fn=run_bridge_health_check,
-                outputs=[health_status, health_timestamp, health_detail],
+                outputs=[health_status, health_timestamp, health_detail, coverage_badge, coverage_detail],
             )
 
         with gr.Tab("🎨 Query Palette"):
