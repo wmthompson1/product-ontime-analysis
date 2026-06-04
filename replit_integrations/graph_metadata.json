@@ -1,0 +1,731 @@
+{
+  "generated_at": "2026-06-04T07:14:09.457510+00:00",
+  "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
+  "description": "Semantic graph exported from SQLite (parity view of ArangoDB manufacturing_graph).",
+  "counts": {
+    "nodes_total": 51,
+    "edges_total": 69,
+    "nodes_by_type": {
+      "column": 3,
+      "concept": 19,
+      "intent": 9,
+      "perspective": 7,
+      "table": 13
+    },
+    "edges_by_predicate": {
+      "CAN_MEAN": 3,
+      "ELEVATES": 15,
+      "FOREIGN_KEY": 19,
+      "OPERATES_WITHIN": 12,
+      "USES_DEFINITION": 20
+    }
+  },
+  "integrity": {
+    "unresolved_concept_refs": 13
+  },
+  "nodes": [
+    {
+      "id": "column::stg_manufacturing_flat.customer_impact_flag",
+      "label": "stg_manufacturing_flat.customer_impact_flag",
+      "type": "column"
+    },
+    {
+      "id": "column::stg_manufacturing_flat.ncm_cost",
+      "label": "stg_manufacturing_flat.ncm_cost",
+      "type": "column"
+    },
+    {
+      "id": "column::stg_manufacturing_flat.quality_score",
+      "label": "stg_manufacturing_flat.quality_score",
+      "type": "column"
+    },
+    {
+      "id": "concept::DefectSeverityCost",
+      "label": "DefectSeverityCost",
+      "type": "concept"
+    },
+    {
+      "id": "concept::DefectSeverityCustomer",
+      "label": "DefectSeverityCustomer",
+      "type": "concept"
+    },
+    {
+      "id": "concept::DefectSeverityQuality",
+      "label": "DefectSeverityQuality",
+      "type": "concept"
+    },
+    {
+      "id": "concept::DeliveryPerformanceFinance",
+      "label": "DeliveryPerformanceFinance",
+      "type": "concept"
+    },
+    {
+      "id": "concept::DeliveryPerformanceOps",
+      "label": "DeliveryPerformanceOps",
+      "type": "concept"
+    },
+    {
+      "id": "concept::DeliveryPerformanceSupplier",
+      "label": "DeliveryPerformanceSupplier",
+      "type": "concept"
+    },
+    {
+      "id": "concept::concept#10",
+      "label": "concept#10",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#11",
+      "label": "concept#11",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#12",
+      "label": "concept#12",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#13",
+      "label": "concept#13",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#14",
+      "label": "concept#14",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#15",
+      "label": "concept#15",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#16",
+      "label": "concept#16",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#17",
+      "label": "concept#17",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#18",
+      "label": "concept#18",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#19",
+      "label": "concept#19",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#4",
+      "label": "concept#4",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#5",
+      "label": "concept#5",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "concept::concept#6",
+      "label": "concept#6",
+      "type": "concept",
+      "unresolved": true
+    },
+    {
+      "id": "intent::crm_customer_address_lookup",
+      "label": "crm_customer_address_lookup",
+      "type": "intent"
+    },
+    {
+      "id": "intent::crm_customer_profile",
+      "label": "crm_customer_profile",
+      "type": "intent"
+    },
+    {
+      "id": "intent::crm_customer_revenue",
+      "label": "crm_customer_revenue",
+      "type": "intent"
+    },
+    {
+      "id": "intent::defect_cost_analysis",
+      "label": "defect_cost_analysis",
+      "type": "intent"
+    },
+    {
+      "id": "intent::defect_customer_impact",
+      "label": "defect_customer_impact",
+      "type": "intent"
+    },
+    {
+      "id": "intent::defect_quality_trending",
+      "label": "defect_quality_trending",
+      "type": "intent"
+    },
+    {
+      "id": "intent::supplier_cost_penalties",
+      "label": "supplier_cost_penalties",
+      "type": "intent"
+    },
+    {
+      "id": "intent::supplier_payables_exposure",
+      "label": "supplier_payables_exposure",
+      "type": "intent"
+    },
+    {
+      "id": "intent::supplier_scorecard",
+      "label": "supplier_scorecard",
+      "type": "intent"
+    },
+    {
+      "id": "perspective::CRM",
+      "label": "CRM",
+      "type": "perspective"
+    },
+    {
+      "id": "perspective::Finance",
+      "label": "Finance",
+      "type": "perspective"
+    },
+    {
+      "id": "perspective::General_Ledger",
+      "label": "General_Ledger",
+      "type": "perspective"
+    },
+    {
+      "id": "perspective::Payables",
+      "label": "Payables",
+      "type": "perspective"
+    },
+    {
+      "id": "perspective::Quality",
+      "label": "Quality",
+      "type": "perspective"
+    },
+    {
+      "id": "perspective::Receivables",
+      "label": "Receivables",
+      "type": "perspective"
+    },
+    {
+      "id": "perspective::Work_Orders",
+      "label": "Work_Orders",
+      "type": "perspective"
+    },
+    {
+      "id": "table::certification",
+      "label": "certification",
+      "type": "table"
+    },
+    {
+      "id": "table::invoice_header",
+      "label": "invoice_header",
+      "type": "table"
+    },
+    {
+      "id": "table::labor_ticket",
+      "label": "labor_ticket",
+      "type": "table"
+    },
+    {
+      "id": "table::material_issue",
+      "label": "material_issue",
+      "type": "table"
+    },
+    {
+      "id": "table::operation",
+      "label": "operation",
+      "type": "table"
+    },
+    {
+      "id": "table::part",
+      "label": "part",
+      "type": "table"
+    },
+    {
+      "id": "table::po_line",
+      "label": "po_line",
+      "type": "table"
+    },
+    {
+      "id": "table::purchase_order",
+      "label": "purchase_order",
+      "type": "table"
+    },
+    {
+      "id": "table::receiving",
+      "label": "receiving",
+      "type": "table"
+    },
+    {
+      "id": "table::service",
+      "label": "service",
+      "type": "table"
+    },
+    {
+      "id": "table::shop_resource",
+      "label": "shop_resource",
+      "type": "table"
+    },
+    {
+      "id": "table::suppliers",
+      "label": "suppliers",
+      "type": "table"
+    },
+    {
+      "id": "table::work_order",
+      "label": "work_order",
+      "type": "table"
+    }
+  ],
+  "edges": [
+    {
+      "from": "perspective::General_Ledger",
+      "to": "concept::concept#12",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::General_Ledger",
+      "to": "concept::concept#14",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "concept::DefectSeverityCost",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "concept::concept#5",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "concept::DeliveryPerformanceFinance",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "concept::concept#15",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "concept::concept#17",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "concept::concept#19",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Quality",
+      "to": "concept::DefectSeverityQuality",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Quality",
+      "to": "concept::DeliveryPerformanceSupplier",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Quality",
+      "to": "concept::concept#16",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "concept::DefectSeverityCustomer",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "concept::concept#6",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "concept::DeliveryPerformanceSupplier",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Work_Orders",
+      "to": "concept::concept#4",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Work_Orders",
+      "to": "concept::DeliveryPerformanceOps",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Work_Orders",
+      "to": "concept::concept#10",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Work_Orders",
+      "to": "concept::concept#11",
+      "predicate": "USES_DEFINITION",
+      "weight": 2
+    },
+    {
+      "from": "perspective::Work_Orders",
+      "to": "concept::concept#13",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::Work_Orders",
+      "to": "concept::concept#18",
+      "predicate": "USES_DEFINITION",
+      "weight": 3
+    },
+    {
+      "from": "perspective::CRM",
+      "to": "intent::crm_customer_revenue",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Finance",
+      "to": "intent::defect_cost_analysis",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "intent::defect_cost_analysis",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "intent::supplier_cost_penalties",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "intent::supplier_payables_exposure",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Payables",
+      "to": "intent::supplier_scorecard",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Quality",
+      "to": "intent::defect_quality_trending",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Quality",
+      "to": "intent::supplier_scorecard",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "intent::crm_customer_address_lookup",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "intent::crm_customer_profile",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "intent::crm_customer_revenue",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "perspective::Receivables",
+      "to": "intent::defect_customer_impact",
+      "predicate": "OPERATES_WITHIN",
+      "weight": 1
+    },
+    {
+      "from": "intent::defect_cost_analysis",
+      "to": "concept::DefectSeverityCost",
+      "predicate": "ELEVATES",
+      "weight": 1
+    },
+    {
+      "from": "intent::defect_cost_analysis",
+      "to": "concept::DefectSeverityCustomer",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::defect_cost_analysis",
+      "to": "concept::DefectSeverityQuality",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::defect_customer_impact",
+      "to": "concept::DefectSeverityCustomer",
+      "predicate": "ELEVATES",
+      "weight": 1
+    },
+    {
+      "from": "intent::defect_customer_impact",
+      "to": "concept::DefectSeverityCost",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::defect_customer_impact",
+      "to": "concept::DefectSeverityQuality",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::defect_quality_trending",
+      "to": "concept::DefectSeverityQuality",
+      "predicate": "ELEVATES",
+      "weight": 1
+    },
+    {
+      "from": "intent::defect_quality_trending",
+      "to": "concept::DefectSeverityCost",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::defect_quality_trending",
+      "to": "concept::DefectSeverityCustomer",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::supplier_cost_penalties",
+      "to": "concept::DeliveryPerformanceFinance",
+      "predicate": "ELEVATES",
+      "weight": 1
+    },
+    {
+      "from": "intent::supplier_cost_penalties",
+      "to": "concept::DeliveryPerformanceOps",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::supplier_cost_penalties",
+      "to": "concept::DeliveryPerformanceSupplier",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::supplier_scorecard",
+      "to": "concept::DeliveryPerformanceSupplier",
+      "predicate": "ELEVATES",
+      "weight": 1
+    },
+    {
+      "from": "intent::supplier_scorecard",
+      "to": "concept::DeliveryPerformanceFinance",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "intent::supplier_scorecard",
+      "to": "concept::DeliveryPerformanceOps",
+      "predicate": "ELEVATES",
+      "weight": 0
+    },
+    {
+      "from": "concept::DefectSeverityCost",
+      "to": "column::stg_manufacturing_flat.ncm_cost",
+      "predicate": "CAN_MEAN",
+      "weight": 0
+    },
+    {
+      "from": "concept::DefectSeverityCustomer",
+      "to": "column::stg_manufacturing_flat.customer_impact_flag",
+      "predicate": "CAN_MEAN",
+      "weight": 0
+    },
+    {
+      "from": "concept::DefectSeverityQuality",
+      "to": "column::stg_manufacturing_flat.quality_score",
+      "predicate": "CAN_MEAN",
+      "weight": 0
+    },
+    {
+      "from": "table::certification",
+      "to": "table::part",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "part_id"
+    },
+    {
+      "from": "table::certification",
+      "to": "table::receiving",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "receipt_id"
+    },
+    {
+      "from": "table::invoice_header",
+      "to": "table::purchase_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "po_id"
+    },
+    {
+      "from": "table::invoice_header",
+      "to": "table::suppliers",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "supplier_id"
+    },
+    {
+      "from": "table::labor_ticket",
+      "to": "table::work_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "wo_id"
+    },
+    {
+      "from": "table::material_issue",
+      "to": "table::part",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "part_id"
+    },
+    {
+      "from": "table::material_issue",
+      "to": "table::work_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "wo_id"
+    },
+    {
+      "from": "table::operation",
+      "to": "table::service",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "service_id"
+    },
+    {
+      "from": "table::operation",
+      "to": "table::shop_resource",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "resource_id"
+    },
+    {
+      "from": "table::operation",
+      "to": "table::suppliers",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "vendor_id"
+    },
+    {
+      "from": "table::operation",
+      "to": "table::work_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "wo_id"
+    },
+    {
+      "from": "table::po_line",
+      "to": "table::part",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "part_id"
+    },
+    {
+      "from": "table::po_line",
+      "to": "table::purchase_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "po_id"
+    },
+    {
+      "from": "table::purchase_order",
+      "to": "table::suppliers",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "supplier_id"
+    },
+    {
+      "from": "table::purchase_order",
+      "to": "table::work_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "wo_id"
+    },
+    {
+      "from": "table::receiving",
+      "to": "table::part",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "part_id"
+    },
+    {
+      "from": "table::receiving",
+      "to": "table::purchase_order",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "po_id"
+    },
+    {
+      "from": "table::receiving",
+      "to": "table::suppliers",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "supplier_id"
+    },
+    {
+      "from": "table::work_order",
+      "to": "table::part",
+      "predicate": "FOREIGN_KEY",
+      "weight": 1,
+      "join_column": "part_id"
+    }
+  ]
+}
