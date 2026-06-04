@@ -50,8 +50,8 @@
             },
             "select_counts": {
               "product_defects": 1,
-              "corrective_actions": 2,
               "non_conformant_materials": 3,
+              "corrective_actions": 2,
               "quality_incidents": 1,
               "employee": 1
             }
@@ -82,8 +82,8 @@
               "daily_deliveries": 1
             },
             "select_counts": {
-              "suppliers": 1,
-              "daily_deliveries": 1
+              "daily_deliveries": 1,
+              "suppliers": 1
             }
           },
           {
@@ -93,8 +93,8 @@
               "daily_deliveries": 1
             },
             "select_counts": {
-              "suppliers": 1,
-              "daily_deliveries": 1
+              "daily_deliveries": 1,
+              "suppliers": 1
             }
           },
           {
@@ -105,8 +105,8 @@
               "product_lines": 1
             },
             "select_counts": {
-              "suppliers": 1,
               "daily_deliveries": 1,
+              "suppliers": 1,
               "product_lines": 1
             }
           }
@@ -180,6 +180,7 @@
     }
   ],
   "tables_referenced": [
+    "certification",
     "corrective_actions",
     "customer",
     "customer_address",
@@ -189,32 +190,43 @@
     "equipment_metrics",
     "failure_events",
     "non_conformant_materials",
+    "operation",
     "product_defects",
     "product_lines",
     "production_lines",
     "production_schedule",
+    "purchase_order",
     "quality_costs",
     "quality_incidents",
+    "receiving",
     "sales",
-    "suppliers"
+    "shop_resource",
+    "suppliers",
+    "work_order"
   ],
   "table_reference_counts": {
+    "suppliers": 9,
     "daily_deliveries": 7,
     "product_lines": 5,
-    "suppliers": 4,
+    "work_order": 5,
+    "shop_resource": 5,
+    "operation": 5,
     "customer": 3,
     "customer_address": 3,
     "production_schedule": 3,
     "non_conformant_materials": 3,
+    "purchase_order": 3,
     "product_defects": 2,
     "equipment_metrics": 2,
     "corrective_actions": 2,
+    "receiving": 2,
     "sales": 1,
     "downtime_events": 1,
     "failure_events": 1,
     "production_lines": 1,
     "quality_costs": 1,
     "quality_incidents": 1,
-    "employee": 1
+    "employee": 1,
+    "certification": 1
   }
 }

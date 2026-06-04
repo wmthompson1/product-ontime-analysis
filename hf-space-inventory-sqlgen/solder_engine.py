@@ -851,6 +851,23 @@ class SolderEngine:
                 print(f"  {file_name}: {len(queries)} queries, "
                       f"{len(file_counter)} tables → {dict(file_counter)}")
 
+        # Also index every APPROVED snippet in the reviewer manifest. These live
+        # in ground_truth/sql_snippets/ (outside QUERIES_DIR) and would otherwise
+        # be invisible to ground_truth_table_usage, under-reporting their tables.
+        snippet_summary = self.index_snippet_table_usage(conn=conn, verbose=verbose)
+        for binding_key, info in snippet_summary.items():
+            for tbl, cnt in info.get("tables", {}).items():
+                global_counter[tbl] += cnt
+            summary[binding_key] = {
+                "file": info.get("query_file", ""),
+                "per_query": [{
+                    "query_name": info.get("query_name", binding_key),
+                    "tables": info.get("tables", {}),
+                    "select_counts": info.get("select_counts", {}),
+                }],
+                "totals": info.get("tables", {}),
+            }
+
         conn.commit()
         conn.close()
 
@@ -865,6 +882,120 @@ class SolderEngine:
             json.dump(index, fh, indent=2)
 
         summary["_global"] = dict(global_counter.most_common())
+        return summary
+
+    def _resolve_snippet_path(self, file_path: str) -> str:
+        """Resolve a manifest snippet file_path to an existing absolute path.
+
+        Mirrors the resolution logic in ``load_approved_bindings`` so the
+        table-usage index and the runtime binder agree on which file backs a
+        snippet.
+        """
+        if not file_path:
+            return ""
+        if os.path.isabs(file_path) and os.path.exists(file_path):
+            return file_path
+        manifest_dir = os.path.dirname(os.path.abspath(self.manifest_path))
+        candidate = os.path.join(manifest_dir, os.path.basename(file_path))
+        if os.path.exists(candidate):
+            return candidate
+        # Also try ground_truth/sql_snippets/<basename> (current snippet home).
+        candidate2 = os.path.join(manifest_dir, "sql_snippets", os.path.basename(file_path))
+        if os.path.exists(candidate2):
+            return candidate2
+        if os.path.exists(file_path):
+            return file_path
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        candidate3 = os.path.join(repo_root, file_path)
+        if os.path.exists(candidate3):
+            return candidate3
+        return ""
+
+    def index_snippet_table_usage(self, conn: sqlite3.Connection = None,
+                                  verbose: bool = True) -> Dict[str, Any]:
+        """Record per-table usage for every APPROVED reviewer-manifest snippet.
+
+        SME-approved snippets live in ``ground_truth/sql_snippets/`` — outside
+        ``QUERIES_DIR`` — so ``build_table_usage_index`` never sees them and the
+        ``ground_truth_table_usage`` log silently under-reports the tables they
+        touch (e.g. ``shop_resource``, ``operation``, ``receiving``,
+        ``certification``).  This method parses each snippet with SQLGlot and
+        upserts one row per (binding_key, concept_anchor, table) into the log.
+
+        Pass ``conn`` to reuse an open connection/transaction (the caller
+        commits); otherwise a connection is opened and committed here. Returns a
+        dict keyed by binding_key with the tables/select counts that were
+        recorded.
+        """
+        bindings = self.load_approved_bindings()
+
+        owns_conn = conn is None
+        if owns_conn:
+            conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        cur.executescript("""
+            CREATE TABLE IF NOT EXISTS ground_truth_table_usage (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                query_file      TEXT    NOT NULL,
+                category_id     TEXT    NOT NULL,
+                query_name      TEXT    NOT NULL,
+                table_name      TEXT    NOT NULL,
+                reference_count INTEGER NOT NULL DEFAULT 1,
+                select_count    INTEGER NOT NULL DEFAULT 1,
+                created_at      TEXT    DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_gt_usage
+                ON ground_truth_table_usage (category_id, query_name, table_name);
+        """)
+
+        summary: Dict[str, Any] = {}
+        for binding in bindings:
+            sql_text = binding.sql_text
+            if not sql_text:
+                resolved = self._resolve_snippet_path(binding.sql_snippet_path)
+                if resolved:
+                    try:
+                        sql_text = open(resolved).read()
+                    except Exception:
+                        sql_text = ""
+            if not sql_text:
+                if verbose:
+                    print(f"  [skip] {binding.binding_key}: no SQL text")
+                continue
+
+            q_counts   = Counter(self._extract_tables_from_sql(sql_text))
+            if not q_counts:
+                if verbose:
+                    print(f"  [skip] {binding.binding_key}: no tables parsed")
+                continue
+            sel_counts = self._count_select_participation(sql_text)
+            category_id = binding.binding_key
+            query_name  = binding.concept_anchor or binding.binding_key
+            query_file  = os.path.basename(binding.sql_snippet_path) or binding.binding_key
+
+            for table_name, ref_count in q_counts.items():
+                s_count = sel_counts.get(table_name, 1)
+                cur.execute(
+                    """INSERT OR REPLACE INTO ground_truth_table_usage
+                       (query_file, category_id, query_name, table_name,
+                        reference_count, select_count)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (query_file, category_id, query_name, table_name,
+                     ref_count, s_count),
+                )
+
+            summary[binding.binding_key] = {
+                "query_file": query_file,
+                "query_name": query_name,
+                "tables": dict(q_counts),
+                "select_counts": sel_counts,
+            }
+            if verbose:
+                print(f"  {binding.binding_key}: {dict(q_counts)}")
+
+        if owns_conn:
+            conn.commit()
+            conn.close()
         return summary
 
     # ── Perspective affinity index ────────────────────────────────────────────
