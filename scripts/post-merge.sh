@@ -44,4 +44,11 @@ if [ -f scripts/verify_metadata_meaning.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_sweep1_coverage_gaps.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_sweep1_coverage_gaps.py || {
+    echo "post-merge: sweep1 coverage gap tests failed"
+    exit 1
+  }
+fi
+
 echo "post-merge: OK"
