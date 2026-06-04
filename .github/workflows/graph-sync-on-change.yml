@@ -100,6 +100,28 @@ jobs:
           echo "Set ARANGO_HOST, ARANGO_DB, ARANGO_USER, ARANGO_ROOT_PASSWORD"
           echo "as repository secrets to enable live sync."
 
+      - name: Sweep 1 — coverage gap check
+        continue-on-error: true
+        run: |
+          python scripts/verify_metadata_meaning.py --skip-on-no-arango \
+            2>&1 | tee /tmp/sweep1_output.txt; true
+          python3 - <<'PYEOF' >> "$GITHUB_ENV"
+import re, os
+content = open('/tmp/sweep1_output.txt').read()
+if 'SKIP:' in content:
+    status = 'skipped'
+    gap_count = ''
+elif 'Sweep 1 PASSED' in content:
+    status = 'passed'
+    gap_count = '0'
+else:
+    m = re.search(r'FAIL:\s*(\d+)', content)
+    gap_count = m.group(1) if m else ''
+    status = 'failed' if (gap_count and gap_count != '0') else 'unknown'
+print(f'SWEEP1_STATUS={status}')
+print(f'SWEEP1_GAP_COUNT={gap_count}')
+PYEOF
+
       - name: Notify on failure
         if: failure()
         env:
@@ -115,6 +137,19 @@ jobs:
             DRIFT_DETAILS=""
           fi
 
+          # Resolve Sweep 1 status for display
+          SWEEP1_STATUS="${SWEEP1_STATUS:-}"
+          SWEEP1_GAP_COUNT="${SWEEP1_GAP_COUNT:-}"
+          if [ "${SWEEP1_STATUS}" = "passed" ]; then
+            SWEEP1_SUMMARY=":white_check_mark: Sweep 1: all concepts have approved SQL snippets"
+          elif [ "${SWEEP1_STATUS}" = "failed" ] && [ -n "${SWEEP1_GAP_COUNT}" ]; then
+            SWEEP1_SUMMARY=":warning: Sweep 1: ${SWEEP1_GAP_COUNT} concept(s) without approved SQL snippets"
+          elif [ "${SWEEP1_STATUS}" = "skipped" ]; then
+            SWEEP1_SUMMARY=":fast_forward: Sweep 1: skipped (ArangoDB not reachable)"
+          else
+            SWEEP1_SUMMARY=":question: Sweep 1: status unknown"
+          fi
+
           # Write a GitHub Actions step summary visible in the workflow UI
           {
             echo "## :rotating_light: Graph Sync Failed"
@@ -124,6 +159,9 @@ jobs:
             echo "| **Workflow run** | [View logs](${RUN_URL}) |"
             echo "| **Branch** | \`${{ github.ref_name }}\` |"
             echo "| **Triggered by** | ${{ github.actor }} |"
+            echo ""
+            echo "### Sweep 1 Coverage"
+            echo "${SWEEP1_SUMMARY}"
             if [ -n "${DRIFT_DETAILS}" ]; then
               echo ""
               echo "### Drift Details"
@@ -137,7 +175,7 @@ jobs:
 
           # Optionally POST to Slack webhook if secret is configured
           if [ -n "${GRAPH_SYNC_ALERT_WEBHOOK}" ]; then
-            PAYLOAD=$(python3 - <<'PYEOF'
+            PAYLOAD=$(SWEEP1_STATUS="${SWEEP1_STATUS}" SWEEP1_GAP_COUNT="${SWEEP1_GAP_COUNT}" python3 - <<'PYEOF'
 import datetime, json, os
 
 ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -146,6 +184,17 @@ branch  = "${{ github.ref_name }}"
 actor   = "${{ github.actor }}"
 drift_file = "${{ github.workspace }}/drift_report.txt"
 drift   = open(drift_file).read().strip() if os.path.exists(drift_file) else ""
+
+sweep1_status    = os.environ.get("SWEEP1_STATUS", "")
+sweep1_gap_count = os.environ.get("SWEEP1_GAP_COUNT", "")
+if sweep1_status == "passed":
+    sweep1_text = ":white_check_mark: *Sweep 1:* all concepts have approved SQL snippets"
+elif sweep1_status == "failed" and sweep1_gap_count:
+    sweep1_text = f":warning: *Sweep 1:* {sweep1_gap_count} concept(s) without approved SQL snippets"
+elif sweep1_status == "skipped":
+    sweep1_text = ":fast_forward: *Sweep 1:* skipped (ArangoDB not reachable)"
+else:
+    sweep1_text = ":question: *Sweep 1:* status unknown"
 
 fields = [
     {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
@@ -158,6 +207,10 @@ blocks = [
         "text": {"type": "plain_text", "text": ":rotating_light: Graph Sync Failed"}
     },
     {"type": "section", "fields": fields},
+    {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": sweep1_text}
+    },
 ]
 if drift:
     blocks.append({
