@@ -100,11 +100,39 @@ jobs:
           echo "Set ARANGO_HOST, ARANGO_DB, ARANGO_USER, ARANGO_ROOT_PASSWORD"
           echo "as repository secrets to enable live sync."
 
+      # ──────────────────────────────────────────────────────────────────────
+      # Sweep 1 & 2 — coverage gap + column-parity check  [HARD GATE]
+      #
+      # Tightened 2026-06-04: this step no longer carries `continue-on-error:
+      # true`. During the earlier transition period gaps were allowed to pass
+      # silently while concept anchors were still being given approved SQL
+      # snippets. Now that every concept anchor has an approved snippet, a NEW
+      # coverage gap is a regression and MUST fail the nightly run on its own
+      # so the "Notify on failure" Slack alert fires even when no other step
+      # also fails. Sweep 2 (column parity) has always hard-failed.
+      #
+      # Escape hatch for a deliberate, temporary exception: set the repository
+      # variable ALLOW_SWEEP1_GAPS=true (Settings → Secrets and variables →
+      # Actions → Variables). That passes --allow-sweep1-gaps to
+      # verify_metadata_meaning.py, which downgrades Sweep 1 gaps to warnings.
+      # Sweep 2 still hard-fails regardless. Unset the variable to re-arm the
+      # gate.
+      # ──────────────────────────────────────────────────────────────────────
       - name: Sweep 1 & 2 — coverage gap + column-parity check
-        continue-on-error: true
         run: |
-          python scripts/verify_metadata_meaning.py --skip-on-no-arango \
-            2>&1 | tee /tmp/sweep1_output.txt; true
+          ALLOW_GAPS_FLAG=""
+          if [ "${{ vars.ALLOW_SWEEP1_GAPS }}" = "true" ]; then
+            ALLOW_GAPS_FLAG="--allow-sweep1-gaps"
+            echo "::notice::ALLOW_SWEEP1_GAPS repo variable is true — Sweep 1 coverage gaps downgraded to warnings for this run."
+          fi
+          # Capture the validator exit code without aborting (default shell is
+          # `bash -eo pipefail`), so the parsing block below can still populate
+          # the env vars the Notify step reads, then propagate the real status.
+          set +e
+          python scripts/verify_metadata_meaning.py --skip-on-no-arango $ALLOW_GAPS_FLAG \
+            2>&1 | tee /tmp/sweep1_output.txt
+          SWEEP_EXIT=${PIPESTATUS[0]}
+          set -e
           python3 - <<'PYEOF' >> "$GITHUB_ENV"
 import re, os
 content = open('/tmp/sweep1_output.txt').read()
@@ -137,6 +165,9 @@ else:
 print(f'SWEEP2_STATUS={s2_status}')
 print(f'SWEEP2_MISSING_COUNT={s2_missing}')
 PYEOF
+          # Propagate the validator's real status: a non-zero exit here fails
+          # the step (and the job), which triggers the Notify-on-failure alert.
+          exit "$SWEEP_EXIT"
 
       - name: Notify on failure
         if: failure()

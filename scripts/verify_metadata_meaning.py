@@ -24,6 +24,15 @@ Usage
 
 The --skip-on-no-arango flag (or absent ARANGO_HOST env var) causes the script
 to print SKIP and exit 0 rather than failing.
+
+The --allow-sweep1-gaps flag is the escape hatch for Sweep 1: it downgrades
+coverage gaps (concept anchors without an APPROVED SQL snippet) from a hard
+failure to a warning, while still exiting 0. As of 2026-06-04 the nightly
+graph-sync workflow runs WITHOUT this flag — every concept anchor now has an
+approved snippet, so a new gap is a regression that must fail the build. Pass
+--allow-sweep1-gaps (in CI, via the ALLOW_SWEEP1_GAPS=true repository variable)
+only for a deliberate, temporary exception. Sweep 2 (column parity) always
+hard-fails regardless of this flag.
 """
 
 from __future__ import annotations
@@ -374,9 +383,12 @@ def main() -> int:
         "--allow-sweep1-gaps",
         action="store_true",
         help=(
-            "Treat Sweep 1 binding gaps as warnings rather than hard failures. "
-            "Use in post-merge until all concept anchors have approved snippets. "
-            "Sweep 2 (column parity) always hard-fails regardless of this flag."
+            "ESCAPE HATCH: treat Sweep 1 coverage gaps as warnings rather than "
+            "hard failures (still exits 0). The nightly graph-sync workflow runs "
+            "WITHOUT this flag as of 2026-06-04, so new gaps fail the build; pass "
+            "it (via the ALLOW_SWEEP1_GAPS=true repository variable in CI) only "
+            "for a deliberate, temporary exception. Sweep 2 (column parity) always "
+            "hard-fails regardless of this flag."
         ),
     )
     args = parser.parse_args()
