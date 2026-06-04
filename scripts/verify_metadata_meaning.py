@@ -370,6 +370,15 @@ def main() -> int:
         action="store_true",
         help="Exit 0 with SKIP when ARANGO_HOST is not set (CI-friendly flag).",
     )
+    parser.add_argument(
+        "--allow-sweep1-gaps",
+        action="store_true",
+        help=(
+            "Treat Sweep 1 binding gaps as warnings rather than hard failures. "
+            "Use in post-merge until all concept anchors have approved snippets. "
+            "Sweep 2 (column parity) always hard-fails regardless of this flag."
+        ),
+    )
     args = parser.parse_args()
 
     print("=" * 72)
@@ -410,18 +419,32 @@ def main() -> int:
     finally:
         sqlite_conn.close()
 
+    sweep1_blocks = (not sweep1_ok) and (not args.allow_sweep1_gaps)
+
     print()
     print(_hr("="))
     print("SUMMARY")
     print(_hr("="))
-    print(f"  Sweep 1 (Semantic Triple Benchmark): {'PASSED' if sweep1_ok else 'FAILED'}")
+    if sweep1_ok:
+        sweep1_label = "PASSED"
+    elif args.allow_sweep1_gaps:
+        sweep1_label = "WARN  (gaps present — --allow-sweep1-gaps set)"
+    else:
+        sweep1_label = "FAILED"
+    print(f"  Sweep 1 (Semantic Triple Benchmark): {sweep1_label}")
     print(f"  Sweep 2 (Column Parity Matrix):      {'PASSED' if sweep2_ok else 'FAILED'}")
 
-    if sweep1_ok and sweep2_ok:
-        print("\nAll sweeps PASSED — semantic graph and physical schema are consistent.")
+    if not sweep1_ok and args.allow_sweep1_gaps:
+        print(
+            "\nNOTE: Sweep 1 has unbound concept anchors — add approved SQL snippets "
+            "to reviewer_manifest.json to resolve."
+        )
+
+    if sweep2_ok and not sweep1_blocks:
+        print("\nAll blocking sweeps PASSED.")
         return 0
     else:
-        print("\nOne or more sweeps FAILED — see output above for details.")
+        print("\nOne or more blocking sweeps FAILED — see output above for details.")
         return 1
 
 

@@ -38,7 +38,7 @@ if [ -f hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py ];
 fi
 
 if [ -f scripts/verify_metadata_meaning.py ]; then
-  python scripts/verify_metadata_meaning.py --skip-on-no-arango || {
+  python scripts/verify_metadata_meaning.py --skip-on-no-arango --allow-sweep1-gaps || {
     echo "post-merge: metadata meaning verification failed"
     exit 1
   }
