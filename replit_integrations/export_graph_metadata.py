@@ -5,7 +5,7 @@ in the exact key/edge format used by the live ArangoDB ``manufacturing_graph``.
 
 The live graph's physical layer has only two node types — **tables** and
 **columns** — connected by a CONTAINS edge (table → column) in the
-``manufacturing_graph_edges`` edge collection. Semantic context (perspective,
+``contains`` edge collection. Semantic context (perspective,
 intent, concept, weight) lives as edge properties on the semantic layer, never
 as nodes, and is out of scope here.
 
@@ -53,7 +53,7 @@ JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 # Live-graph collection names (parity targets).
 TABLES_COLLECTION = "tables"
 COLUMNS_COLLECTION = "columns"
-EDGE_COLLECTION = "manufacturing_graph_edges"
+EDGE_COLLECTION = "contains"
 EDGE_TYPE = "CONTAINS"
 
 

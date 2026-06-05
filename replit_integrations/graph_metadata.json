@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-04T13:28:34.749764+00:00",
+  "generated_at": "2026-06-05T17:14:00.344778+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Structural containment graph exported from SQLite in the live manufacturing_graph format (tables + columns + CONTAINS edges).",
   "graph": {
@@ -7,7 +7,7 @@
       "tables",
       "columns"
     ],
-    "edge_collection": "manufacturing_graph_edges"
+    "edge_collection": "contains"
   },
   "counts": {
     "nodes_total": 166,

@@ -15,10 +15,25 @@ Live format (names preserved verbatim — source case kept, schema prefix kept):
 - column vertex `_key` = `column::{table_name}.{column_name}`
   - keeps the schema prefix in the table part, e.g. `column::dbo.INVENTORY_BALANCE.POSTING_DATE`
   - `_id` = `columns/column::{table_name}.{column_name}`
-- contains edge lives in edge collection **`manufacturing_graph_edges`**
+- contains edge lives in edge collection **`contains`** (verified live via
+  `/_api/gharial`: edge def `contains` from `tables` to `columns`). An earlier
+  note here said `manufacturing_graph_edges` — that collection does NOT exist;
+  do not use it.
   - `_from`: `tables/{table_name}`, `_to`: `columns/column::{table_name}.{column_name}`
   - fields: `edge_type: "CONTAINS"`, `table_name`, `column_name` — **no `predicate` field**
   - live `_key` is a random hash (not deterministic)
+
+**Live collection inventory** (db `manufacturing_graph`, queried on host `:8529`
+— bare host serves the web UI as HTML, so always append `:8529` for the REST/API):
+two node-modeling conventions coexist —
+- structural trio: `tables`, `columns` (docs) + `contains` (edge tables→columns)
+- unified `manufacturing_graph_node` (doc, hex `_xHH_` keys) with UPPERCASE
+  node→node edges: `ELEVATES`, `CAN_MEAN`, `MAPS_TO_CONCEPT`, `FOREIGN_KEY`,
+  `HAS_COLUMN`, `NEUTRAL`, `OPERATES_WITHIN`, `USES_DEFINITION`, `ATOMIC_FK`
+- semantic docs `intents`, `concepts`, `bindings` + lowercase edges `bound_to`
+  (intents→bindings), `elevates` (intents→concepts); bridges `Perspective_Intents`,
+  `Perspective_Concepts`. Note duplication (uppercase `ELEVATES` vs lowercase
+  `elevates`) — multiple generations; user plans to remove old/incorrect structures.
 
 Local prototype (`arangodb_helpers/manufacturing_graph_version_0_0_1.py`):
 - `table_key()` → `table::{NAME}` UPPERCASE; `column_key()` → `column::{TABLE}.{COL}` UPPERCASE
