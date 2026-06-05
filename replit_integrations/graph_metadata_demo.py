@@ -118,12 +118,17 @@ print("=" * 60)
 # token ALONE — no prefix tag needed. Constraint: 'system' is reserved for the
 # structural layer, so a business view may never be named 'system'.
 FAMILY_STRUCTURAL = "structural"
+FAMILY_SEMANTIC = "semantic"
 PERSPECTIVE_SYSTEM = "system"
 SAMPLE_BUSINESS_VIEW = "payable"
+# Canonical semantic-layer example (6 slots) — kept in lockstep with the
+# key_scheme block embedded in graph_metadata.json (DEFERRED layer).
+SAMPLE_SEMANTIC_KEY = "PAYABLE:INVOICE_ID:semantic:payable:elevates:PAY_ELE_PAY_INV_001"
 
 KIND_TABLE = "table_vertex"
 KIND_COLUMN = "column_vertex"
 KIND_EDGE = "core_structural_edge"
+KIND_SEMANTIC = "semantic_edge"
 
 
 def _reject_delimiter(*parts):
@@ -147,14 +152,24 @@ def structural_edge_key(table, column, business_view):
 
 
 def classify_key(key):
-    """Classify a composite key by slot count + terminal perspective token."""
+    """Classify a composite key by slot count + terminal/family tokens.
+
+    Slot layouts (family is slot index 2, perspective the terminal slot for the
+    structural layer):
+        3 slots                       -> table vertex
+        4 slots, perspective 'system' -> column vertex
+        4 slots, perspective business -> core structural edge
+        6 slots, family 'semantic'    -> semantic edge
+    """
     tokens = key.split(":")
     n = len(tokens)
     if n == 3:
         return KIND_TABLE
     if n == 4:
         return KIND_COLUMN if tokens[-1] == PERSPECTIVE_SYSTEM else KIND_EDGE
-    raise ValueError(f"Unparseable key (expected 3 or 4 slots, got {n}): {key!r}")
+    if n == 6 and tokens[2] == FAMILY_SEMANTIC:
+        return KIND_SEMANTIC
+    raise ValueError(f"Unparseable key (slots={n}): {key!r}")
 
 
 _db_path = gmq.get_manufacturing_db_path()
@@ -207,8 +222,15 @@ try:
 finally:
     _conn.close()
 
-# Malformed keys (wrong slot count) must be rejected outright
-for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e"]:
+# Semantic edge — 6 slots, family 'semantic' (DEFERRED layer; format locked).
+# Kept in lockstep with the key_scheme block in graph_metadata.json.
+assert classify_key(SAMPLE_SEMANTIC_KEY) == KIND_SEMANTIC, (
+    f"misclassified semantic edge: {SAMPLE_SEMANTIC_KEY!r}"
+)
+
+# Malformed keys (wrong slot count, or 6 slots without the 'semantic' family)
+# must be rejected outright.
+for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e", "a:b:structural:d:e:f"]:
     try:
         classify_key(_bad)
     except ValueError:
@@ -219,9 +241,11 @@ for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e"]:
 print(f"Table vertices  (3 slots)            : {n_tables} classified OK")
 print(f"Column vertices (4 slots, 'system')  : {n_columns} classified OK")
 print(f"Structural edges (4 slots, business) : {n_edges} classified OK")
+print(f"Semantic edge   (6 slots, 'semantic'): 1 classified OK")
 print(f"Sample table vertex  : {sample_table_key}")
 print(f"Sample column vertex : {sample_column_key}")
 print(f"Sample structural edge: {sample_edge_key}")
+print(f"Sample semantic edge : {SAMPLE_SEMANTIC_KEY}")
 print("Slot-length structural parsing assertions passed (offline)")
 
 print("\n" + "=" * 60)

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "milestone": "v1-structural-composite",
-  "generated_at": "2026-06-05T18:22:01.069397+00:00",
+  "generated_at": "2026-06-05T18:20:07.759219+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Canonical structural containment graph exported from SQLite in the composite-key scheme (tables + columns + CONTAINS edges). v1 milestone covers the physical schema footprint only.",
   "key_scheme": {
