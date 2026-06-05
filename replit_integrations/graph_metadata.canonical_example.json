@@ -1,0 +1,92 @@
+{
+  "metadata_version": "1.0.0",
+  "milestone_name": "database_bound_unambiguous_slots",
+  "synced_at": "2026-06-05T18:15:00Z",
+  "description": "Hand-verified canonical example of the composite-key graph shape. Defines, by example, the exact _key / _id / _from / _to / field conventions every generated record must conform to. Structural layer is active; the semantic edge is format-locked but DEFERRED to v2.",
+  "key_scheme": {
+    "delimiter": ":",
+    "forbidden_in_component": [":", "/", ""],
+    "reserved_perspective": "system",
+    "table_slot_placeholder": "entity",
+    "families": ["structural", "semantic"],
+    "node_collection": "manufacturing_graph_node",
+    "edge_collection": "manufacturing_graph_edge",
+    "parse_by": "slot_count, then the 'entity' marker for 4-slot nodes (no prefix tag)",
+    "disambiguation_note": "Nodes are uniform 4-slot width, so slot COUNT alone cannot separate a table vertex from a column vertex; the literal 'entity' in slot 2 marks a table vertex. Therefore no real column may ever be named 'entity' (export must hard-fail if one is). Edges are always longer (5 or 6 slots), so an edge key can never collide with a node key.",
+    "rules": [
+      {
+        "kind": "table_vertex",
+        "slots": 4,
+        "marker": "slot[1] == 'entity'",
+        "form": "table:entity:family:perspective",
+        "example": "PAYABLE:entity:structural:system",
+        "status": "active"
+      },
+      {
+        "kind": "column_vertex",
+        "slots": 4,
+        "marker": "slot[1] != 'entity'",
+        "form": "table:column:family:perspective",
+        "example": "PAYABLE:INVOICE_ID:structural:system",
+        "status": "active"
+      },
+      {
+        "kind": "structural_edge",
+        "slots": 5,
+        "form": "table:column:family:perspective:predicate",
+        "example": "PAYABLE:INVOICE_ID:structural:system:has_column",
+        "status": "active"
+      },
+      {
+        "kind": "semantic_edge",
+        "slots": 6,
+        "family": "semantic",
+        "form": "table:column:family:perspective:predicate:unique_id",
+        "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+        "status": "deferred"
+      }
+    ]
+  },
+  "graph_nodes": [
+    {
+      "_id": "manufacturing_graph_node/PAYABLE:entity:structural:system",
+      "_key": "PAYABLE:entity:structural:system",
+      "node_type": "table",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "PAYABLE",
+      "column_slot": "entity"
+    },
+    {
+      "_id": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system",
+      "_key": "PAYABLE:INVOICE_ID:structural:system",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "PAYABLE",
+      "column_name": "INVOICE_ID"
+    }
+  ],
+  "graph_edges": [
+    {
+      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:structural:system:has_column",
+      "_key": "PAYABLE:INVOICE_ID:structural:system:has_column",
+      "_from": "manufacturing_graph_node/PAYABLE:entity:structural:system",
+      "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system"
+    },
+    {
+      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+      "_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+      "_from": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system",
+      "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system",
+      "edge_family": "semantic",
+      "edge_type": "elevates",
+      "perspective": "Payables",
+      "unique_id": "PAY_ELE_PAY_INV_001",
+      "_status": "DEFERRED to v2 — format locked; _to target (self-loop vs a dedicated concept node) is the open v2 decision; do not populate until the semantic data source is chosen."
+    }
+  ]
+}
