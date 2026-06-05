@@ -129,7 +129,7 @@ SAMPLE_BUSINESS_VIEW = "Payables"
 SAMPLE_PREDICATE = "has_column"
 # Canonical examples — kept in lockstep with the key_scheme block embedded in
 # graph_metadata.json / graph_metadata.canonical_example.json.
-SAMPLE_SEMANTIC_KEY = "PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:PAY_ELE_RCVR_JOIN_001"
+SAMPLE_SEMANTIC_KEY = "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001"
 
 KIND_TABLE = "table_node"
 KIND_COLUMN = "column_node"

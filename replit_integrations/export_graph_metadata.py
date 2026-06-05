@@ -341,10 +341,21 @@ def _key_scheme_spec() -> dict:
                 "slots": 6,
                 "marker": "slot[2]=='semantic' and slot[4]!='none'",
                 "form": "table:column:semantic:perspective:predicate:unique_id",
-                "example": "PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:PAY_ELE_RCVR_JOIN_001",
+                "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
                 "status": "deferred",
             },
         ],
+        "unique_id_grammar": {
+            "structural": "full-name {table}_{column}_CONTAINMENT — auto-generated, no registry",
+            "semantic": {
+                "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3)",
+                "abbrev": "first 3 letters of each part, uppercased; collisions are expected and resolved by the uniqifier",
+                "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) tuple; default '001'",
+                "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
+                "example": "PAY_ELE_PAY_INV_001",
+                "status": "deferred",
+            },
+        },
     }
 
 

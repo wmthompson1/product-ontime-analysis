@@ -1,7 +1,7 @@
 {
   "metadata_version": "1.0.0",
   "milestone_name": "database_bound_unambiguous_slots",
-  "synced_at": "2026-06-05T19:44:32.869645+00:00",
+  "synced_at": "2026-06-05T20:03:53.903979+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Canonical structural containment graph exported from SQLite in the fixed 6-slot composite-key scheme (table + column nodes + has_column edges). This milestone covers the physical schema footprint only; the semantic layer is format-locked in key_scheme but deferred.",
   "key_scheme": {
@@ -53,10 +53,21 @@
         "slots": 6,
         "marker": "slot[2]=='semantic' and slot[4]!='none'",
         "form": "table:column:semantic:perspective:predicate:unique_id",
-        "example": "PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:PAY_ELE_RCVR_JOIN_001",
+        "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
         "status": "deferred"
       }
-    ]
+    ],
+    "unique_id_grammar": {
+      "structural": "full-name {table}_{column}_CONTAINMENT \u2014 auto-generated, no registry",
+      "semantic": {
+        "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3)",
+        "abbrev": "first 3 letters of each part, uppercased; collisions are expected and resolved by the uniqifier",
+        "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) tuple; default '001'",
+        "edge_type_key_scope": "one edge_type key per perspective \u2014 the 3-char edge_type abbreviation is namespaced within its perspective, not global",
+        "example": "PAY_ELE_PAY_INV_001",
+        "status": "deferred"
+      }
+    }
   },
   "graph": {
     "node_collection": "manufacturing_graph_node",
