@@ -23,7 +23,9 @@ keys unambiguous to parse/search without a type tag. Slot count + the reserved
 **How to apply:**
 - `family='structural'`, `perspective='system'` for the structural layer
   (family and perspective intentionally DIFFER).
-- `'system'` is reserved — a business view may never be named `system`.
+- `'system'` is reserved AND structural-only — it marks the structural (database-bound)
+  layer. A business view may never be named `system`, and the semantic layer must
+  always carry a real business perspective (e.g. `Payables`), never `system`.
 - Components must not contain `:` (the delimiter) or `/` (ArangoDB key ban).
 - **`intent` and `UniqueID` are DEFERRED** — not bound to the physical schema
   footprint; do not add them to structural keys for now.
