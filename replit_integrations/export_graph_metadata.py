@@ -5,8 +5,8 @@ in the canonical, readable **fixed 6-slot composite-key** scheme.
 
 This file is the *canonical anchor* for the graph plan: it is self-describing
 (it embeds the full key grammar in a ``key_scheme`` block) and is stamped with a
-``metadata_version`` / ``milestone_name`` so canonical drafts can be frozen as
-versioned snapshots (e.g. ``graph_metadata.v1.0.0.json``).
+``schema_version`` / ``milestone`` so canonical drafts can be frozen as versioned
+snapshots (e.g. ``graph_metadata.v1.json``).
 
 Fixed 6-slot template (delimiter ``:``; every key has EXACTLY 6 slots; a
 component may never be empty or contain ``:`` or ``/``)::
@@ -26,22 +26,30 @@ Parse by fixed position — no prefix tag needed:
 
     table node       PAYABLE:entity:structural:system:none:none
     column node      PAYABLE:INVOICE_ID:structural:system:none:none
-    structural edge  PAYABLE:INVOICE_ID:structural:system:has_column:PAY_INV_CONTAINMENT
-    semantic edge    PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:PAY_ELE_RCVR_JOIN_001  [DEFERRED v2]
+    structural edge  PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001
+    semantic edge    PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001  [DEFERRED v2]
+
+**Unified abbreviated unique_id** (slot 5) — BOTH layers share one grammar::
+
+    perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
+
+    structural  SYS_HAS_PAY_INV_001   (system / has_column / PAYABLE / INVOICE_ID / 001)
+    semantic    PAY_ELE_PAY_INV_001   (Payables / elevates  / PAYABLE / INVOICE_ID / 001)
+
+Each part is the first 3 alphanumeric characters of its source token, uppercased.
+Abbreviation collisions are EXPECTED (e.g. INVOICE_ID and INVENTORY both -> INV)
+and are resolved by the uniqifier: it is *allocated* per
+(perspective, edge_type, table, column) prefix, counting up from 001 in a
+deterministic sorted order so the same DB always yields the same uids.
 
 v1 milestone scope (this export): the **structural footprint only** — table
 nodes, column nodes, and the has_column backbone edge (table -> column). The
 semantic layer is format-locked in the embedded ``key_scheme`` but deferred.
 
-Build order (matches how the graph is assembled):
-    1. table nodes      — from schema_nodes WHERE table_type = 'Table'
-    2. column nodes     — from PRAGMA table_info(<table>) for each table
-    3. has_column edges — table --has_column--> column
-
 Outputs, written next to this script:
     graph_triples.tsv          — flat (subject, predicate, object) triples
     graph_metadata.json        — canonical (latest) graph document
-    graph_metadata.v{V}.json   — frozen milestone snapshot (created once, never clobbered)
+    graph_metadata.v{N}.json   — frozen milestone snapshot (created once, never clobbered)
 
 Run from the repo root:
     python replit_integrations/export_graph_metadata.py
@@ -63,9 +71,9 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-METADATA_VERSION = "1.0.0"
+SCHEMA_VERSION = 1
 MILESTONE_NAME = "database_bound_unambiguous_slots"
-SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{METADATA_VERSION}.json")
+SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
 NODE_COLLECTION = "manufacturing_graph_node"
@@ -80,6 +88,9 @@ NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
 EDGE_PREDICATE_CONTAINS = "has_column"
 
+# Unified abbreviated unique_id (slot 5): 3 chars per part, '_'-joined.
+ABBREV_LEN = 3
+
 # Characters a component may never contain: the delimiter and the ArangoDB
 # collection separator (banned inside a _key). Empty components are also banned.
 FORBIDDEN_IN_COMPONENT = (KEY_DELIMITER, "/")
@@ -90,7 +101,7 @@ RESERVED_TABLE_NAMES = frozenset({NONE_SLOT})
 
 
 # ---------------------------------------------------------------------------
-# Key builders — fixed 6-slot composite scheme.
+# Guards
 # ---------------------------------------------------------------------------
 
 def _assert_component_safe(*parts: str) -> None:
@@ -121,6 +132,62 @@ def _assert_name_not_reserved(name: str, reserved: frozenset, role: str) -> None
         )
 
 
+# ---------------------------------------------------------------------------
+# Unified abbreviated unique_id (slot 5)
+# ---------------------------------------------------------------------------
+
+def _abbrev(name: str) -> str:
+    """First ``ABBREV_LEN`` alphanumeric chars of ``name``, uppercased.
+
+    Collisions are expected (INVOICE_ID / INVENTORY both -> INV) and are resolved
+    downstream by the allocated uniqifier, not by the abbreviation itself.
+    """
+    alnum = "".join(ch for ch in str(name) if ch.isalnum())
+    if not alnum:
+        raise ValueError(f"cannot abbreviate {name!r}: no alphanumeric characters")
+    return alnum[:ABBREV_LEN].upper()
+
+
+def unified_unique_id(perspective: str, edge_type: str, table: str,
+                      column: str, uniqifier: int) -> str:
+    """Build the unified slot-5 uid: ``PER_EDG_TBL_COL_NNN`` (all 3-char parts)."""
+    return "_".join(
+        [_abbrev(perspective), _abbrev(edge_type), _abbrev(table),
+         _abbrev(column), f"{uniqifier:03d}"]
+    )
+
+
+def _containment_prefix(table: str, column: str) -> str:
+    """The uid prefix shared by all containment edges that abbreviate alike."""
+    return "_".join(
+        [_abbrev(PERSPECTIVE_SYSTEM), _abbrev(EDGE_PREDICATE_CONTAINS),
+         _abbrev(table), _abbrev(column)]
+    )
+
+
+def allocate_containment_uids(column_nodes: list[dict]) -> dict[tuple, str]:
+    """Deterministically allocate a unique uid to every containment edge.
+
+    Columns are processed in (table_name, column_name) sorted order; within each
+    abbreviated prefix the uniqifier counts up from 001. This is reproducible for
+    a fixed schema, so re-running the export yields identical uids (no drift).
+    """
+    ordered = sorted(column_nodes, key=lambda c: (c["table_name"], c["column_name"]))
+    counter: dict[str, int] = {}
+    uid_map: dict[tuple, str] = {}
+    for c in ordered:
+        t, col = c["table_name"], c["column_name"]
+        prefix = _containment_prefix(t, col)
+        n = counter.get(prefix, 0) + 1
+        counter[prefix] = n
+        uid_map[(t, col)] = f"{prefix}_{n:03d}"
+    return uid_map
+
+
+# ---------------------------------------------------------------------------
+# Key builders — fixed 6-slot composite scheme.
+# ---------------------------------------------------------------------------
+
 def _slots(*parts: str) -> str:
     return KEY_DELIMITER.join(parts)
 
@@ -146,26 +213,12 @@ def column_key(table_name: str, column_name: str) -> str:
     )
 
 
-def contains_edge_unique_id(table_name: str, column_name: str) -> str:
-    """Deterministic unique_id for a containment edge (slot 5).
-
-    Derived from the table+column so it is reproducible across runs (no drift).
-    NOTE: this is the full-name form (e.g. PAYABLE_INVOICE_ID_CONTAINMENT); the
-    canonical example uses a hand-abbreviated PAY_INV_CONTAINMENT — an
-    abbreviation scheme cannot be derived deterministically, so the generator
-    emits the full-name form. Swap this one function to change the convention.
-    """
-    return f"{table_name}_{column_name}_CONTAINMENT"
-
-
-def contains_edge_key(table_name: str, column_name: str) -> str:
+def contains_edge_key(table_name: str, column_name: str, unique_id: str) -> str:
     """Structural edge: ``table:column:structural:system:has_column:uid`` (6 slots)."""
-    _assert_component_safe(table_name, column_name)
-    uid = contains_edge_unique_id(table_name, column_name)
-    _assert_component_safe(uid)
+    _assert_component_safe(table_name, column_name, unique_id)
     return _slots(
         table_name, column_name, FAMILY_STRUCTURAL, PERSPECTIVE_SYSTEM,
-        EDGE_PREDICATE_CONTAINS, uid,
+        EDGE_PREDICATE_CONTAINS, unique_id,
     )
 
 
@@ -177,8 +230,8 @@ def column_id(table_name: str, column_name: str) -> str:
     return f"{NODE_COLLECTION}/{column_key(table_name, column_name)}"
 
 
-def contains_edge_id(table_name: str, column_name: str) -> str:
-    return f"{EDGE_COLLECTION}/{contains_edge_key(table_name, column_name)}"
+def contains_edge_id(table_name: str, column_name: str, unique_id: str) -> str:
+    return f"{EDGE_COLLECTION}/{contains_edge_key(table_name, column_name, unique_id)}"
 
 
 # ---------------------------------------------------------------------------
@@ -256,22 +309,23 @@ def _fetch_structure(conn: sqlite3.Connection) -> tuple[list[dict], list[dict], 
     return table_nodes, column_nodes, integrity
 
 
-def _build_contains_edges(column_nodes: list[dict]) -> list[dict]:
+def _build_contains_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -> list[dict]:
     """One has_column edge per column: parent table --has_column--> column."""
     edges: list[dict] = []
     for c in column_nodes:
         tname = c["table_name"]
         cname = c["column_name"]
+        uid = uid_map[(tname, cname)]
         edges.append(
             {
-                "_id": contains_edge_id(tname, cname),
-                "_key": contains_edge_key(tname, cname),
+                "_id": contains_edge_id(tname, cname, uid),
+                "_key": contains_edge_key(tname, cname, uid),
                 "_from": table_id(tname),
                 "_to": column_id(tname, cname),
                 "edge_family": FAMILY_STRUCTURAL,
                 "edge_type": EDGE_PREDICATE_CONTAINS,
                 "perspective": PERSPECTIVE_SYSTEM,
-                "unique_id": contains_edge_unique_id(tname, cname),
+                "unique_id": uid,
             }
         )
     return edges
@@ -333,7 +387,7 @@ def _key_scheme_spec() -> dict:
                 "slots": 6,
                 "marker": "slot[2]=='structural' and slot[4]!='none'",
                 "form": "table:column:structural:system:predicate:unique_id",
-                "example": "PAYABLE:INVOICE_ID:structural:system:has_column:PAY_INV_CONTAINMENT",
+                "example": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
                 "status": "active",
             },
             {
@@ -346,15 +400,13 @@ def _key_scheme_spec() -> dict:
             },
         ],
         "unique_id_grammar": {
-            "structural": "full-name {table}_{column}_CONTAINMENT — auto-generated, no registry",
-            "semantic": {
-                "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3)",
-                "abbrev": "first 3 letters of each part, uppercased; collisions are expected and resolved by the uniqifier",
-                "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) tuple; default '001'",
-                "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
-                "example": "PAY_ELE_PAY_INV_001",
-                "status": "deferred",
-            },
+            "unified": "structural AND semantic edges share one slot-5 grammar",
+            "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3, default 001)",
+            "abbrev": "first 3 alphanumeric chars of each part, uppercased; collisions are expected and resolved by the uniqifier",
+            "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) prefix; default '001'",
+            "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
+            "structural_example": "SYS_HAS_PAY_INV_001 (system / has_column / PAYABLE / INVOICE_ID / 001)",
+            "semantic_example": "PAY_ELE_PAY_INV_001 (Payables / elevates / PAYABLE / INVOICE_ID / 001)  [DEFERRED]",
         },
     }
 
@@ -371,15 +423,16 @@ def _build_graph_document(
 ) -> dict:
     nodes = table_nodes + column_nodes
     return {
-        "metadata_version": METADATA_VERSION,
-        "milestone_name": MILESTONE_NAME,
+        "schema_version": SCHEMA_VERSION,
+        "milestone": MILESTONE_NAME,
         "synced_at": datetime.now(timezone.utc).isoformat(),
         "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
         "description": (
             "Canonical structural containment graph exported from SQLite in the "
             "fixed 6-slot composite-key scheme (table + column nodes + has_column "
-            "edges). This milestone covers the physical schema footprint only; "
-            "the semantic layer is format-locked in key_scheme but deferred."
+            "edges) with unified abbreviated unique_ids. This milestone covers the "
+            "physical schema footprint only; the semantic layer is format-locked "
+            "in key_scheme but deferred."
         ),
         "key_scheme": _key_scheme_spec(),
         "graph": {
@@ -393,8 +446,8 @@ def _build_graph_document(
             "edges_by_type": {EDGE_PREDICATE_CONTAINS: len(edges)},
         },
         "integrity": integrity,
-        "graph_nodes": nodes,
-        "graph_edges": edges,
+        "nodes": nodes,
+        "edges": edges,
     }
 
 
@@ -435,7 +488,8 @@ def main() -> int:
         print(f"ERROR: failed to read schema from SQLite: {exc}", file=sys.stderr)
         return 1
 
-    edges = _build_contains_edges(column_nodes)
+    uid_map = allocate_containment_uids(column_nodes)
+    edges = _build_contains_edges(column_nodes, uid_map)
     doc = _build_graph_document(table_nodes, column_nodes, edges, integrity)
 
     try:
@@ -457,6 +511,11 @@ def main() -> int:
     print(f"  {snapshot_action}")
     print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns)")
     print(f"  edges   : {doc['counts']['edges_total']}  ({EDGE_PREDICATE_CONTAINS} in {EDGE_COLLECTION})")
+    # Report any abbreviation collisions that the uniqifier had to disambiguate.
+    bumped = sorted({uid.rsplit("_", 1)[0] for uid in uid_map.values()
+                     if not uid.endswith("_001")})
+    if bumped:
+        print(f"  uid     : {len(bumped)} abbreviated prefix(es) needed >1 uniqifier (collisions resolved)")
     if integrity["tables_without_columns"]:
         print(
             f"  WARN    : {len(integrity['tables_without_columns'])} registered table(s) "

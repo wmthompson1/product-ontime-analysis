@@ -128,7 +128,7 @@ NONE_SLOT = "none"
 SAMPLE_BUSINESS_VIEW = "Payables"
 SAMPLE_PREDICATE = "has_column"
 # Canonical examples — kept in lockstep with the key_scheme block embedded in
-# graph_metadata.json / graph_metadata.canonical_example.json.
+# graph_metadata.json / graph_metadata_canonical_example.json.
 SAMPLE_SEMANTIC_KEY = "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001"
 
 KIND_TABLE = "table_node"
@@ -140,6 +140,17 @@ KIND_SEMANTIC = "semantic_edge"
 def _reject_delimiter(*parts):
     for p in parts:
         assert ":" not in str(p), f"component {p!r} must not contain the ':' delimiter"
+
+
+def _abv(name):
+    """First 3 alphanumeric chars, uppercased — the unified-uid abbreviation."""
+    alnum = "".join(ch for ch in str(name) if ch.isalnum())
+    return alnum[:3].upper()
+
+
+def structural_unique_id(table, column, uniqifier=1):
+    """Unified abbreviated structural uid: SYS_HAS_<tbl>_<col>_NNN."""
+    return f"SYS_HAS_{_abv(table)}_{_abv(column)}_{uniqifier:03d}"
 
 
 def table_vertex_key(table):
@@ -216,7 +227,9 @@ try:
             sample_column_key = sample_column_key or _ck
 
             # Structural edge — 6 slots, predicate + unique_id filled -> KIND_EDGE
-            _uid = f"{_t}_{_c}_CONTAINMENT"
+            # Unified abbreviated uid (SYS_HAS_<tbl>_<col>_NNN); the demo uses 001
+            # since collision-safe uniqifier allocation lives in the exporter.
+            _uid = structural_unique_id(_t, _c)
             _ek = structural_edge_key(_t, _c, _uid)
             assert _ek.count(":") == 5, f"structural edge must have 6 slots: {_ek!r}"
             assert classify_key(_ek) == KIND_EDGE, f"misclassified structural edge: {_ek!r}"

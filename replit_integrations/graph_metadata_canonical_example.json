@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "milestone": "database_bound_unambiguous_slots",
+  "synced_at": "2026-06-05T20:15:00Z",
+  "nodes": [
+    {
+      "_id": "manufacturing_graph_node/PAYABLE:entity:structural:system:none:none",
+      "_key": "PAYABLE:entity:structural:system:none:none",
+      "node_type": "table",
+      "table_name": "PAYABLE"
+    },
+    {
+      "_id": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
+      "_key": "PAYABLE:INVOICE_ID:structural:system:none:none",
+      "node_type": "column",
+      "column_name": "INVOICE_ID"
+    }
+  ],
+  "edges": [
+    {
+      "//": "--- PHYSICAL CONTAINMENT EDGE (Unified Abbreviated UID) ---",
+      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
+      "_key": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
+      "_from": "manufacturing_graph_node/PAYABLE:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_PAY_INV_001"
+    },
+    {
+      "//": "--- SEMANTIC SELF-JOIN EDGE (Unified Abbreviated UID) ---",
+      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+      "_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+      "_from": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
+      "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
+      "edge_family": "semantic",
+      "edge_type": "elevates",
+      "perspective": "Payables",
+      "unique_id": "PAY_ELE_PAY_INV_001"
+    }
+  ]
+}

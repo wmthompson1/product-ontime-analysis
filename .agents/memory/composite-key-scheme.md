@@ -33,21 +33,28 @@ This finally makes edge keys impossible to confuse with node keys (the old
   `system` (no business view may be named it; it marks the structural layer).
 - Components must be non-empty and contain no `:` or `/`.
 - Edges fill slots 4-5 with predicate + unique_id; the structural containment
-  predicate is `has_column`. Structural containment unique_id stays the
-  full-name form `{table}_{column}_CONTAINMENT` (auto-generated, no registry;
-  swap `contains_edge_unique_id` to change it).
-- **Semantic uid grammar (ACCEPTED; layer still DEFERRED/not populated):**
-  `perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3)` → e.g.
-  `PAY_ELE_PAY_INV_001` on key
-  `PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001`.
-  Abbrev = first 3 letters uppercased; collisions are EXPECTED and resolved by
-  the uniqifier, so the uid is ALLOCATED from a registry, not purely derived.
-  Uniqifier scope = per `(perspective, edge_type, table, column|entity)` tuple,
-  default `001`. **One edge_type *key* per perspective** — the 3-char edge_type
-  abbreviation is namespaced inside its perspective (not one global edge_type).
-  Deliberate split: structural uid = auto full-name; semantic uid = abbreviated
-  allocated (SME-authored). v2 open question is only the semantic-edge data
-  source + `_to` target (self-loop vs concept node).
+  predicate is `has_column`.
+- **UNIFIED abbreviated uid grammar — BOTH layers share ONE slot-5 form** (the
+  earlier "structural = full-name, semantic = abbreviated" split was REVERSED by
+  the architect): `perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3)`.
+  - structural example: `SYS_HAS_PAY_INV_001` on key
+    `PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001`
+  - semantic example: `PAY_ELE_PAY_INV_001` on key
+    `PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001` (DEFERRED)
+  - Abbrev = first 3 alphanumeric chars uppercased. Collisions are EXPECTED
+    (INVOICE_ID/INVENTORY → INV; cert_id/cert_type → CER) and resolved by the
+    uniqifier, so the uid is ALLOCATED (counted), not purely derived.
+  - **This means the STRUCTURAL export now also needs allocation, not just a pure
+    function.** `allocate_containment_uids()` sorts columns by (table,column) and
+    counts up from 001 per `SYS_HAS_<T3>_<C3>` prefix — deterministic per fixed
+    DB (re-run = identical uids), but adding a column that sorts before an
+    existing collision-mate WILL re-number the later one (inherent to allocated
+    uids; acceptable, it's a from-scratch regenerated snapshot).
+  - Uniqifier scope = per `(perspective, edge_type, table, column|entity)` prefix,
+    default `001`. **One edge_type *key* per perspective** — the 3-char edge_type
+    abbreviation is namespaced inside its perspective (not one global edge_type).
+  - v2 open question is only the semantic-edge data source + `_to` target
+    (self-loop vs concept node).
 - **No one-table-one-perspective assumption.** A single physical table can host
   multiple logical entities split by a discriminator column (e.g. an
   engineering-master / work-order table holding an engineering entity AND a

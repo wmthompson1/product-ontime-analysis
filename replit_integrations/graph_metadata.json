@@ -1,9 +1,9 @@
 {
-  "metadata_version": "1.0.0",
-  "milestone_name": "database_bound_unambiguous_slots",
-  "synced_at": "2026-06-05T20:03:53.903979+00:00",
+  "schema_version": 1,
+  "milestone": "database_bound_unambiguous_slots",
+  "synced_at": "2026-06-05T21:24:33.086719+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
-  "description": "Canonical structural containment graph exported from SQLite in the fixed 6-slot composite-key scheme (table + column nodes + has_column edges). This milestone covers the physical schema footprint only; the semantic layer is format-locked in key_scheme but deferred.",
+  "description": "Canonical structural containment graph exported from SQLite in the fixed 6-slot composite-key scheme (table + column nodes + has_column edges) with unified abbreviated unique_ids. This milestone covers the physical schema footprint only; the semantic layer is format-locked in key_scheme but deferred.",
   "key_scheme": {
     "template": "table : column|entity : family : perspective : predicate|none : unique_id|none",
     "slots": 6,
@@ -45,7 +45,7 @@
         "slots": 6,
         "marker": "slot[2]=='structural' and slot[4]!='none'",
         "form": "table:column:structural:system:predicate:unique_id",
-        "example": "PAYABLE:INVOICE_ID:structural:system:has_column:PAY_INV_CONTAINMENT",
+        "example": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
         "status": "active"
       },
       {
@@ -58,15 +58,13 @@
       }
     ],
     "unique_id_grammar": {
-      "structural": "full-name {table}_{column}_CONTAINMENT \u2014 auto-generated, no registry",
-      "semantic": {
-        "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3)",
-        "abbrev": "first 3 letters of each part, uppercased; collisions are expected and resolved by the uniqifier",
-        "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) tuple; default '001'",
-        "edge_type_key_scope": "one edge_type key per perspective \u2014 the 3-char edge_type abbreviation is namespaced within its perspective, not global",
-        "example": "PAY_ELE_PAY_INV_001",
-        "status": "deferred"
-      }
+      "unified": "structural AND semantic edges share one slot-5 grammar",
+      "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3, default 001)",
+      "abbrev": "first 3 alphanumeric chars of each part, uppercased; collisions are expected and resolved by the uniqifier",
+      "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) prefix; default '001'",
+      "edge_type_key_scope": "one edge_type key per perspective \u2014 the 3-char edge_type abbreviation is namespaced within its perspective, not global",
+      "structural_example": "SYS_HAS_PAY_INV_001 (system / has_column / PAYABLE / INVOICE_ID / 001)",
+      "semantic_example": "PAY_ELE_PAY_INV_001 (Payables / elevates / PAYABLE / INVOICE_ID / 001)  [DEFERRED]"
     }
   },
   "graph": {
@@ -89,7 +87,7 @@
       "EMPLOYEE"
     ]
   },
-  "graph_nodes": [
+  "nodes": [
     {
       "_id": "manufacturing_graph_node/EMPLOYEE:entity:structural:system:none:none",
       "_key": "EMPLOYEE:entity:structural:system:none:none",
@@ -2539,1526 +2537,1526 @@
       "primary_key": false
     }
   ],
-  "graph_edges": [
+  "edges": [
     {
-      "_id": "manufacturing_graph_edge/certification:cert_id:structural:system:has_column:certification_cert_id_CONTAINMENT",
-      "_key": "certification:cert_id:structural:system:has_column:certification_cert_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:cert_id:structural:system:has_column:SYS_HAS_CER_CER_001",
+      "_key": "certification:cert_id:structural:system:has_column:SYS_HAS_CER_CER_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:cert_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_cert_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_CER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:receipt_id:structural:system:has_column:certification_receipt_id_CONTAINMENT",
-      "_key": "certification:receipt_id:structural:system:has_column:certification_receipt_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:receipt_id:structural:system:has_column:SYS_HAS_CER_REC_001",
+      "_key": "certification:receipt_id:structural:system:has_column:SYS_HAS_CER_REC_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:receipt_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_receipt_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_REC_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:part_id:structural:system:has_column:certification_part_id_CONTAINMENT",
-      "_key": "certification:part_id:structural:system:has_column:certification_part_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:part_id:structural:system:has_column:SYS_HAS_CER_PAR_001",
+      "_key": "certification:part_id:structural:system:has_column:SYS_HAS_CER_PAR_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:part_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_part_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_PAR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:supplier_id:structural:system:has_column:certification_supplier_id_CONTAINMENT",
-      "_key": "certification:supplier_id:structural:system:has_column:certification_supplier_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:supplier_id:structural:system:has_column:SYS_HAS_CER_SUP_001",
+      "_key": "certification:supplier_id:structural:system:has_column:SYS_HAS_CER_SUP_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:supplier_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_supplier_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_SUP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:cert_type:structural:system:has_column:certification_cert_type_CONTAINMENT",
-      "_key": "certification:cert_type:structural:system:has_column:certification_cert_type_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:cert_type:structural:system:has_column:SYS_HAS_CER_CER_002",
+      "_key": "certification:cert_type:structural:system:has_column:SYS_HAS_CER_CER_002",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:cert_type:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_cert_type_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_CER_002"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:issued_date:structural:system:has_column:certification_issued_date_CONTAINMENT",
-      "_key": "certification:issued_date:structural:system:has_column:certification_issued_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:issued_date:structural:system:has_column:SYS_HAS_CER_ISS_001",
+      "_key": "certification:issued_date:structural:system:has_column:SYS_HAS_CER_ISS_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:issued_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_issued_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_ISS_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:expiry_date:structural:system:has_column:certification_expiry_date_CONTAINMENT",
-      "_key": "certification:expiry_date:structural:system:has_column:certification_expiry_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:expiry_date:structural:system:has_column:SYS_HAS_CER_EXP_001",
+      "_key": "certification:expiry_date:structural:system:has_column:SYS_HAS_CER_EXP_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:expiry_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_expiry_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_EXP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:status:structural:system:has_column:certification_status_CONTAINMENT",
-      "_key": "certification:status:structural:system:has_column:certification_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:status:structural:system:has_column:SYS_HAS_CER_STA_001",
+      "_key": "certification:status:structural:system:has_column:SYS_HAS_CER_STA_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_STA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/certification:created_at:structural:system:has_column:certification_created_at_CONTAINMENT",
-      "_key": "certification:created_at:structural:system:has_column:certification_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/certification:created_at:structural:system:has_column:SYS_HAS_CER_CRE_001",
+      "_key": "certification:created_at:structural:system:has_column:SYS_HAS_CER_CRE_001",
       "_from": "manufacturing_graph_node/certification:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/certification:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "certification_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_CER_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:invoice_id:structural:system:has_column:invoice_header_invoice_id_CONTAINMENT",
-      "_key": "invoice_header:invoice_id:structural:system:has_column:invoice_header_invoice_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:invoice_id:structural:system:has_column:SYS_HAS_INV_INV_002",
+      "_key": "invoice_header:invoice_id:structural:system:has_column:SYS_HAS_INV_INV_002",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:invoice_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_invoice_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_INV_002"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:po_id:structural:system:has_column:invoice_header_po_id_CONTAINMENT",
-      "_key": "invoice_header:po_id:structural:system:has_column:invoice_header_po_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:po_id:structural:system:has_column:SYS_HAS_INV_POI_001",
+      "_key": "invoice_header:po_id:structural:system:has_column:SYS_HAS_INV_POI_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:po_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_po_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_POI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:supplier_id:structural:system:has_column:invoice_header_supplier_id_CONTAINMENT",
-      "_key": "invoice_header:supplier_id:structural:system:has_column:invoice_header_supplier_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:supplier_id:structural:system:has_column:SYS_HAS_INV_SUP_001",
+      "_key": "invoice_header:supplier_id:structural:system:has_column:SYS_HAS_INV_SUP_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:supplier_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_supplier_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_SUP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:invoice_number:structural:system:has_column:invoice_header_invoice_number_CONTAINMENT",
-      "_key": "invoice_header:invoice_number:structural:system:has_column:invoice_header_invoice_number_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:invoice_number:structural:system:has_column:SYS_HAS_INV_INV_003",
+      "_key": "invoice_header:invoice_number:structural:system:has_column:SYS_HAS_INV_INV_003",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:invoice_number:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_invoice_number_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_INV_003"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:invoice_date:structural:system:has_column:invoice_header_invoice_date_CONTAINMENT",
-      "_key": "invoice_header:invoice_date:structural:system:has_column:invoice_header_invoice_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:invoice_date:structural:system:has_column:SYS_HAS_INV_INV_001",
+      "_key": "invoice_header:invoice_date:structural:system:has_column:SYS_HAS_INV_INV_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:invoice_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_invoice_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_INV_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:due_date:structural:system:has_column:invoice_header_due_date_CONTAINMENT",
-      "_key": "invoice_header:due_date:structural:system:has_column:invoice_header_due_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:due_date:structural:system:has_column:SYS_HAS_INV_DUE_001",
+      "_key": "invoice_header:due_date:structural:system:has_column:SYS_HAS_INV_DUE_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:due_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_due_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_DUE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:amount_dollars:structural:system:has_column:invoice_header_amount_dollars_CONTAINMENT",
-      "_key": "invoice_header:amount_dollars:structural:system:has_column:invoice_header_amount_dollars_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:amount_dollars:structural:system:has_column:SYS_HAS_INV_AMO_001",
+      "_key": "invoice_header:amount_dollars:structural:system:has_column:SYS_HAS_INV_AMO_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:amount_dollars:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_amount_dollars_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_AMO_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:status:structural:system:has_column:invoice_header_status_CONTAINMENT",
-      "_key": "invoice_header:status:structural:system:has_column:invoice_header_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:status:structural:system:has_column:SYS_HAS_INV_STA_001",
+      "_key": "invoice_header:status:structural:system:has_column:SYS_HAS_INV_STA_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_STA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:payment_date:structural:system:has_column:invoice_header_payment_date_CONTAINMENT",
-      "_key": "invoice_header:payment_date:structural:system:has_column:invoice_header_payment_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:payment_date:structural:system:has_column:SYS_HAS_INV_PAY_001",
+      "_key": "invoice_header:payment_date:structural:system:has_column:SYS_HAS_INV_PAY_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:payment_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_payment_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_PAY_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:three_way_match_status:structural:system:has_column:invoice_header_three_way_match_status_CONTAINMENT",
-      "_key": "invoice_header:three_way_match_status:structural:system:has_column:invoice_header_three_way_match_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:three_way_match_status:structural:system:has_column:SYS_HAS_INV_THR_001",
+      "_key": "invoice_header:three_way_match_status:structural:system:has_column:SYS_HAS_INV_THR_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:three_way_match_status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_three_way_match_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_THR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/invoice_header:created_at:structural:system:has_column:invoice_header_created_at_CONTAINMENT",
-      "_key": "invoice_header:created_at:structural:system:has_column:invoice_header_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/invoice_header:created_at:structural:system:has_column:SYS_HAS_INV_CRE_001",
+      "_key": "invoice_header:created_at:structural:system:has_column:SYS_HAS_INV_CRE_001",
       "_from": "manufacturing_graph_node/invoice_header:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/invoice_header:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "invoice_header_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_INV_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:ticket_id:structural:system:has_column:labor_ticket_ticket_id_CONTAINMENT",
-      "_key": "labor_ticket:ticket_id:structural:system:has_column:labor_ticket_ticket_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:ticket_id:structural:system:has_column:SYS_HAS_LAB_TIC_001",
+      "_key": "labor_ticket:ticket_id:structural:system:has_column:SYS_HAS_LAB_TIC_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:ticket_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_ticket_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_TIC_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:wo_id:structural:system:has_column:labor_ticket_wo_id_CONTAINMENT",
-      "_key": "labor_ticket:wo_id:structural:system:has_column:labor_ticket_wo_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:wo_id:structural:system:has_column:SYS_HAS_LAB_WOI_001",
+      "_key": "labor_ticket:wo_id:structural:system:has_column:SYS_HAS_LAB_WOI_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:wo_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_wo_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_WOI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:sequence_no:structural:system:has_column:labor_ticket_sequence_no_CONTAINMENT",
-      "_key": "labor_ticket:sequence_no:structural:system:has_column:labor_ticket_sequence_no_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:sequence_no:structural:system:has_column:SYS_HAS_LAB_SEQ_001",
+      "_key": "labor_ticket:sequence_no:structural:system:has_column:SYS_HAS_LAB_SEQ_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:sequence_no:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_sequence_no_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_SEQ_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:employee_id:structural:system:has_column:labor_ticket_employee_id_CONTAINMENT",
-      "_key": "labor_ticket:employee_id:structural:system:has_column:labor_ticket_employee_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:employee_id:structural:system:has_column:SYS_HAS_LAB_EMP_001",
+      "_key": "labor_ticket:employee_id:structural:system:has_column:SYS_HAS_LAB_EMP_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:employee_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_employee_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_EMP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:resource_id:structural:system:has_column:labor_ticket_resource_id_CONTAINMENT",
-      "_key": "labor_ticket:resource_id:structural:system:has_column:labor_ticket_resource_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:resource_id:structural:system:has_column:SYS_HAS_LAB_RES_001",
+      "_key": "labor_ticket:resource_id:structural:system:has_column:SYS_HAS_LAB_RES_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:resource_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_resource_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_RES_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:clock_in:structural:system:has_column:labor_ticket_clock_in_CONTAINMENT",
-      "_key": "labor_ticket:clock_in:structural:system:has_column:labor_ticket_clock_in_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:clock_in:structural:system:has_column:SYS_HAS_LAB_CLO_001",
+      "_key": "labor_ticket:clock_in:structural:system:has_column:SYS_HAS_LAB_CLO_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:clock_in:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_clock_in_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_CLO_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:clock_out:structural:system:has_column:labor_ticket_clock_out_CONTAINMENT",
-      "_key": "labor_ticket:clock_out:structural:system:has_column:labor_ticket_clock_out_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:clock_out:structural:system:has_column:SYS_HAS_LAB_CLO_002",
+      "_key": "labor_ticket:clock_out:structural:system:has_column:SYS_HAS_LAB_CLO_002",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:clock_out:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_clock_out_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_CLO_002"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:total_hours:structural:system:has_column:labor_ticket_total_hours_CONTAINMENT",
-      "_key": "labor_ticket:total_hours:structural:system:has_column:labor_ticket_total_hours_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:total_hours:structural:system:has_column:SYS_HAS_LAB_TOT_001",
+      "_key": "labor_ticket:total_hours:structural:system:has_column:SYS_HAS_LAB_TOT_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:total_hours:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_total_hours_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_TOT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:labor_cost:structural:system:has_column:labor_ticket_labor_cost_CONTAINMENT",
-      "_key": "labor_ticket:labor_cost:structural:system:has_column:labor_ticket_labor_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:labor_cost:structural:system:has_column:SYS_HAS_LAB_LAB_001",
+      "_key": "labor_ticket:labor_cost:structural:system:has_column:SYS_HAS_LAB_LAB_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:labor_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_labor_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_LAB_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:burden_cost:structural:system:has_column:labor_ticket_burden_cost_CONTAINMENT",
-      "_key": "labor_ticket:burden_cost:structural:system:has_column:labor_ticket_burden_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:burden_cost:structural:system:has_column:SYS_HAS_LAB_BUR_001",
+      "_key": "labor_ticket:burden_cost:structural:system:has_column:SYS_HAS_LAB_BUR_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:burden_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_burden_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_BUR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/labor_ticket:created_at:structural:system:has_column:labor_ticket_created_at_CONTAINMENT",
-      "_key": "labor_ticket:created_at:structural:system:has_column:labor_ticket_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/labor_ticket:created_at:structural:system:has_column:SYS_HAS_LAB_CRE_001",
+      "_key": "labor_ticket:created_at:structural:system:has_column:SYS_HAS_LAB_CRE_001",
       "_from": "manufacturing_graph_node/labor_ticket:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/labor_ticket:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "labor_ticket_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_LAB_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:issue_id:structural:system:has_column:material_issue_issue_id_CONTAINMENT",
-      "_key": "material_issue:issue_id:structural:system:has_column:material_issue_issue_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:issue_id:structural:system:has_column:SYS_HAS_MAT_ISS_002",
+      "_key": "material_issue:issue_id:structural:system:has_column:SYS_HAS_MAT_ISS_002",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:issue_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_issue_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_ISS_002"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:wo_id:structural:system:has_column:material_issue_wo_id_CONTAINMENT",
-      "_key": "material_issue:wo_id:structural:system:has_column:material_issue_wo_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:wo_id:structural:system:has_column:SYS_HAS_MAT_WOI_001",
+      "_key": "material_issue:wo_id:structural:system:has_column:SYS_HAS_MAT_WOI_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:wo_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_wo_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_WOI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:part_id:structural:system:has_column:material_issue_part_id_CONTAINMENT",
-      "_key": "material_issue:part_id:structural:system:has_column:material_issue_part_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:part_id:structural:system:has_column:SYS_HAS_MAT_PAR_002",
+      "_key": "material_issue:part_id:structural:system:has_column:SYS_HAS_MAT_PAR_002",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:part_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_part_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_PAR_002"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:part_description:structural:system:has_column:material_issue_part_description_CONTAINMENT",
-      "_key": "material_issue:part_description:structural:system:has_column:material_issue_part_description_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:part_description:structural:system:has_column:SYS_HAS_MAT_PAR_001",
+      "_key": "material_issue:part_description:structural:system:has_column:SYS_HAS_MAT_PAR_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:part_description:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_part_description_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_PAR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:quantity:structural:system:has_column:material_issue_quantity_CONTAINMENT",
-      "_key": "material_issue:quantity:structural:system:has_column:material_issue_quantity_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:quantity:structural:system:has_column:SYS_HAS_MAT_QUA_001",
+      "_key": "material_issue:quantity:structural:system:has_column:SYS_HAS_MAT_QUA_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:quantity:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_quantity_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_QUA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:unit_cost:structural:system:has_column:material_issue_unit_cost_CONTAINMENT",
-      "_key": "material_issue:unit_cost:structural:system:has_column:material_issue_unit_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:unit_cost:structural:system:has_column:SYS_HAS_MAT_UNI_001",
+      "_key": "material_issue:unit_cost:structural:system:has_column:SYS_HAS_MAT_UNI_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:unit_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_unit_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_UNI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:total_cost:structural:system:has_column:material_issue_total_cost_CONTAINMENT",
-      "_key": "material_issue:total_cost:structural:system:has_column:material_issue_total_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:total_cost:structural:system:has_column:SYS_HAS_MAT_TOT_001",
+      "_key": "material_issue:total_cost:structural:system:has_column:SYS_HAS_MAT_TOT_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:total_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_total_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_TOT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:issue_date:structural:system:has_column:material_issue_issue_date_CONTAINMENT",
-      "_key": "material_issue:issue_date:structural:system:has_column:material_issue_issue_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:issue_date:structural:system:has_column:SYS_HAS_MAT_ISS_001",
+      "_key": "material_issue:issue_date:structural:system:has_column:SYS_HAS_MAT_ISS_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:issue_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_issue_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_ISS_001"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:issued_by:structural:system:has_column:material_issue_issued_by_CONTAINMENT",
-      "_key": "material_issue:issued_by:structural:system:has_column:material_issue_issued_by_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:issued_by:structural:system:has_column:SYS_HAS_MAT_ISS_003",
+      "_key": "material_issue:issued_by:structural:system:has_column:SYS_HAS_MAT_ISS_003",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:issued_by:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_issued_by_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_ISS_003"
     },
     {
-      "_id": "manufacturing_graph_edge/material_issue:created_at:structural:system:has_column:material_issue_created_at_CONTAINMENT",
-      "_key": "material_issue:created_at:structural:system:has_column:material_issue_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/material_issue:created_at:structural:system:has_column:SYS_HAS_MAT_CRE_001",
+      "_key": "material_issue:created_at:structural:system:has_column:SYS_HAS_MAT_CRE_001",
       "_from": "manufacturing_graph_node/material_issue:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/material_issue:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "material_issue_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_MAT_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:rowid_pk:structural:system:has_column:operation_rowid_pk_CONTAINMENT",
-      "_key": "operation:rowid_pk:structural:system:has_column:operation_rowid_pk_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:rowid_pk:structural:system:has_column:SYS_HAS_OPE_ROW_001",
+      "_key": "operation:rowid_pk:structural:system:has_column:SYS_HAS_OPE_ROW_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:rowid_pk:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_rowid_pk_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_ROW_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:wo_id:structural:system:has_column:operation_wo_id_CONTAINMENT",
-      "_key": "operation:wo_id:structural:system:has_column:operation_wo_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:wo_id:structural:system:has_column:SYS_HAS_OPE_WOI_001",
+      "_key": "operation:wo_id:structural:system:has_column:SYS_HAS_OPE_WOI_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:wo_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_wo_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_WOI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:workorder_type:structural:system:has_column:operation_workorder_type_CONTAINMENT",
-      "_key": "operation:workorder_type:structural:system:has_column:operation_workorder_type_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:workorder_type:structural:system:has_column:SYS_HAS_OPE_WOR_001",
+      "_key": "operation:workorder_type:structural:system:has_column:SYS_HAS_OPE_WOR_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:workorder_type:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_workorder_type_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_WOR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:sequence_no:structural:system:has_column:operation_sequence_no_CONTAINMENT",
-      "_key": "operation:sequence_no:structural:system:has_column:operation_sequence_no_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:sequence_no:structural:system:has_column:SYS_HAS_OPE_SEQ_001",
+      "_key": "operation:sequence_no:structural:system:has_column:SYS_HAS_OPE_SEQ_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:sequence_no:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_sequence_no_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_SEQ_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:resource_id:structural:system:has_column:operation_resource_id_CONTAINMENT",
-      "_key": "operation:resource_id:structural:system:has_column:operation_resource_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:resource_id:structural:system:has_column:SYS_HAS_OPE_RES_001",
+      "_key": "operation:resource_id:structural:system:has_column:SYS_HAS_OPE_RES_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:resource_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_resource_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_RES_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:service_id:structural:system:has_column:operation_service_id_CONTAINMENT",
-      "_key": "operation:service_id:structural:system:has_column:operation_service_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:service_id:structural:system:has_column:SYS_HAS_OPE_SER_002",
+      "_key": "operation:service_id:structural:system:has_column:SYS_HAS_OPE_SER_002",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:service_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_service_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_SER_002"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:vendor_id:structural:system:has_column:operation_vendor_id_CONTAINMENT",
-      "_key": "operation:vendor_id:structural:system:has_column:operation_vendor_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:vendor_id:structural:system:has_column:SYS_HAS_OPE_VEN_001",
+      "_key": "operation:vendor_id:structural:system:has_column:SYS_HAS_OPE_VEN_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:vendor_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_vendor_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_VEN_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:run_type:structural:system:has_column:operation_run_type_CONTAINMENT",
-      "_key": "operation:run_type:structural:system:has_column:operation_run_type_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:run_type:structural:system:has_column:SYS_HAS_OPE_RUN_002",
+      "_key": "operation:run_type:structural:system:has_column:SYS_HAS_OPE_RUN_002",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:run_type:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_run_type_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_RUN_002"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:setup_hrs:structural:system:has_column:operation_setup_hrs_CONTAINMENT",
-      "_key": "operation:setup_hrs:structural:system:has_column:operation_setup_hrs_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:setup_hrs:structural:system:has_column:SYS_HAS_OPE_SET_001",
+      "_key": "operation:setup_hrs:structural:system:has_column:SYS_HAS_OPE_SET_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:setup_hrs:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_setup_hrs_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_SET_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:run_hrs:structural:system:has_column:operation_run_hrs_CONTAINMENT",
-      "_key": "operation:run_hrs:structural:system:has_column:operation_run_hrs_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:run_hrs:structural:system:has_column:SYS_HAS_OPE_RUN_001",
+      "_key": "operation:run_hrs:structural:system:has_column:SYS_HAS_OPE_RUN_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:run_hrs:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_run_hrs_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_RUN_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:act_setup_hrs:structural:system:has_column:operation_act_setup_hrs_CONTAINMENT",
-      "_key": "operation:act_setup_hrs:structural:system:has_column:operation_act_setup_hrs_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:act_setup_hrs:structural:system:has_column:SYS_HAS_OPE_ACT_005",
+      "_key": "operation:act_setup_hrs:structural:system:has_column:SYS_HAS_OPE_ACT_005",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:act_setup_hrs:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_act_setup_hrs_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_ACT_005"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:act_run_hrs:structural:system:has_column:operation_act_run_hrs_CONTAINMENT",
-      "_key": "operation:act_run_hrs:structural:system:has_column:operation_act_run_hrs_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:act_run_hrs:structural:system:has_column:SYS_HAS_OPE_ACT_004",
+      "_key": "operation:act_run_hrs:structural:system:has_column:SYS_HAS_OPE_ACT_004",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:act_run_hrs:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_act_run_hrs_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_ACT_004"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:est_atl_lab_cost:structural:system:has_column:operation_est_atl_lab_cost_CONTAINMENT",
-      "_key": "operation:est_atl_lab_cost:structural:system:has_column:operation_est_atl_lab_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:est_atl_lab_cost:structural:system:has_column:SYS_HAS_OPE_EST_002",
+      "_key": "operation:est_atl_lab_cost:structural:system:has_column:SYS_HAS_OPE_EST_002",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:est_atl_lab_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_est_atl_lab_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_EST_002"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:est_atl_bur_cost:structural:system:has_column:operation_est_atl_bur_cost_CONTAINMENT",
-      "_key": "operation:est_atl_bur_cost:structural:system:has_column:operation_est_atl_bur_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:est_atl_bur_cost:structural:system:has_column:SYS_HAS_OPE_EST_001",
+      "_key": "operation:est_atl_bur_cost:structural:system:has_column:SYS_HAS_OPE_EST_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:est_atl_bur_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_est_atl_bur_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_EST_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:est_atl_ser_cost:structural:system:has_column:operation_est_atl_ser_cost_CONTAINMENT",
-      "_key": "operation:est_atl_ser_cost:structural:system:has_column:operation_est_atl_ser_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:est_atl_ser_cost:structural:system:has_column:SYS_HAS_OPE_EST_003",
+      "_key": "operation:est_atl_ser_cost:structural:system:has_column:SYS_HAS_OPE_EST_003",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:est_atl_ser_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_est_atl_ser_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_EST_003"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:act_atl_lab_cost:structural:system:has_column:operation_act_atl_lab_cost_CONTAINMENT",
-      "_key": "operation:act_atl_lab_cost:structural:system:has_column:operation_act_atl_lab_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:act_atl_lab_cost:structural:system:has_column:SYS_HAS_OPE_ACT_002",
+      "_key": "operation:act_atl_lab_cost:structural:system:has_column:SYS_HAS_OPE_ACT_002",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:act_atl_lab_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_act_atl_lab_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_ACT_002"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:act_atl_bur_cost:structural:system:has_column:operation_act_atl_bur_cost_CONTAINMENT",
-      "_key": "operation:act_atl_bur_cost:structural:system:has_column:operation_act_atl_bur_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:act_atl_bur_cost:structural:system:has_column:SYS_HAS_OPE_ACT_001",
+      "_key": "operation:act_atl_bur_cost:structural:system:has_column:SYS_HAS_OPE_ACT_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:act_atl_bur_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_act_atl_bur_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_ACT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:act_atl_ser_cost:structural:system:has_column:operation_act_atl_ser_cost_CONTAINMENT",
-      "_key": "operation:act_atl_ser_cost:structural:system:has_column:operation_act_atl_ser_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:act_atl_ser_cost:structural:system:has_column:SYS_HAS_OPE_ACT_003",
+      "_key": "operation:act_atl_ser_cost:structural:system:has_column:SYS_HAS_OPE_ACT_003",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:act_atl_ser_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_act_atl_ser_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_ACT_003"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:status:structural:system:has_column:operation_status_CONTAINMENT",
-      "_key": "operation:status:structural:system:has_column:operation_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:status:structural:system:has_column:SYS_HAS_OPE_STA_001",
+      "_key": "operation:status:structural:system:has_column:SYS_HAS_OPE_STA_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_STA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:sched_start_date:structural:system:has_column:operation_sched_start_date_CONTAINMENT",
-      "_key": "operation:sched_start_date:structural:system:has_column:operation_sched_start_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:sched_start_date:structural:system:has_column:SYS_HAS_OPE_SCH_002",
+      "_key": "operation:sched_start_date:structural:system:has_column:SYS_HAS_OPE_SCH_002",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:sched_start_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_sched_start_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_SCH_002"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:sched_finish_date:structural:system:has_column:operation_sched_finish_date_CONTAINMENT",
-      "_key": "operation:sched_finish_date:structural:system:has_column:operation_sched_finish_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:sched_finish_date:structural:system:has_column:SYS_HAS_OPE_SCH_001",
+      "_key": "operation:sched_finish_date:structural:system:has_column:SYS_HAS_OPE_SCH_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:sched_finish_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_sched_finish_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_SCH_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:service_begin_date:structural:system:has_column:operation_service_begin_date_CONTAINMENT",
-      "_key": "operation:service_begin_date:structural:system:has_column:operation_service_begin_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:service_begin_date:structural:system:has_column:SYS_HAS_OPE_SER_001",
+      "_key": "operation:service_begin_date:structural:system:has_column:SYS_HAS_OPE_SER_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:service_begin_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_service_begin_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_SER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:close_date:structural:system:has_column:operation_close_date_CONTAINMENT",
-      "_key": "operation:close_date:structural:system:has_column:operation_close_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:close_date:structural:system:has_column:SYS_HAS_OPE_CLO_001",
+      "_key": "operation:close_date:structural:system:has_column:SYS_HAS_OPE_CLO_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:close_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_close_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_CLO_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:last_disp_date:structural:system:has_column:operation_last_disp_date_CONTAINMENT",
-      "_key": "operation:last_disp_date:structural:system:has_column:operation_last_disp_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:last_disp_date:structural:system:has_column:SYS_HAS_OPE_LAS_001",
+      "_key": "operation:last_disp_date:structural:system:has_column:SYS_HAS_OPE_LAS_001",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:last_disp_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_last_disp_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_LAS_001"
     },
     {
-      "_id": "manufacturing_graph_edge/operation:last_recv_date:structural:system:has_column:operation_last_recv_date_CONTAINMENT",
-      "_key": "operation:last_recv_date:structural:system:has_column:operation_last_recv_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/operation:last_recv_date:structural:system:has_column:SYS_HAS_OPE_LAS_002",
+      "_key": "operation:last_recv_date:structural:system:has_column:SYS_HAS_OPE_LAS_002",
       "_from": "manufacturing_graph_node/operation:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/operation:last_recv_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "operation_last_recv_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_OPE_LAS_002"
     },
     {
-      "_id": "manufacturing_graph_edge/part:part_id:structural:system:has_column:part_part_id_CONTAINMENT",
-      "_key": "part:part_id:structural:system:has_column:part_part_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:part_id:structural:system:has_column:SYS_HAS_PAR_PAR_003",
+      "_key": "part:part_id:structural:system:has_column:SYS_HAS_PAR_PAR_003",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:part_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_part_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_PAR_003"
     },
     {
-      "_id": "manufacturing_graph_edge/part:part_description:structural:system:has_column:part_part_description_CONTAINMENT",
-      "_key": "part:part_description:structural:system:has_column:part_part_description_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:part_description:structural:system:has_column:SYS_HAS_PAR_PAR_002",
+      "_key": "part:part_description:structural:system:has_column:SYS_HAS_PAR_PAR_002",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:part_description:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_part_description_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_PAR_002"
     },
     {
-      "_id": "manufacturing_graph_edge/part:part_class:structural:system:has_column:part_part_class_CONTAINMENT",
-      "_key": "part:part_class:structural:system:has_column:part_part_class_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:part_class:structural:system:has_column:SYS_HAS_PAR_PAR_001",
+      "_key": "part:part_class:structural:system:has_column:SYS_HAS_PAR_PAR_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:part_class:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_part_class_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_PAR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:unit_of_measure:structural:system:has_column:part_unit_of_measure_CONTAINMENT",
-      "_key": "part:unit_of_measure:structural:system:has_column:part_unit_of_measure_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:unit_of_measure:structural:system:has_column:SYS_HAS_PAR_UNI_002",
+      "_key": "part:unit_of_measure:structural:system:has_column:SYS_HAS_PAR_UNI_002",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:unit_of_measure:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_unit_of_measure_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_UNI_002"
     },
     {
-      "_id": "manufacturing_graph_edge/part:unit_cost:structural:system:has_column:part_unit_cost_CONTAINMENT",
-      "_key": "part:unit_cost:structural:system:has_column:part_unit_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:unit_cost:structural:system:has_column:SYS_HAS_PAR_UNI_001",
+      "_key": "part:unit_cost:structural:system:has_column:SYS_HAS_PAR_UNI_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:unit_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_unit_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_UNI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:lead_time_days:structural:system:has_column:part_lead_time_days_CONTAINMENT",
-      "_key": "part:lead_time_days:structural:system:has_column:part_lead_time_days_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:lead_time_days:structural:system:has_column:SYS_HAS_PAR_LEA_001",
+      "_key": "part:lead_time_days:structural:system:has_column:SYS_HAS_PAR_LEA_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:lead_time_days:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_lead_time_days_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_LEA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:reorder_point:structural:system:has_column:part_reorder_point_CONTAINMENT",
-      "_key": "part:reorder_point:structural:system:has_column:part_reorder_point_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:reorder_point:structural:system:has_column:SYS_HAS_PAR_REO_001",
+      "_key": "part:reorder_point:structural:system:has_column:SYS_HAS_PAR_REO_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:reorder_point:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_reorder_point_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_REO_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:on_hand_qty:structural:system:has_column:part_on_hand_qty_CONTAINMENT",
-      "_key": "part:on_hand_qty:structural:system:has_column:part_on_hand_qty_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:on_hand_qty:structural:system:has_column:SYS_HAS_PAR_ONH_001",
+      "_key": "part:on_hand_qty:structural:system:has_column:SYS_HAS_PAR_ONH_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:on_hand_qty:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_on_hand_qty_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_ONH_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:revision:structural:system:has_column:part_revision_CONTAINMENT",
-      "_key": "part:revision:structural:system:has_column:part_revision_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:revision:structural:system:has_column:SYS_HAS_PAR_REV_001",
+      "_key": "part:revision:structural:system:has_column:SYS_HAS_PAR_REV_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:revision:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_revision_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_REV_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:cage_code:structural:system:has_column:part_cage_code_CONTAINMENT",
-      "_key": "part:cage_code:structural:system:has_column:part_cage_code_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:cage_code:structural:system:has_column:SYS_HAS_PAR_CAG_001",
+      "_key": "part:cage_code:structural:system:has_column:SYS_HAS_PAR_CAG_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:cage_code:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_cage_code_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_CAG_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:drawing_number:structural:system:has_column:part_drawing_number_CONTAINMENT",
-      "_key": "part:drawing_number:structural:system:has_column:part_drawing_number_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:drawing_number:structural:system:has_column:SYS_HAS_PAR_DRA_001",
+      "_key": "part:drawing_number:structural:system:has_column:SYS_HAS_PAR_DRA_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:drawing_number:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_drawing_number_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_DRA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:material_spec:structural:system:has_column:part_material_spec_CONTAINMENT",
-      "_key": "part:material_spec:structural:system:has_column:part_material_spec_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:material_spec:structural:system:has_column:SYS_HAS_PAR_MAT_001",
+      "_key": "part:material_spec:structural:system:has_column:SYS_HAS_PAR_MAT_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:material_spec:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_material_spec_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_MAT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:active:structural:system:has_column:part_active_CONTAINMENT",
-      "_key": "part:active:structural:system:has_column:part_active_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:active:structural:system:has_column:SYS_HAS_PAR_ACT_001",
+      "_key": "part:active:structural:system:has_column:SYS_HAS_PAR_ACT_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:active:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_active_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_ACT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/part:created_at:structural:system:has_column:part_created_at_CONTAINMENT",
-      "_key": "part:created_at:structural:system:has_column:part_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/part:created_at:structural:system:has_column:SYS_HAS_PAR_CRE_001",
+      "_key": "part:created_at:structural:system:has_column:SYS_HAS_PAR_CRE_001",
       "_from": "manufacturing_graph_node/part:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/part:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "part_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_PAR_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:line_id:structural:system:has_column:po_line_line_id_CONTAINMENT",
-      "_key": "po_line:line_id:structural:system:has_column:po_line_line_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:line_id:structural:system:has_column:SYS_HAS_POL_LIN_001",
+      "_key": "po_line:line_id:structural:system:has_column:SYS_HAS_POL_LIN_001",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:line_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_line_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_LIN_001"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:po_id:structural:system:has_column:po_line_po_id_CONTAINMENT",
-      "_key": "po_line:po_id:structural:system:has_column:po_line_po_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:po_id:structural:system:has_column:SYS_HAS_POL_POI_001",
+      "_key": "po_line:po_id:structural:system:has_column:SYS_HAS_POL_POI_001",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:po_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_po_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_POI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:part_id:structural:system:has_column:po_line_part_id_CONTAINMENT",
-      "_key": "po_line:part_id:structural:system:has_column:po_line_part_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:part_id:structural:system:has_column:SYS_HAS_POL_PAR_002",
+      "_key": "po_line:part_id:structural:system:has_column:SYS_HAS_POL_PAR_002",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:part_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_part_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_PAR_002"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:part_description:structural:system:has_column:po_line_part_description_CONTAINMENT",
-      "_key": "po_line:part_description:structural:system:has_column:po_line_part_description_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:part_description:structural:system:has_column:SYS_HAS_POL_PAR_001",
+      "_key": "po_line:part_description:structural:system:has_column:SYS_HAS_POL_PAR_001",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:part_description:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_part_description_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_PAR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:quantity:structural:system:has_column:po_line_quantity_CONTAINMENT",
-      "_key": "po_line:quantity:structural:system:has_column:po_line_quantity_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:quantity:structural:system:has_column:SYS_HAS_POL_QUA_001",
+      "_key": "po_line:quantity:structural:system:has_column:SYS_HAS_POL_QUA_001",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:quantity:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_quantity_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_QUA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:unit_cost:structural:system:has_column:po_line_unit_cost_CONTAINMENT",
-      "_key": "po_line:unit_cost:structural:system:has_column:po_line_unit_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:unit_cost:structural:system:has_column:SYS_HAS_POL_UNI_001",
+      "_key": "po_line:unit_cost:structural:system:has_column:SYS_HAS_POL_UNI_001",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:unit_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_unit_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_UNI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:line_total:structural:system:has_column:po_line_line_total_CONTAINMENT",
-      "_key": "po_line:line_total:structural:system:has_column:po_line_line_total_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:line_total:structural:system:has_column:SYS_HAS_POL_LIN_002",
+      "_key": "po_line:line_total:structural:system:has_column:SYS_HAS_POL_LIN_002",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:line_total:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_line_total_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_LIN_002"
     },
     {
-      "_id": "manufacturing_graph_edge/po_line:created_at:structural:system:has_column:po_line_created_at_CONTAINMENT",
-      "_key": "po_line:created_at:structural:system:has_column:po_line_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/po_line:created_at:structural:system:has_column:SYS_HAS_POL_CRE_001",
+      "_key": "po_line:created_at:structural:system:has_column:SYS_HAS_POL_CRE_001",
       "_from": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/po_line:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "po_line_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_POL_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:po_id:structural:system:has_column:purchase_order_po_id_CONTAINMENT",
-      "_key": "purchase_order:po_id:structural:system:has_column:purchase_order_po_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:po_id:structural:system:has_column:SYS_HAS_PUR_POI_001",
+      "_key": "purchase_order:po_id:structural:system:has_column:SYS_HAS_PUR_POI_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:po_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_po_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_POI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:supplier_id:structural:system:has_column:purchase_order_supplier_id_CONTAINMENT",
-      "_key": "purchase_order:supplier_id:structural:system:has_column:purchase_order_supplier_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:supplier_id:structural:system:has_column:SYS_HAS_PUR_SUP_001",
+      "_key": "purchase_order:supplier_id:structural:system:has_column:SYS_HAS_PUR_SUP_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:supplier_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_supplier_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_SUP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:po_type:structural:system:has_column:purchase_order_po_type_CONTAINMENT",
-      "_key": "purchase_order:po_type:structural:system:has_column:purchase_order_po_type_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:po_type:structural:system:has_column:SYS_HAS_PUR_POT_001",
+      "_key": "purchase_order:po_type:structural:system:has_column:SYS_HAS_PUR_POT_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:po_type:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_po_type_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_POT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:po_date:structural:system:has_column:purchase_order_po_date_CONTAINMENT",
-      "_key": "purchase_order:po_date:structural:system:has_column:purchase_order_po_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:po_date:structural:system:has_column:SYS_HAS_PUR_POD_001",
+      "_key": "purchase_order:po_date:structural:system:has_column:SYS_HAS_PUR_POD_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:po_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_po_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_POD_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:required_date:structural:system:has_column:purchase_order_required_date_CONTAINMENT",
-      "_key": "purchase_order:required_date:structural:system:has_column:purchase_order_required_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:required_date:structural:system:has_column:SYS_HAS_PUR_REQ_001",
+      "_key": "purchase_order:required_date:structural:system:has_column:SYS_HAS_PUR_REQ_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:required_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_required_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_REQ_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:status:structural:system:has_column:purchase_order_status_CONTAINMENT",
-      "_key": "purchase_order:status:structural:system:has_column:purchase_order_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:status:structural:system:has_column:SYS_HAS_PUR_STA_001",
+      "_key": "purchase_order:status:structural:system:has_column:SYS_HAS_PUR_STA_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_STA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:total_cost:structural:system:has_column:purchase_order_total_cost_CONTAINMENT",
-      "_key": "purchase_order:total_cost:structural:system:has_column:purchase_order_total_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:total_cost:structural:system:has_column:SYS_HAS_PUR_TOT_001",
+      "_key": "purchase_order:total_cost:structural:system:has_column:SYS_HAS_PUR_TOT_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:total_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_total_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_TOT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:wo_id:structural:system:has_column:purchase_order_wo_id_CONTAINMENT",
-      "_key": "purchase_order:wo_id:structural:system:has_column:purchase_order_wo_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:wo_id:structural:system:has_column:SYS_HAS_PUR_WOI_001",
+      "_key": "purchase_order:wo_id:structural:system:has_column:SYS_HAS_PUR_WOI_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:wo_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_wo_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_WOI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:service_id:structural:system:has_column:purchase_order_service_id_CONTAINMENT",
-      "_key": "purchase_order:service_id:structural:system:has_column:purchase_order_service_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:service_id:structural:system:has_column:SYS_HAS_PUR_SER_001",
+      "_key": "purchase_order:service_id:structural:system:has_column:SYS_HAS_PUR_SER_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:service_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_service_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_SER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:buyer_id:structural:system:has_column:purchase_order_buyer_id_CONTAINMENT",
-      "_key": "purchase_order:buyer_id:structural:system:has_column:purchase_order_buyer_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:buyer_id:structural:system:has_column:SYS_HAS_PUR_BUY_001",
+      "_key": "purchase_order:buyer_id:structural:system:has_column:SYS_HAS_PUR_BUY_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:buyer_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_buyer_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_BUY_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:site_id:structural:system:has_column:purchase_order_site_id_CONTAINMENT",
-      "_key": "purchase_order:site_id:structural:system:has_column:purchase_order_site_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:site_id:structural:system:has_column:SYS_HAS_PUR_SIT_001",
+      "_key": "purchase_order:site_id:structural:system:has_column:SYS_HAS_PUR_SIT_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:site_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_site_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_SIT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/purchase_order:created_at:structural:system:has_column:purchase_order_created_at_CONTAINMENT",
-      "_key": "purchase_order:created_at:structural:system:has_column:purchase_order_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/purchase_order:created_at:structural:system:has_column:SYS_HAS_PUR_CRE_001",
+      "_key": "purchase_order:created_at:structural:system:has_column:SYS_HAS_PUR_CRE_001",
       "_from": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/purchase_order:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "purchase_order_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_PUR_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:receipt_id:structural:system:has_column:receiving_receipt_id_CONTAINMENT",
-      "_key": "receiving:receipt_id:structural:system:has_column:receiving_receipt_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_002",
+      "_key": "receiving:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_002",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:receipt_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_receipt_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_REC_002"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:po_id:structural:system:has_column:receiving_po_id_CONTAINMENT",
-      "_key": "receiving:po_id:structural:system:has_column:receiving_po_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:po_id:structural:system:has_column:SYS_HAS_REC_POI_001",
+      "_key": "receiving:po_id:structural:system:has_column:SYS_HAS_REC_POI_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:po_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_po_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_POI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:supplier_id:structural:system:has_column:receiving_supplier_id_CONTAINMENT",
-      "_key": "receiving:supplier_id:structural:system:has_column:receiving_supplier_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:supplier_id:structural:system:has_column:SYS_HAS_REC_SUP_001",
+      "_key": "receiving:supplier_id:structural:system:has_column:SYS_HAS_REC_SUP_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:supplier_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_supplier_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_SUP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:part_id:structural:system:has_column:receiving_part_id_CONTAINMENT",
-      "_key": "receiving:part_id:structural:system:has_column:receiving_part_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:part_id:structural:system:has_column:SYS_HAS_REC_PAR_001",
+      "_key": "receiving:part_id:structural:system:has_column:SYS_HAS_REC_PAR_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:part_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_part_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_PAR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:quantity_ordered:structural:system:has_column:receiving_quantity_ordered_CONTAINMENT",
-      "_key": "receiving:quantity_ordered:structural:system:has_column:receiving_quantity_ordered_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:quantity_ordered:structural:system:has_column:SYS_HAS_REC_QUA_001",
+      "_key": "receiving:quantity_ordered:structural:system:has_column:SYS_HAS_REC_QUA_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:quantity_ordered:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_quantity_ordered_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_QUA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:quantity_received:structural:system:has_column:receiving_quantity_received_CONTAINMENT",
-      "_key": "receiving:quantity_received:structural:system:has_column:receiving_quantity_received_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:quantity_received:structural:system:has_column:SYS_HAS_REC_QUA_002",
+      "_key": "receiving:quantity_received:structural:system:has_column:SYS_HAS_REC_QUA_002",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:quantity_received:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_quantity_received_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_QUA_002"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:receipt_date:structural:system:has_column:receiving_receipt_date_CONTAINMENT",
-      "_key": "receiving:receipt_date:structural:system:has_column:receiving_receipt_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:receipt_date:structural:system:has_column:SYS_HAS_REC_REC_001",
+      "_key": "receiving:receipt_date:structural:system:has_column:SYS_HAS_REC_REC_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:receipt_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_receipt_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_REC_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:inspection_status:structural:system:has_column:receiving_inspection_status_CONTAINMENT",
-      "_key": "receiving:inspection_status:structural:system:has_column:receiving_inspection_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_001",
+      "_key": "receiving:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:inspection_status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_inspection_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_INS_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:cert_required:structural:system:has_column:receiving_cert_required_CONTAINMENT",
-      "_key": "receiving:cert_required:structural:system:has_column:receiving_cert_required_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:cert_required:structural:system:has_column:SYS_HAS_REC_CER_001",
+      "_key": "receiving:cert_required:structural:system:has_column:SYS_HAS_REC_CER_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:cert_required:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_cert_required_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_CER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:created_at:structural:system:has_column:receiving_created_at_CONTAINMENT",
-      "_key": "receiving:created_at:structural:system:has_column:receiving_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_001",
+      "_key": "receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_001",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "receiving_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_REC_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/service:service_id:structural:system:has_column:service_service_id_CONTAINMENT",
-      "_key": "service:service_id:structural:system:has_column:service_service_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/service:service_id:structural:system:has_column:SYS_HAS_SER_SER_001",
+      "_key": "service:service_id:structural:system:has_column:SYS_HAS_SER_SER_001",
       "_from": "manufacturing_graph_node/service:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/service:service_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "service_service_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_SER_SER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/service:description:structural:system:has_column:service_description_CONTAINMENT",
-      "_key": "service:description:structural:system:has_column:service_description_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/service:description:structural:system:has_column:SYS_HAS_SER_DES_001",
+      "_key": "service:description:structural:system:has_column:SYS_HAS_SER_DES_001",
       "_from": "manufacturing_graph_node/service:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/service:description:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "service_description_CONTAINMENT"
+      "unique_id": "SYS_HAS_SER_DES_001"
     },
     {
-      "_id": "manufacturing_graph_edge/service:default_vendor:structural:system:has_column:service_default_vendor_CONTAINMENT",
-      "_key": "service:default_vendor:structural:system:has_column:service_default_vendor_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/service:default_vendor:structural:system:has_column:SYS_HAS_SER_DEF_001",
+      "_key": "service:default_vendor:structural:system:has_column:SYS_HAS_SER_DEF_001",
       "_from": "manufacturing_graph_node/service:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/service:default_vendor:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "service_default_vendor_CONTAINMENT"
+      "unique_id": "SYS_HAS_SER_DEF_001"
     },
     {
-      "_id": "manufacturing_graph_edge/service:base_charge:structural:system:has_column:service_base_charge_CONTAINMENT",
-      "_key": "service:base_charge:structural:system:has_column:service_base_charge_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/service:base_charge:structural:system:has_column:SYS_HAS_SER_BAS_001",
+      "_key": "service:base_charge:structural:system:has_column:SYS_HAS_SER_BAS_001",
       "_from": "manufacturing_graph_node/service:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/service:base_charge:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "service_base_charge_CONTAINMENT"
+      "unique_id": "SYS_HAS_SER_BAS_001"
     },
     {
-      "_id": "manufacturing_graph_edge/service:created_at:structural:system:has_column:service_created_at_CONTAINMENT",
-      "_key": "service:created_at:structural:system:has_column:service_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/service:created_at:structural:system:has_column:SYS_HAS_SER_CRE_001",
+      "_key": "service:created_at:structural:system:has_column:SYS_HAS_SER_CRE_001",
       "_from": "manufacturing_graph_node/service:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/service:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "service_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_SER_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:resource_id:structural:system:has_column:shop_resource_resource_id_CONTAINMENT",
-      "_key": "shop_resource:resource_id:structural:system:has_column:shop_resource_resource_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:resource_id:structural:system:has_column:SYS_HAS_SHO_RES_001",
+      "_key": "shop_resource:resource_id:structural:system:has_column:SYS_HAS_SHO_RES_001",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:resource_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_resource_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_RES_001"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:description:structural:system:has_column:shop_resource_description_CONTAINMENT",
-      "_key": "shop_resource:description:structural:system:has_column:shop_resource_description_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:description:structural:system:has_column:SYS_HAS_SHO_DES_001",
+      "_key": "shop_resource:description:structural:system:has_column:SYS_HAS_SHO_DES_001",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:description:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_description_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_DES_001"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:resource_type:structural:system:has_column:shop_resource_resource_type_CONTAINMENT",
-      "_key": "shop_resource:resource_type:structural:system:has_column:shop_resource_resource_type_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:resource_type:structural:system:has_column:SYS_HAS_SHO_RES_002",
+      "_key": "shop_resource:resource_type:structural:system:has_column:SYS_HAS_SHO_RES_002",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:resource_type:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_resource_type_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_RES_002"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:run_cost_per_hr:structural:system:has_column:shop_resource_run_cost_per_hr_CONTAINMENT",
-      "_key": "shop_resource:run_cost_per_hr:structural:system:has_column:shop_resource_run_cost_per_hr_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:run_cost_per_hr:structural:system:has_column:SYS_HAS_SHO_RUN_001",
+      "_key": "shop_resource:run_cost_per_hr:structural:system:has_column:SYS_HAS_SHO_RUN_001",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:run_cost_per_hr:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_run_cost_per_hr_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_RUN_001"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:bur_per_hr_run:structural:system:has_column:shop_resource_bur_per_hr_run_CONTAINMENT",
-      "_key": "shop_resource:bur_per_hr_run:structural:system:has_column:shop_resource_bur_per_hr_run_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:bur_per_hr_run:structural:system:has_column:SYS_HAS_SHO_BUR_001",
+      "_key": "shop_resource:bur_per_hr_run:structural:system:has_column:SYS_HAS_SHO_BUR_001",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:bur_per_hr_run:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_bur_per_hr_run_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_BUR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:active:structural:system:has_column:shop_resource_active_CONTAINMENT",
-      "_key": "shop_resource:active:structural:system:has_column:shop_resource_active_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:active:structural:system:has_column:SYS_HAS_SHO_ACT_001",
+      "_key": "shop_resource:active:structural:system:has_column:SYS_HAS_SHO_ACT_001",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:active:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_active_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_ACT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/shop_resource:created_at:structural:system:has_column:shop_resource_created_at_CONTAINMENT",
-      "_key": "shop_resource:created_at:structural:system:has_column:shop_resource_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/shop_resource:created_at:structural:system:has_column:SYS_HAS_SHO_CRE_001",
+      "_key": "shop_resource:created_at:structural:system:has_column:SYS_HAS_SHO_CRE_001",
       "_from": "manufacturing_graph_node/shop_resource:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/shop_resource:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "shop_resource_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_SHO_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:supplier_id:structural:system:has_column:suppliers_supplier_id_CONTAINMENT",
-      "_key": "suppliers:supplier_id:structural:system:has_column:suppliers_supplier_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:supplier_id:structural:system:has_column:SYS_HAS_SUP_SUP_001",
+      "_key": "suppliers:supplier_id:structural:system:has_column:SYS_HAS_SUP_SUP_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:supplier_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_supplier_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_SUP_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:supplier_name:structural:system:has_column:suppliers_supplier_name_CONTAINMENT",
-      "_key": "suppliers:supplier_name:structural:system:has_column:suppliers_supplier_name_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:supplier_name:structural:system:has_column:SYS_HAS_SUP_SUP_002",
+      "_key": "suppliers:supplier_name:structural:system:has_column:SYS_HAS_SUP_SUP_002",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:supplier_name:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_supplier_name_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_SUP_002"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:contact_email:structural:system:has_column:suppliers_contact_email_CONTAINMENT",
-      "_key": "suppliers:contact_email:structural:system:has_column:suppliers_contact_email_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:contact_email:structural:system:has_column:SYS_HAS_SUP_CON_001",
+      "_key": "suppliers:contact_email:structural:system:has_column:SYS_HAS_SUP_CON_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:contact_email:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_contact_email_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_CON_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:phone:structural:system:has_column:suppliers_phone_CONTAINMENT",
-      "_key": "suppliers:phone:structural:system:has_column:suppliers_phone_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:phone:structural:system:has_column:SYS_HAS_SUP_PHO_001",
+      "_key": "suppliers:phone:structural:system:has_column:SYS_HAS_SUP_PHO_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:phone:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_phone_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_PHO_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:address:structural:system:has_column:suppliers_address_CONTAINMENT",
-      "_key": "suppliers:address:structural:system:has_column:suppliers_address_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:address:structural:system:has_column:SYS_HAS_SUP_ADD_001",
+      "_key": "suppliers:address:structural:system:has_column:SYS_HAS_SUP_ADD_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:address:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_address_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_ADD_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:performance_rating:structural:system:has_column:suppliers_performance_rating_CONTAINMENT",
-      "_key": "suppliers:performance_rating:structural:system:has_column:suppliers_performance_rating_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:performance_rating:structural:system:has_column:SYS_HAS_SUP_PER_001",
+      "_key": "suppliers:performance_rating:structural:system:has_column:SYS_HAS_SUP_PER_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:performance_rating:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_performance_rating_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_PER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:certification_level:structural:system:has_column:suppliers_certification_level_CONTAINMENT",
-      "_key": "suppliers:certification_level:structural:system:has_column:suppliers_certification_level_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:certification_level:structural:system:has_column:SYS_HAS_SUP_CER_001",
+      "_key": "suppliers:certification_level:structural:system:has_column:SYS_HAS_SUP_CER_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:certification_level:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_certification_level_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_CER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:created_date:structural:system:has_column:suppliers_created_date_CONTAINMENT",
-      "_key": "suppliers:created_date:structural:system:has_column:suppliers_created_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:created_date:structural:system:has_column:SYS_HAS_SUP_CRE_001",
+      "_key": "suppliers:created_date:structural:system:has_column:SYS_HAS_SUP_CRE_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:created_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_created_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_CRE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:category:structural:system:has_column:suppliers_category_CONTAINMENT",
-      "_key": "suppliers:category:structural:system:has_column:suppliers_category_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:category:structural:system:has_column:SYS_HAS_SUP_CAT_001",
+      "_key": "suppliers:category:structural:system:has_column:SYS_HAS_SUP_CAT_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:category:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_category_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_CAT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:payment_terms:structural:system:has_column:suppliers_payment_terms_CONTAINMENT",
-      "_key": "suppliers:payment_terms:structural:system:has_column:suppliers_payment_terms_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:payment_terms:structural:system:has_column:SYS_HAS_SUP_PAY_001",
+      "_key": "suppliers:payment_terms:structural:system:has_column:SYS_HAS_SUP_PAY_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:payment_terms:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_payment_terms_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_PAY_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:lead_time_days:structural:system:has_column:suppliers_lead_time_days_CONTAINMENT",
-      "_key": "suppliers:lead_time_days:structural:system:has_column:suppliers_lead_time_days_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:lead_time_days:structural:system:has_column:SYS_HAS_SUP_LEA_001",
+      "_key": "suppliers:lead_time_days:structural:system:has_column:SYS_HAS_SUP_LEA_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:lead_time_days:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_lead_time_days_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_LEA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:outside_service:structural:system:has_column:suppliers_outside_service_CONTAINMENT",
-      "_key": "suppliers:outside_service:structural:system:has_column:suppliers_outside_service_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:outside_service:structural:system:has_column:SYS_HAS_SUP_OUT_001",
+      "_key": "suppliers:outside_service:structural:system:has_column:SYS_HAS_SUP_OUT_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:outside_service:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_outside_service_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_OUT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/suppliers:active:structural:system:has_column:suppliers_active_CONTAINMENT",
-      "_key": "suppliers:active:structural:system:has_column:suppliers_active_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/suppliers:active:structural:system:has_column:SYS_HAS_SUP_ACT_001",
+      "_key": "suppliers:active:structural:system:has_column:SYS_HAS_SUP_ACT_001",
       "_from": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/suppliers:active:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "suppliers_active_CONTAINMENT"
+      "unique_id": "SYS_HAS_SUP_ACT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:wo_id:structural:system:has_column:work_order_wo_id_CONTAINMENT",
-      "_key": "work_order:wo_id:structural:system:has_column:work_order_wo_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:wo_id:structural:system:has_column:SYS_HAS_WOR_WOI_001",
+      "_key": "work_order:wo_id:structural:system:has_column:SYS_HAS_WOR_WOI_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:wo_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_wo_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_WOI_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:workorder_type:structural:system:has_column:work_order_workorder_type_CONTAINMENT",
-      "_key": "work_order:workorder_type:structural:system:has_column:work_order_workorder_type_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:workorder_type:structural:system:has_column:SYS_HAS_WOR_WOR_001",
+      "_key": "work_order:workorder_type:structural:system:has_column:SYS_HAS_WOR_WOR_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:workorder_type:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_workorder_type_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_WOR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:part_id:structural:system:has_column:work_order_part_id_CONTAINMENT",
-      "_key": "work_order:part_id:structural:system:has_column:work_order_part_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:part_id:structural:system:has_column:SYS_HAS_WOR_PAR_002",
+      "_key": "work_order:part_id:structural:system:has_column:SYS_HAS_WOR_PAR_002",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:part_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_part_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_PAR_002"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:part_description:structural:system:has_column:work_order_part_description_CONTAINMENT",
-      "_key": "work_order:part_description:structural:system:has_column:work_order_part_description_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:part_description:structural:system:has_column:SYS_HAS_WOR_PAR_001",
+      "_key": "work_order:part_description:structural:system:has_column:SYS_HAS_WOR_PAR_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:part_description:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_part_description_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_PAR_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:quantity:structural:system:has_column:work_order_quantity_CONTAINMENT",
-      "_key": "work_order:quantity:structural:system:has_column:work_order_quantity_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:quantity:structural:system:has_column:SYS_HAS_WOR_QUA_001",
+      "_key": "work_order:quantity:structural:system:has_column:SYS_HAS_WOR_QUA_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:quantity:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_quantity_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_QUA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:status:structural:system:has_column:work_order_status_CONTAINMENT",
-      "_key": "work_order:status:structural:system:has_column:work_order_status_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:status:structural:system:has_column:SYS_HAS_WOR_STA_001",
+      "_key": "work_order:status:structural:system:has_column:SYS_HAS_WOR_STA_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_status_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_STA_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:open_date:structural:system:has_column:work_order_open_date_CONTAINMENT",
-      "_key": "work_order:open_date:structural:system:has_column:work_order_open_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:open_date:structural:system:has_column:SYS_HAS_WOR_OPE_001",
+      "_key": "work_order:open_date:structural:system:has_column:SYS_HAS_WOR_OPE_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:open_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_open_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_OPE_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:close_date:structural:system:has_column:work_order_close_date_CONTAINMENT",
-      "_key": "work_order:close_date:structural:system:has_column:work_order_close_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:close_date:structural:system:has_column:SYS_HAS_WOR_CLO_001",
+      "_key": "work_order:close_date:structural:system:has_column:SYS_HAS_WOR_CLO_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:close_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_close_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_CLO_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:required_date:structural:system:has_column:work_order_required_date_CONTAINMENT",
-      "_key": "work_order:required_date:structural:system:has_column:work_order_required_date_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:required_date:structural:system:has_column:SYS_HAS_WOR_REQ_001",
+      "_key": "work_order:required_date:structural:system:has_column:SYS_HAS_WOR_REQ_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:required_date:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_required_date_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_REQ_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:routing_template:structural:system:has_column:work_order_routing_template_CONTAINMENT",
-      "_key": "work_order:routing_template:structural:system:has_column:work_order_routing_template_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:routing_template:structural:system:has_column:SYS_HAS_WOR_ROU_001",
+      "_key": "work_order:routing_template:structural:system:has_column:SYS_HAS_WOR_ROU_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:routing_template:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_routing_template_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_ROU_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:act_lab_cost:structural:system:has_column:work_order_act_lab_cost_CONTAINMENT",
-      "_key": "work_order:act_lab_cost:structural:system:has_column:work_order_act_lab_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:act_lab_cost:structural:system:has_column:SYS_HAS_WOR_ACT_002",
+      "_key": "work_order:act_lab_cost:structural:system:has_column:SYS_HAS_WOR_ACT_002",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:act_lab_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_act_lab_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_ACT_002"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:act_bur_cost:structural:system:has_column:work_order_act_bur_cost_CONTAINMENT",
-      "_key": "work_order:act_bur_cost:structural:system:has_column:work_order_act_bur_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:act_bur_cost:structural:system:has_column:SYS_HAS_WOR_ACT_001",
+      "_key": "work_order:act_bur_cost:structural:system:has_column:SYS_HAS_WOR_ACT_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:act_bur_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_act_bur_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_ACT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:act_ser_cost:structural:system:has_column:work_order_act_ser_cost_CONTAINMENT",
-      "_key": "work_order:act_ser_cost:structural:system:has_column:work_order_act_ser_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:act_ser_cost:structural:system:has_column:SYS_HAS_WOR_ACT_004",
+      "_key": "work_order:act_ser_cost:structural:system:has_column:SYS_HAS_WOR_ACT_004",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:act_ser_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_act_ser_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_ACT_004"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:act_mat_cost:structural:system:has_column:work_order_act_mat_cost_CONTAINMENT",
-      "_key": "work_order:act_mat_cost:structural:system:has_column:work_order_act_mat_cost_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:act_mat_cost:structural:system:has_column:SYS_HAS_WOR_ACT_003",
+      "_key": "work_order:act_mat_cost:structural:system:has_column:SYS_HAS_WOR_ACT_003",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:act_mat_cost:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_act_mat_cost_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_ACT_003"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:outside_service:structural:system:has_column:work_order_outside_service_CONTAINMENT",
-      "_key": "work_order:outside_service:structural:system:has_column:work_order_outside_service_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:outside_service:structural:system:has_column:SYS_HAS_WOR_OUT_001",
+      "_key": "work_order:outside_service:structural:system:has_column:SYS_HAS_WOR_OUT_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:outside_service:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_outside_service_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_OUT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:site_id:structural:system:has_column:work_order_site_id_CONTAINMENT",
-      "_key": "work_order:site_id:structural:system:has_column:work_order_site_id_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:site_id:structural:system:has_column:SYS_HAS_WOR_SIT_001",
+      "_key": "work_order:site_id:structural:system:has_column:SYS_HAS_WOR_SIT_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:site_id:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_site_id_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_SIT_001"
     },
     {
-      "_id": "manufacturing_graph_edge/work_order:created_at:structural:system:has_column:work_order_created_at_CONTAINMENT",
-      "_key": "work_order:created_at:structural:system:has_column:work_order_created_at_CONTAINMENT",
+      "_id": "manufacturing_graph_edge/work_order:created_at:structural:system:has_column:SYS_HAS_WOR_CRE_001",
+      "_key": "work_order:created_at:structural:system:has_column:SYS_HAS_WOR_CRE_001",
       "_from": "manufacturing_graph_node/work_order:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/work_order:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "work_order_created_at_CONTAINMENT"
+      "unique_id": "SYS_HAS_WOR_CRE_001"
     }
   ]
 }
