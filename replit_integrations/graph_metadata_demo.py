@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-graph_metadata_demo.py — Five runnable examples for graph_metadata_queries + metadata_query_templates.
+graph_metadata_demo.py — Four runnable examples for graph_metadata_queries + metadata_query_templates.
 
 Run from the repo root:
     python replit_integrations/graph_metadata_demo.py
@@ -8,10 +8,11 @@ Run from the repo root:
 Or as a module (also works):
     python -m replit_integrations.graph_metadata_demo
 
-Expected output: module import paths, a DB connection confirmation, and a
-DataFrame sample for each of the five examples below.
+Expected output: module import paths, a DB connection confirmation, DataFrame
+samples for the query examples, and offline composite-key parsing assertions.
 """
 import os
+import sqlite3
 import sys
 
 # Bootstrap: when this file is run directly (python replit_integrations/graph_metadata_demo.py),
@@ -84,26 +85,10 @@ else:
     print(df_poly[["table_name", "field_name", "concept_name", "is_primary_meaning"]].to_string(index=False))
 
 # ---------------------------------------------------------------------------
-# Example 3 — Intent concept elevations (intent_id=1: defect_cost_analysis)
+# Example 3 — Foreign key graph (all edges)
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 60)
-print("EXAMPLE 3 — Intent concept elevations for intent_id=1 (defect_cost_analysis)")
-print("Expected: DefectSeverityCost elevated (weight=1), others neutral/suppressed")
-print("=" * 60)
-
-sql_elev = mqt.intent_concept_elevations(intent_id=1)
-df_elev = gmq.get_graph_metadata(sql_elev, params=[1])
-print(df_elev[["intent_name", "concept_name", "domain", "intent_factor_weight"]].to_string(index=False))
-# intent_name          concept_name  domain  intent_factor_weight
-# defect_cost_analysis  DefectSeverityCost  finance  1
-# defect_cost_analysis  DefectSeverityCustomer  customer  0
-# defect_cost_analysis  DefectSeverityQuality  quality  0
-
-# ---------------------------------------------------------------------------
-# Example 4 — Foreign key graph (all edges)
-# ---------------------------------------------------------------------------
-print("\n" + "=" * 60)
-print("EXAMPLE 4 — Foreign key graph (schema_edges, first 10 rows)")
+print("EXAMPLE 3 — Foreign key graph (schema_edges, first 10 rows)")
 print("Expected: from_table, to_table, relationship_type, join_column")
 print("=" * 60)
 
@@ -115,32 +100,129 @@ else:
     print(df_fk[cols].head(10).to_string(index=False))
 
 # ---------------------------------------------------------------------------
-# Example 5 — ArangoDB _key format assertions (offline)
+# Example 4 — Composite key slot-length structural parsing (offline)
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 60)
-print("EXAMPLE 5 — ArangoDB _key format assertions (offline)")
-print("Expected: all assertions pass; table:: and column:: prefixes confirmed")
+print("EXAMPLE 4 — Composite key slot-length structural parsing (offline)")
+print("Expected: every table/column/edge key classifies by slot count alone")
 print("=" * 60)
 
-TABLE_KEY_PREFIX = "table::"
-COLUMN_KEY_PREFIX = "column::"
+# Composite key scheme (intent + UniqueID deferred — not bound to the physical
+# schema footprint). Components are ':'-delimited, broad-first, and the
+# perspective is always the terminal slot:
+#     table vertex          table:family:perspective          (3 slots)
+#     column vertex         table:column:family:perspective   (4 slots, perspective == 'system')
+#     core structural edge  table:column:family:perspective   (4 slots, perspective == a business view)
+#
+# Parsing is therefore unambiguous from slot count + the terminal perspective
+# token ALONE — no prefix tag needed. Constraint: 'system' is reserved for the
+# structural layer, so a business view may never be named 'system'.
+FAMILY_STRUCTURAL = "structural"
+PERSPECTIVE_SYSTEM = "system"
+SAMPLE_BUSINESS_VIEW = "payable"
 
-# Derive expected _key values from schema_nodes table names (same logic as graph_sync.py)
-df_nodes = gmq.get_graph_metadata(mqt.table_metadata())
-table_keys = [f"{TABLE_KEY_PREFIX}{row['table_name']}" for _, row in df_nodes.iterrows()]
+KIND_TABLE = "table_vertex"
+KIND_COLUMN = "column_vertex"
+KIND_EDGE = "core_structural_edge"
 
-assert len(table_keys) > 0, "schema_nodes must contain at least one table"
-for key in table_keys:
-    assert key.startswith(TABLE_KEY_PREFIX), f"Unexpected key format: {key}"
 
-# Simulate a column _key for a known column
-sample_column_key = f"{COLUMN_KEY_PREFIX}work_order.status"
-assert sample_column_key.startswith(COLUMN_KEY_PREFIX), f"Unexpected key format: {sample_column_key}"
+def _reject_delimiter(*parts):
+    for p in parts:
+        assert ":" not in str(p), f"component {p!r} must not contain the ':' delimiter"
 
-print(f"Checked {len(table_keys)} table:: _key values — all pass")
-print(f"Sample table _key  : {table_keys[0]}")
-print(f"Sample column _key : {sample_column_key}")
-print("All ArangoDB _key format assertions passed (offline)")
+
+def table_vertex_key(table):
+    _reject_delimiter(table)
+    return f"{table}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}"
+
+
+def column_vertex_key(table, column):
+    _reject_delimiter(table, column)
+    return f"{table}:{column}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}"
+
+
+def structural_edge_key(table, column, business_view):
+    _reject_delimiter(table, column, business_view)
+    return f"{table}:{column}:{FAMILY_STRUCTURAL}:{business_view}"
+
+
+def classify_key(key):
+    """Classify a composite key by slot count + terminal perspective token."""
+    tokens = key.split(":")
+    n = len(tokens)
+    if n == 3:
+        return KIND_TABLE
+    if n == 4:
+        return KIND_COLUMN if tokens[-1] == PERSPECTIVE_SYSTEM else KIND_EDGE
+    raise ValueError(f"Unparseable key (expected 3 or 4 slots, got {n}): {key!r}")
+
+
+_db_path = gmq.get_manufacturing_db_path()
+_conn = sqlite3.connect(_db_path)
+_conn.row_factory = sqlite3.Row
+n_tables = n_columns = n_edges = 0
+sample_table_key = sample_column_key = sample_edge_key = None
+try:
+    _tables = [
+        r["table_name"]
+        for r in _conn.execute(
+            "SELECT table_name FROM schema_nodes "
+            "WHERE table_type = 'Table' ORDER BY table_name"
+        )
+    ]
+    assert _tables, "schema_nodes must contain at least one table"
+
+    for _t in _tables:
+        # Table vertex — 3 slots, classifies as KIND_TABLE
+        _tk = table_vertex_key(_t)
+        assert _tk.count(":") == 2, f"table vertex must have 3 slots: {_tk!r}"
+        assert classify_key(_tk) == KIND_TABLE, f"misclassified table vertex: {_tk!r}"
+        n_tables += 1
+        sample_table_key = sample_table_key or _tk
+
+        _quoted = '"' + _t.replace('"', '""') + '"'
+        try:
+            _cols = [c["name"] for c in _conn.execute(f"PRAGMA table_info({_quoted})")]
+        except sqlite3.Error:
+            _cols = []
+
+        for _c in _cols:
+            # Column vertex — 4 slots, perspective 'system', classifies as KIND_COLUMN
+            _ck = column_vertex_key(_t, _c)
+            assert _ck.count(":") == 3, f"column vertex must have 4 slots: {_ck!r}"
+            assert classify_key(_ck) == KIND_COLUMN, f"misclassified column vertex: {_ck!r}"
+            n_columns += 1
+            sample_column_key = sample_column_key or _ck
+
+            # Core structural edge — 4 slots, business-view perspective, KIND_EDGE
+            _ek = structural_edge_key(_t, _c, SAMPLE_BUSINESS_VIEW)
+            assert _ek.count(":") == 3, f"structural edge must have 4 slots: {_ek!r}"
+            assert classify_key(_ek) == KIND_EDGE, f"misclassified structural edge: {_ek!r}"
+            # Same table:column, different perspective → must classify differently
+            assert classify_key(_ck) != classify_key(_ek), (
+                f"column vertex and edge collided: {_ck!r} vs {_ek!r}"
+            )
+            n_edges += 1
+            sample_edge_key = sample_edge_key or _ek
+finally:
+    _conn.close()
+
+# Malformed keys (wrong slot count) must be rejected outright
+for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e"]:
+    try:
+        classify_key(_bad)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(f"classify_key should have rejected {_bad!r}")
+
+print(f"Table vertices  (3 slots)            : {n_tables} classified OK")
+print(f"Column vertices (4 slots, 'system')  : {n_columns} classified OK")
+print(f"Structural edges (4 slots, business) : {n_edges} classified OK")
+print(f"Sample table vertex  : {sample_table_key}")
+print(f"Sample column vertex : {sample_column_key}")
+print(f"Sample structural edge: {sample_edge_key}")
+print("Slot-length structural parsing assertions passed (offline)")
 
 print("\n" + "=" * 60)
 print("DEMO COMPLETE")
