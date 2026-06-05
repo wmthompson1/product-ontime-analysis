@@ -23,6 +23,7 @@ SYS_HAS_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3
 
 ## semantic layer (family)
 
+## what changed
 ### semantic unique edge key
 
 PAY_ELE_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
