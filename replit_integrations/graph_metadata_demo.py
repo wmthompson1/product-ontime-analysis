@@ -107,27 +107,33 @@ print("EXAMPLE 4 — Composite key slot-length structural parsing (offline)")
 print("Expected: every table/column/edge key classifies by slot count alone")
 print("=" * 60)
 
-# Composite key scheme (intent + UniqueID deferred — not bound to the physical
-# schema footprint). Components are ':'-delimited, broad-first, and the
-# perspective is always the terminal slot:
-#     table vertex          table:family:perspective          (3 slots)
-#     column vertex         table:column:family:perspective   (4 slots, perspective == 'system')
-#     core structural edge  table:column:family:perspective   (4 slots, perspective == a business view)
+# Fixed 6-slot composite key template — every key has EXACTLY 6 ':'-delimited
+# slots, parsed by fixed position (no prefix tag):
+#     table : column|entity : family : perspective : predicate|none : unique_id|none
+#       0          1            2          3              4               5
+#     table node       table:entity:structural:system:none:none
+#     column node      table:column:structural:system:none:none
+#     structural edge  table:column:structural:system:has_column:UNIQUE_ID
+#     semantic edge    table:column:semantic:<view>:elevates:UNIQUE_ID   (DEFERRED v2)
 #
-# Parsing is therefore unambiguous from slot count + the terminal perspective
-# token ALONE — no prefix tag needed. Constraint: 'system' is reserved for the
-# structural layer, so a business view may never be named 'system'.
+# NODE iff slot[4]=='none' and slot[5]=='none' (table node if slot[1]=='entity',
+# else column node); otherwise EDGE, whose family is slot[2]. Reserved tokens:
+# 'entity' (no column may be named it), 'none' (no column/table may be named it),
+# 'system' (no business view may be named it).
 FAMILY_STRUCTURAL = "structural"
 FAMILY_SEMANTIC = "semantic"
 PERSPECTIVE_SYSTEM = "system"
-SAMPLE_BUSINESS_VIEW = "payable"
-# Canonical semantic-layer example (6 slots) — kept in lockstep with the
-# key_scheme block embedded in graph_metadata.json (DEFERRED layer).
-SAMPLE_SEMANTIC_KEY = "PAYABLE:INVOICE_ID:semantic:payable:elevates:PAY_ELE_PAY_INV_001"
+PLACEHOLDER_ENTITY = "entity"
+NONE_SLOT = "none"
+SAMPLE_BUSINESS_VIEW = "Payables"
+SAMPLE_PREDICATE = "has_column"
+# Canonical examples — kept in lockstep with the key_scheme block embedded in
+# graph_metadata.json / graph_metadata.canonical_example.json.
+SAMPLE_SEMANTIC_KEY = "PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:PAY_ELE_RCVR_JOIN_001"
 
-KIND_TABLE = "table_vertex"
-KIND_COLUMN = "column_vertex"
-KIND_EDGE = "core_structural_edge"
+KIND_TABLE = "table_node"
+KIND_COLUMN = "column_node"
+KIND_EDGE = "structural_edge"
 KIND_SEMANTIC = "semantic_edge"
 
 
@@ -138,38 +144,38 @@ def _reject_delimiter(*parts):
 
 def table_vertex_key(table):
     _reject_delimiter(table)
-    return f"{table}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}"
+    return f"{table}:{PLACEHOLDER_ENTITY}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}:{NONE_SLOT}:{NONE_SLOT}"
 
 
 def column_vertex_key(table, column):
     _reject_delimiter(table, column)
-    return f"{table}:{column}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}"
+    return f"{table}:{column}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}:{NONE_SLOT}:{NONE_SLOT}"
 
 
-def structural_edge_key(table, column, business_view):
-    _reject_delimiter(table, column, business_view)
-    return f"{table}:{column}:{FAMILY_STRUCTURAL}:{business_view}"
+def structural_edge_key(table, column, unique_id, predicate=SAMPLE_PREDICATE):
+    _reject_delimiter(table, column, unique_id, predicate)
+    return f"{table}:{column}:{FAMILY_STRUCTURAL}:{PERSPECTIVE_SYSTEM}:{predicate}:{unique_id}"
 
 
 def classify_key(key):
-    """Classify a composite key by slot count + terminal/family tokens.
+    """Classify a composite key by its fixed 6 slot positions.
 
-    Slot layouts (family is slot index 2, perspective the terminal slot for the
-    structural layer):
-        3 slots                       -> table vertex
-        4 slots, perspective 'system' -> column vertex
-        4 slots, perspective business -> core structural edge
-        6 slots, family 'semantic'    -> semantic edge
+    Layout: table:column|entity:family:perspective:predicate|none:unique_id|none
+        NODE  iff slot[4]=='none' and slot[5]=='none'
+                table node if slot[1]=='entity', else column node
+        EDGE  otherwise; family is slot[2] ('structural' | 'semantic')
     """
     tokens = key.split(":")
-    n = len(tokens)
-    if n == 3:
-        return KIND_TABLE
-    if n == 4:
-        return KIND_COLUMN if tokens[-1] == PERSPECTIVE_SYSTEM else KIND_EDGE
-    if n == 6 and tokens[2] == FAMILY_SEMANTIC:
+    if len(tokens) != 6 or any(t == "" for t in tokens):
+        raise ValueError(f"Unparseable key (must be 6 non-empty slots): {key!r}")
+    is_node = tokens[4] == NONE_SLOT and tokens[5] == NONE_SLOT
+    if is_node:
+        return KIND_TABLE if tokens[1] == PLACEHOLDER_ENTITY else KIND_COLUMN
+    if tokens[2] == FAMILY_SEMANTIC:
         return KIND_SEMANTIC
-    raise ValueError(f"Unparseable key (slots={n}): {key!r}")
+    if tokens[2] == FAMILY_STRUCTURAL:
+        return KIND_EDGE
+    raise ValueError(f"Unparseable edge family in slot 2: {key!r}")
 
 
 _db_path = gmq.get_manufacturing_db_path()
@@ -188,10 +194,10 @@ try:
     assert _tables, "schema_nodes must contain at least one table"
 
     for _t in _tables:
-        # Table vertex — 3 slots, classifies as KIND_TABLE
+        # Table node — 6 slots, slot[1]=='entity', ends none:none -> KIND_TABLE
         _tk = table_vertex_key(_t)
-        assert _tk.count(":") == 2, f"table vertex must have 3 slots: {_tk!r}"
-        assert classify_key(_tk) == KIND_TABLE, f"misclassified table vertex: {_tk!r}"
+        assert _tk.count(":") == 5, f"table node must have 6 slots: {_tk!r}"
+        assert classify_key(_tk) == KIND_TABLE, f"misclassified table node: {_tk!r}"
         n_tables += 1
         sample_table_key = sample_table_key or _tk
 
@@ -202,20 +208,21 @@ try:
             _cols = []
 
         for _c in _cols:
-            # Column vertex — 4 slots, perspective 'system', classifies as KIND_COLUMN
+            # Column node — 6 slots, slot[1]!='entity', ends none:none -> KIND_COLUMN
             _ck = column_vertex_key(_t, _c)
-            assert _ck.count(":") == 3, f"column vertex must have 4 slots: {_ck!r}"
-            assert classify_key(_ck) == KIND_COLUMN, f"misclassified column vertex: {_ck!r}"
+            assert _ck.count(":") == 5, f"column node must have 6 slots: {_ck!r}"
+            assert classify_key(_ck) == KIND_COLUMN, f"misclassified column node: {_ck!r}"
             n_columns += 1
             sample_column_key = sample_column_key or _ck
 
-            # Core structural edge — 4 slots, business-view perspective, KIND_EDGE
-            _ek = structural_edge_key(_t, _c, SAMPLE_BUSINESS_VIEW)
-            assert _ek.count(":") == 3, f"structural edge must have 4 slots: {_ek!r}"
+            # Structural edge — 6 slots, predicate + unique_id filled -> KIND_EDGE
+            _uid = f"{_t}_{_c}_CONTAINMENT"
+            _ek = structural_edge_key(_t, _c, _uid)
+            assert _ek.count(":") == 5, f"structural edge must have 6 slots: {_ek!r}"
             assert classify_key(_ek) == KIND_EDGE, f"misclassified structural edge: {_ek!r}"
-            # Same table:column, different perspective → must classify differently
+            # Same table:column — node vs edge differ only in slots 5-6, must NOT collide
             assert classify_key(_ck) != classify_key(_ek), (
-                f"column vertex and edge collided: {_ck!r} vs {_ek!r}"
+                f"column node and edge collided: {_ck!r} vs {_ek!r}"
             )
             n_edges += 1
             sample_edge_key = sample_edge_key or _ek
@@ -228,9 +235,9 @@ assert classify_key(SAMPLE_SEMANTIC_KEY) == KIND_SEMANTIC, (
     f"misclassified semantic edge: {SAMPLE_SEMANTIC_KEY!r}"
 )
 
-# Malformed keys (wrong slot count, or 6 slots without the 'semantic' family)
-# must be rejected outright.
-for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e", "a:b:structural:d:e:f"]:
+# Malformed keys (wrong slot count, empty slot, or unknown edge family) must be
+# rejected outright.
+for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e", "a:b:c:d:e:f:g", "a::c:d:e:f", "a:b:bogus:d:e:f"]:
     try:
         classify_key(_bad)
     except ValueError:
@@ -238,15 +245,15 @@ for _bad in ["no_delimiter", "two:slots", "a:b:c:d:e", "a:b:structural:d:e:f"]:
     else:
         raise AssertionError(f"classify_key should have rejected {_bad!r}")
 
-print(f"Table vertices  (3 slots)            : {n_tables} classified OK")
-print(f"Column vertices (4 slots, 'system')  : {n_columns} classified OK")
-print(f"Structural edges (4 slots, business) : {n_edges} classified OK")
-print(f"Semantic edge   (6 slots, 'semantic'): 1 classified OK")
-print(f"Sample table vertex  : {sample_table_key}")
-print(f"Sample column vertex : {sample_column_key}")
+print(f"Table nodes     (6 slots, 'entity')   : {n_tables} classified OK")
+print(f"Column nodes    (6 slots, none:none)  : {n_columns} classified OK")
+print(f"Structural edges(6 slots, has_column) : {n_edges} classified OK")
+print(f"Semantic edge   (6 slots, 'semantic') : 1 classified OK")
+print(f"Sample table node    : {sample_table_key}")
+print(f"Sample column node   : {sample_column_key}")
 print(f"Sample structural edge: {sample_edge_key}")
 print(f"Sample semantic edge : {SAMPLE_SEMANTIC_KEY}")
-print("Slot-length structural parsing assertions passed (offline)")
+print("Fixed 6-slot composite-key parsing assertions passed (offline)")
 
 print("\n" + "=" * 60)
 print("DEMO COMPLETE")
