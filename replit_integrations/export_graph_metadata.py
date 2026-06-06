@@ -42,8 +42,9 @@ and are resolved by the uniqifier: it is *allocated* per
 (perspective, edge_type, table, column) prefix, counting up from 001 in a
 deterministic sorted order so the same DB always yields the same uids.
 
-v1 milestone scope (this export): the **structural footprint only** — table
-nodes, column nodes, and the has_column backbone edge (table -> column). The
+Milestone scope (this export): the **structural footprint** — table nodes,
+column nodes, the has_column backbone edge (table -> column), and the references
+edge (child column -> parent column) built from declared foreign keys. The
 semantic layer is format-locked in the embedded ``key_scheme`` but deferred.
 
 Outputs, written next to this script:
@@ -71,8 +72,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 1
-MILESTONE_NAME = "database_bound_unambiguous_slots"
+SCHEMA_VERSION = 2
+MILESTONE_NAME = "structural_foreign_keys"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -87,6 +88,7 @@ PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table node
 NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
 EDGE_PREDICATE_CONTAINS = "has_column"
+EDGE_PREDICATE_REFERENCES = "references"
 
 # Unified abbreviated unique_id (slot 5): 3 chars per part, '_'-joined.
 ABBREV_LEN = 3
@@ -157,12 +159,17 @@ def unified_unique_id(perspective: str, edge_type: str, table: str,
     )
 
 
+def _edge_uid_prefix(perspective: str, edge_type: str, table: str, column: str) -> str:
+    """Shared uid prefix for any edge whose anchor (perspective, edge_type,
+    table, column|entity) abbreviates alike. The uniqifier disambiguates."""
+    return "_".join(
+        [_abbrev(perspective), _abbrev(edge_type), _abbrev(table), _abbrev(column)]
+    )
+
+
 def _containment_prefix(table: str, column: str) -> str:
     """The uid prefix shared by all containment edges that abbreviate alike."""
-    return "_".join(
-        [_abbrev(PERSPECTIVE_SYSTEM), _abbrev(EDGE_PREDICATE_CONTAINS),
-         _abbrev(table), _abbrev(column)]
-    )
+    return _edge_uid_prefix(PERSPECTIVE_SYSTEM, EDGE_PREDICATE_CONTAINS, table, column)
 
 
 def allocate_containment_uids(column_nodes: list[dict]) -> dict[tuple, str]:
@@ -234,31 +241,65 @@ def contains_edge_id(table_name: str, column_name: str, unique_id: str) -> str:
     return f"{EDGE_COLLECTION}/{contains_edge_key(table_name, column_name, unique_id)}"
 
 
+def references_edge_key(child_table: str, child_column: str, unique_id: str) -> str:
+    """Structural edge: ``childtable:childcol:structural:system:references:uid``."""
+    _assert_component_safe(child_table, child_column, unique_id)
+    return _slots(
+        child_table, child_column, FAMILY_STRUCTURAL, PERSPECTIVE_SYSTEM,
+        EDGE_PREDICATE_REFERENCES, unique_id,
+    )
+
+
+def references_edge_id(child_table: str, child_column: str, unique_id: str) -> str:
+    return f"{EDGE_COLLECTION}/{references_edge_key(child_table, child_column, unique_id)}"
+
+
 # ---------------------------------------------------------------------------
 # Extraction — tables, then columns, then has_column edges
 # ---------------------------------------------------------------------------
 
-def _fetch_structure(conn: sqlite3.Connection) -> tuple[list[dict], list[dict], dict]:
-    """Return (table_nodes, column_nodes, integrity) from SQLite.
+def _fetch_structure(conn: sqlite3.Connection):
+    """Return (table_nodes, column_nodes, pk_map, integrity) from SQLite.
 
-    Tables come from the schema_nodes registry; columns come from PRAGMA
-    table_info run against each registered table. Tables that cannot be
+    Tables come from two sources, deduped: the schema_nodes registry (business
+    tables, table_type='Table') and the schema_* metadata tables (so declared
+    foreign-key endpoints between them resolve to real nodes). Columns come from
+    PRAGMA table_info run against each table; primary-key columns are tracked so
+    foreign keys targeting an implicit PK can be resolved. Tables that cannot be
     PRAGMA'd (views, or dropped between registry and DB) are recorded in the
     integrity report rather than failing the export.
     """
     conn.row_factory = sqlite3.Row
-    integrity = {"tables_without_columns": []}
+    integrity = {"tables_without_columns": [], "foreign_keys_skipped": []}
 
-    table_rows = conn.execute(
-        "SELECT table_name, description FROM schema_nodes "
-        "WHERE table_type = 'Table' ORDER BY table_name"
-    ).fetchall()
+    desc_map = {
+        r["table_name"]: (r["description"] or "")
+        for r in conn.execute(
+            "SELECT table_name, description FROM schema_nodes"
+        ).fetchall()
+    }
+    business = [
+        r["table_name"]
+        for r in conn.execute(
+            "SELECT table_name FROM schema_nodes WHERE table_type = 'Table' "
+            "ORDER BY table_name"
+        ).fetchall()
+    ]
+    metadata = [
+        r["name"]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name LIKE 'schema\\_%' ESCAPE '\\' ORDER BY name"
+        ).fetchall()
+    ]
+    seen = set(business)
+    table_names = business + [t for t in metadata if t not in seen]
 
     table_nodes: list[dict] = []
     column_nodes: list[dict] = []
+    pk_map: dict[str, list[str]] = {}
 
-    for trow in table_rows:
-        tname = trow["table_name"]
+    for tname in table_names:
         table_nodes.append(
             {
                 "_id": table_id(tname),
@@ -270,7 +311,7 @@ def _fetch_structure(conn: sqlite3.Connection) -> tuple[list[dict], list[dict], 
                 "column_slot": PLACEHOLDER_ENTITY,
                 "predicate": NONE_SLOT,
                 "unique_id": NONE_SLOT,
-                "description": trow["description"] or "",
+                "description": desc_map.get(tname, ""),
             }
         )
 
@@ -285,6 +326,10 @@ def _fetch_structure(conn: sqlite3.Connection) -> tuple[list[dict], list[dict], 
         if not col_rows:
             integrity["tables_without_columns"].append(tname)
             continue
+
+        pks = [c["name"] for c in col_rows if c["pk"]]
+        if pks:
+            pk_map[tname] = pks
 
         for col in col_rows:
             cname = col["name"]
@@ -306,7 +351,7 @@ def _fetch_structure(conn: sqlite3.Connection) -> tuple[list[dict], list[dict], 
                 }
             )
 
-    return table_nodes, column_nodes, integrity
+    return table_nodes, column_nodes, pk_map, integrity
 
 
 def _build_contains_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -> list[dict]:
@@ -326,6 +371,85 @@ def _build_contains_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -
                 "edge_type": EDGE_PREDICATE_CONTAINS,
                 "perspective": PERSPECTIVE_SYSTEM,
                 "unique_id": uid,
+            }
+        )
+    return edges
+
+
+def _fetch_foreign_keys(conn: sqlite3.Connection, table_names: list[str],
+                        pk_map: dict[str, list[str]]) -> list[dict]:
+    """Read declared foreign keys (PRAGMA foreign_key_list) for ``table_names``.
+
+    Returns dicts of {child_table, child_column, parent_table, parent_column}.
+    A NULL target column (FK to the parent's implicit PK) is resolved to the
+    parent's single primary-key column; ambiguous cases stay None so the edge
+    builder can skip them rather than emit a dangling reference.
+    """
+    fks: list[dict] = []
+    for tname in table_names:
+        try:
+            quoted = '"' + tname.replace('"', '""') + '"'
+            rows = conn.execute(f"PRAGMA foreign_key_list({quoted})").fetchall()
+        except sqlite3.Error:
+            rows = []
+        for r in rows:
+            parent_table = r["table"]
+            parent_col = r["to"]
+            if parent_col is None:
+                pks = pk_map.get(parent_table, [])
+                parent_col = pks[0] if len(pks) == 1 else None
+            fks.append(
+                {
+                    "child_table": tname,
+                    "child_column": r["from"],
+                    "parent_table": parent_table,
+                    "parent_column": parent_col,
+                }
+            )
+    return fks
+
+
+def _build_references_edges(fk_rows: list[dict], node_index: set,
+                            integrity: dict) -> list[dict]:
+    """One references edge per FK column pair: child column -> parent column.
+
+    Edges are emitted in a deterministic sorted order; the uniqifier counts up
+    within each abbreviated uid prefix (collision-safe, identical to the
+    containment allocator). A foreign key whose child or parent column is not an
+    exported node is skipped and recorded in the integrity report rather than
+    emitting a dangling edge.
+    """
+    edges: list[dict] = []
+    counter: dict[str, int] = {}
+    ordered = sorted(
+        fk_rows,
+        key=lambda f: (
+            f["child_table"], f["child_column"],
+            f["parent_table"], str(f["parent_column"]),
+        ),
+    )
+    for fk in ordered:
+        ct, cc = fk["child_table"], fk["child_column"]
+        pt, pc = fk["parent_table"], fk["parent_column"]
+        if pc is None or (ct, cc) not in node_index or (pt, pc) not in node_index:
+            integrity["foreign_keys_skipped"].append(f"{ct}.{cc} -> {pt}.{pc}")
+            continue
+        prefix = _edge_uid_prefix(PERSPECTIVE_SYSTEM, EDGE_PREDICATE_REFERENCES, ct, cc)
+        n = counter.get(prefix, 0) + 1
+        counter[prefix] = n
+        uid = f"{prefix}_{n:03d}"
+        edges.append(
+            {
+                "_id": references_edge_id(ct, cc, uid),
+                "_key": references_edge_key(ct, cc, uid),
+                "_from": column_id(ct, cc),
+                "_to": column_id(pt, pc),
+                "edge_family": FAMILY_STRUCTURAL,
+                "edge_type": EDGE_PREDICATE_REFERENCES,
+                "perspective": PERSPECTIVE_SYSTEM,
+                "unique_id": uid,
+                "references_table": pt,
+                "references_column": pc,
             }
         )
     return edges
@@ -387,6 +511,11 @@ def _key_scheme_spec() -> dict:
                 "slots": 6,
                 "marker": "slot[2]=='structural' and slot[4]!='none'",
                 "form": "table:column:structural:system:predicate:unique_id",
+                "predicates": [EDGE_PREDICATE_CONTAINS, EDGE_PREDICATE_REFERENCES],
+                "examples": {
+                    EDGE_PREDICATE_CONTAINS: "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001  (table -> column)",
+                    EDGE_PREDICATE_REFERENCES: "schema_concepts:parent_concept_id:structural:system:references:SYS_REF_SCH_PAR_001  (FK child column -> parent column)",
+                },
                 "example": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
                 "status": "active",
             },
@@ -406,6 +535,7 @@ def _key_scheme_spec() -> dict:
             "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) prefix; default '001'",
             "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
             "structural_example": "SYS_HAS_PAY_INV_001 (system / has_column / PAYABLE / INVOICE_ID / 001)",
+            "structural_references_example": "SYS_REF_SCH_PAR_001 (system / references / schema_concepts / parent_concept_id / 001)",
             "semantic_example": "PAY_ELE_PAY_INV_001 (Payables / elevates / PAYABLE / INVOICE_ID / 001)  [DEFERRED]",
         },
     }
@@ -422,17 +552,22 @@ def _build_graph_document(
     integrity: dict,
 ) -> dict:
     nodes = table_nodes + column_nodes
+    edges_by_type: dict[str, int] = {}
+    for e in edges:
+        edges_by_type[e["edge_type"]] = edges_by_type.get(e["edge_type"], 0) + 1
     return {
         "schema_version": SCHEMA_VERSION,
         "milestone": MILESTONE_NAME,
         "synced_at": datetime.now(timezone.utc).isoformat(),
         "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
         "description": (
-            "Canonical structural containment graph exported from SQLite in the "
-            "fixed 6-slot composite-key scheme (table + column nodes + has_column "
-            "edges) with unified abbreviated unique_ids. This milestone covers the "
-            "physical schema footprint only; the semantic layer is format-locked "
-            "in key_scheme but deferred."
+            "Canonical structural graph exported from SQLite in the fixed 6-slot "
+            "composite-key scheme: table + column nodes, has_column edges "
+            "(table -> column), and references edges (child column -> parent "
+            "column) built from declared foreign keys, all with unified "
+            "abbreviated unique_ids. Covers the physical schema footprint "
+            "(business tables + schema_* metadata tables); the semantic layer is "
+            "format-locked in key_scheme but deferred."
         ),
         "key_scheme": _key_scheme_spec(),
         "graph": {
@@ -443,7 +578,7 @@ def _build_graph_document(
             "nodes_total": len(nodes),
             "edges_total": len(edges),
             "nodes_by_type": {"table": len(table_nodes), "column": len(column_nodes)},
-            "edges_by_type": {EDGE_PREDICATE_CONTAINS: len(edges)},
+            "edges_by_type": edges_by_type,
         },
         "integrity": integrity,
         "nodes": nodes,
@@ -481,7 +616,9 @@ def main() -> int:
     try:
         conn = sqlite3.connect(DB_PATH)
         try:
-            table_nodes, column_nodes, integrity = _fetch_structure(conn)
+            table_nodes, column_nodes, pk_map, integrity = _fetch_structure(conn)
+            table_names = [t["table_name"] for t in table_nodes]
+            fk_rows = _fetch_foreign_keys(conn, table_names, pk_map)
         finally:
             conn.close()
     except sqlite3.Error as exc:
@@ -489,7 +626,10 @@ def main() -> int:
         return 1
 
     uid_map = allocate_containment_uids(column_nodes)
-    edges = _build_contains_edges(column_nodes, uid_map)
+    contains_edges = _build_contains_edges(column_nodes, uid_map)
+    node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
+    references_edges = _build_references_edges(fk_rows, node_index, integrity)
+    edges = contains_edges + references_edges
     doc = _build_graph_document(table_nodes, column_nodes, edges, integrity)
 
     try:
@@ -506,11 +646,15 @@ def main() -> int:
         return 1
 
     print(f"Canonical graph exported (fixed 6-slot scheme, {MILESTONE_NAME})")
-    print(f"  triples : {TRIPLES_PATH}  ({len(edges)} {EDGE_PREDICATE_CONTAINS} rows)")
+    print(f"  triples : {TRIPLES_PATH}  ({len(edges)} rows)")
     print(f"  graph   : {JSON_PATH}")
     print(f"  {snapshot_action}")
     print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns)")
-    print(f"  edges   : {doc['counts']['edges_total']}  ({EDGE_PREDICATE_CONTAINS} in {EDGE_COLLECTION})")
+    print(
+        f"  edges   : {doc['counts']['edges_total']}  "
+        f"({len(contains_edges)} {EDGE_PREDICATE_CONTAINS}, "
+        f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES}) in {EDGE_COLLECTION}"
+    )
     # Report any abbreviation collisions that the uniqifier had to disambiguate.
     bumped = sorted({uid.rsplit("_", 1)[0] for uid in uid_map.values()
                      if not uid.endswith("_001")})
@@ -518,8 +662,14 @@ def main() -> int:
         print(f"  uid     : {len(bumped)} abbreviated prefix(es) needed >1 uniqifier (collisions resolved)")
     if integrity["tables_without_columns"]:
         print(
-            f"  WARN    : {len(integrity['tables_without_columns'])} registered table(s) "
+            f"  WARN    : {len(integrity['tables_without_columns'])} table(s) "
             f"had no PRAGMA columns: {', '.join(integrity['tables_without_columns'])}"
+        )
+    if integrity["foreign_keys_skipped"]:
+        print(
+            f"  WARN    : {len(integrity['foreign_keys_skipped'])} foreign key(s) "
+            f"skipped (endpoint not an exported node): "
+            f"{', '.join(integrity['foreign_keys_skipped'])}"
         )
     return 0
 
