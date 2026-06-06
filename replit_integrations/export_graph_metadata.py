@@ -72,8 +72,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 2
-MILESTONE_NAME = "structural_foreign_keys"
+SCHEMA_VERSION = 3
+MILESTONE_NAME = "wave4_traceability"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
