@@ -326,6 +326,18 @@ def _fetch_structure(conn: sqlite3.Connection):
         if pks:
             pk_map[tname] = pks
 
+        # Foreign-key child columns for this table, from the same PRAGMA the
+        # references edges are built from — so the node flag and the edge can
+        # never drift. Stored as a node-level structural fact, symmetric with
+        # primary_key/notnull (which come from PRAGMA table_info).
+        try:
+            fk_child_cols = {
+                r["from"]
+                for r in conn.execute(f"PRAGMA foreign_key_list({quoted})").fetchall()
+            }
+        except sqlite3.Error:
+            fk_child_cols = set()
+
         for col in col_rows:
             cname = col["name"]
             column_nodes.append(
@@ -343,6 +355,7 @@ def _fetch_structure(conn: sqlite3.Connection):
                     "notnull": bool(col["notnull"]),
                     "default_value": col["dflt_value"],
                     "primary_key": bool(col["pk"]),
+                    "foreign_key": cname in fk_child_cols,
                 }
             )
 
