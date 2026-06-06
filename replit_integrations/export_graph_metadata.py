@@ -261,9 +261,10 @@ def references_edge_id(child_table: str, child_column: str, unique_id: str) -> s
 def _fetch_structure(conn: sqlite3.Connection):
     """Return (table_nodes, column_nodes, pk_map, integrity) from SQLite.
 
-    Tables come from two sources, deduped: the schema_nodes registry (business
-    tables, table_type='Table') and the schema_* metadata tables (so declared
-    foreign-key endpoints between them resolve to real nodes). Columns come from
+    Tables are the business ERP tables registered in the schema_nodes registry
+    (table_type='Table'). The semantic layer's own metadata tables (schema_*)
+    are intentionally excluded: the structural graph models the manufacturing
+    domain, not the bookkeeping that drives the graph itself. Columns come from
     PRAGMA table_info run against each table; primary-key columns are tracked so
     foreign keys targeting an implicit PK can be resolved. Tables that cannot be
     PRAGMA'd (views, or dropped between registry and DB) are recorded in the
@@ -278,22 +279,13 @@ def _fetch_structure(conn: sqlite3.Connection):
             "SELECT table_name, description FROM schema_nodes"
         ).fetchall()
     }
-    business = [
+    table_names = [
         r["table_name"]
         for r in conn.execute(
             "SELECT table_name FROM schema_nodes WHERE table_type = 'Table' "
             "ORDER BY table_name"
         ).fetchall()
     ]
-    metadata = [
-        r["name"]
-        for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' "
-            "AND name LIKE 'schema\\_%' ESCAPE '\\' ORDER BY name"
-        ).fetchall()
-    ]
-    seen = set(business)
-    table_names = business + [t for t in metadata if t not in seen]
 
     table_nodes: list[dict] = []
     column_nodes: list[dict] = []
@@ -565,8 +557,9 @@ def _build_graph_document(
             "composite-key scheme: table + column nodes, has_column edges "
             "(table -> column), and references edges (child column -> parent "
             "column) built from declared foreign keys, all with unified "
-            "abbreviated unique_ids. Covers the physical schema footprint "
-            "(business tables + schema_* metadata tables); the semantic layer is "
+            "abbreviated unique_ids. Covers the business ERP tables "
+            "(schema_* metadata tables excluded — the graph models the domain, "
+            "not its own bookkeeping); the semantic layer is "
             "format-locked in key_scheme but deferred."
         ),
         "key_scheme": _key_scheme_spec(),
