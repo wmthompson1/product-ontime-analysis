@@ -1309,7 +1309,10 @@ export function DefineRelationship() {
                                 {col.primary_key && (
                                   <span className="ml-1 text-amber-400 font-semibold">PK</span>
                                 )}
-                                {col.not_null && !col.primary_key && (
+                                {col.foreign_key && (
+                                  <span className="ml-1 text-sky-400 font-semibold">FK</span>
+                                )}
+                                {col.not_null && !col.primary_key && !col.foreign_key && (
                                   <span className="ml-1 text-slate-600">NN</span>
                                 )}
                               </span>

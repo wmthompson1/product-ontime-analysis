@@ -8,6 +8,7 @@ export type ColumnMeta = {
   data_type: string;
   not_null: boolean;
   primary_key: boolean;
+  foreign_key: boolean;
   qualified_name: string; // "TABLE.COLUMN"
 };
 
@@ -26,27 +27,27 @@ const IDLE: FetchState = { columns: [], isLoading: false, error: null };
 // ---------------------------------------------------------------------------
 const FIXTURE_COLUMNS: Record<string, ColumnMeta[]> = {
   customer: [
-    { column_name: "customer_id", data_type: "INTEGER", not_null: true,  primary_key: true,  qualified_name: "customer.customer_id" },
-    { column_name: "first_name",  data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer.first_name" },
-    { column_name: "last_name",   data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer.last_name" },
-    { column_name: "email",       data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "customer.email" },
-    { column_name: "phone",       data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "customer.phone" },
-    { column_name: "created_at",  data_type: "DATETIME",not_null: true,  primary_key: false, qualified_name: "customer.created_at" },
+    { column_name: "customer_id", data_type: "INTEGER", not_null: true,  primary_key: true,  foreign_key: false, qualified_name: "customer.customer_id" },
+    { column_name: "first_name",  data_type: "TEXT",    not_null: true,  primary_key: false, foreign_key: false, qualified_name: "customer.first_name" },
+    { column_name: "last_name",   data_type: "TEXT",    not_null: true,  primary_key: false, foreign_key: false, qualified_name: "customer.last_name" },
+    { column_name: "email",       data_type: "TEXT",    not_null: false, primary_key: false, foreign_key: false, qualified_name: "customer.email" },
+    { column_name: "phone",       data_type: "TEXT",    not_null: false, primary_key: false, foreign_key: false, qualified_name: "customer.phone" },
+    { column_name: "created_at",  data_type: "DATETIME",not_null: true,  primary_key: false, foreign_key: false, qualified_name: "customer.created_at" },
   ],
   customer_address: [
-    { column_name: "address_id",  data_type: "INTEGER", not_null: true,  primary_key: true,  qualified_name: "customer_address.address_id" },
-    { column_name: "customer_id", data_type: "INTEGER", not_null: true,  primary_key: false, qualified_name: "customer_address.customer_id" },
-    { column_name: "street",      data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer_address.street" },
-    { column_name: "city",        data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer_address.city" },
-    { column_name: "state",       data_type: "TEXT",    not_null: true,  primary_key: false, qualified_name: "customer_address.state" },
-    { column_name: "zip",         data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "customer_address.zip" },
+    { column_name: "address_id",  data_type: "INTEGER", not_null: true,  primary_key: true,  foreign_key: false, qualified_name: "customer_address.address_id" },
+    { column_name: "customer_id", data_type: "INTEGER", not_null: true,  primary_key: false, foreign_key: true,  qualified_name: "customer_address.customer_id" },
+    { column_name: "street",      data_type: "TEXT",    not_null: true,  primary_key: false, foreign_key: false, qualified_name: "customer_address.street" },
+    { column_name: "city",        data_type: "TEXT",    not_null: true,  primary_key: false, foreign_key: false, qualified_name: "customer_address.city" },
+    { column_name: "state",       data_type: "TEXT",    not_null: true,  primary_key: false, foreign_key: false, qualified_name: "customer_address.state" },
+    { column_name: "zip",         data_type: "TEXT",    not_null: false, primary_key: false, foreign_key: false, qualified_name: "customer_address.zip" },
   ],
   sales: [
-    { column_name: "sale_id",      data_type: "INTEGER", not_null: true,  primary_key: true,  qualified_name: "sales.sale_id" },
-    { column_name: "customer_id",  data_type: "INTEGER", not_null: true,  primary_key: false, qualified_name: "sales.customer_id" },
-    { column_name: "sale_date",    data_type: "DATETIME",not_null: true,  primary_key: false, qualified_name: "sales.sale_date" },
-    { column_name: "amount_dollars",data_type:"NUMERIC", not_null: true,  primary_key: false, qualified_name: "sales.amount_dollars" },
-    { column_name: "product_line", data_type: "TEXT",    not_null: false, primary_key: false, qualified_name: "sales.product_line" },
+    { column_name: "sale_id",      data_type: "INTEGER", not_null: true,  primary_key: true,  foreign_key: false, qualified_name: "sales.sale_id" },
+    { column_name: "customer_id",  data_type: "INTEGER", not_null: true,  primary_key: false, foreign_key: true,  qualified_name: "sales.customer_id" },
+    { column_name: "sale_date",    data_type: "DATETIME",not_null: true,  primary_key: false, foreign_key: false, qualified_name: "sales.sale_date" },
+    { column_name: "amount_dollars",data_type:"NUMERIC", not_null: true,  primary_key: false, foreign_key: false, qualified_name: "sales.amount_dollars" },
+    { column_name: "product_line", data_type: "TEXT",    not_null: false, primary_key: false, foreign_key: false, qualified_name: "sales.product_line" },
   ],
 };
 

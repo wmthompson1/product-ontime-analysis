@@ -2790,6 +2790,7 @@ async def list_table_columns(table: str):
               "data_type": str,
               "not_null": bool,
               "primary_key": bool,
+              "foreign_key": bool,    # declared FK child column (PRAGMA foreign_key_list)
               "qualified_name": str   # "table.column"
             },
             ...
@@ -2827,12 +2828,27 @@ async def list_table_columns(table: str):
     if not rows:
         return {"table_name": table, "columns": []}
 
+    # Declared foreign-key child columns, from the same PRAGMA the graph
+    # exporter uses to build references edges — so this endpoint and the graph
+    # agree on which columns are FKs.
+    try:
+        fk_conn = _sqlite3.connect(SQLITE_DB_PATH)
+        fk_conn.row_factory = _sqlite3.Row
+        fk_child_cols = {
+            r["from"]
+            for r in fk_conn.execute(f"PRAGMA foreign_key_list({table})").fetchall()
+        }
+        fk_conn.close()
+    except Exception:
+        fk_child_cols = set()
+
     columns = [
         {
             "column_name": row["name"],
             "data_type": row["type"] or "TEXT",
             "not_null": bool(row["notnull"]),
             "primary_key": bool(row["pk"]),
+            "foreign_key": row["name"] in fk_child_cols,
             "qualified_name": f"{table}.{row['name']}",
         }
         for row in rows
