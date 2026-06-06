@@ -12,3 +12,9 @@ id = "kaqFg5kR5LG8fqDpIa7tN"
 uri = "file://define-relationship-integration-guide.md"
 type = "text"
 title = "Define Relationship — Integration Guide"
+
+[[outputs]]
+id = "fuqvup-tkpLzfmcbMNKj3"
+uri = "file://replit_integrations/plan-8-wave-4-synthetic-erp-expansion.md"
+type = "text"
+title = "Plan 8 · Wave 4 — Synthetic ERP Expansion"
