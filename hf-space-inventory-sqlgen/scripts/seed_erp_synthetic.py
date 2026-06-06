@@ -149,6 +149,21 @@ WO_STATUSES     = ["Open", "Released", "Closed", "Cancelled"]
 PO_STATUSES     = ["Open", "Partial", "Closed", "Cancelled"]
 INSP_STATUSES   = ["Passed", "Passed", "Passed", "Pending", "Failed", "Waived"]
 
+# ── Wave 4: traceability spine reference data ─────────────────────────────────
+SITES = [
+    # (site_id, site_name, region)
+    ("SITE-1", "Main Assembly Plant — Wichita KS", "US-Central"),
+    ("SITE-2", "Machining Center — Phoenix AZ",    "US-Southwest"),
+    ("SITE-3", "Composite Fab — Tacoma WA",        "US-Northwest"),
+]
+
+CUSTOMERS = [
+    "Boeing Commercial Airplanes", "Lockheed Martin Aeronautics", "Northrop Grumman",
+    "Raytheon Technologies", "Gulfstream Aerospace", "Bombardier Aviation",
+    "Textron Aviation", "Spirit AeroSystems", "Collins Aerospace", "GE Aviation",
+]
+CO_STATUSES     = ["Open", "Shipped", "Closed", "Cancelled"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -644,6 +659,226 @@ def seed_schema_nodes(cur):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Wave 4 — traceability spine seed functions
+# ─────────────────────────────────────────────────────────────────────────────
+
+def seed_sites(cur):
+    cur.executemany(
+        "INSERT OR IGNORE INTO site (site_id, site_name, region) VALUES (?,?,?)",
+        SITES,
+    )
+    print(f"  site: {cur.rowcount} rows inserted")
+
+
+def seed_customer_orders(cur, n=60):
+    existing = cur.execute("SELECT COUNT(*) FROM customer_order").fetchone()[0]
+    if existing >= n:
+        print(f"  customer_order: already {existing} rows — skipping")
+        return
+    site_ids = [s[0] for s in SITES]
+    start_d, end_d = date(2024, 1, 1), date(2025, 12, 31)
+    rows = []
+    for i in range(existing + 1, n + 1):
+        order_id = f"CO-{i:05d}"
+        cust     = random.choice(CUSTOMERS)
+        order_d  = rand_date(start_d, end_d)
+        site     = random.choice(site_ids)
+        status   = random.choices(CO_STATUSES, weights=[20, 35, 35, 10])[0]
+        rows.append((order_id, cust, fmt(order_d), site, status))
+    cur.executemany(
+        "INSERT OR IGNORE INTO customer_order "
+        "(order_id, customer_name, order_date, site_id, status) VALUES (?,?,?,?,?)",
+        rows,
+    )
+    print(f"  customer_order: {cur.rowcount} rows inserted")
+
+
+def seed_customer_order_lines(cur):
+    existing_orders = {r[0] for r in cur.execute(
+        "SELECT DISTINCT order_id FROM customer_order_line").fetchall()}
+    orders = cur.execute(
+        "SELECT order_id, site_id FROM customer_order WHERE status != 'Cancelled'"
+    ).fetchall()
+    sellable = [p for p in PART_CATALOG if p[2] in ("MAKE", "BUY")]
+
+    lines = []
+    for order_id, site_id in orders:
+        if order_id in existing_orders:
+            continue
+        for line_no in range(1, random.randint(1, 3) + 1):
+            p     = random.choice(sellable)
+            qty   = random.choice([1, 2, 4, 5, 10])
+            price = round(p[4] * random.uniform(1.15, 1.45), 2)
+            lines.append((order_id, line_no, p[0], site_id, qty, price))
+    if lines:
+        cur.executemany(
+            "INSERT INTO customer_order_line "
+            "(order_id, line_no, part_id, site_id, order_qty, unit_price) "
+            "VALUES (?,?,?,?,?,?)",
+            lines,
+        )
+    print(f"  customer_order_line: {cur.rowcount} rows inserted")
+
+
+def seed_inventory_transactions(cur):
+    """Movement ledger with all R/A/I classes and I/O types.
+
+    Roles are encoded by (class, type, wo_id, po_id) so downstream genealogy /
+    trace functions can recover them without in-memory state:
+      - R/I + po_id        -> raw material receipt from a PO
+      - I/O + wo_id        -> raw material issue to a work order
+      - R/I + wo_id        -> finished-good receipt from a closed work order
+      - A/I or A/O         -> inventory adjustment
+      - I/O (no wo/po)     -> outbound customer shipment
+    """
+    if cur.execute("SELECT COUNT(*) FROM inventory_transaction").fetchone()[0] > 0:
+        print("  inventory_transaction: already populated — skipping")
+        return
+    site_ids = [s[0] for s in SITES]
+    start_d, end_d = date(2024, 1, 1), date(2025, 12, 31)
+    rows = []
+
+    # (1) Raw material RECEIPTS from PO receiving lines  (R / I)
+    for po_id, part_id, qty, recv_d in cur.execute(
+        "SELECT po_id, part_id, quantity_received, receipt_date FROM receiving"
+    ).fetchall():
+        rows.append(("R", "I", part_id, None, po_id,
+                     random.choice(site_ids), qty, recv_d))
+
+    # (2) Raw material ISSUES to work orders  (I / O)
+    for wo_id, part_id, qty, issue_d in cur.execute(
+        "SELECT wo_id, part_id, quantity, issue_date FROM material_issue"
+    ).fetchall():
+        rows.append(("I", "O", part_id, wo_id, None, "SITE-1", qty, issue_d))
+
+    # (3) Finished-good RECEIPTS from closed work orders  (R / I)
+    for wo_id, part_id, qty, close_d, site_id in cur.execute(
+        "SELECT wo_id, part_id, quantity, close_date, site_id "
+        "FROM work_order WHERE status='Closed' AND close_date IS NOT NULL"
+    ).fetchall():
+        rows.append(("R", "I", part_id, wo_id, None, site_id or "SITE-1", qty, close_d))
+
+    # (4) Inventory ADJUSTMENTS  (A / I or O)
+    parts = [p[0] for p in PART_CATALOG]
+    for _ in range(40):
+        rows.append(("A", random.choice(["I", "O"]), random.choice(parts),
+                     None, None, random.choice(site_ids),
+                     round(random.uniform(1, 25), 1), fmt(rand_date(start_d, end_d))))
+
+    # (5) Outbound SHIPMENTS for shipped/closed customer order lines  (I / O)
+    for part_id, site_id, qty in cur.execute(
+        "SELECT col.part_id, col.site_id, col.order_qty "
+        "FROM customer_order_line col JOIN customer_order co USING(order_id) "
+        "WHERE co.status IN ('Shipped','Closed')"
+    ).fetchall():
+        rows.append(("I", "O", part_id, None, None,
+                     site_id or "SITE-1", qty, fmt(rand_date(start_d, end_d))))
+
+    cur.executemany(
+        "INSERT INTO inventory_transaction "
+        "(class, type, part_id, wo_id, po_id, site_id, quantity, trans_date) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        rows,
+    )
+    print(f"  inventory_transaction: {cur.rowcount} rows inserted")
+
+
+def seed_trace(cur):
+    """One traced finished-good lot per work-order finished-good receipt."""
+    if cur.execute("SELECT COUNT(*) FROM trace").fetchone()[0] > 0:
+        print("  trace: already populated — skipping")
+        return
+    receipts = cur.execute(
+        "SELECT transaction_id, wo_id, part_id, quantity, trans_date, site_id "
+        "FROM inventory_transaction "
+        "WHERE class='R' AND type='I' AND wo_id IS NOT NULL"
+    ).fetchall()
+    rows = []
+    for tid, wo_id, part_id, qty, trans_d, site_id in receipts:
+        lot_id    = f"LOT-{wo_id}"
+        serial_id = f"SN-{wo_id}-{tid}"
+        exp_d     = (fmt(date.fromisoformat(trans_d) + timedelta(days=730))
+                     if trans_d else None)
+        rows.append((part_id, lot_id, serial_id, qty, 0.0, trans_d, exp_d, site_id))
+    cur.executemany(
+        "INSERT INTO trace "
+        "(part_id, lot_id, serial_id, in_qty, out_qty, production_date, "
+        "expiration_date, site_id) VALUES (?,?,?,?,?,?,?,?)",
+        rows,
+    )
+    print(f"  trace: {cur.rowcount} rows inserted")
+
+
+def seed_trace_inventory_trace(cur):
+    """Bridge each lot to the finished-good receipt that produced it."""
+    if cur.execute("SELECT COUNT(*) FROM trace_inventory_trace").fetchone()[0] > 0:
+        print("  trace_inventory_trace: already populated — skipping")
+        return
+    rows = cur.execute(
+        "SELECT t.part_id, t.trace_id, it.transaction_id, t.in_qty "
+        "FROM trace t "
+        "JOIN inventory_transaction it "
+        "  ON it.wo_id = REPLACE(t.lot_id, 'LOT-', '') "
+        " AND it.class='R' AND it.type='I' AND it.wo_id IS NOT NULL"
+    ).fetchall()
+    cur.executemany(
+        "INSERT INTO trace_inventory_trace "
+        "(part_id, trace_id, transaction_id, qty) VALUES (?,?,?,?)",
+        rows,
+    )
+    print(f"  trace_inventory_trace: {cur.rowcount} rows inserted")
+
+
+def seed_inv_trans_dist(cur):
+    """Lot genealogy: distribute each finished-good receipt (IN) across the raw
+    material issues (OUT) of the same work order, creating the recursive
+    IN-trans <-> OUT-trans lineage links."""
+    if cur.execute("SELECT COUNT(*) FROM inv_trans_dist").fetchone()[0] > 0:
+        print("  inv_trans_dist: already populated — skipping")
+        return
+    rows = cur.execute(
+        "SELECT r.transaction_id, i.transaction_id, i.quantity "
+        "FROM inventory_transaction r "
+        "JOIN inventory_transaction i ON i.wo_id = r.wo_id "
+        "WHERE r.class='R' AND r.type='I' AND r.wo_id IS NOT NULL "
+        "  AND i.class='I' AND i.type='O' AND i.wo_id IS NOT NULL"
+    ).fetchall()
+    cur.executemany(
+        "INSERT INTO inv_trans_dist (in_trans_id, out_trans_id, dist_qty) "
+        "VALUES (?,?,?)",
+        rows,
+    )
+    print(f"  inv_trans_dist: {cur.rowcount} rows inserted")
+
+
+def seed_payable_lines(cur):
+    """AP payable detail — one line per PO line behind each invoice header."""
+    existing_inv = {r[0] for r in cur.execute(
+        "SELECT DISTINCT invoice_id FROM payable_line").fetchall()}
+    invoices = cur.execute(
+        "SELECT invoice_id, po_id FROM invoice_header"
+    ).fetchall()
+
+    lines = []
+    for invoice_id, po_id in invoices:
+        if invoice_id in existing_inv:
+            continue
+        po_lines = cur.execute(
+            "SELECT part_id, quantity, line_total FROM po_line WHERE po_id=?",
+            (po_id,),
+        ).fetchall()
+        for line_no, (part_id, qty, line_total) in enumerate(po_lines, start=1):
+            lines.append((invoice_id, line_no, po_id, part_id, qty, line_total))
+    if lines:
+        cur.executemany(
+            "INSERT INTO payable_line "
+            "(invoice_id, line_no, po_id, part_id, qty, amount) VALUES (?,?,?,?,?,?)",
+            lines,
+        )
+    print(f"  payable_line: {cur.rowcount} rows inserted")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -651,6 +886,9 @@ ERP_TABLES = [
     "part", "certification", "invoice_header", "labor_ticket", "material_issue",
     "operation", "po_line", "purchase_order", "receiving", "service",
     "shop_resource", "work_order",
+    # Wave 4 — traceability spine (topological order)
+    "site", "customer_order", "customer_order_line", "inventory_transaction",
+    "trace", "trace_inventory_trace", "inv_trans_dist", "payable_line",
 ]
 
 def clear_erp_tables(cur):
@@ -695,6 +933,15 @@ def main():
         seed_certifications(cur)
         seed_material_issues(cur)
         seed_labor_tickets(cur)
+        # Wave 4 — traceability spine (topological order)
+        seed_sites(cur)
+        seed_customer_orders(cur)
+        seed_customer_order_lines(cur)
+        seed_inventory_transactions(cur)
+        seed_trace(cur)
+        seed_trace_inventory_trace(cur)
+        seed_inv_trans_dist(cur)
+        seed_payable_lines(cur)
         # metadata
         seed_schema_edges(cur)
         seed_schema_nodes(cur)
