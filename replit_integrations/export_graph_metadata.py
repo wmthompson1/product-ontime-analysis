@@ -286,6 +286,9 @@ def _fetch_structure(conn: sqlite3.Connection):
             "ORDER BY table_name"
         ).fetchall()
     ]
+    # Pure business-only scope: the semantic layer's own metadata tables are
+    # ignored entirely, even if one were ever registered as table_type='Table'.
+    table_names = [t for t in table_names if not t.startswith("schema_")]
 
     table_nodes: list[dict] = []
     column_nodes: list[dict] = []
