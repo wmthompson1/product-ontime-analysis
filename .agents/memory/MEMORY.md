@@ -2,3 +2,4 @@
 - [Public vs private repo duality](repo-duality.md) — public repo mirrors private Windows/SQL Server repo structure; scripts exist here as prototypes, may only run --dry-run in CI.
 - [Composite key scheme](composite-key-scheme.md) — readable `table:column:family:perspective` keys; parse by slot count + terminal perspective; intent/UniqueID deferred.
 - [Live graph key/edge conventions](live-graph-key-conventions.md) — live ArangoDB: raw table keys, column::TABLE.COL keeping schema+case, structural edges in `contains` (NOT manufacturing_graph_edges); query API on host:8529.
+- [Seed re-insertion & bridge drift](seed-reseed-behavior.md) — app re-seeds schema_sqlite.sql via INSERT OR IGNORE every startup; deleting seeded rows from live DB only is futile — fix the seed file too. Bridge prune is ungated.

@@ -431,34 +431,25 @@ INSERT INTO schema_perspectives (perspective_id, perspective_name, description, 
 
 -- Seed data: Perspective-Concept relationships (USES_DEFINITION)
 -- Quality perspective uses quality-focused concepts
+-- NOTE: Only perspective-concept pairs whose concept_id exists in the curated
+-- schema_concepts set are seeded. Earlier seed rows referencing concept_ids
+-- 4,5,6,10-19 pointed to concepts that were later removed/re-keyed during
+-- curation, leaving orphaned (dead-FK) bridge rows that could never become
+-- graph edges. Those 13 obsolete pairs were dropped so the SQLite source
+-- matches the active concept definitions (and the ArangoDB projection).
 INSERT INTO schema_perspective_concepts (perspective_id, concept_id, relationship_type, priority_weight) VALUES
 (1, 1, 'USES_DEFINITION', 3),   -- Quality uses DefectSeverityQuality (primary)
 (1, 8, 'USES_DEFINITION', 2),   -- Quality uses DeliveryPerformanceSupplier
-(1, 16, 'USES_DEFINITION', 3),  -- Quality uses NCMDispositionQuality
 
 -- Accounts_Payable perspective uses cost/payables concepts
 (2, 2, 'USES_DEFINITION', 3),   -- AP uses DefectSeverityCost
-(2, 5, 'USES_DEFINITION', 2),   -- AP uses OrderAccountingState
 (2, 9, 'USES_DEFINITION', 2),   -- AP uses DeliveryPerformanceFinance
-(2, 15, 'USES_DEFINITION', 2),  -- AP uses FailureSeverityCost
-(2, 17, 'USES_DEFINITION', 3),  -- AP uses NCMDispositionFinance
-(2, 19, 'USES_DEFINITION', 2),  -- AP uses OEEStrategic
 
 -- Work_Orders perspective uses routing/sequencing concepts
-(3, 4, 'USES_DEFINITION', 2),   -- Work_Orders uses OrderLifecycleState
 (3, 7, 'USES_DEFINITION', 3),   -- Work_Orders uses DeliveryPerformanceOps
-(3, 10, 'USES_DEFINITION', 2),  -- Work_Orders uses EquipmentStateProduction
-(3, 11, 'USES_DEFINITION', 2),  -- Work_Orders uses EquipmentStateMaintenance
-(3, 13, 'USES_DEFINITION', 3),  -- Work_Orders uses FailureSeverityProduction
-(3, 18, 'USES_DEFINITION', 3),  -- Work_Orders uses OEEOperational
-
--- General_Ledger perspective uses GL/cost flow concepts
-(4, 12, 'USES_DEFINITION', 3),  -- GL uses EquipmentStateCompliance
-(4, 14, 'USES_DEFINITION', 3),  -- GL uses FailureSeveritySafety
 
 -- Accounts_Receivable perspective uses customer-facing concepts
 (5, 3, 'USES_DEFINITION', 3),   -- AR uses DefectSeverityCustomer
-(5, 6, 'USES_DEFINITION', 3),   -- AR uses OrderCustomerState
 (5, 8, 'USES_DEFINITION', 2);   -- AR uses DeliveryPerformanceSupplier (for visibility)
 
 -- Schema Intents: Analytical goals that binary-switch concept weights
