@@ -89,6 +89,7 @@ class SyncReport:
     edges_updated: Dict[str, int] = field(default_factory=dict)
     vertices_pruned: Dict[str, int] = field(default_factory=dict)
     edges_pruned: Dict[str, int] = field(default_factory=dict)
+    bridges_pruned: Dict[str, int] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     dry_run: bool = False
@@ -112,6 +113,10 @@ class SyncReport:
     @property
     def total_pruned_edges(self) -> int:
         return sum(self.edges_pruned.values())
+
+    @property
+    def total_pruned_bridges(self) -> int:
+        return sum(self.bridges_pruned.values())
 
     def summary(self) -> str:
         mode = "DRY RUN" if self.dry_run else "LIVE SYNC"
@@ -148,6 +153,14 @@ class SyncReport:
                 lines.append(f"  {coll}: {count} vertices {prune_label}")
             for coll, count in self.edges_pruned.items():
                 lines.append(f"  {coll}: {count} edges {prune_label}")
+        if self.bridges_pruned:
+            lines.append("")
+            prune_label = "would prune" if self.dry_run else "pruned"
+            lines.append(
+                f"Stale bridge rows ({prune_label}: {self.total_pruned_bridges} rows):"
+            )
+            for coll, count in self.bridges_pruned.items():
+                lines.append(f"  {coll}: {count} rows {prune_label}")
         if self.warnings:
             lines.append("")
             lines.append("Warnings:")
@@ -449,6 +462,62 @@ def prune_stale_containment(
     return result
 
 
+def prune_stale_bridges(db, data: Dict[str, Any],
+                        report: Optional["SyncReport"] = None,
+                        dry_run: bool = False) -> Dict[str, int]:
+    """Remove ArangoDB bridge rows that no longer exist in the SQLite source.
+
+    Bridge collections (Perspective_Intents, Perspective_Concepts) are pure
+    projections of the SQLite source-of-truth tables. Unlike structural
+    containment (tables/columns), there is no scenario where an Arango bridge
+    row should outlive its SQLite source, so this reconcile runs on every
+    sync — not gated behind ``--purge-stale``.
+
+    A row is stale when its ``_key`` is absent from the set of composite keys
+    derived from the freshly-loaded SQLite data. Returns a per-collection
+    count of removed (or, in dry-run, would-be-removed) rows.
+    """
+    live_keys = {
+        "Perspective_Intents": {
+            _composite_key(ip["perspective_name"], ip["intent_name"])
+            for ip in data.get("intent_perspectives", [])
+        },
+        "Perspective_Concepts": {
+            _composite_key(pc["perspective_name"], pc["concept_name"])
+            for pc in data.get("perspective_concepts", [])
+        },
+    }
+
+    pruned: Dict[str, int] = {}
+    for coll_name, keep in live_keys.items():
+        if not db.has_collection(coll_name):
+            continue
+        coll = db.collection(coll_name)
+        arango_keys = set(db.aql.execute(
+            f"FOR d IN {coll_name} RETURN d._key", batch_size=500
+        ))
+        stale = arango_keys - keep
+        if not stale:
+            continue
+        if not dry_run:
+            for k in stale:
+                try:
+                    coll.delete(k)
+                except Exception as ex:
+                    if report is not None:
+                        report.warnings.append(
+                            f"Bridge prune {coll_name}/{k!r}: {ex}"
+                        )
+        pruned[coll_name] = len(stale)
+        if report is not None:
+            action = "would prune" if dry_run else "pruned"
+            report.warnings.append(
+                f"Stale {coll_name} {action}: {len(stale)} orphan row(s)"
+            )
+
+    return pruned
+
+
 def sync_graph(db_path: str = SQLITE_DB_PATH,
                manifest_path: str = MANIFEST_PATH,
                dry_run: bool = False,
@@ -646,6 +715,16 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
     report.vertices_synced = v_synced
     report.vertices_new = v_new
     report.vertices_updated = v_updated
+
+    # Bridge collections mirror the SQLite source-of-truth exactly. Remove any
+    # Arango rows whose source row was deleted/changed so the bridge-health
+    # check stays IN SYNC. Runs every sync (not gated) — see prune_stale_bridges.
+    try:
+        bridge_pruned = prune_stale_bridges(db, data, report=report, dry_run=dry_run)
+        if bridge_pruned:
+            report.bridges_pruned.update(bridge_pruned)
+    except Exception as ex:
+        report.warnings.append(f"Stale bridge prune skipped: {ex}")
 
     bt_coll = graph.edge_collection("bound_to")
     for intent in data["intents"]:
