@@ -23,8 +23,29 @@ Live format (names preserved verbatim — source case kept, schema prefix kept):
   - fields: `edge_type: "CONTAINS"`, `table_name`, `column_name` — **no `predicate` field**
   - live `_key` is a random hash (not deterministic)
 
-**Live collection inventory** (db `manufacturing_graph`, queried on host `:8529`
-— bare host serves the web UI as HTML, so always append `:8529` for the REST/API):
+**One named graph, two disjoint islands.** There is exactly ONE named graph
+`manufacturing_graph` (confirmed via `db.graphs()` edge_definitions). Its edge
+definitions span two vertex families that share NO vertices, so traversing from
+a `manufacturing_graph_node` node never reaches the `tables`/`columns` data:
+- UI-authored island: all UPPERCASE edges (`HAS_COLUMN`, `FOREIGN_KEY`,
+  `ELEVATES`, `CAN_MEAN`, `MAPS_TO_CONCEPT`, `USES_DEFINITION`,
+  `OPERATES_WITHIN`, `ATOMIC_FK`, `NEUTRAL`) all run
+  `manufacturing_graph_node` → `manufacturing_graph_node`. Written by the Define
+  Relationship UI via `/mcp/commit_edge` (`created_by: 'define_relationship_ui'`),
+  NOT by the SQLite sync.
+- SQLite-synced island: `contains` (tables→columns), `elevates` (intents→
+  concepts), `bound_to` (intents→bindings), on vertices `tables`/`columns`/
+  `intents`/`concepts`/`bindings`. Written by `graph_sync.sync_graph()`.
+- `Perspective_Intents` / `Perspective_Concepts` are loose collections, NOT part
+  of the named graph at all (so they don't appear when browsing the graph viewer).
+**Why this matters:** spot-checking a `manufacturing_graph_node`/`HAS_COLUMN` doc
+will never match the parity report — that report (`bridge_health.py`) only
+count-compares the two Perspective bridges, and the sync only feeds the lowercase
+island. To verify the sync, sample `tables`/`columns`/`contains`/`Perspective_*`
+by key (e.g. `tables/table::CERTIFICATION`, `Perspective_Concepts` filtered on
+`perspective`), not the manufacturing_graph_node nodes.
+
+**Live collection inventory** (db `manufacturing_graph`):
 two node-modeling conventions coexist —
 - structural trio: `tables`, `columns` (docs) + `contains` (edge tables→columns)
 - unified `manufacturing_graph_node` (doc, hex `_xHH_` keys) with UPPERCASE
