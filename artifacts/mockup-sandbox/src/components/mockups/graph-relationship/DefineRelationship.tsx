@@ -44,12 +44,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const EDGE_MEANINGS: Record<string, string> = {
-  CONTAINS: "Defined as: Structural containment — a table node owns its column nodes. Physical layer only, no business meaning. edge_type stored on the contains edge collection.",
   FOREIGN_KEY: "Defined as: Structural referential integrity link between ERP tables. Table-Scoped. NOT GLOBAL MEANING.",
   ELEVATES: "Defined as: Binary gate — weight=1 includes this table or column in the candidate set for its Concept; weight=0 deactivates it. The AI selects among weight=1 ground truths; it never generates SQL. NOT GLOBAL MEANING.",
   MAPS_TO_CONCEPT: "Defined as: ERP table is bridged to a semantic Concept node. MAPS_TO_CONCEPT bridge. NOT GLOBAL MEANING.",
   OPERATES_WITHIN: "Defined as: Intent is scoped to a Perspective domain (e.g. Quality, Payables). Perspective is an edge property, not a node. NOT GLOBAL MEANING.",
-  HAS_COLUMN: "Defined as: Semantic edge linking a table node to a named column node. Column names carry deterministic meaning — the column name IS the semantic claim. NOT GLOBAL MEANING.",
+  HAS_COLUMN: "Defined as: Structural containment — a table node owns its column nodes. Physical layer only, no business meaning. edge_type 'has_column' stored on the structural edge collection.",
   BOUND_TO: "Defined as: Binding resolves to an APPROVED SME SQL snippet for this Concept. NOT GLOBAL MEANING.",
 };
 
@@ -109,13 +108,12 @@ function searchEntities(
 // The grouped results list renders items as `"${rec.table_name} (${source})"`,
 // so selectedTarget must use that same format (see useState initializer below).
 
-const STRUCTURAL_PREDICATES = ["CONTAINS", "FOREIGN_KEY"];
+const STRUCTURAL_PREDICATES = ["HAS_COLUMN", "FOREIGN_KEY"];
 
 const SEMANTIC_PREDICATES = [
   "ELEVATES",
   "MAPS_TO_CONCEPT",
   "OPERATES_WITHIN",
-  "HAS_COLUMN",
   "BOUND_TO",
 ];
 
@@ -334,7 +332,7 @@ export function DefineRelationship() {
   const [selectedSource, setSelectedSource] = useState(
     getFirstEntityDisplay(MOCK_SEARCH_DATA)
   );
-  const [selectedPredicate, setSelectedPredicate] = useState("CONTAINS");
+  const [selectedPredicate, setSelectedPredicate] = useState("HAS_COLUMN");
   const [selectedIntent, setSelectedIntent] = useState(INTENTS[0]);
   const [selectedConcept, setSelectedConcept] = useState(CONCEPTS[0]);
   const [selectedTarget, setSelectedTarget] = useState(
@@ -353,7 +351,7 @@ export function DefineRelationship() {
   const [targetModeOpen, setTargetModeOpen] = useState(false);
 
   // Semantic "target is a column" mode — lets any semantic predicate target a column node.
-  // Auto-set to true (and locked) for HAS_COLUMN; user-toggleable for all other semantic predicates.
+  // User-toggleable for semantic predicates; the structural HAS_COLUMN edge always targets a column.
   // columnContextTable is the table whose columns are browsed; defaults to sourceShort when set.
   const [isColumnTarget, setIsColumnTarget] = useState(false);
   const [columnContextTable, setColumnContextTable] = useState("");
@@ -500,7 +498,7 @@ export function DefineRelationship() {
     setFormMode(newMode);
     setSelectedSource(firstEntity);
     setSelectedTarget(firstEntity);
-    setSelectedPredicate(newMode === "structural" ? "CONTAINS" : "ELEVATES");
+    setSelectedPredicate(newMode === "structural" ? "HAS_COLUMN" : "ELEVATES");
     setSelectedIntent(intents[0] ?? "");
     setSelectedConcept(concepts[0] ?? "");
     setActiveCategory("ALL");
@@ -520,39 +518,36 @@ export function DefineRelationship() {
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
   const hasCategory = activeCategory !== "ALL";
 
-  const isContains = selectedPredicate === "CONTAINS";
   // FOREIGN_KEY self-loop: same table on both ends is physically meaningless and blocked.
   const isSelfLoop = isStructural && selectedPredicate === "FOREIGN_KEY" && sourceShort === targetShort;
-  // HAS_COLUMN always requires a column target; other semantic predicates are user-toggled.
+  // HAS_COLUMN is the structural table→column edge; it always targets a column.
   const isHasColumn = selectedPredicate === "HAS_COLUMN";
 
-  // Auto-enable isColumnTarget when predicate demands it; auto-clear when switching away.
+  // Reset semantic column-target mode whenever the predicate changes to anything
+  // other than the structural HAS_COLUMN edge (which manages its own column picker).
   useEffect(() => {
-    if (isHasColumn) {
-      setIsColumnTarget(true);
-    } else if (!isContains) {
-      // Predicate changed to something neutral — reset column target mode.
+    if (!isHasColumn) {
       setIsColumnTarget(false);
       setColumnContextTable("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPredicate]);
 
-  // Clear selectedTarget when source table changes while CONTAINS is active.
+  // Clear selectedTarget when source table changes while HAS_COLUMN is active.
   // Prevents a stale `old_table.col` qualified_name remaining selected after the
   // user switches to a different source table.
   useEffect(() => {
-    if (isContains) {
+    if (isHasColumn) {
       setSelectedTarget("");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceShort]);
 
   // Which table to fetch columns from:
-  //   • CONTAINS path  → always the source table
+  //   • HAS_COLUMN path → always the source table
   //   • Semantic column path → user's chosen columnContextTable (falls back to sourceShort)
-  const isColumnPickerActive = isContains || isColumnTarget;
-  const columnFetchTable = isContains
+  const isColumnPickerActive = isHasColumn || isColumnTarget;
+  const columnFetchTable = isHasColumn
     ? sourceShort
     : (columnContextTable || sourceShort);
 
@@ -799,9 +794,9 @@ export function DefineRelationship() {
               </p>
 
               {isStructural ? (
-                isContains ? (
+                isHasColumn ? (
                   <div className="grid grid-cols-3 gap-2">
-                    {/* edge_key — full qualified_name as TGT for CONTAINS */}
+                    {/* edge_key — full qualified_name as TGT for HAS_COLUMN */}
                     <div className="border border-cyan-500/60 rounded bg-cyan-900/20 px-2 py-1.5">
                       <p className="text-[9px] text-cyan-300/70 uppercase tracking-wide mb-0.5">
                         edge_key
@@ -1134,37 +1129,33 @@ export function DefineRelationship() {
                 </div>
               </div>
 
-              {/* SELECT TARGET ENTITY — switches to column list when CONTAINS or isColumnTarget is active */}
+              {/* SELECT TARGET ENTITY — switches to column list when HAS_COLUMN or isColumnTarget is active */}
               <div className="p-3">
 
-                {/* "Target is a column" checkbox — semantic mode only; locked for HAS_COLUMN */}
-                {!isContains && (
+                {/* "Target is a column" checkbox — semantic mode only (structural HAS_COLUMN always targets a column) */}
+                {!isHasColumn && (
                   <div className="flex items-center gap-1.5 mb-2">
                     <input
                       type="checkbox"
                       id="is-column-target"
                       checked={isColumnTarget}
-                      disabled={isHasColumn}
                       onChange={(e) => {
                         setIsColumnTarget(e.target.checked);
                         if (!e.target.checked) setColumnContextTable("");
                       }}
-                      className="accent-cyan-400 cursor-pointer disabled:cursor-default"
+                      className="accent-cyan-400 cursor-pointer"
                     />
                     <label
                       htmlFor="is-column-target"
-                      className={`text-[10px] select-none ${isHasColumn ? "text-slate-500 cursor-default" : "text-slate-400 cursor-pointer hover:text-slate-200"}`}
+                      className="text-[10px] select-none text-slate-400 cursor-pointer hover:text-slate-200"
                     >
                       Target is a column
                     </label>
-                    {isHasColumn && (
-                      <span className="text-[9px] text-cyan-600 italic">— required by HAS_COLUMN</span>
-                    )}
                   </div>
                 )}
 
                 {/* Table selector for semantic column mode */}
-                {isColumnTarget && !isContains && (
+                {isColumnTarget && !isHasColumn && (
                   <div className="mb-2">
                     <p className="text-[9px] text-slate-500 uppercase tracking-wide mb-1">Column source table</p>
                     <select

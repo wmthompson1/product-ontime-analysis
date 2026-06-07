@@ -26,3 +26,8 @@ ELEVATES with weight=0 is the suppression mechanism. Do not add SUPPRESSES back.
 
 ## Perspective is an edge property
 Perspective is never a graph node. It lives as a property on bridge rows (Perspective_Intents, Perspective_Concepts) and on edges. OPERATES_WITHIN scopes an intent to a perspective domain via an edge property.
+
+## has_column is the single structural table→column predicate
+The structural containment edge (table owns column) is `has_column` everywhere — graph export edge_type, the Define Relationship UI structural predicate, and the app.py commit_edge/SQLite layers. There is NO `CONTAINS` predicate and NO separate *semantic* `HAS_COLUMN` meaning; those were unified away.
+**Why:** the UI once carried both `CONTAINS` (structural) and a distinct semantic `HAS_COLUMN`, which collided with the graph's structural `has_column`. One name, one meaning avoids the ambiguity.
+**How to apply:** structural predicates are exactly `["HAS_COLUMN", "FOREIGN_KEY"]`. Don't reintroduce CONTAINS or a semantic HAS_COLUMN; column-level meaning is expressed via ELEVATES, not via the containment edge.

@@ -87,7 +87,7 @@ PERSPECTIVE_SYSTEM = "system"
 PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table node
 NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
-EDGE_PREDICATE_CONTAINS = "has_column"
+EDGE_PREDICATE_HAS_COLUMN = "has_column"
 EDGE_PREDICATE_REFERENCES = "references"
 
 # Unified abbreviated unique_id (slot 5): 3 chars per part, '_'-joined.
@@ -169,7 +169,7 @@ def _edge_uid_prefix(perspective: str, edge_type: str, table: str, column: str) 
 
 def _containment_prefix(table: str, column: str) -> str:
     """The uid prefix shared by all containment edges that abbreviate alike."""
-    return _edge_uid_prefix(PERSPECTIVE_SYSTEM, EDGE_PREDICATE_CONTAINS, table, column)
+    return _edge_uid_prefix(PERSPECTIVE_SYSTEM, EDGE_PREDICATE_HAS_COLUMN, table, column)
 
 
 def allocate_containment_uids(column_nodes: list[dict]) -> dict[tuple, str]:
@@ -220,12 +220,12 @@ def column_key(table_name: str, column_name: str) -> str:
     )
 
 
-def contains_edge_key(table_name: str, column_name: str, unique_id: str) -> str:
+def has_column_edge_key(table_name: str, column_name: str, unique_id: str) -> str:
     """Structural edge: ``table:column:structural:system:has_column:uid`` (6 slots)."""
     _assert_component_safe(table_name, column_name, unique_id)
     return _slots(
         table_name, column_name, FAMILY_STRUCTURAL, PERSPECTIVE_SYSTEM,
-        EDGE_PREDICATE_CONTAINS, unique_id,
+        EDGE_PREDICATE_HAS_COLUMN, unique_id,
     )
 
 
@@ -237,8 +237,8 @@ def column_id(table_name: str, column_name: str) -> str:
     return f"{NODE_COLLECTION}/{column_key(table_name, column_name)}"
 
 
-def contains_edge_id(table_name: str, column_name: str, unique_id: str) -> str:
-    return f"{EDGE_COLLECTION}/{contains_edge_key(table_name, column_name, unique_id)}"
+def has_column_edge_id(table_name: str, column_name: str, unique_id: str) -> str:
+    return f"{EDGE_COLLECTION}/{has_column_edge_key(table_name, column_name, unique_id)}"
 
 
 def references_edge_key(child_table: str, child_column: str, unique_id: str) -> str:
@@ -362,7 +362,7 @@ def _fetch_structure(conn: sqlite3.Connection):
     return table_nodes, column_nodes, pk_map, integrity
 
 
-def _build_contains_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -> list[dict]:
+def _build_has_column_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -> list[dict]:
     """One has_column edge per column: parent table --has_column--> column."""
     edges: list[dict] = []
     for c in column_nodes:
@@ -371,12 +371,12 @@ def _build_contains_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -
         uid = uid_map[(tname, cname)]
         edges.append(
             {
-                "_id": contains_edge_id(tname, cname, uid),
-                "_key": contains_edge_key(tname, cname, uid),
+                "_id": has_column_edge_id(tname, cname, uid),
+                "_key": has_column_edge_key(tname, cname, uid),
                 "_from": table_id(tname),
                 "_to": column_id(tname, cname),
                 "edge_family": FAMILY_STRUCTURAL,
-                "edge_type": EDGE_PREDICATE_CONTAINS,
+                "edge_type": EDGE_PREDICATE_HAS_COLUMN,
                 "perspective": PERSPECTIVE_SYSTEM,
                 "unique_id": uid,
             }
@@ -519,9 +519,9 @@ def _key_scheme_spec() -> dict:
                 "slots": 6,
                 "marker": "slot[2]=='structural' and slot[4]!='none'",
                 "form": "table:column:structural:system:predicate:unique_id",
-                "predicates": [EDGE_PREDICATE_CONTAINS, EDGE_PREDICATE_REFERENCES],
+                "predicates": [EDGE_PREDICATE_HAS_COLUMN, EDGE_PREDICATE_REFERENCES],
                 "examples": {
-                    EDGE_PREDICATE_CONTAINS: "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001  (table -> column)",
+                    EDGE_PREDICATE_HAS_COLUMN: "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001  (table -> column)",
                     EDGE_PREDICATE_REFERENCES: "schema_concepts:parent_concept_id:structural:system:references:SYS_REF_SCH_PAR_001  (FK child column -> parent column)",
                 },
                 "example": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
@@ -635,10 +635,10 @@ def main() -> int:
         return 1
 
     uid_map = allocate_containment_uids(column_nodes)
-    contains_edges = _build_contains_edges(column_nodes, uid_map)
+    has_column_edges = _build_has_column_edges(column_nodes, uid_map)
     node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
     references_edges = _build_references_edges(fk_rows, node_index, integrity)
-    edges = contains_edges + references_edges
+    edges = has_column_edges + references_edges
     doc = _build_graph_document(table_nodes, column_nodes, edges, integrity)
 
     try:
@@ -661,7 +661,7 @@ def main() -> int:
     print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns)")
     print(
         f"  edges   : {doc['counts']['edges_total']}  "
-        f"({len(contains_edges)} {EDGE_PREDICATE_CONTAINS}, "
+        f"({len(has_column_edges)} {EDGE_PREDICATE_HAS_COLUMN}, "
         f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES}) in {EDGE_COLLECTION}"
     )
     # Report any abbreviation collisions that the uniqifier had to disambiguate.

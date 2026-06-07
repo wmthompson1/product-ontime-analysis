@@ -164,7 +164,7 @@ def ensure_app_metadata_tables(conn) -> None:
                 CHECK(target_node_type IN ('database', 'schema', 'table', 'column')),
             source_key       TEXT    NOT NULL,
             target_key       TEXT    NOT NULL,
-            edge_predicate   TEXT    NOT NULL DEFAULT 'CONTAINS',
+            edge_predicate   TEXT    NOT NULL DEFAULT 'HAS_COLUMN',
             weight           INTEGER NOT NULL DEFAULT 1,
             notes            TEXT,
             created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -2923,7 +2923,7 @@ async def get_graph_stats():
 
     ARANGO_EDGE_COLLECTIONS = [
         "elevates", "bound_to", "HAS_COLUMN", "FOREIGN_KEY", "CAN_MEAN",
-        "Perspective_Intents", "Perspective_Concepts", "contains",
+        "Perspective_Intents", "Perspective_Concepts",
     ]
 
     counts: dict = {}

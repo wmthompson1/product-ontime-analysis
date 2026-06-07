@@ -62,7 +62,7 @@ const FIXTURE_COLUMNS: Record<string, ColumnMeta[]> = {
 //   const { columns, isLoading, error } = useColumnsByTable(tableName, active);
 //
 // Pass active=false to keep the hook idle (returns IDLE immediately).
-// The caller controls when to activate — e.g. for CONTAINS edges or when
+// The caller controls when to activate — e.g. for HAS_COLUMN edges or when
 // the semantic "target is a column" checkbox is checked.
 // ---------------------------------------------------------------------------
 export function useColumnsByTable(
