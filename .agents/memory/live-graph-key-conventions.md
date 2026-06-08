@@ -56,6 +56,27 @@ two node-modeling conventions coexist —
   `Perspective_Concepts`. Note duplication (uppercase `ELEVATES` vs lowercase
   `elevates`) — multiple generations; user plans to remove old/incorrect structures.
 
+**Connecting to live Arango (cost me repeated failures across sessions).**
+`ARANGO_HOST` = `https://<id>.arangodb.cloud` with NO port → that endpoint (443)
+serves the **web UI HTML**, not the API. python-arango pointed there fails with
+`TypeError: string indices must be integers` (it got HTML, tried to index JSON).
+The real arangod HTTP API is on **:8529** over https. Always rewrite the URL to
+`https://<hostname>:8529` before `ArangoClient(hosts=...)`. Verified:
+`GET https://<host>:8529/_api/version` → JSON (3.12.9 enterprise). The reusable
+loader `replit_integrations/load_canonical_to_arango.py` does this rewrite.
+
+**v4 canonical now lives in flat collections (sync milestone done).**
+`replit_integrations/load_canonical_to_arango.py` loads `graph_metadata.json`
+(SQLite-sourced) into `manufacturing_graph_node` (231 docs) + `manufacturing_graph_edge`
+(246 edges: 209 has_column + 37 references, ALL `perspective="system"`), truncate-
+then-import keyed on `_key`. It touches ONLY those two collections — the legacy
+UPPERCASE islands and lowercase semantic island are left untouched. The prior
+`manufacturing_graph_node` content (306 stale Wave-4 synthetic `table_*` docs) was
+replaced; no live HF Space app code reads these two collections, so the Gradio app
+is unaffected. The named graph `manufacturing_graph` is NOT rebound to these flat
+collections (its name still belongs to the legacy graph); the user's perspective
+query is a plain collection scan, no graph traversal needed.
+
 Local prototype (`arangodb_helpers/manufacturing_graph_version_0_0_1.py`):
 - `table_key()` → `table::{NAME}` UPPERCASE; `column_key()` → `column::{TABLE}.{COL}` UPPERCASE
 - edge collection `contains`
