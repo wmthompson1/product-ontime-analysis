@@ -1,14 +1,17 @@
 # graph_metadata_canonical_example.md
 replit_integrations\graph_metadata_canonical_example.md
 
-## structural layer (family)
+# structural layer (family)
+
+"_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
+"_key": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
 
 ## parity triplet
-manufacturing_graph_node/PAYABLE:entity:structural:system
+manufacturing_graph_node/PAYABLE:entity:structural:system:none:none
 
 Predicate (edge_type): has_column
 
-Object (_to): manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system
+Object (_to): manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none
 
 ### structural unique edge key
 SYS_HAS_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
@@ -21,9 +24,10 @@ SYS_HAS_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3
 * **Column/Entity (3):** `INV` (INVOICE_ID)
 * **Uniquifier (3):** `001`
 
-## semantic layer (family)
+# semantic layer (family)
+"_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+"_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
 
-## what changed
 ### semantic unique edge key
 
 PAY_ELE_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
@@ -60,7 +64,7 @@ replit_integrations\graph_metadata_canonical_example.json
   ],
   "edges": [
     {
-      "//": "--- PHYSICAL CONTAINMENT EDGE (Unified Abbreviated UID) ---",
+      "//": "--- PHYSICAL has_column EDGE ---",
       "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
       "_key": "PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001",
       "_from": "manufacturing_graph_node/PAYABLE:entity:structural:system:none:none",
@@ -71,7 +75,7 @@ replit_integrations\graph_metadata_canonical_example.json
       "unique_id": "SYS_HAS_PAY_INV_001"
     },
     {
-      "//": "--- SEMANTIC SELF-JOIN EDGE (Unified Abbreviated UID) ---",
+      "//": "--- SEMANTIC SELF-JOIN EDGE ---",
       "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
       "_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
       "_from": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
@@ -80,7 +84,24 @@ replit_integrations\graph_metadata_canonical_example.json
       "edge_type": "elevates",
       "perspective": "Payables",
       "unique_id": "PAY_ELE_PAY_INV_001"
+    },
+    {
+      "//": "--- PHYSICAL references EDGE ---",
+      "_id": "manufacturing_graph_edge/customer_order_line:site_id:structural:system:references:SYS_REF_CUS_SIT_001",
+      "_key": "customer_order_line:site_id:structural:system:references:SYS_REF_CUS_SIT_001",
+
+      // 🚀 Declaring Column Node (Child Source)
+      "_from": "manufacturing_graph_node/customer_order_line:site_id:structural:system:none:none",
+
+      // 🎯 Referenced Column Node (Parent Target)
+      "_to": "manufacturing_graph_node/site:site_id:structural:system:none:none",
+
+      "edge_family": "system",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_CUS_SIT_001"
     }
+    
   ]
 }
 ```
