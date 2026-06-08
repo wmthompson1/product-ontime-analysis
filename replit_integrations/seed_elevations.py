@@ -1,22 +1,18 @@
-"""Seed the first batch of SME-approved semantic elevations into SQLite.
+"""Seed the SME-approved semantic elevations into SQLite (authoritative manifest).
 
 This is the *content* that lights up the node-guarded ``elevates`` scaffolding in
 ``export_graph_metadata.py``. SQLite is the source of truth; running this then
 re-running the exporter + loader produces the corresponding ``elevates`` edges.
 
 Idempotent: every table carries a UNIQUE natural key
-(schema_concepts.concept_name, schema_perspective_concepts(perspective_id,
-concept_id), schema_concept_fields(table_name, field_name, concept_id)), so
-re-running is a no-op via INSERT OR IGNORE / name lookups.
+(schema_concepts.concept_name; schema_perspective_concepts(perspective_id,
+concept_id); schema_concept_fields(table_name, field_name, concept_id)), so
+re-running is a no-op via INSERT OR IGNORE / name lookups. This file holds the
+full approved list across all batches — run it once to reproduce every elevation.
 
-First batch (each is a bounded discriminator on a canonical business column):
-  * inventory_transaction.site_id -> Inventory_Transactions / WarehouseLocation
-      inventory is traced by stock *moves*; site_id traces the move to a warehouse
-  * invoice_header.three_way_match_status -> Payables / ThreeWayMatchState
-      AP PO/receipt/invoice match state
-  * customer_order.status -> Receivables / OrderAccountingState (existing concept)
-      customer orders are traced at *shipment*, which is the AR revenue-recognition
-      trigger -> the existing "revenue recognition" order-state concept fits
+Curation rule: each elevation is a bounded categorical discriminator
+(status / type / class / location) on a canonical business column — not a unique
+id, date, free-text label, or continuous measure.
 """
 import os
 import sqlite3
@@ -27,8 +23,8 @@ DB_PATH = os.path.join(
 )
 
 # concept_name -> (concept_type, domain, description). Concepts to ensure exist.
-# OrderAccountingState is intentionally absent: it already ships in the schema
-# and we only *reference* it (we never recreate existing SME vocabulary).
+# Concepts NOT listed here (e.g. OrderAccountingState) are existing SME vocabulary
+# that we only *reference* — we never recreate shipped concepts.
 NEW_CONCEPTS = {
     "WarehouseLocation": (
         "classification", "operations",
@@ -38,10 +34,29 @@ NEW_CONCEPTS = {
         "state", "finance",
         "PO/receipt/invoice three-way match status used to validate AP invoices",
     ),
+    "WorkOrderLifecycleState": (
+        "state", "operations",
+        "Work order lifecycle stage on the shop floor (Open->Released->In "
+        "Process->Complete->Closed)",
+    ),
+    "PartSourcingClass": (
+        "classification", "operations",
+        "How a part is sourced: engineered/made vs bought vs raw vs hardware vs "
+        "outside service (engineering make/buy intent)",
+    ),
+    "StockMovementDirection": (
+        "classification", "operations",
+        "Direction of an inventory transaction: stock receipt (in) vs issue (out)",
+    ),
+    "OperationExecutionState": (
+        "state", "operations",
+        "Execution state of a routing operation (queued -> started -> complete)",
+    ),
 }
 
 # (perspective_name, concept_name, table, column, weight, context_hint)
 ELEVATIONS = [
+    # --- batch 1 ---
     ("Inventory_Transactions", "WarehouseLocation",
      "inventory_transaction", "site_id", 3,
      "Inventory move traced to its warehouse site"),
@@ -51,6 +66,19 @@ ELEVATIONS = [
     ("Receivables", "OrderAccountingState",
      "customer_order", "status", 3,
      "Order status at shipment = revenue recognition (AR lens)"),
+    # --- batch 2 ---
+    ("Work_Orders", "WorkOrderLifecycleState",
+     "work_order", "status", 3,
+     "Work order shop-floor lifecycle stage"),
+    ("Parts", "PartSourcingClass",
+     "part", "part_class", 3,
+     "Make/buy/raw sourcing class (engineering design intent)"),
+    ("Inventory_Transactions", "StockMovementDirection",
+     "inventory_transaction", "type", 3,
+     "Stock in vs out direction of the move"),
+    ("Manufacturing", "OperationExecutionState",
+     "operation", "status", 3,
+     "Routing operation execution state"),
 ]
 
 
@@ -86,7 +114,6 @@ def main() -> int:
                 (name, ctype, domain, desc),
             )
 
-        edges_planned = 0
         for persp, concept, table, column, weight, hint in ELEVATIONS:
             pid = _perspective_id(cur, persp)
             cid = _concept_id(cur, concept)
@@ -102,14 +129,13 @@ def main() -> int:
                 "VALUES (?,?,?,1,?)",
                 (table, column, cid, hint),
             )
-            edges_planned += 1
             print(f"  elevation: {persp:24} {table}.{column} -> {concept}")
 
         conn.commit()
     finally:
         conn.close()
 
-    print(f"seeded {len(NEW_CONCEPTS)} concept(s), {edges_planned} elevation(s) "
+    print(f"seeded {len(NEW_CONCEPTS)} concept(s), {len(ELEVATIONS)} elevation(s) "
           f"(idempotent). Re-run export_graph_metadata.py to emit elevates edges.")
     return 0
 

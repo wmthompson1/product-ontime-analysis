@@ -45,14 +45,28 @@ keys) + link the concept to a perspective in `schema_perspective_concepts`, then
 re-run the exporter and loader. No code change needed. All three semantic tables
 carry UNIQUE natural keys (concept_name; (perspective_id,concept_id);
 (table_name,field_name,concept_id)) so seeding via `INSERT OR IGNORE` + name
-lookups is fully idempotent — there is a reusable name-based seeder script for
-this (lives next to the exporter).
+lookups is fully idempotent — the authoritative manifest of ALL approved
+elevations is one name-based seeder script next to the exporter (run once to
+reproduce every elevation). Each milestone freezes its own `graph_metadata.vN`
+snapshot (v6 = first 3, v7 = 7 total); bump SCHEMA_VERSION per approved batch.
 
-**First batch (seeded):** three bounded-categorical elevations —
-inventory_transaction.site_id → Inventory_Transactions / WarehouseLocation;
-invoice_header.three_way_match_status → Payables / ThreeWayMatchState;
-customer_order.status → Receivables / OrderAccountingState (existing concept).
-Result: exporter emits 3 `elevates` edges; live graph 231 nodes / 249 edges.
+**Seeded elevations (7, by milestone):** all bounded categoricals on canonical
+columns. v6: inventory_transaction.site_id → Inventory_Transactions /
+WarehouseLocation; invoice_header.three_way_match_status → Payables /
+ThreeWayMatchState; customer_order.status → Receivables / OrderAccountingState
+(existing concept). v7 adds: work_order.status → Work_Orders /
+WorkOrderLifecycleState; part.part_class → Parts / PartSourcingClass;
+inventory_transaction.type (in/out) → Inventory_Transactions /
+StockMovementDirection; operation.status → Manufacturing /
+OperationExecutionState. Live graph 231 nodes / 253 edges (7 elevates).
+
+**Engineering vs manufacturing quantity (durable domain rule):** in aerospace,
+engineering material requirements are stated **per unit (qty = 1, as-designed)**;
+manufacturing works in **batches (qty > 1)** — e.g. work_order.quantity and
+customer_order_line.order_qty. The same quantity means "1" under an engineering
+perspective and "N" under manufacturing, so those quantity columns are natural
+perspective-elevation candidates even though they are measures (an SME override
+of the "no continuous measures" curation rule).
 
 **Trace duality (durable domain rule):** inventory is traced at the **move**
 (inventory_transaction; lot/serial genealogy in `trace`/`trace_inventory_trace`
