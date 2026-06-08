@@ -28,6 +28,16 @@ lights up automatically when an SME maps a real ERP column.
 loader cross-checks the dual invariant: structural edges are always `system`,
 semantic edges never are.
 
+**Curation heuristic (what makes a good elevation candidate):** discriminator
+count. Columns with high distinct-value count in the ERP schema are the natural
+elevation candidates — they carry the semantic discrimination that makes a
+column meaningful under a perspective, so they were easier to extract straight
+from the ERP schema than to hand-pick. Rank candidate `table.column` pairs by
+distinct-value count when seeding `schema_concept_fields`.
+**Why:** high-cardinality / high-discriminator columns are the ones that
+actually separate rows by business meaning; low-discriminator columns (flags,
+constants) add little semantic signal.
+
 **How to apply:** to add real elevations, insert `schema_concept_fields` rows
 pointing at canonical business `table.column` pairs (lowercase, matching node
 keys) + link the concept to a perspective in `schema_perspective_concepts`, then
