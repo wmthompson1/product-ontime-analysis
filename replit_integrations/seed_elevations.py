@@ -62,6 +62,22 @@ NEW_CONCEPTS = {
         "Quantity read through the manufacturing lens: a production batch / lot "
         "size to build or fulfill (qty > 1)",
     ),
+    "PurchaseOrderLifecycleState": (
+        "state", "procurement",
+        "Lifecycle state of a purchase order (open -> approved -> received -> closed)",
+    ),
+    "ReceivingInspectionState": (
+        "state", "quality",
+        "Inspection disposition of a received shipment (pending -> pass / fail)",
+    ),
+    "CertificationStatusState": (
+        "state", "quality",
+        "Validity state of a certification (active / expired / revoked / pending)",
+    ),
+    "CertificationType": (
+        "classification", "quality",
+        "Kind of certification held (material / process / quality-system / etc.)",
+    ),
 }
 
 # (perspective_name, concept_name, table, column, weight, context_hint)
@@ -106,6 +122,19 @@ ELEVATIONS = [
     ("Manufacturing", "QuantityBasisManufacturing",
      "customer_order_line", "order_qty", 3,
      "Ordered quantity driving the manufacturing batch (qty > 1)"),
+    # --- batch 4: procurement + quality status/type discriminators ---
+    ("Payables", "PurchaseOrderLifecycleState",
+     "purchase_order", "status", 3,
+     "Purchase order lifecycle state"),
+    ("Quality", "ReceivingInspectionState",
+     "receiving", "inspection_status", 3,
+     "Inspection disposition of a received shipment"),
+    ("Quality", "CertificationStatusState",
+     "certification", "status", 3,
+     "Validity state of a certification"),
+    ("Quality", "CertificationType",
+     "certification", "cert_type", 3,
+     "Kind of certification held"),
 ]
 
 

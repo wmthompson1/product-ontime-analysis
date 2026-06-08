@@ -50,7 +50,7 @@ elevations is one name-based seeder script next to the exporter (run once to
 reproduce every elevation). Each milestone freezes its own `graph_metadata.vN`
 snapshot (v6 = first 3, v7 = 7 total); bump SCHEMA_VERSION per approved batch.
 
-**Seeded elevations (11, by milestone):** mostly bounded categoricals on
+**Seeded elevations (15, by milestone):** mostly bounded categoricals on
 canonical columns. v6: inventory_transaction.site_id → Inventory_Transactions /
 WarehouseLocation; invoice_header.three_way_match_status → Payables /
 ThreeWayMatchState; customer_order.status → Receivables / OrderAccountingState
@@ -61,7 +61,11 @@ StockMovementDirection; operation.status → Manufacturing /
 OperationExecutionState. v8 adds the quantity dual-lens (see below):
 work_order.quantity and customer_order_line.order_qty each elevated under BOTH
 Engineering / QuantityBasisEngineering and Manufacturing /
-QuantityBasisManufacturing = 4 edges. Live graph 231 nodes / 257 edges (11 elevates).
+QuantityBasisManufacturing = 4 edges. v9 adds: purchase_order.status → Payables /
+PurchaseOrderLifecycleState; receiving.inspection_status → Quality /
+ReceivingInspectionState; certification.status → Quality / CertificationStatusState;
+certification.cert_type → Quality / CertificationType. Live graph 231 nodes /
+261 edges (15 elevates).
 
 **Engineering vs manufacturing quantity (durable domain rule):** in aerospace,
 engineering material requirements are stated **per unit (qty = 1, as-designed)**;
