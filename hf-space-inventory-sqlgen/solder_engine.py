@@ -618,6 +618,33 @@ class SolderEngine:
             return f"SELECT {edge.field_name} FROM {edge.table_name}"
         return f"-- Cannot generate query: missing table/field metadata for {edge.concept_name}"
 
+    def _get_field_description(self, table_name: str, field_name: str) -> Dict[str, Any]:
+        """SME field description (api_field_descriptions) for a column.
+
+        This SME-meaningful overlay (local stand-in for DAB) takes precedence
+        over the internal, abstract concept name whenever a meaning is shown to
+        a human. Returns {} when no description has been authored for the column.
+        """
+        if not table_name or not field_name:
+            return {}
+        source_db = os.environ.get("SQL_MCP_SOURCE_DATABASE", "manufacturing")
+        schema = os.environ.get("SQL_MCP_DEFAULT_SCHEMA", "dbo")
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute(
+                "SELECT display_name, description, example_value "
+                "FROM api_field_descriptions "
+                "WHERE source_database=? AND schema_name=? "
+                "  AND table_name=? AND column_name=?",
+                (source_db, schema, table_name, field_name),
+            ).fetchone()
+            return dict(row) if row else {}
+        except sqlite3.Error:
+            return {}
+        finally:
+            conn.close()
+
     def get_solder_report(self, intent_name: str, target_dialect: str = "sqlite") -> str:
         edges = self.get_elevation_edges(intent_name)
 
@@ -631,15 +658,24 @@ class SolderEngine:
         report = f"## Solder Report: `{intent_name}`\n\n"
 
         if elevated:
-            report += "### ELEVATED Concepts (weight = 1.0)\n"
+            report += "### ELEVATED Fields (weight = 1.0)\n"
             for e in elevated:
                 binding = self.find_binding_for_concept(e.concept_name, e.perspective_name)
                 status = f"Approved: `{binding.binding_key}`" if binding else "No approved snippet"
-                report += f"- **{e.concept_name}** via `{e.perspective_name}`\n"
+                fd = self._get_field_description(e.table_name, e.field_name)
+                # SME field description takes precedence over the abstract concept
+                # name; fall back to the qualified column when none is authored.
+                title = fd.get("display_name") or f"{e.table_name}.{e.field_name}"
+                report += f"- **{title}** ({e.perspective_name})\n"
                 report += f"  - Field: `{e.table_name}.{e.field_name}`\n"
-                report += f"  - Hint: {e.context_hint}\n"
+                if fd.get("description"):
+                    report += f"  - Meaning: {fd['description']}\n"
+                if e.context_hint:
+                    report += f"  - Applies when: {e.context_hint}\n"
                 report += f"  - SME Snippet: {status}\n"
-                report += f"  - *{e.explanation}*\n\n"
+                if e.explanation:
+                    report += f"  - *{e.explanation}*\n"
+                report += f"  - _internal concept key: {e.concept_name}_\n\n"
 
         if suppressed:
             report += "### SUPPRESSED Concepts (weight = 0.0)\n"

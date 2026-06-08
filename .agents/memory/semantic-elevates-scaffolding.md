@@ -104,6 +104,23 @@ schema/exporter extension was needed — the elevates edge still only carries
 {perspective, weight, concept}; the value rule stays in SQLite (source of truth).
 This is the key lesson: value-level perspective routing already fits the model
 via context_hint; don't invent a new edge property/type for it.
+
+**Field descriptions take precedence over concept names (durable decision):**
+the concept layer is structurally first-class (disambiguation / synonymy /
+intent-switching) but its names are engineer abstractions ("QuantityBasisEngineering")
+with NO meaning to an SME — so anything human-facing must lead with the SME field
+description, not the concept name. The SME-meaningful layer is `api_field_descriptions`
+(display_name / description / example_value; PK is 4-col
+source_database+schema_name+table_name+column_name, defaults manufacturing/dbo) —
+the local stand-in for the company DAB field dictionary. It overlays the schema
+browser and is now read by SolderEngine._get_field_description; the solder report
+leads with display_name + description + context_hint ("Applies when") and demotes
+the concept to a quiet "internal concept key" line. **Why:** SMEs reviewed the
+AI-authored drafts as approve-worthy; concepts are machinery, field descriptions
+are the vocabulary. **How to apply:** populate api_field_descriptions for any
+column you elevate (seed_field_descriptions.py is the idempotent manifest, skips
+stg_ staging cols); it is NOT part of the canonical graph export, so no graph
+regen/Arango reload is needed when only descriptions change.
 **How to apply (adding any table to the canonical graph):** the exporter
 discovers tables from the `schema_nodes` registry (table_type='Table'), NOT from
 sqlite_master, and builds references edges from PRAGMA foreign_key_list — so a
