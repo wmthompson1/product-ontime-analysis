@@ -1,4 +1,4 @@
-"""Load the v4 canonical graph metadata into ArangoDB.
+"""Load the canonical graph metadata into ArangoDB.
 
 Reads ``graph_metadata.json`` (SQLite-sourced canonical, the source of truth)
 and loads it into the two flat collections named by the canonical itself:
@@ -76,6 +76,34 @@ def main(dry_run: bool = False) -> int:
             print("   ", m)
         return 1
     print(f"validation OK: {len(nodes)} nodes, {len(edges)} edges; all endpoints resolve")
+
+    # Edge-family / edge_type breakdown + the perspective invariant: structural
+    # edges are always perspective 'system'; semantic edges never are.
+    by_family: dict = {}
+    by_type: dict = {}
+    semantic_bad: list = []
+    structural_bad: list = []
+    for e in edges:
+        fam = e.get("edge_family", "?")
+        et = e.get("edge_type", "?")
+        by_family[fam] = by_family.get(fam, 0) + 1
+        by_type[et] = by_type.get(et, 0) + 1
+        persp = e.get("perspective")
+        if fam == "semantic" and persp == "system":
+            semantic_bad.append(e.get("_key"))
+        if fam == "structural" and persp != "system":
+            structural_bad.append(e.get("_key"))
+    print(f"edge families: {by_family}")
+    print(f"edge types   : {by_type}")
+    if semantic_bad or structural_bad:
+        print(
+            f"ABORT: perspective invariant violated "
+            f"(semantic-with-system={len(semantic_bad)}, "
+            f"structural-non-system={len(structural_bad)})"
+        )
+        for k in (semantic_bad + structural_bad)[:10]:
+            print("   ", k)
+        return 1
 
     db, url = open_db()
     existing = sorted(c["name"] for c in db.collections() if not c["name"].startswith("_"))

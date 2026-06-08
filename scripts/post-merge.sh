@@ -58,4 +58,11 @@ if [ -f hf-space-inventory-sqlgen/tests/test_approved_snippets_execute.py ]; the
   }
 fi
 
+if [ -f tests/test_semantic_scaffolding.py ]; then
+  python tests/test_semantic_scaffolding.py || {
+    echo "post-merge: semantic scaffolding format-lock tests failed"
+    exit 1
+  }
+fi
+
 echo "post-merge: OK"

@@ -27,7 +27,7 @@ Parse by fixed position — no prefix tag needed:
     table node       PAYABLE:entity:structural:system:none:none
     column node      PAYABLE:INVOICE_ID:structural:system:none:none
     structural edge  PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001
-    semantic edge    PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001  [DEFERRED v2]
+    semantic edge    PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001  [SCAFFOLDED]
 
 **Unified abbreviated unique_id** (slot 5) — BOTH layers share one grammar::
 
@@ -45,7 +45,10 @@ deterministic sorted order so the same DB always yields the same uids.
 Milestone scope (this export): the **structural footprint** — table nodes,
 column nodes, the has_column backbone edge (table -> column), and the references
 edge (child column -> parent column) built from declared foreign keys. The
-semantic layer is format-locked in the embedded ``key_scheme`` but deferred.
+semantic ``elevates`` layer is format-locked AND wired as node-guarded
+scaffolding: it reads SME-curated elevations from SQLite and emits self-loop
+edges only for columns that are exported canonical nodes, so it stays at zero
+content until an SME maps a real ERP column.
 
 Outputs, written next to this script:
     graph_triples.tsv          — flat (subject, predicate, object) triples
@@ -72,8 +75,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 4
-MILESTONE_NAME = "structural_fk_complete"
+SCHEMA_VERSION = 5
+MILESTONE_NAME = "semantic_scaffolding"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -89,6 +92,7 @@ NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
 EDGE_PREDICATE_HAS_COLUMN = "has_column"
 EDGE_PREDICATE_REFERENCES = "references"
+EDGE_PREDICATE_ELEVATES = "elevates"
 
 # Unified abbreviated unique_id (slot 5): 3 chars per part, '_'-joined.
 ABBREV_LEN = 3
@@ -254,6 +258,25 @@ def references_edge_id(child_table: str, child_column: str, unique_id: str) -> s
     return f"{EDGE_COLLECTION}/{references_edge_key(child_table, child_column, unique_id)}"
 
 
+def semantic_edge_key(table: str, column: str, perspective: str, unique_id: str) -> str:
+    """Semantic edge: ``table:column:semantic:{perspective}:elevates:uid`` (6 slots).
+
+    A real business perspective may never be the reserved token ``system`` (that
+    slot value is owned by the structural layer), so we hard-fail on it here to
+    keep fixed-slot parsing unambiguous.
+    """
+    _assert_component_safe(table, column, perspective, unique_id)
+    _assert_name_not_reserved(perspective, frozenset({PERSPECTIVE_SYSTEM}), "perspective")
+    return _slots(
+        table, column, FAMILY_SEMANTIC, perspective,
+        EDGE_PREDICATE_ELEVATES, unique_id,
+    )
+
+
+def semantic_edge_id(table: str, column: str, perspective: str, unique_id: str) -> str:
+    return f"{EDGE_COLLECTION}/{semantic_edge_key(table, column, perspective, unique_id)}"
+
+
 # ---------------------------------------------------------------------------
 # Extraction — tables, then columns, then has_column edges
 # ---------------------------------------------------------------------------
@@ -271,7 +294,11 @@ def _fetch_structure(conn: sqlite3.Connection):
     integrity report rather than failing the export.
     """
     conn.row_factory = sqlite3.Row
-    integrity = {"tables_without_columns": [], "foreign_keys_skipped": []}
+    integrity = {
+        "tables_without_columns": [],
+        "foreign_keys_skipped": [],
+        "semantic_elevations_skipped": [],
+    }
 
     desc_map = {
         r["table_name"]: (r["description"] or "")
@@ -463,6 +490,94 @@ def _build_references_edges(fk_rows: list[dict], node_index: set,
     return edges
 
 
+def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
+    """Read SME-approved column elevations from the SQLite semantic tables.
+
+    An ``elevates`` edge marks a column as semantically meaningful under a
+    business perspective (the Solder Pattern: meaning is SME-curated, never
+    generated). The source of truth is the join:
+
+        schema_concept_fields  (table_name, field_name) -> concept
+          x schema_perspective_concepts  concept -> perspective (+ priority_weight)
+          x schema_perspectives          perspective_id -> perspective_name
+          x schema_concepts              concept_id -> concept_name
+
+    This is intentionally read-only scaffolding: it emits an edge only when the
+    elevated column is an exported canonical node (see ``_build_elevates_edges``).
+    Today the curated rows target a staging table that is not part of the
+    business graph, so zero edges are produced until an SME maps a real ERP
+    column — the format is locked and the plumbing is live, the content is not.
+    """
+    try:
+        rows = conn.execute(
+            """
+            SELECT cf.table_name              AS table_name,
+                   cf.field_name              AS column_name,
+                   p.perspective_name         AS perspective,
+                   pc.priority_weight         AS weight,
+                   c.concept_name             AS concept,
+                   pc.relationship_type       AS relationship
+            FROM schema_concept_fields cf
+            JOIN schema_perspective_concepts pc ON pc.concept_id = cf.concept_id
+            JOIN schema_perspectives p          ON p.perspective_id = pc.perspective_id
+            JOIN schema_concepts c              ON c.concept_id = cf.concept_id
+            """
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    return [dict(r) for r in rows]
+
+
+def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
+                          integrity: dict) -> list[dict]:
+    """One ``elevates`` self-edge per curated elevation: column -> same column.
+
+    The edge is a self-loop on the column node (``_from == _to``), carrying the
+    perspective, the SME weight, and the concept it expresses — matching the
+    locked semantic-edge shape in ``graph_metadata_canonical_example.json``.
+
+    Endpoints are guarded exactly like ``references`` edges: an elevation whose
+    column is not an exported node is skipped and recorded in the integrity
+    report rather than emitting a dangling edge. The uniqifier is allocated per
+    abbreviated (perspective, edge_type, table, column) prefix in deterministic
+    sorted order, so re-running the export is reproducible.
+    """
+    edges: list[dict] = []
+    counter: dict[str, int] = {}
+    ordered = sorted(
+        elevation_rows,
+        key=lambda r: (
+            str(r["perspective"]), r["table_name"], r["column_name"], str(r["concept"]),
+        ),
+    )
+    for r in ordered:
+        t, col, persp = r["table_name"], r["column_name"], r["perspective"]
+        if (t, col) not in node_index:
+            integrity["semantic_elevations_skipped"].append(
+                f"{persp}:{t}.{col} (column not a canonical node)"
+            )
+            continue
+        prefix = _edge_uid_prefix(persp, EDGE_PREDICATE_ELEVATES, t, col)
+        n = counter.get(prefix, 0) + 1
+        counter[prefix] = n
+        uid = f"{prefix}_{n:03d}"
+        edges.append(
+            {
+                "_id": semantic_edge_id(t, col, persp, uid),
+                "_key": semantic_edge_key(t, col, persp, uid),
+                "_from": column_id(t, col),
+                "_to": column_id(t, col),
+                "edge_family": FAMILY_SEMANTIC,
+                "edge_type": EDGE_PREDICATE_ELEVATES,
+                "perspective": persp,
+                "unique_id": uid,
+                "weight": r["weight"],
+                "concept": r["concept"],
+            }
+        )
+    return edges
+
+
 # ---------------------------------------------------------------------------
 # Canonical key-grammar spec (embedded so the artifact is self-describing)
 # ---------------------------------------------------------------------------
@@ -533,7 +648,7 @@ def _key_scheme_spec() -> dict:
                 "marker": "slot[2]=='semantic' and slot[4]!='none'",
                 "form": "table:column:semantic:perspective:predicate:unique_id",
                 "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
-                "status": "deferred",
+                "status": "active (node-guarded scaffolding; zero content until an SME elevates a canonical column)",
             },
         ],
         "unique_id_grammar": {
@@ -544,7 +659,7 @@ def _key_scheme_spec() -> dict:
             "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
             "structural_example": "SYS_HAS_PAY_INV_001 (system / has_column / PAYABLE / INVOICE_ID / 001)",
             "structural_references_example": "SYS_REF_SCH_PAR_001 (system / references / schema_concepts / parent_concept_id / 001)",
-            "semantic_example": "PAY_ELE_PAY_INV_001 (Payables / elevates / PAYABLE / INVOICE_ID / 001)  [DEFERRED]",
+            "semantic_example": "PAY_ELE_PAY_INV_001 (Payables / elevates / PAYABLE / INVOICE_ID / 001)",
         },
     }
 
@@ -628,6 +743,7 @@ def main() -> int:
             table_nodes, column_nodes, pk_map, integrity = _fetch_structure(conn)
             table_names = [t["table_name"] for t in table_nodes]
             fk_rows = _fetch_foreign_keys(conn, table_names, pk_map)
+            elevation_rows = _fetch_semantic_elevations(conn)
         finally:
             conn.close()
     except sqlite3.Error as exc:
@@ -638,7 +754,8 @@ def main() -> int:
     has_column_edges = _build_has_column_edges(column_nodes, uid_map)
     node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
     references_edges = _build_references_edges(fk_rows, node_index, integrity)
-    edges = has_column_edges + references_edges
+    elevates_edges = _build_elevates_edges(elevation_rows, node_index, integrity)
+    edges = has_column_edges + references_edges + elevates_edges
     doc = _build_graph_document(table_nodes, column_nodes, edges, integrity)
 
     try:
@@ -662,7 +779,8 @@ def main() -> int:
     print(
         f"  edges   : {doc['counts']['edges_total']}  "
         f"({len(has_column_edges)} {EDGE_PREDICATE_HAS_COLUMN}, "
-        f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES}) in {EDGE_COLLECTION}"
+        f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES}, "
+        f"{len(elevates_edges)} {EDGE_PREDICATE_ELEVATES}) in {EDGE_COLLECTION}"
     )
     # Report any abbreviation collisions that the uniqifier had to disambiguate.
     bumped = sorted({uid.rsplit("_", 1)[0] for uid in uid_map.values()
