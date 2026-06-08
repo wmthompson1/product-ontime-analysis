@@ -245,9 +245,13 @@ manufacturing_graph_node/trace_inventory_trace:part_id:structural:system:none:no
 manufacturing_graph_node/trace_inventory_trace:trace_id:structural:system:none:none	references	manufacturing_graph_node/trace:trace_id:structural:system:none:none
 manufacturing_graph_node/trace_inventory_trace:transaction_id:structural:system:none:none	references	manufacturing_graph_node/inventory_transaction:transaction_id:structural:system:none:none
 manufacturing_graph_node/work_order:part_id:structural:system:none:none	references	manufacturing_graph_node/part:part_id:structural:system:none:none
+manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none	elevates	manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none
+manufacturing_graph_node/work_order:quantity:structural:system:none:none	elevates	manufacturing_graph_node/work_order:quantity:structural:system:none:none
 manufacturing_graph_node/inventory_transaction:site_id:structural:system:none:none	elevates	manufacturing_graph_node/inventory_transaction:site_id:structural:system:none:none
 manufacturing_graph_node/inventory_transaction:type:structural:system:none:none	elevates	manufacturing_graph_node/inventory_transaction:type:structural:system:none:none
+manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none	elevates	manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none
 manufacturing_graph_node/operation:status:structural:system:none:none	elevates	manufacturing_graph_node/operation:status:structural:system:none:none
+manufacturing_graph_node/work_order:quantity:structural:system:none:none	elevates	manufacturing_graph_node/work_order:quantity:structural:system:none:none
 manufacturing_graph_node/part:part_class:structural:system:none:none	elevates	manufacturing_graph_node/part:part_class:structural:system:none:none
 manufacturing_graph_node/invoice_header:three_way_match_status:structural:system:none:none	elevates	manufacturing_graph_node/invoice_header:three_way_match_status:structural:system:none:none
 manufacturing_graph_node/customer_order:status:structural:system:none:none	elevates	manufacturing_graph_node/customer_order:status:structural:system:none:none

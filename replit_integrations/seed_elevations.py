@@ -52,6 +52,16 @@ NEW_CONCEPTS = {
         "state", "operations",
         "Execution state of a routing operation (queued -> started -> complete)",
     ),
+    "QuantityBasisEngineering": (
+        "metric", "operations",
+        "Quantity read through the engineering lens: a per-unit, as-designed "
+        "requirement basis (engineering normalizes material needs to a single unit)",
+    ),
+    "QuantityBasisManufacturing": (
+        "metric", "operations",
+        "Quantity read through the manufacturing lens: a production batch / lot "
+        "size to build or fulfill (qty > 1)",
+    ),
 }
 
 # (perspective_name, concept_name, table, column, weight, context_hint)
@@ -79,6 +89,23 @@ ELEVATIONS = [
     ("Manufacturing", "OperationExecutionState",
      "operation", "status", 3,
      "Routing operation execution state"),
+    # --- batch 3: same quantity column, two perspective lenses ---
+    # No engineering quantity column exists (no BOM table); the engineering vs
+    # manufacturing contrast is modeled as dual meaning on the batch-quantity
+    # columns. order_qty / work_order.quantity are the multiplier that bridges a
+    # per-unit (engineering, =1) requirement to a batch (manufacturing, >1).
+    ("Engineering", "QuantityBasisEngineering",
+     "work_order", "quantity", 3,
+     "Per-unit design basis; batch = N x per-unit requirement"),
+    ("Manufacturing", "QuantityBasisManufacturing",
+     "work_order", "quantity", 3,
+     "Production batch / lot size (qty > 1)"),
+    ("Engineering", "QuantityBasisEngineering",
+     "customer_order_line", "order_qty", 3,
+     "Per-unit design basis multiplier for the ordered line"),
+    ("Manufacturing", "QuantityBasisManufacturing",
+     "customer_order_line", "order_qty", 3,
+     "Ordered quantity driving the manufacturing batch (qty > 1)"),
 ]
 
 
