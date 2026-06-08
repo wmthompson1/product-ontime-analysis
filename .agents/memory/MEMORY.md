@@ -2,5 +2,6 @@
 - [Public vs private repo duality](repo-duality.md) — public repo mirrors private Windows/SQL Server repo structure; scripts exist here as prototypes, may only run --dry-run in CI.
 - [Composite key scheme](composite-key-scheme.md) — readable `table:column:family:perspective` keys; parse by slot count + terminal perspective; intent/UniqueID deferred.
 - [Live graph key/edge conventions](live-graph-key-conventions.md) — live ArangoDB: raw table keys, column::TABLE.COL keeping schema+case, structural edges in `contains` (NOT manufacturing_graph_edges); query API on host:8529.
+- [Structural FK layer & schema_edges](structural-fk-and-schema-edges.md) — FK enforcement OFF so declared FKs are structural-only (declare over orphans); schema_edges = 1 row/relationship guarded by unique index; graph_metadata.v{N}.json frozen-once, bump SCHEMA_VERSION to re-freeze.
 - [Seed re-insertion & bridge drift](seed-reseed-behavior.md) — app re-seeds schema_sqlite.sql via INSERT OR IGNORE every startup; deleting seeded rows from live DB only is futile — fix the seed file too. Bridge prune is ungated.
 - [FK canonical model](fk-canonical-model.md) — FK = `foreign_key` bool on column node + `references` structural edge (child→parent); no FOREIGN_KEY edge type / is_foreign_key edge prop. Live graph still on old model, so canonical fixtures fail until migration (out of scope).
