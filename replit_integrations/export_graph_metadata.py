@@ -75,8 +75,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 5
-MILESTONE_NAME = "semantic_scaffolding"
+SCHEMA_VERSION = 6
+MILESTONE_NAME = "semantic_first_batch"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -690,8 +690,9 @@ def _build_graph_document(
             "column) built from declared foreign keys, all with unified "
             "abbreviated unique_ids. Covers the business ERP tables "
             "(schema_* metadata tables excluded — the graph models the domain, "
-            "not its own bookkeeping); the semantic layer is "
-            "format-locked in key_scheme but deferred."
+            "not its own bookkeeping); the semantic ``elevates`` layer is active "
+            "and node-guarded — it emits SME-curated column elevations under "
+            "business perspectives only for columns that are exported nodes."
         ),
         "key_scheme": _key_scheme_spec(),
         "graph": {
