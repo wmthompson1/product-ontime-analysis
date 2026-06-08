@@ -78,6 +78,16 @@ NEW_CONCEPTS = {
         "classification", "quality",
         "Kind of certification held (material / process / quality-system / etc.)",
     ),
+    "RequirementBasisEngineering": (
+        "classification", "operations",
+        "Requirement read through the engineering lens: an as-designed routing "
+        "standard on a PART component (per-unit basis); component_type='PART'",
+    ),
+    "RequirementBasisManufacturing": (
+        "classification", "operations",
+        "Requirement read through the manufacturing lens: as-built actuals on a "
+        "WORK_ORDER component (batch basis); component_type='WORK_ORDER'",
+    ),
 }
 
 # (perspective_name, concept_name, table, column, weight, context_hint)
@@ -135,6 +145,17 @@ ELEVATIONS = [
     ("Quality", "CertificationType",
      "certification", "cert_type", 3,
      "Kind of certification held"),
+    # --- batch 5: requirement.component_type — the value-level engineering vs
+    # manufacturing differentiator. Unlike the quantity dual-lens (batch 3),
+    # here the column VALUE selects the perspective: PART routes to Engineering,
+    # WORK_ORDER routes to Manufacturing. The value condition is carried in the
+    # context_hint (the model's "when this meaning applies" slot).
+    ("Engineering", "RequirementBasisEngineering",
+     "requirement", "component_type", 3,
+     "component_type = 'PART' — as-designed routing standard (per-unit, engineering)"),
+    ("Manufacturing", "RequirementBasisManufacturing",
+     "requirement", "component_type", 3,
+     "component_type = 'WORK_ORDER' — as-built actuals (batch, manufacturing)"),
 ]
 
 

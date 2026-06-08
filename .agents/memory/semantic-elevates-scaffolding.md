@@ -94,9 +94,16 @@ work-order level), material_part_id → part (material rows); `component_id` is
 polymorphic (part_id or wo_id) so it carries no SQL FK / canonical references
 edge — the two conditional relationships live only in the schema_edges registry.
 **Why:** gives a column-level home for the Eng/Mfg perspective split that the
-quantity dual-lens only approximated; next step is wiring component_type values
-to Engineering vs Manufacturing perspectives (value-level routing, not the
-current column→concept→perspective elevation).
+quantity dual-lens only approximated.
+**Wired to perspectives (done):** requirement.component_type is dual-elevated —
+RequirementBasisEngineering (Engineering) + RequirementBasisManufacturing
+(Manufacturing). The VALUE selects the perspective (PART→Engineering,
+WORK_ORDER→Manufacturing); that value condition is carried in the existing
+`schema_concept_fields.context_hint` slot ("when this meaning applies"), so NO
+schema/exporter extension was needed — the elevates edge still only carries
+{perspective, weight, concept}; the value rule stays in SQLite (source of truth).
+This is the key lesson: value-level perspective routing already fits the model
+via context_hint; don't invent a new edge property/type for it.
 **How to apply (adding any table to the canonical graph):** the exporter
 discovers tables from the `schema_nodes` registry (table_type='Table'), NOT from
 sqlite_master, and builds references edges from PRAGMA foreign_key_list — so a
