@@ -118,7 +118,7 @@ describe("DefineRelationship history — sessionStorage persistence", () => {
       predicate: "HAS_COLUMN",
       source: "production_orders",
       target: "dbo.PRODUCTION_ORDERS.order_id",
-      edge_id: "arango:FOREIGN_KEY/abc123",
+      edge_id: "arango:references/abc123",
       message: "HAS_COLUMN edge created",
       ok: true,
     });
@@ -128,7 +128,7 @@ describe("DefineRelationship history — sessionStorage persistence", () => {
     expect(restored.predicate).toBe("HAS_COLUMN");
     expect(restored.source).toBe("production_orders");
     expect(restored.target).toBe("dbo.PRODUCTION_ORDERS.order_id");
-    expect(restored.edge_id).toBe("arango:FOREIGN_KEY/abc123");
+    expect(restored.edge_id).toBe("arango:references/abc123");
     expect(restored.ok).toBe(true);
   });
 });

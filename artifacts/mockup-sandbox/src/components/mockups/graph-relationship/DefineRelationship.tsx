@@ -44,7 +44,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const EDGE_MEANINGS: Record<string, string> = {
-  FOREIGN_KEY: "Defined as: Structural referential integrity link between ERP tables. Table-Scoped. NOT GLOBAL MEANING.",
+  references: "Defined as: Structural referential integrity edge — a child column node references a parent column node (carries references_table/references_column). The FK flag itself is the foreign_key boolean on the column node. NOT GLOBAL MEANING.",
   ELEVATES: "Defined as: Binary gate — weight=1 includes this table or column in the candidate set for its Concept; weight=0 deactivates it. The AI selects among weight=1 ground truths; it never generates SQL. NOT GLOBAL MEANING.",
   MAPS_TO_CONCEPT: "Defined as: ERP table is bridged to a semantic Concept node. MAPS_TO_CONCEPT bridge. NOT GLOBAL MEANING.",
   OPERATES_WITHIN: "Defined as: Intent is scoped to a Perspective domain (e.g. Quality, Payables). Perspective is an edge property, not a node. NOT GLOBAL MEANING.",
@@ -108,7 +108,7 @@ function searchEntities(
 // The grouped results list renders items as `"${rec.table_name} (${source})"`,
 // so selectedTarget must use that same format (see useState initializer below).
 
-const STRUCTURAL_PREDICATES = ["HAS_COLUMN", "FOREIGN_KEY"];
+const STRUCTURAL_PREDICATES = ["HAS_COLUMN", "references"];
 
 const SEMANTIC_PREDICATES = [
   "ELEVATES",
@@ -518,8 +518,8 @@ export function DefineRelationship() {
   const edgeId = assembleEdgeId(sourceShort, targetShort, selectedIntent, activeCategory);
   const hasCategory = activeCategory !== "ALL";
 
-  // FOREIGN_KEY self-loop: same table on both ends is physically meaningless and blocked.
-  const isSelfLoop = isStructural && selectedPredicate === "FOREIGN_KEY" && sourceShort === targetShort;
+  // references self-loop: same table on both ends is blocked in this mockup.
+  const isSelfLoop = isStructural && selectedPredicate === "references" && sourceShort === targetShort;
   // HAS_COLUMN is the structural table→column edge; it always targets a column.
   const isHasColumn = selectedPredicate === "HAS_COLUMN";
 
@@ -1063,7 +1063,7 @@ export function DefineRelationship() {
                       <div className="mt-1.5 flex items-start gap-1.5 rounded border border-amber-500/60 bg-amber-900/20 px-2 py-1">
                         <span className="text-amber-400 mt-0.5 shrink-0">⚠</span>
                         <p className="text-[10px] text-amber-300 leading-snug">
-                          FOREIGN_KEY self-loop: source and target are the same table. Self-referential FK edges are not supported — pick a different target.
+                          references self-loop: source and target are the same table. Self-referential edges are not supported here — pick a different target.
                         </p>
                       </div>
                     )}

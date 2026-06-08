@@ -25,7 +25,7 @@ FOR col IN @@vertex_collection
 
     LET fk_solder = (
         FOR v, e IN 1..1 OUTBOUND col._id GRAPH @graph_name
-            FILTER e.is_foreign_key == true
+            FILTER e.edge_type == "references"
             RETURN {
                 target_table: v.table_name,
                 target_column: v.column_name
@@ -36,7 +36,7 @@ FOR col IN @@vertex_collection
         source_column: col.column_name,
         data_type: col.data_type,
         is_primary_key: col.is_primary_key,
-        is_foreign_key: LENGTH(fk_solder) > 0,
+        is_foreign_key: col.foreign_key,
         foreign_key_details: fk_solder[0]
     }
 '''
@@ -46,7 +46,7 @@ FOR col_target IN @@vertex_collection
     FILTER col_target._key == @target_key
 
     FOR v, e IN 1..1 INBOUND col_target._id GRAPH @graph_name
-        FILTER e.is_foreign_key == true
+        FILTER e.edge_type == "references"
         RETURN {
             source_table: v.table_name,
             source_column: v.column_name,

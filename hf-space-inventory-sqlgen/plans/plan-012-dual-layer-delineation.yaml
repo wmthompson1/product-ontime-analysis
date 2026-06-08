@@ -17,9 +17,12 @@ steps:
   - number: 1
     title: "Enforce Form Dropdown Mutation by Layer Type"
     description: >
-      Update the graph definition UI. Selecting a structural edge type (CONTAINS, FOREIGN_KEY) 
-      locks source/target inputs to Tables/Columns and hides semantic inputs. Selecting a semantic edge 
-      type activates fields for Intent, Concept, Category, Perspective, and Weight.
+      Update the graph definition UI. Selecting a structural edge type (CONTAINS, references)
+      locks source/target inputs to Tables/Columns and hides semantic inputs. Foreign keys are
+      modeled canonically as a `foreign_key` boolean on the column node plus a `references` edge
+      (child column -> parent column) carrying references_table/references_column; there is no
+      FOREIGN_KEY edge type. Selecting a semantic edge type activates fields for Intent, Concept,
+      Category, Perspective, and Weight.
 
   - number: 2
     title: "Deploy Layer-Isolated Python Serializers"

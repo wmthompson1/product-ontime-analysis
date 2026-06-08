@@ -96,7 +96,7 @@ replit_integrations\graph_metadata_canonical_example.json
       // 🎯 Referenced Column Node (Parent Target)
       "_to": "manufacturing_graph_node/site:site_id:structural:system:none:none",
 
-      "edge_family": "system",
+      "edge_family": "structural",
       "edge_type": "references",
       "perspective": "system",
       "unique_id": "SYS_REF_CUS_SIT_001"

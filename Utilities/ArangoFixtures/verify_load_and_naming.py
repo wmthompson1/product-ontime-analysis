@@ -207,10 +207,17 @@ def main():
               len(bad_fk) == 0,
               f"Bad refs: {bad_fk[:3]}")
 
-        fk_with_flag = [e for e in fk_edges if e.get("is_foreign_key") == True]
-        check("All FK edges have is_foreign_key=true",
-              len(fk_with_flag) == len(fk_edges),
-              f"{len(fk_with_flag)}/{len(fk_edges)}")
+        # Canonical model: the FK flag lives as a `foreign_key` boolean on the
+        # child column NODE, not as an `is_foreign_key` property on the edge.
+        flagged = 0
+        for e in fk_edges:
+            child_key = e["_from"].split("/", 1)[-1]
+            child_node = db.collection(vertex_coll).get(child_key)
+            if child_node and child_node.get("foreign_key") is True:
+                flagged += 1
+        check("All FK child columns have foreign_key=true on the node",
+              flagged == len(fk_edges),
+              f"{flagged}/{len(fk_edges)}")
     else:
         check("ATOMIC_FK collection exists", False, "Not found")
 

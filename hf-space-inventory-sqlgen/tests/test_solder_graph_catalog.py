@@ -167,10 +167,76 @@ def test_approved_bindings_are_catalog_clean() -> None:
     )
 
 
+def test_references_edges_model_fk_topology() -> None:
+    """FK topology must be expressed as canonical `references` edges, not `contains`.
+
+    The canonical graph-metadata model represents a foreign key as a structural
+    `references` edge (child column -> parent column) carrying
+    references_table/references_column, plus a `foreign_key` boolean on the child
+    column node. There is no FOREIGN_KEY edge type. This test validates that
+    topology where the `references` edge collection exists, skipping gracefully
+    when it has not been synced yet (the live graph may still carry only the
+    `contains` structural edges that the catalog coverage test exercises).
+    """
+    if _skip_if_no_arango("test_references_edges_model_fk_topology"):
+        return
+
+    try:
+        db = _get_arango_db()
+    except Exception as exc:
+        print(f"SKIP: test_references_edges_model_fk_topology — could not connect to ArangoDB: {exc}")
+        return
+
+    try:
+        has_references = db.has_collection("references")
+    except Exception as exc:
+        print(f"SKIP: test_references_edges_model_fk_topology — could not inspect collections: {exc}")
+        return
+
+    if not has_references:
+        print("SKIP: test_references_edges_model_fk_topology — no `references` edge collection yet")
+        return
+
+    try:
+        edges = list(db.aql.execute("FOR e IN references RETURN e"))
+    except Exception as exc:
+        print(f"SKIP: test_references_edges_model_fk_topology — AQL query failed: {exc}")
+        return
+
+    if not edges:
+        print("SKIP: test_references_edges_model_fk_topology — `references` collection is empty")
+        return
+
+    bad_type = [e["_key"] for e in edges if e.get("edge_type") != "references"]
+    assert not bad_type, (
+        f"{len(bad_type)} references edge(s) carry a non-`references` edge_type "
+        f"(FOREIGN_KEY is retired): {bad_type[:5]}"
+    )
+
+    bad_family = [e["_key"] for e in edges if e.get("edge_family") != "structural"]
+    assert not bad_family, (
+        f"{len(bad_family)} references edge(s) are not edge_family='structural': {bad_family[:5]}"
+    )
+
+    bad_props = [
+        e["_key"] for e in edges
+        if not e.get("references_table") or not e.get("references_column")
+    ]
+    assert not bad_props, (
+        f"{len(bad_props)} references edge(s) missing references_table/references_column: {bad_props[:5]}"
+    )
+
+    print(
+        f"PASS: test_references_edges_model_fk_topology — "
+        f"{len(edges)} references edge(s) validated (FK topology via `references`, not `contains`)"
+    )
+
+
 def main() -> int:
     tests = [
         test_catalog_covers_schema_nodes,
         test_approved_bindings_are_catalog_clean,
+        test_references_edges_model_fk_topology,
     ]
     failed = 0
     for t in tests:
