@@ -81,6 +81,28 @@ DefectSeverity Quality/Cost/Customer) — Engineering lens (per-unit basis) +
 Manufacturing lens (batch >1) on work_order.quantity and
 customer_order_line.order_qty.
 
+**Requirement table = the engineering/manufacturing differentiator (durable
+model decision):** the schema originally had no BOM/standard-vs-actual structure,
+so engineering (per-unit, as-designed) vs manufacturing (batch, as-built) could
+only be modeled as dual-lens on quantity columns. The `requirement` table makes
+the differentiator a real column: one row = a labor/material/burden demand tied
+to a routing operation, and `component_type` (PART = design level / engineering,
+per-unit standard; WORK_ORDER = work-order level / manufacturing, as-built
+actuals) IS the perspective differentiator. `requirement_level` mirrors it
+(DESIGN / WORK_ORDER). FKs: operation_rowid → operation (concrete op, set at
+work-order level), material_part_id → part (material rows); `component_id` is
+polymorphic (part_id or wo_id) so it carries no SQL FK / canonical references
+edge — the two conditional relationships live only in the schema_edges registry.
+**Why:** gives a column-level home for the Eng/Mfg perspective split that the
+quantity dual-lens only approximated; next step is wiring component_type values
+to Engineering vs Manufacturing perspectives (value-level routing, not the
+current column→concept→perspective elevation).
+**How to apply (adding any table to the canonical graph):** the exporter
+discovers tables from the `schema_nodes` registry (table_type='Table'), NOT from
+sqlite_master, and builds references edges from PRAGMA foreign_key_list — so a
+new table must be (1) created, (2) INSERT-OR-IGNORE registered in schema_nodes,
+or it is silently absent from the graph.
+
 **Trace duality (durable domain rule):** inventory is traced at the **move**
 (inventory_transaction; lot/serial genealogy in `trace`/`trace_inventory_trace`
 bridges to a transaction_id), so its elevation is the warehouse site of the

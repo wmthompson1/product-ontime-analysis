@@ -50,7 +50,8 @@ INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES
 ('work_order',      'Table', 'Work order master — part, quantity, status, routing template, accumulated actual costs'),
 ('operation',       'Table', 'Work order routing steps — sequence, resource, estimated vs actual hours and costs'),
 ('material_issue',  'Table', 'Raw material issues from stock to WIP work orders (quantity, unit cost, total cost)'),
-('labor_ticket',    'Table', 'Labor time postings against work order operations (clock-in/out, hours, cost)');
+('labor_ticket',    'Table', 'Labor time postings against work order operations (clock-in/out, hours, cost)'),
+('requirement',     'Table', 'Resource requirements (labor / material / burden) per routing operation; component_type PART = as-designed routing standard (engineering, per-unit) vs WORK_ORDER = as-built actuals (manufacturing, batch)');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- FK EDGE REGISTRY  (used by graph_sync to build containment / join graph)
@@ -78,7 +79,12 @@ INSERT OR IGNORE INTO schema_edges
 -- Outside service cross-link
 (17, 'purchase_order','work_order',     'FOREIGN_KEY', 'wo_id',         1, 'Outside-service PO tied to a work order'),
 (18, 'operation',     'service',        'FOREIGN_KEY', 'service_id',    1, 'Outside-service op uses a service definition'),
-(19, 'operation',     'suppliers',      'FOREIGN_KEY', 'vendor_id',     1, 'Outside-service op dispatched to a supplier');
+(19, 'operation',     'suppliers',      'FOREIGN_KEY', 'vendor_id',     1, 'Outside-service op dispatched to a supplier'),
+-- Requirement chain (engineering vs manufacturing differentiator on component_type)
+(20, 'requirement',   'operation',      'FOREIGN_KEY', 'operation_rowid', 1, 'Requirement consumed at a routing operation (work-order level)'),
+(21, 'requirement',   'part',           'FOREIGN_KEY', 'material_part_id', 1, 'Material requirement consumes a part'),
+(22, 'requirement',   'part',           'FOREIGN_KEY', 'component_id',   1, 'Design-level requirement belongs to a part component (engineering)'),
+(23, 'requirement',   'work_order',     'FOREIGN_KEY', 'component_id',   1, 'Work-order-level requirement belongs to a work order component (manufacturing)');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- ERP TABLE DDL  (aerospace manufacturing — Purchasing / WIP digital twin)
@@ -276,6 +282,28 @@ CREATE TABLE IF NOT EXISTS labor_ticket (
     labor_cost  REAL NOT NULL,                   -- total_hours × run_cost_per_hr
     burden_cost REAL NOT NULL,                   -- total_hours × bur_per_hr_run
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Requirement: resource demand (labor / material / burden) per routing operation.
+-- component_type is the ENGINEERING vs MANUFACTURING differentiator:
+--   PART       -> design level (as-designed routing standard; engineering, per-unit basis)
+--   WORK_ORDER -> work-order level (as-built actuals; manufacturing, batch basis)
+CREATE TABLE IF NOT EXISTS requirement (
+    requirement_id    TEXT PRIMARY KEY,                  -- e.g. REQ-000001
+    component_type    TEXT NOT NULL CHECK(component_type IN ('PART','WORK_ORDER')),
+    component_id      TEXT NOT NULL,                     -- part_id (design) or wo_id (work order)
+    requirement_level TEXT NOT NULL CHECK(requirement_level IN ('DESIGN','WORK_ORDER')),
+    requirement_type  TEXT NOT NULL CHECK(requirement_type IN ('LABOR','MATERIAL','BURDEN')),
+    operation_seq     INTEGER NOT NULL,                  -- routing sequence step (multiples of 10); design-level operation handle
+    operation_rowid   INTEGER,                           -- FK -> operation (work-order-level concrete op; NULL at design level)
+    material_part_id  TEXT,                              -- FK -> part when requirement_type='MATERIAL'
+    std_qty           REAL DEFAULT 0.0,                  -- per-unit standard quantity / hours (as-designed)
+    actual_qty        REAL DEFAULT 0.0,                  -- actual consumed (as-built, work-order)
+    unit_cost         REAL DEFAULT 0.0,
+    extended_cost     REAL DEFAULT 0.0,
+    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY ("operation_rowid") REFERENCES "operation" ("rowid_pk"),
+    FOREIGN KEY ("material_part_id") REFERENCES "part" ("part_id")
 );
 
 -- Ground truth query → table usage index (also created at runtime by solder_engine.py)
