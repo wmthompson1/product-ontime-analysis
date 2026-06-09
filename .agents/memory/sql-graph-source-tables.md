@@ -37,6 +37,25 @@ to *mirror and prove* the graph, not to independently define the model.
   every field, and order; ignores the doc-level `synced_at` timestamp, which is
   fresh per run and not stored).
 
+## Two parity gates: SQL-vs-file and SQL-vs-AQL
+Parity is proven on both downstream hops, reusing one comparator
+(`sql_graph_parity_check._compare`, which takes `check_order` + `left`/`right`
+labels):
+- **SQL vs file** (`sql_graph_parity_check.py`): SQLite tables ↔
+  `graph_metadata.json`. Both are deterministically ordered by `ordinal`, so
+  emission order IS asserted.
+- **SQL vs AQL** (`sql_aql_parity_check.py`): SQLite tables ↔ the *live*
+  ArangoDB graph queried with `FOR d IN <col> RETURN d`. ArangoDB returns
+  documents unordered, so order is NOT asserted. The server adds a volatile
+  `_rev` (drop it) and an `_id` equal to `{collection}/{_key}` (matches our
+  constructed `_id`, so keep it). Offline-tolerant: unreachable/unconfigured
+  Arango is a SKIP (exit 0) unless `--require-arango`; a real field drift fails.
+  Tests inject a fake `db` whose `aql.execute` replays shuffled docs — no live
+  graph needed in CI.
+
+**Why:** "the SQL matches the graph" must hold against the *live* graph, not
+just the static JSON file — triple resolution runs on the live Arango graph.
+
 ## SQLite gotcha: `notnull` is reserved
 `notnull` is the SQLite `x NOTNULL` operator token, so a bare column named
 `notnull` is a syntax error ("near \"notnull\""). It must be double-quoted

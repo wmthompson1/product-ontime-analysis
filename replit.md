@@ -44,6 +44,12 @@ All tests run via `scripts/post-merge.sh` (8/8 passing):
 | `tests/test_delete_commit_edge_404.py` | Double-undo, missing edge 404 paths (5 tests) |
 | `tests/test_commit_edge_duplicate.py` | AQL UPSERT idempotency for all 5 predicates (11 tests) |
 | `tests/test_bridge_collection_health.py` | ArangoDB ↔ SQLite count parity (skips if offline) |
+| `tests/test_sql_graph_tables.py` | `sql_graph_nodes`/`sql_graph_edges` round-trip, ordering, doc-from-tables parity (5 tests) |
+| `tests/test_sql_aql_parity.py` | SQL (SQLite tables) vs AQL (live graph) parity via injected fake Arango (8 tests) |
+
+### Graph parity gates (run by post-merge.sh)
+- **SQL vs file**: `replit_integrations/sql_graph_parity_check.py` — proves `graph_metadata.json` is field-for-field identical to the `sql_graph_*` tables (emission order asserted).
+- **SQL vs AQL**: `replit_integrations/sql_aql_parity_check.py --skip-on-missing` — flattens the live ArangoDB graph (drops server `_rev`) and proves it matches the `sql_graph_*` tables field-for-field (order not asserted; unreachable graph = skip, real drift = fail).
 
 ### Grep gates (run by post-merge.sh)
 - No retired perspective graph surfaces (`scripts/check_legacy_perspective_refs.py`)

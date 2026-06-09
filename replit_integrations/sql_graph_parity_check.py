@@ -45,7 +45,22 @@ def _index_by_key(items: List[dict]) -> Dict[str, dict]:
     return {it["_key"]: it for it in items}
 
 
-def _compare(label: str, json_items: List[dict], db_items: List[dict]) -> List[str]:
+def _compare(
+    label: str,
+    json_items: List[dict],
+    db_items: List[dict],
+    *,
+    check_order: bool = True,
+    left: str = "JSON",
+    right: str = "SQLite",
+) -> List[str]:
+    """Compare two flat lists of node/edge dicts keyed by ``_key``.
+
+    ``check_order`` asserts the two lists are in the same order — true for the
+    JSON↔SQLite check (both are deterministically ordered by ``ordinal``), but
+    false for the SQLite↔AQL check (ArangoDB returns documents unordered).
+    ``left``/``right`` only label the two sides in error messages.
+    """
     errors: List[str] = []
     j = _index_by_key(json_items)
     d = _index_by_key(db_items)
@@ -53,16 +68,16 @@ def _compare(label: str, json_items: List[dict], db_items: List[dict]) -> List[s
     if len(json_items) != len(j):
         errors.append(f"{label}: duplicate _key in JSON ({len(json_items)} rows, {len(j)} unique)")
     if len(db_items) != len(d):
-        errors.append(f"{label}: duplicate _key in SQLite ({len(db_items)} rows, {len(d)} unique)")
+        errors.append(f"{label}: duplicate _key in {right} ({len(db_items)} rows, {len(d)} unique)")
     if len(json_items) != len(db_items):
-        errors.append(f"{label}: count mismatch — JSON={len(json_items)} SQLite={len(db_items)}")
+        errors.append(f"{label}: count mismatch — {left}={len(json_items)} {right}={len(db_items)}")
 
     only_json = sorted(set(j) - set(d))
     only_db = sorted(set(d) - set(j))
     if only_json:
-        errors.append(f"{label}: {len(only_json)} _key(s) in JSON but not SQLite, e.g. {only_json[:5]}")
+        errors.append(f"{label}: {len(only_json)} _key(s) in {left} but not {right}, e.g. {only_json[:5]}")
     if only_db:
-        errors.append(f"{label}: {len(only_db)} _key(s) in SQLite but not JSON, e.g. {only_db[:5]}")
+        errors.append(f"{label}: {len(only_db)} _key(s) in {right} but not {left}, e.g. {only_db[:5]}")
 
     for key in sorted(set(j) & set(d)):
         jd, dd = j[key], d[key]
@@ -71,11 +86,11 @@ def _compare(label: str, json_items: List[dict], db_items: List[dict]) -> List[s
             bad = [f for f in fields if jd.get(f) != dd.get(f)]
             errors.append(
                 f"{label}: field mismatch for {key!r} on {bad}: "
-                f"json={ {f: jd.get(f) for f in bad} } sqlite={ {f: dd.get(f) for f in bad} }"
+                f"{left.lower()}={ {f: jd.get(f) for f in bad} } {right.lower()}={ {f: dd.get(f) for f in bad} }"
             )
 
-    if [it["_key"] for it in json_items] != [it["_key"] for it in db_items]:
-        errors.append(f"{label}: emission order differs between JSON and SQLite read-back")
+    if check_order and [it["_key"] for it in json_items] != [it["_key"] for it in db_items]:
+        errors.append(f"{label}: emission order differs between {left} and {right} read-back")
 
     return errors
 
