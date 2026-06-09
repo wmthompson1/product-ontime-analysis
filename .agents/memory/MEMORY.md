@@ -6,3 +6,4 @@
 - [Seed re-insertion & bridge drift](seed-reseed-behavior.md) — app re-seeds schema_sqlite.sql via INSERT OR IGNORE every startup; deleting seeded rows from live DB only is futile — fix the seed file too. Bridge prune is ungated.
 - [Semantic elevates scaffolding](semantic-elevates-scaffolding.md) — exporter wires elevates from SQLite but node-guard keeps it at 0 edges until an SME maps a canonical column; self-loop, perspective≠system.
 - [FK canonical model](fk-canonical-model.md) — FK = `foreign_key` bool on column node + `references` structural edge (child→parent); no FOREIGN_KEY edge type / is_foreign_key edge prop. Live graph still on old model, so canonical fixtures fail until migration (out of scope).
+- [dab_config.json generation](dab-config-generation.md) — generated from dab_field_definitions (certified=1) by sync; publish auto-creates entity blocks for manufacturing tables absent from config; never hand-edit.

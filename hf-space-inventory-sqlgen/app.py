@@ -46,6 +46,7 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from solder_engine import SolderEngine
 from production_dispatcher import ProductionDispatcher
+from field_description_pipeline import draft_field_description
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
@@ -5141,10 +5142,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
         with gr.Tab("📋 Field Descriptions"):
             gr.Markdown(
-                "### Entity Field Descriptions\n"
+                "### Entity Field Descriptions — Data Dictionary Authoring\n"
                 "Source: **SQLite** (`api_field_descriptions` + `dab_field_definitions`) "
-                "overlaid on the structural schema. `dab_config.json` remains on disk as a "
-                "legacy reference until the wave-6 sync script writes to it."
+                "overlaid on the structural schema. This tab is the local stand-in for the "
+                "company DAB: author a plain-language meaning per column, certify it, then "
+                "**Publish to DAB** to flow certified definitions into `dab_config.json`.\n\n"
+                "Drafting is **on-demand, one column at a time**: _Generate Draft_ is "
+                "deterministic (no API cost); _Generate AI Draft_ uses OpenAI only when you "
+                "click it."
             )
 
             with gr.Row():
@@ -5167,6 +5172,36 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 wrap=True,
             )
 
+            gr.Markdown("---\n#### ✍️ Author / Certify a Field")
+
+            with gr.Row():
+                fd_col_dd = gr.Dropdown(
+                    label="Column", choices=[], value=None, interactive=True, scale=2,
+                )
+                fd_load_field_btn = gr.Button("Load", scale=1, size="sm")
+
+            with gr.Row():
+                fd_display_tb = gr.Textbox(label="Display Name", scale=1)
+                fd_example_tb = gr.Textbox(label="Example Value", scale=1)
+            fd_desc_tb = gr.Textbox(
+                label="Description (SME meaning — overrides the abstract concept name)",
+                lines=3,
+            )
+
+            with gr.Row():
+                fd_gen_btn = gr.Button("✨ Generate Draft", size="sm")
+                fd_gen_ai_btn = gr.Button("🤖 Generate AI Draft", size="sm")
+                fd_save_btn = gr.Button("💾 Save Description", variant="primary", size="sm")
+
+            gr.Markdown("**DAB certification** — the SME-approved definition that publishes downstream.")
+            fd_dab_def_tb = gr.Textbox(label="DAB Definition", lines=2)
+            fd_certified_chk = gr.Checkbox(label="Certified", value=False)
+            with gr.Row():
+                fd_certify_btn = gr.Button("✅ Certify to DAB", variant="primary", size="sm")
+                fd_publish_btn = gr.Button("📤 Publish certified → dab_config.json", size="sm")
+
+            fd_status_md = gr.Markdown(value="")
+
             def _fd_load_entities():
                 try:
                     schema = get_unified_schema()
@@ -5178,19 +5213,18 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
             def _fd_show_entity(entity_name):
                 if not entity_name:
-                    return "_Select an entity above._", []
+                    return "_Select an entity above._", [], gr.Dropdown(choices=[], value=None)
                 try:
                     schema = get_unified_schema()
                     cols = schema.get(entity_name)
                     if not cols:
-                        return f"_Table `{entity_name}` not found in structural schema._", []
+                        return (
+                            f"_Table `{entity_name}` not found in structural schema._",
+                            [], gr.Dropdown(choices=[], value=None),
+                        )
                     col_count = len(cols)
-                    desc_count = sum(
-                        1 for c in cols.values() if c.get("description")
-                    )
-                    certified_count = sum(
-                        1 for c in cols.values() if c.get("certified")
-                    )
+                    desc_count = sum(1 for c in cols.values() if c.get("description"))
+                    certified_count = sum(1 for c in cols.values() if c.get("certified"))
                     info_md = (
                         f"**Table:** `{entity_name}` — "
                         f"{col_count} column(s), "
@@ -5207,12 +5241,138 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             meta.get("display_name") or "—",
                             "✓" if meta.get("certified") else "",
                         ])
-                    return info_md, rows
+                    col_names = list(cols.keys())
+                    first_col = col_names[0] if col_names else None
+                    return info_md, rows, gr.Dropdown(choices=col_names, value=first_col)
                 except Exception as exc:
-                    return f"_Error loading schema: {exc}_", []
+                    return f"_Error loading schema: {exc}_", [], gr.Dropdown(choices=[], value=None)
+
+            def _fd_load_field(entity_name, column_name):
+                """Populate the editor from any saved description / DAB definition."""
+                if not entity_name or not column_name:
+                    return "", "", "", "", False, "_Pick an entity and column, then Load._"
+                fdr = get_field_description_record(entity_name, column_name) or {}
+                dab = get_dab_field_definition_record(entity_name, column_name) or {}
+                status = (
+                    f"Loaded `{entity_name}.{column_name}`."
+                    if (fdr or dab) else
+                    f"`{entity_name}.{column_name}` has no saved description yet — "
+                    f"generate a draft below."
+                )
+                return (
+                    fdr.get("display_name") or "",
+                    fdr.get("example_value") or "",
+                    fdr.get("description") or "",
+                    dab.get("field_definition") or "",
+                    bool(dab.get("certified")),
+                    status,
+                )
+
+            def _fd_generate(entity_name, column_name, use_ai):
+                if not entity_name or not column_name:
+                    return "", "", "", "_Pick an entity and column first._"
+                try:
+                    d = draft_field_description(entity_name, column_name, use_ai=use_ai)
+                    src = d.get("_source", "deterministic")
+                    note = d.get("_note", "")
+                    label = "🤖 AI draft" if src == "ai" else "✨ Deterministic draft"
+                    status = f"{label} generated for `{entity_name}.{column_name}`. _Review and Save._"
+                    if note:
+                        status += f"\n\n_{note}_"
+                    return (
+                        d.get("display_name") or "",
+                        d.get("example_value") or "",
+                        d.get("description") or "",
+                        status,
+                    )
+                except Exception as exc:
+                    return "", "", "", f"_Draft failed: {exc}_"
+
+            def _fd_save(entity_name, column_name, display, example, desc):
+                if not entity_name or not column_name:
+                    return "_Pick an entity and column first._", "_Select an entity above._", []
+                res = save_field_description(
+                    entity_name, column_name,
+                    display_name=display or None,
+                    description=desc or None,
+                    example_value=example or None,
+                )
+                if not res.get("ok"):
+                    info, rows, _ = _fd_show_entity(entity_name)
+                    return f"_Save failed: {res.get('error')}_", info, rows
+                info, rows, _ = _fd_show_entity(entity_name)
+                return f"💾 Saved description for `{entity_name}.{column_name}`.", info, rows
+
+            def _fd_certify(entity_name, column_name, dab_def, certified):
+                if not entity_name or not column_name:
+                    return "_Pick an entity and column first._", "_Select an entity above._", []
+                res = save_dab_field_definition(
+                    entity_name, column_name,
+                    field_definition=dab_def or None,
+                    certified=bool(certified),
+                )
+                if not res.get("ok"):
+                    info, rows, _ = _fd_show_entity(entity_name)
+                    return f"_Certify failed: {res.get('error')}_", info, rows
+                state = "certified" if certified else "saved (uncertified)"
+                info, rows, _ = _fd_show_entity(entity_name)
+                return (
+                    f"✅ DAB definition {state} for `{entity_name}.{column_name}`. "
+                    f"Use **Publish to DAB** to write certified rows to `dab_config.json`.",
+                    info, rows,
+                )
+
+            def _fd_publish():
+                import io, contextlib, sys
+                scripts_dir = os.path.join(os.path.dirname(__file__), "scripts")
+                if scripts_dir not in sys.path:
+                    sys.path.insert(0, scripts_dir)
+                try:
+                    import sync_db_to_dab_config as _sync
+                    _sync.SQLITE_DB_PATH = SQLITE_DB_PATH
+                    _sync.DAB_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "dab_config.json")
+                    _sync.SQL_MCP_SOURCE_DATABASE = SQL_MCP_SOURCE_DATABASE
+                    buf = io.StringIO()
+                    with contextlib.redirect_stdout(buf):
+                        _sync.sync(dry_run=False)
+                    out = buf.getvalue().strip() or "(no output)"
+                    return f"📤 **Published certified definitions to `dab_config.json`.**\n\n```\n{out}\n```"
+                except SystemExit as exc:
+                    return f"_Publish stopped: {exc}_"
+                except Exception as exc:
+                    return f"_Publish failed: {type(exc).__name__}: {exc}_"
 
             fd_refresh_btn.click(fn=_fd_load_entities, outputs=fd_entity_dd)
-            fd_entity_dd.change(fn=_fd_show_entity, inputs=fd_entity_dd, outputs=[fd_entity_info, fd_fields_table])
+            fd_entity_dd.change(
+                fn=_fd_show_entity, inputs=fd_entity_dd,
+                outputs=[fd_entity_info, fd_fields_table, fd_col_dd],
+            )
+            fd_load_field_btn.click(
+                fn=_fd_load_field, inputs=[fd_entity_dd, fd_col_dd],
+                outputs=[fd_display_tb, fd_example_tb, fd_desc_tb,
+                         fd_dab_def_tb, fd_certified_chk, fd_status_md],
+            )
+            fd_gen_btn.click(
+                fn=lambda e, c: _fd_generate(e, c, False),
+                inputs=[fd_entity_dd, fd_col_dd],
+                outputs=[fd_display_tb, fd_example_tb, fd_desc_tb, fd_status_md],
+            )
+            fd_gen_ai_btn.click(
+                fn=lambda e, c: _fd_generate(e, c, True),
+                inputs=[fd_entity_dd, fd_col_dd],
+                outputs=[fd_display_tb, fd_example_tb, fd_desc_tb, fd_status_md],
+            )
+            fd_save_btn.click(
+                fn=_fd_save,
+                inputs=[fd_entity_dd, fd_col_dd, fd_display_tb, fd_example_tb, fd_desc_tb],
+                outputs=[fd_status_md, fd_entity_info, fd_fields_table],
+            )
+            fd_certify_btn.click(
+                fn=_fd_certify,
+                inputs=[fd_entity_dd, fd_col_dd, fd_dab_def_tb, fd_certified_chk],
+                outputs=[fd_status_md, fd_entity_info, fd_fields_table],
+            )
+            fd_publish_btn.click(fn=_fd_publish, outputs=fd_status_md)
             demo.load(fn=_fd_load_entities, outputs=fd_entity_dd)
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)

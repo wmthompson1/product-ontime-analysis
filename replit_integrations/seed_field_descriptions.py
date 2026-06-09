@@ -14,13 +14,19 @@ they are not part of the curated business vocabulary.
 Idempotent: ``api_field_descriptions`` has PK (table_name, column_name); this
 upserts, so re-running refreshes the drafts without creating duplicates.
 """
+import argparse
 import os
 import sqlite3
+import sys
 
-DB_PATH = os.path.join(
+_HF_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "hf-space-inventory-sqlgen", "app_schema", "manufacturing.db",
+    "hf-space-inventory-sqlgen",
 )
+if _HF_DIR not in sys.path:
+    sys.path.insert(0, _HF_DIR)
+
+DB_PATH = os.path.join(_HF_DIR, "app_schema", "manufacturing.db")
 
 # Must match the app defaults (app.py SQL_MCP_SOURCE_DATABASE / _DEFAULT_SCHEMA)
 # so the schema browser overlay and the SolderEngine lookup find these rows.
@@ -83,9 +89,8 @@ FIELD_DESCRIPTIONS = [
 ]
 
 
-def main() -> int:
-    if not os.path.exists(DB_PATH):
-        raise SystemExit(f"ERROR: manufacturing.db not found at {DB_PATH}")
+def _seed_curated() -> int:
+    """Upsert the SME-curated field descriptions. Returns the count seeded."""
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     try:
@@ -110,9 +115,39 @@ def main() -> int:
         conn.commit()
     finally:
         conn.close()
+    return len(FIELD_DESCRIPTIONS)
 
-    print(f"seeded {len(FIELD_DESCRIPTIONS)} field description(s) (idempotent; "
-          f"stand-in for DAB).")
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Seed SME-curated field descriptions; optionally draft the rest.",
+    )
+    parser.add_argument(
+        "--fill-missing", action="store_true",
+        help="After seeding the curated set, draft + upsert a description for "
+             "every other business column that has none (idempotent; curated "
+             "rows are preserved).",
+    )
+    parser.add_argument(
+        "--ai", action="store_true",
+        help="When combined with --fill-missing, use the OpenAI draft path "
+             "(requires OPENAI_API_KEY). Default is the deterministic, no-cost draft.",
+    )
+    args = parser.parse_args(argv)
+
+    if not os.path.exists(DB_PATH):
+        raise SystemExit(f"ERROR: manufacturing.db not found at {DB_PATH}")
+
+    seeded = _seed_curated()
+    print(f"seeded {seeded} curated field description(s) (idempotent; stand-in for DAB).")
+
+    if args.fill_missing:
+        from field_description_pipeline import fill_missing
+        mode = "AI" if args.ai else "deterministic"
+        print(f"filling missing descriptions ({mode} drafts)...")
+        filled = fill_missing(db_path=DB_PATH, use_ai=args.ai, verbose=True)
+        print(f"drafted {filled} previously-undescribed business column(s).")
+
     return 0
 
 

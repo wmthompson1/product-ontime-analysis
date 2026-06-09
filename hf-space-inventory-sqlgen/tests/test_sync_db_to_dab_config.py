@@ -456,6 +456,102 @@ def test_live_run_removes_stale_entity_only():
 
 
 # ---------------------------------------------------------------------------
+# Auto-create tests (certified rows for tables/fields not yet in dab_config.json)
+# ---------------------------------------------------------------------------
+
+
+def test_certified_unmatched_creates_entity_and_field():
+    """A certified row for a table absent from the config creates an entity+field."""
+    config = {"entities": {}}
+    db_path = _make_sqlite_db(
+        [
+            {
+                "source_database": _SOURCE_DB,
+                "schema_name": "dbo",
+                "table_name": "work_order",
+                "column_name": "status",
+                "field_definition": "Shop-floor lifecycle stage of the work order.",
+                "certified": 1,
+            }
+        ],
+        extra_tables=["work_order"],
+    )
+    cfg_path = _make_dab_config(config)
+    try:
+        _run_sync(db_path, cfg_path)
+        result = _load_cfg(cfg_path)
+        ent = result["entities"].get("work_order")
+        assert ent is not None, f"entity must be auto-created. Got: {list(result['entities'])}"
+        desc = ent["fields"]["status"]["description"]
+        assert desc == "Shop-floor lifecycle stage of the work order.", desc
+        print("PASS: certified unmatched row auto-creates entity + field block")
+    finally:
+        os.unlink(db_path)
+        os.unlink(cfg_path)
+
+
+def test_auto_create_is_idempotent():
+    """Re-running after an auto-create produces no diff."""
+    config = {"entities": {}}
+    db_path = _make_sqlite_db(
+        [
+            {
+                "source_database": _SOURCE_DB,
+                "schema_name": "dbo",
+                "table_name": "work_order",
+                "column_name": "status",
+                "field_definition": "Lifecycle stage.",
+                "certified": 1,
+            }
+        ],
+        extra_tables=["work_order"],
+    )
+    cfg_path = _make_dab_config(config)
+    try:
+        _run_sync(db_path, cfg_path)
+        first = json.dumps(_load_cfg(cfg_path), sort_keys=True)
+        _run_sync(db_path, cfg_path)
+        second = json.dumps(_load_cfg(cfg_path), sort_keys=True)
+        assert first == second, "auto-create path must be idempotent"
+        print("PASS: auto-create path is idempotent on re-run")
+    finally:
+        os.unlink(db_path)
+        os.unlink(cfg_path)
+
+
+def test_no_create_flag_leaves_config_unchanged():
+    """With create_missing=False, an unmatched certified row is not added."""
+    config = {"entities": {}}
+    db_path = _make_sqlite_db(
+        [
+            {
+                "source_database": _SOURCE_DB,
+                "schema_name": "dbo",
+                "table_name": "work_order",
+                "column_name": "status",
+                "field_definition": "Lifecycle stage.",
+                "certified": 1,
+            }
+        ],
+        extra_tables=["work_order"],
+    )
+    cfg_path = _make_dab_config(config)
+    try:
+        with (
+            mock.patch.object(sut, "SQLITE_DB_PATH", db_path),
+            mock.patch.object(sut, "DAB_CONFIG_PATH", cfg_path),
+            mock.patch.object(sut, "SQL_MCP_SOURCE_DATABASE", _SOURCE_DB),
+        ):
+            sut.sync(dry_run=False, create_missing=False)
+        result = _load_cfg(cfg_path)
+        assert result["entities"] == {}, f"no-create must not add entities. Got: {result['entities']}"
+        print("PASS: create_missing=False leaves config entities untouched")
+    finally:
+        os.unlink(db_path)
+        os.unlink(cfg_path)
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------
 
@@ -472,6 +568,9 @@ def main() -> int:
         test_find_stale_entity_missing_source_field,
         test_dry_run_does_not_remove_stale_entity,
         test_live_run_removes_stale_entity_only,
+        test_certified_unmatched_creates_entity_and_field,
+        test_auto_create_is_idempotent,
+        test_no_create_flag_leaves_config_unchanged,
     ]
     failed = 0
     for t in tests:

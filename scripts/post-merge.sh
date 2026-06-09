@@ -30,6 +30,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_field_description_pipeline.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_field_description_pipeline.py || {
+    echo "post-merge: field description pipeline tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py ]; then
   python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py || {
     echo "post-merge: graph reconstructor tests failed"

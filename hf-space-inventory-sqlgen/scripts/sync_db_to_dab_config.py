@@ -136,7 +136,7 @@ def _find_stale_entities(
     return stale
 
 
-def sync(dry_run: bool = False) -> None:
+def sync(dry_run: bool = False, create_missing: bool = True) -> None:
     db_path = os.path.abspath(SQLITE_DB_PATH)
     cfg_path = os.path.abspath(DAB_CONFIG_PATH)
 
@@ -195,6 +195,8 @@ def sync(dry_run: bool = False) -> None:
     entity_index = _build_entity_index(config)
 
     fields_updated = 0
+    fields_created = 0
+    entities_created = 0
     fields_not_matched = 0
     not_matched_details: List[str] = []
 
@@ -205,14 +207,34 @@ def sync(dry_run: bool = False) -> None:
 
         entity_key = entity_index.get(table_lower)
         if entity_key is None:
-            fields_not_matched += 1
-            not_matched_details.append(
-                f"  no entity for table={row['table_name']!r}"
-            )
-            continue
+            if not create_missing:
+                fields_not_matched += 1
+                not_matched_details.append(
+                    f"  no entity for table={row['table_name']!r}"
+                )
+                continue
+            # Auto-create an entity block so certified definitions for tables not
+            # yet in dab_config.json still publish (the DAB stand-in grows with
+            # the curated set). Keyed by the raw table name; idempotent because
+            # the next run finds it via the entity index.
+            entity_key = row["table_name"]
+            schema = row["schema_name"] or ""
+            new_source = f"{schema}.{row['table_name']}" if schema else row["table_name"]
+            if not dry_run:
+                config.setdefault("entities", {})[entity_key] = {
+                    "source": new_source,
+                    "description": "",
+                    "fields": {},
+                }
+            entity_index[table_lower] = entity_key
+            entity_index[entity_key.lower()] = entity_key
+            entities_created += 1
 
-        entity = config["entities"][entity_key]
-        fields: Dict[str, Any] = entity.get("fields", {})
+        entity = config.get("entities", {}).get(entity_key)
+        if entity is None:
+            # dry-run path for a would-be-created entity: nothing on disk yet.
+            entity = {"fields": {}}
+        fields: Dict[str, Any] = entity.setdefault("fields", {})
 
         matched_field_key = None
         for fk in fields:
@@ -221,10 +243,15 @@ def sync(dry_run: bool = False) -> None:
                 break
 
         if matched_field_key is None:
-            fields_not_matched += 1
-            not_matched_details.append(
-                f"  no field {row['column_name']!r} in entity {entity_key!r}"
-            )
+            if not create_missing:
+                fields_not_matched += 1
+                not_matched_details.append(
+                    f"  no field {row['column_name']!r} in entity {entity_key!r}"
+                )
+                continue
+            if not dry_run:
+                fields[row["column_name"]] = {"description": field_def}
+            fields_created += 1
             continue
 
         current_desc = fields[matched_field_key].get("description", "")
@@ -243,7 +270,8 @@ def sync(dry_run: bool = False) -> None:
     if dry_run:
         print(
             f"[sync_db_to_dab_config] DRY-RUN — would remove {len(stale_entities)} stale "
-            f"entity/entities, update {fields_updated} field(s), "
+            f"entity/entities, create {entities_created} entity/entities, "
+            f"update {fields_updated} field(s), create {fields_created} field(s), "
             f"{fields_not_matched} not matched."
         )
         return
@@ -270,7 +298,9 @@ def sync(dry_run: bool = False) -> None:
     print(
         f"[sync_db_to_dab_config] Done — "
         f"stale entities removed: {len(stale_entities)}, "
+        f"entities created: {entities_created}, "
         f"fields updated: {fields_updated}, "
+        f"fields created: {fields_created}, "
         f"not matched: {fields_not_matched}."
     )
 
@@ -289,9 +319,15 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print what would change without writing any files.",
     )
+    parser.add_argument(
+        "--no-create",
+        action="store_true",
+        help="Only update fields that already exist in dab_config.json; do not "
+             "create new entity/field blocks for certified rows.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = _parse_args()
-    sync(dry_run=args.dry_run)
+    sync(dry_run=args.dry_run, create_missing=not args.no_create)
