@@ -2322,7 +2322,7 @@ def _resolve_arango_handle(label: str, db, graph_name: str) -> str:
 # carries them to the live ArangoDB graph. ArangoDB is updated best-effort only.
 SQL_GRAPH_NODES_TABLE = "sql_graph_nodes"
 AUTHORED_EDGES_TABLE = "sql_graph_authored_edges"
-CANONICAL_SQLITE_PREDICATES = frozenset({"HAS_COLUMN", "FOREIGN_KEY", "ELEVATES", "SUPPRESSES"})
+CANONICAL_SQLITE_PREDICATES = frozenset({"HAS_COLUMN", "FOREIGN_KEY", "ELEVATES"})
 
 
 def _resolve_sql_graph_endpoint(conn, label: str, expect: str) -> dict:
@@ -2390,8 +2390,8 @@ def _best_effort_arango_canonical_sync(predicate: str, req) -> str:
         return "; ArangoDB sync skipped (offline or endpoint unresolved)"
 
     try:
-        if predicate in ("ELEVATES", "SUPPRESSES"):
-            weight = 1 if predicate == "ELEVATES" else 0
+        if predicate == "ELEVATES":
+            weight = 1
             aql = """
             UPSERT { _from: @source, _to: @target }
             INSERT { _from: @source, _to: @target, weight: @weight,
@@ -2473,22 +2473,22 @@ def _commit_canonical_edge_sqlite_first(predicate: str, req) -> dict:
             fields = dict(from_table=src["table"], from_column=(req.from_column or ""),
                           to_table=tgt["table"], to_column=(req.to_column or ""),
                           perspective="system", weight=None, concept=None)
-        elif predicate in ("ELEVATES", "SUPPRESSES"):
+        elif predicate == "ELEVATES":
             persp = (req.perspective or "").strip()
             if not persp or persp.lower() == "system":
                 raise HTTPException(status_code=422,
-                    detail="ELEVATES/SUPPRESSES requires a business perspective "
+                    detail="ELEVATES requires a business perspective "
                            "(choose a category other than ALL)")
             try:
                 tgt = _resolve_sql_graph_endpoint(conn, req.target_id, "column")
             except ValueError as ve:
                 raise HTTPException(status_code=422,
-                    detail=f"{predicate} target must be a canonical column node: {ve}")
+                    detail=f"ELEVATES target must be a canonical column node: {ve}")
             edge_type = "elevates"
             fields = dict(from_table=tgt["table"], from_column=tgt["column"],
                           to_table=tgt["table"], to_column=tgt["column"],
                           perspective=persp,
-                          weight=(1 if predicate == "ELEVATES" else 0),
+                          weight=1,
                           concept=(req.concept_anchor or ""))
         else:
             raise HTTPException(status_code=400,
@@ -2543,7 +2543,7 @@ async def commit_edge(req: CommitEdgeRequest):
     """Write a new edge (or bridge document) using predicate-based routing.
 
     Predicate routing:
-      ELEVATES / SUPPRESSES  → ArangoDB elevates edge collection (weight +1 / -1)
+      ELEVATES               → ArangoDB elevates edge collection (weight 1)
       BOUND_TO               → ArangoDB bound_to edge collection
       HAS_COLUMN             → ArangoDB HAS_COLUMN edge collection
       FOREIGN_KEY            → ArangoDB FOREIGN_KEY edge collection
@@ -2793,7 +2793,7 @@ async def commit_edge(req: CommitEdgeRequest):
         else:
             raise HTTPException(status_code=400,
                 detail=f"Unknown predicate: {req.predicate!r}. "
-                "Supported: ELEVATES, SUPPRESSES, HAS_COLUMN, FOREIGN_KEY "
+                "Supported: ELEVATES, HAS_COLUMN, FOREIGN_KEY "
                 "(SQLite-first), BOUND_TO, MAPS_TO_CONCEPT, OPERATES_WITHIN, "
                 "USES_DEFINITION")
 
@@ -4238,7 +4238,6 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         dr_predicate = gr.Dropdown(
                             choices=[
                                 "ELEVATES",
-                                "SUPPRESSES",
                                 "OPERATES_WITHIN",
                                 "USES_DEFINITION",
                                 "BOUND_TO",

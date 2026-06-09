@@ -58,7 +58,7 @@ just the static JSON file — triple resolution runs on the live Arango graph.
 
 ## SME-authored canonical edges are SQLite-first
 The Define Relationship UI's canonical predicates (HAS_COLUMN→has_column,
-FOREIGN_KEY→references, ELEVATES/SUPPRESSES→elevates) write to a separate SQLite
+FOREIGN_KEY→references, ELEVATES→elevates) write to a separate SQLite
 table `sql_graph_authored_edges` FIRST; ArangoDB is updated best-effort only and
 its failure never blocks the write. The exporter MERGES those authored rows into
 its derived FK/elevation feeds on every run (`_fetch_authored_edges` +
@@ -75,7 +75,9 @@ source of truth; anything that must persist has to live in SQLite.
   *skipped* by the merge (no fake column invented); `has_column` is always a
   no-op (the derived backbone already emits every has_column). Merge de-dupes
   against rows the derived feeds already contain.
-- Weight is a binary gate: ELEVATES→1, SUPPRESSES→0 (NOT the old +1/−1).
+- There is no SUPPRESSES predicate. Only ELEVATES exists, always weight 1
+  (concepts that aren't elevated are simply neutral/weight 0 in the solder
+  engine's existing model — that "suppression" is descriptive, not a predicate).
 - ELEVATES requires a non-`system` perspective (commit_edge returns 422 without).
 - Endpoints resolve against `sql_graph_nodes` (the verified source), not the live
   graph — case-insensitive, stripping ` (suffix)` and any `schema.` prefix.

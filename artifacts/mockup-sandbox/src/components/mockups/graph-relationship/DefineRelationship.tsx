@@ -1430,7 +1430,7 @@ export function DefineRelationship() {
                       category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
                     </span>
                     <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">
-                      weight: <span className="text-slate-200">{selectedPredicate === "ELEVATES" ? "1" : selectedPredicate === "SUPPRESSES" ? "-1" : "null"}</span>
+                      weight: <span className="text-slate-200">{selectedPredicate === "ELEVATES" ? "1" : "null"}</span>
                     </span>
                   </>
                 )}

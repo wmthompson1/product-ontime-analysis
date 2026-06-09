@@ -1,6 +1,6 @@
 """Tests for SQLite-first canonical edge authoring in POST /mcp/tools/commit_edge.
 
-The canonical predicates (HAS_COLUMN, FOREIGN_KEY, ELEVATES, SUPPRESSES) are
+The canonical predicates (HAS_COLUMN, FOREIGN_KEY, ELEVATES) are
 written to ``sql_graph_authored_edges`` (SQLite source of truth) first; ArangoDB
 is updated best-effort only. These tests run against a temporary SQLite database
 seeded with sql_graph_nodes + the authoring table, with the best-effort ArangoDB
