@@ -100,7 +100,7 @@ def perspective_intent_weights() -> str:
 
     Joins schema_intent_perspectives → schema_intents → schema_perspectives.
 
-    Weight semantics: 1 = active path, 0 = neutral, -1 = suppressed.
+    Weight semantics: 1 = active path, 0 = neutral (no suppression — only elevation is used).
 
     Columns: perspective_name, intent_name, intent_category,
              intent_factor_weight, explanation
@@ -211,7 +211,7 @@ ORDER BY scf.is_primary_meaning DESC, sc.concept_name
 def intent_concept_elevations(intent_id: int) -> str:
     """Return concept weight activations for a specific intent.
 
-    Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed.
+    Weight semantics: 1 = elevated, 0 = neutral (no suppression — only elevation is used).
 
     Args:
         intent_id: Integer primary key from schema_intents.

@@ -159,7 +159,7 @@ df  = get_graph_metadata(sql, params=["work_order", "status"])
 
 | Function | Returns |
 |---|---|
-| `intent_concept_elevations(intent_id)` | Concept weights for one intent (1=elevated, -1=suppressed) |
+| `intent_concept_elevations(intent_id)` | Concept weights for one intent (1=elevated, 0=neutral) |
 | `intent_perspective_constraints(intent_id)` | Perspective constraints for one intent |
 | `intent_query_mappings()` | All intent → ground truth SQL file mappings |
 
