@@ -46,7 +46,7 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
 from solder_engine import SolderEngine
 from production_dispatcher import ProductionDispatcher
-from field_description_pipeline import draft_field_description
+from field_description_pipeline import draft_field_description, compute_field_coverage
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
@@ -5152,6 +5152,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 "click it."
             )
 
+            fd_overall_md = gr.Markdown(value="_Loading overall coverage…_")
+
             with gr.Row():
                 fd_entity_dd = gr.Dropdown(
                     label="Entity (table)",
@@ -5211,16 +5213,32 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 except Exception:
                     return gr.Dropdown(choices=[], value=None)
 
+            def _fd_overall():
+                """Global described/certified coverage across every table."""
+                try:
+                    cov = compute_field_coverage(get_unified_schema())
+                    denom = cov["columns"] or 1
+                    pct_d = round(100 * cov["described"] / denom)
+                    pct_c = round(100 * cov["certified"] / denom)
+                    return (
+                        f"**Overall coverage** — {cov['tables']} tables, "
+                        f"{cov['columns']} columns · "
+                        f"{cov['described']} described ({pct_d}%) · "
+                        f"{cov['certified']} certified ({pct_c}%)"
+                    )
+                except Exception as exc:
+                    return f"_Overall coverage unavailable: {exc}_"
+
             def _fd_show_entity(entity_name):
                 if not entity_name:
-                    return "_Select an entity above._", [], gr.Dropdown(choices=[], value=None)
+                    return "_Select an entity above._", [], gr.Dropdown(choices=[], value=None), _fd_overall()
                 try:
                     schema = get_unified_schema()
                     cols = schema.get(entity_name)
                     if not cols:
                         return (
                             f"_Table `{entity_name}` not found in structural schema._",
-                            [], gr.Dropdown(choices=[], value=None),
+                            [], gr.Dropdown(choices=[], value=None), _fd_overall(),
                         )
                     col_count = len(cols)
                     desc_count = sum(1 for c in cols.values() if c.get("description"))
@@ -5243,9 +5261,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         ])
                     col_names = list(cols.keys())
                     first_col = col_names[0] if col_names else None
-                    return info_md, rows, gr.Dropdown(choices=col_names, value=first_col)
+                    return info_md, rows, gr.Dropdown(choices=col_names, value=first_col), _fd_overall()
                 except Exception as exc:
-                    return f"_Error loading schema: {exc}_", [], gr.Dropdown(choices=[], value=None)
+                    return f"_Error loading schema: {exc}_", [], gr.Dropdown(choices=[], value=None), _fd_overall()
 
             def _fd_load_field(entity_name, column_name):
                 """Populate the editor from any saved description / DAB definition."""
@@ -5290,36 +5308,34 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
             def _fd_save(entity_name, column_name, display, example, desc):
                 if not entity_name or not column_name:
-                    return "_Pick an entity and column first._", "_Select an entity above._", []
+                    return "_Pick an entity and column first._", "_Select an entity above._", [], _fd_overall()
                 res = save_field_description(
                     entity_name, column_name,
                     display_name=display or None,
                     description=desc or None,
                     example_value=example or None,
                 )
+                info, rows, _, overall = _fd_show_entity(entity_name)
                 if not res.get("ok"):
-                    info, rows, _ = _fd_show_entity(entity_name)
-                    return f"_Save failed: {res.get('error')}_", info, rows
-                info, rows, _ = _fd_show_entity(entity_name)
-                return f"💾 Saved description for `{entity_name}.{column_name}`.", info, rows
+                    return f"_Save failed: {res.get('error')}_", info, rows, overall
+                return f"💾 Saved description for `{entity_name}.{column_name}`.", info, rows, overall
 
             def _fd_certify(entity_name, column_name, dab_def, certified):
                 if not entity_name or not column_name:
-                    return "_Pick an entity and column first._", "_Select an entity above._", []
+                    return "_Pick an entity and column first._", "_Select an entity above._", [], _fd_overall()
                 res = save_dab_field_definition(
                     entity_name, column_name,
                     field_definition=dab_def or None,
                     certified=bool(certified),
                 )
+                info, rows, _, overall = _fd_show_entity(entity_name)
                 if not res.get("ok"):
-                    info, rows, _ = _fd_show_entity(entity_name)
-                    return f"_Certify failed: {res.get('error')}_", info, rows
+                    return f"_Certify failed: {res.get('error')}_", info, rows, overall
                 state = "certified" if certified else "saved (uncertified)"
-                info, rows, _ = _fd_show_entity(entity_name)
                 return (
                     f"✅ DAB definition {state} for `{entity_name}.{column_name}`. "
                     f"Use **Publish to DAB** to write certified rows to `dab_config.json`.",
-                    info, rows,
+                    info, rows, overall,
                 )
 
             def _fd_publish():
@@ -5336,16 +5352,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     with contextlib.redirect_stdout(buf):
                         _sync.sync(dry_run=False)
                     out = buf.getvalue().strip() or "(no output)"
-                    return f"📤 **Published certified definitions to `dab_config.json`.**\n\n```\n{out}\n```"
+                    return f"📤 **Published certified definitions to `dab_config.json`.**\n\n```\n{out}\n```", _fd_overall()
                 except SystemExit as exc:
-                    return f"_Publish stopped: {exc}_"
+                    return f"_Publish stopped: {exc}_", _fd_overall()
                 except Exception as exc:
-                    return f"_Publish failed: {type(exc).__name__}: {exc}_"
+                    return f"_Publish failed: {type(exc).__name__}: {exc}_", _fd_overall()
 
             fd_refresh_btn.click(fn=_fd_load_entities, outputs=fd_entity_dd)
             fd_entity_dd.change(
                 fn=_fd_show_entity, inputs=fd_entity_dd,
-                outputs=[fd_entity_info, fd_fields_table, fd_col_dd],
+                outputs=[fd_entity_info, fd_fields_table, fd_col_dd, fd_overall_md],
             )
             fd_load_field_btn.click(
                 fn=_fd_load_field, inputs=[fd_entity_dd, fd_col_dd],
@@ -5365,15 +5381,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
             fd_save_btn.click(
                 fn=_fd_save,
                 inputs=[fd_entity_dd, fd_col_dd, fd_display_tb, fd_example_tb, fd_desc_tb],
-                outputs=[fd_status_md, fd_entity_info, fd_fields_table],
+                outputs=[fd_status_md, fd_entity_info, fd_fields_table, fd_overall_md],
             )
             fd_certify_btn.click(
                 fn=_fd_certify,
                 inputs=[fd_entity_dd, fd_col_dd, fd_dab_def_tb, fd_certified_chk],
-                outputs=[fd_status_md, fd_entity_info, fd_fields_table],
+                outputs=[fd_status_md, fd_entity_info, fd_fields_table, fd_overall_md],
             )
-            fd_publish_btn.click(fn=_fd_publish, outputs=fd_status_md)
+            fd_publish_btn.click(fn=_fd_publish, outputs=[fd_status_md, fd_overall_md])
             demo.load(fn=_fd_load_entities, outputs=fd_entity_dd)
+            demo.load(fn=_fd_overall, outputs=fd_overall_md)
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
         demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)

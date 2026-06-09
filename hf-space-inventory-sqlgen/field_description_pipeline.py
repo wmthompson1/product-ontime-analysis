@@ -397,8 +397,34 @@ def fill_missing(
     return count
 
 
+def compute_field_coverage(schema: Dict[str, Any]) -> Dict[str, int]:
+    """Aggregate described/certified coverage across every table in *schema*.
+
+    *schema* is the unified-schema mapping ``{table: {column: meta}}`` where each
+    ``meta`` may carry ``description`` and ``certified``. Returns overall totals
+    ``{tables, columns, described, certified}`` — the global counterpart to the
+    per-table counts shown for a single selected entity.
+    """
+    tables = columns = described = certified = 0
+    for cols in (schema or {}).values():
+        tables += 1
+        for meta in (cols or {}).values():
+            columns += 1
+            if meta.get("description"):
+                described += 1
+            if meta.get("certified"):
+                certified += 1
+    return {
+        "tables": tables,
+        "columns": columns,
+        "described": described,
+        "certified": certified,
+    }
+
+
 __all__ = [
     "humanize",
+    "compute_field_coverage",
     "draft_field_description",
     "deterministic_draft",
     "ai_draft",

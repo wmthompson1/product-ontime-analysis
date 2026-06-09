@@ -196,6 +196,31 @@ def test_fill_missing_preserves_existing():
         os.unlink(db)
 
 
+def test_compute_field_coverage_overall():
+    """compute_field_coverage aggregates described/certified across ALL tables."""
+    schema = {
+        "work_order": {
+            "id": {"description": "Primary key", "certified": True},
+            "status": {"description": "State", "certified": False},
+            "notes": {"description": "", "certified": False},
+        },
+        "supplier": {
+            "id": {"description": "Primary key", "certified": True},
+            "name": {"description": None},
+        },
+        "empty_table": {},
+    }
+    cov = p.compute_field_coverage(schema)
+    assert cov["tables"] == 3, f"expected 3 tables, got {cov['tables']}"
+    assert cov["columns"] == 5, f"expected 5 columns, got {cov['columns']}"
+    assert cov["described"] == 3, f"expected 3 described, got {cov['described']}"
+    assert cov["certified"] == 2, f"expected 2 certified, got {cov['certified']}"
+    # Empty schema must not divide-by-zero or crash.
+    empty = p.compute_field_coverage({})
+    assert empty == {"tables": 0, "columns": 0, "described": 0, "certified": 0}
+    print("PASS: compute_field_coverage aggregates overall coverage correctly")
+
+
 def main() -> int:
     tests = [
         test_humanize,
@@ -205,6 +230,7 @@ def main() -> int:
         test_certify_writes_dab,
         test_list_business_columns_excludes_metadata_and_staging,
         test_fill_missing_preserves_existing,
+        test_compute_field_coverage_overall,
     ]
     failed = 0
     for t in tests:
