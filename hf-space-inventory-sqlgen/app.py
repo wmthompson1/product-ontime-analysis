@@ -192,6 +192,42 @@ def ensure_app_metadata_tables(conn) -> None:
             created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(intent_name, slot_name)
         );
+
+        CREATE TABLE IF NOT EXISTS sql_graph_nodes (
+            ordinal       INTEGER NOT NULL,
+            _key          TEXT    NOT NULL PRIMARY KEY,
+            _id           TEXT    NOT NULL,
+            node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+            node_family   TEXT    NOT NULL,
+            perspective   TEXT    NOT NULL,
+            table_name    TEXT    NOT NULL,
+            column_name   TEXT,
+            column_slot   TEXT,
+            predicate     TEXT    NOT NULL,
+            unique_id     TEXT    NOT NULL,
+            description   TEXT,
+            column_type   TEXT,
+            "notnull"     INTEGER,
+            default_value TEXT,
+            primary_key   INTEGER,
+            foreign_key   INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS sql_graph_edges (
+            ordinal           INTEGER NOT NULL,
+            _key              TEXT    NOT NULL PRIMARY KEY,
+            _id               TEXT    NOT NULL,
+            _from             TEXT    NOT NULL,
+            _to               TEXT    NOT NULL,
+            edge_family       TEXT    NOT NULL,
+            edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+            perspective       TEXT    NOT NULL,
+            unique_id         TEXT    NOT NULL,
+            references_table  TEXT,
+            references_column TEXT,
+            weight            INTEGER,
+            concept           TEXT
+        );
     """)
     conn.commit()
 

@@ -663,6 +663,48 @@ CREATE TABLE IF NOT EXISTS dab_field_definitions (
     PRIMARY KEY (source_database, schema_name, table_name, column_name)
 );
 
+-- SQL graph source tables: hold the full canonical graph (nodes + edges in the
+-- fixed 6-slot composite-key form) that replit_integrations/export_graph_metadata.py
+-- materializes and then serializes graph_metadata.json FROM. SQLite is the source
+-- of truth; the JSON is provably a dump of these rows. One column per JSON field;
+-- columns that apply to only one node/edge kind are NULL for the others. The
+-- ordinal column preserves the exact JSON emission order on read-back.
+CREATE TABLE IF NOT EXISTS sql_graph_nodes (
+    ordinal       INTEGER NOT NULL,
+    _key          TEXT    NOT NULL PRIMARY KEY,
+    _id           TEXT    NOT NULL,
+    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+    node_family   TEXT    NOT NULL,
+    perspective   TEXT    NOT NULL,
+    table_name    TEXT    NOT NULL,
+    column_name   TEXT,
+    column_slot   TEXT,
+    predicate     TEXT    NOT NULL,
+    unique_id     TEXT    NOT NULL,
+    description   TEXT,
+    column_type   TEXT,
+    "notnull"     INTEGER,
+    default_value TEXT,
+    primary_key   INTEGER,
+    foreign_key   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS sql_graph_edges (
+    ordinal           INTEGER NOT NULL,
+    _key              TEXT    NOT NULL PRIMARY KEY,
+    _id               TEXT    NOT NULL,
+    _from             TEXT    NOT NULL,
+    _to               TEXT    NOT NULL,
+    edge_family       TEXT    NOT NULL,
+    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    perspective       TEXT    NOT NULL,
+    unique_id         TEXT    NOT NULL,
+    references_table  TEXT,
+    references_column TEXT,
+    weight            INTEGER,
+    concept           TEXT
+);
+
 -- Column bindings: maps semantic intent slots to physical columns.
 -- Created here as an additive guard; populated by the solder engine.
 CREATE TABLE IF NOT EXISTS column_bindings (

@@ -72,4 +72,18 @@ if [ -f tests/test_semantic_scaffolding.py ]; then
   }
 fi
 
+if [ -f tests/test_sql_graph_tables.py ]; then
+  python tests/test_sql_graph_tables.py || {
+    echo "post-merge: SQL graph source table tests failed"
+    exit 1
+  }
+fi
+
+if [ -f replit_integrations/sql_graph_parity_check.py ]; then
+  python replit_integrations/sql_graph_parity_check.py || {
+    echo "post-merge: SQLite <-> graph_metadata.json parity check failed"
+    exit 1
+  }
+fi
+
 echo "post-merge: OK"

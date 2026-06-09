@@ -1,7 +1,7 @@
 {
   "schema_version": 11,
   "milestone": "requirement_perspective_wiring",
-  "synced_at": "2026-06-08T06:21:53.711435+00:00",
+  "synced_at": "2026-06-09T08:27:10.141165+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Canonical structural graph exported from SQLite in the fixed 6-slot composite-key scheme: table + column nodes, has_column edges (table -> column), and references edges (child column -> parent column) built from declared foreign keys, all with unified abbreviated unique_ids. Covers the business ERP tables (schema_* metadata tables excluded \u2014 the graph models the domain, not its own bookkeeping); the semantic ``elevates`` layer is active and node-guarded \u2014 it emits SME-curated column elevations under business perspectives only for columns that are exported nodes.",
   "key_scheme": {

@@ -94,6 +94,51 @@ EDGE_PREDICATE_HAS_COLUMN = "has_column"
 EDGE_PREDICATE_REFERENCES = "references"
 EDGE_PREDICATE_ELEVATES = "elevates"
 
+# SQLite graph source tables. These persist the exact node/edge rows that the
+# graph JSON is serialized FROM, so SQLite is the inspectable source of truth and
+# the JSON is provably a dump of these tables (see _materialize_to_sqlite /
+# _load_nodes_from_sqlite / _load_edges_from_sqlite). One column per JSON field;
+# columns that only apply to one node/edge kind are NULL for the others.
+SQL_GRAPH_NODES_TABLE = "sql_graph_nodes"
+SQL_GRAPH_EDGES_TABLE = "sql_graph_edges"
+
+SQL_GRAPH_DDL = """
+CREATE TABLE IF NOT EXISTS sql_graph_nodes (
+    ordinal       INTEGER NOT NULL,
+    _key          TEXT    NOT NULL PRIMARY KEY,
+    _id           TEXT    NOT NULL,
+    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+    node_family   TEXT    NOT NULL,
+    perspective   TEXT    NOT NULL,
+    table_name    TEXT    NOT NULL,
+    column_name   TEXT,
+    column_slot   TEXT,
+    predicate     TEXT    NOT NULL,
+    unique_id     TEXT    NOT NULL,
+    description   TEXT,
+    column_type   TEXT,
+    "notnull"     INTEGER,
+    default_value TEXT,
+    primary_key   INTEGER,
+    foreign_key   INTEGER
+);
+CREATE TABLE IF NOT EXISTS sql_graph_edges (
+    ordinal           INTEGER NOT NULL,
+    _key              TEXT    NOT NULL PRIMARY KEY,
+    _id               TEXT    NOT NULL,
+    _from             TEXT    NOT NULL,
+    _to               TEXT    NOT NULL,
+    edge_family       TEXT    NOT NULL,
+    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    perspective       TEXT    NOT NULL,
+    unique_id         TEXT    NOT NULL,
+    references_table  TEXT,
+    references_column TEXT,
+    weight            INTEGER,
+    concept           TEXT
+);
+"""
+
 # Unified abbreviated unique_id (slot 5): 3 chars per part, '_'-joined.
 ABBREV_LEN = 3
 
@@ -665,19 +710,154 @@ def _key_scheme_spec() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# SQLite graph source tables — persist the graph, then read the JSON back FROM it
+# ---------------------------------------------------------------------------
+
+def _bool_to_int(value):
+    """Map a JSON boolean (or None) to its SQLite INTEGER storage form."""
+    if value is None:
+        return None
+    return 1 if value else 0
+
+
+def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
+    """Create sql_graph_nodes / sql_graph_edges if they do not yet exist."""
+    conn.executescript(SQL_GRAPH_DDL)
+
+
+def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
+                           column_nodes: list[dict], edges: list[dict]) -> None:
+    """Write the canonical nodes/edges into the SQLite graph source tables.
+
+    The tables are emptied and re-filled in a single transaction so the result
+    is idempotent (re-running on an unchanged schema yields identical rows). An
+    ``ordinal`` column records the exact emission order — table nodes before
+    column nodes, then has_column / references / elevates edges — so the JSON
+    read back from these tables preserves byte-for-byte ordering.
+    """
+    _ensure_sql_graph_tables(conn)
+    with conn:
+        conn.execute(f"DELETE FROM {SQL_GRAPH_NODES_TABLE}")
+        conn.execute(f"DELETE FROM {SQL_GRAPH_EDGES_TABLE}")
+        for i, n in enumerate(table_nodes + column_nodes, start=1):
+            conn.execute(
+                f"INSERT INTO {SQL_GRAPH_NODES_TABLE} "
+                "(ordinal, _key, _id, node_type, node_family, perspective, "
+                "table_name, column_name, column_slot, predicate, unique_id, "
+                "description, column_type, \"notnull\", default_value, primary_key, "
+                "foreign_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    i, n["_key"], n["_id"], n["node_type"], n["node_family"],
+                    n["perspective"], n["table_name"],
+                    n.get("column_name"), n.get("column_slot"),
+                    n["predicate"], n["unique_id"], n.get("description"),
+                    n.get("column_type"), _bool_to_int(n.get("notnull")),
+                    n.get("default_value"), _bool_to_int(n.get("primary_key")),
+                    _bool_to_int(n.get("foreign_key")),
+                ),
+            )
+        for i, e in enumerate(edges, start=1):
+            conn.execute(
+                f"INSERT INTO {SQL_GRAPH_EDGES_TABLE} "
+                "(ordinal, _key, _id, _from, _to, edge_family, edge_type, "
+                "perspective, unique_id, references_table, references_column, "
+                "weight, concept) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    i, e["_key"], e["_id"], e["_from"], e["_to"],
+                    e["edge_family"], e["edge_type"], e["perspective"],
+                    e["unique_id"], e.get("references_table"),
+                    e.get("references_column"), e.get("weight"),
+                    e.get("concept"),
+                ),
+            )
+
+
+def _node_dict_from_row(row: sqlite3.Row) -> dict:
+    """Reconstruct a JSON node dict from a sql_graph_nodes row (exact field set)."""
+    if row["node_type"] == "table":
+        return {
+            "_id": row["_id"],
+            "_key": row["_key"],
+            "node_type": "table",
+            "node_family": row["node_family"],
+            "perspective": row["perspective"],
+            "table_name": row["table_name"],
+            "column_slot": row["column_slot"],
+            "predicate": row["predicate"],
+            "unique_id": row["unique_id"],
+            "description": row["description"] if row["description"] is not None else "",
+        }
+    return {
+        "_id": row["_id"],
+        "_key": row["_key"],
+        "node_type": "column",
+        "node_family": row["node_family"],
+        "perspective": row["perspective"],
+        "table_name": row["table_name"],
+        "column_name": row["column_name"],
+        "predicate": row["predicate"],
+        "unique_id": row["unique_id"],
+        "column_type": row["column_type"],
+        "notnull": bool(row["notnull"]),
+        "default_value": row["default_value"],
+        "primary_key": bool(row["primary_key"]),
+        "foreign_key": bool(row["foreign_key"]),
+    }
+
+
+def _edge_dict_from_row(row: sqlite3.Row) -> dict:
+    """Reconstruct a JSON edge dict from a sql_graph_edges row (exact field set)."""
+    et = row["edge_type"]
+    doc = {
+        "_id": row["_id"],
+        "_key": row["_key"],
+        "_from": row["_from"],
+        "_to": row["_to"],
+        "edge_family": row["edge_family"],
+        "edge_type": et,
+        "perspective": row["perspective"],
+        "unique_id": row["unique_id"],
+    }
+    if et == EDGE_PREDICATE_REFERENCES:
+        doc["references_table"] = row["references_table"]
+        doc["references_column"] = row["references_column"]
+    elif et == EDGE_PREDICATE_ELEVATES:
+        doc["weight"] = row["weight"]
+        doc["concept"] = row["concept"]
+    return doc
+
+
+def _load_nodes_from_sqlite(conn: sqlite3.Connection) -> list[dict]:
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        f"SELECT * FROM {SQL_GRAPH_NODES_TABLE} ORDER BY ordinal"
+    ).fetchall()
+    return [_node_dict_from_row(r) for r in rows]
+
+
+def _load_edges_from_sqlite(conn: sqlite3.Connection) -> list[dict]:
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        f"SELECT * FROM {SQL_GRAPH_EDGES_TABLE} ORDER BY ordinal"
+    ).fetchall()
+    return [_edge_dict_from_row(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
 # Document assembly
 # ---------------------------------------------------------------------------
 
 def _build_graph_document(
-    table_nodes: list[dict],
-    column_nodes: list[dict],
+    nodes: list[dict],
     edges: list[dict],
     integrity: dict,
 ) -> dict:
-    nodes = table_nodes + column_nodes
     edges_by_type: dict[str, int] = {}
     for e in edges:
         edges_by_type[e["edge_type"]] = edges_by_type.get(e["edge_type"], 0) + 1
+    nodes_by_type: dict[str, int] = {}
+    for n in nodes:
+        nodes_by_type[n["node_type"]] = nodes_by_type.get(n["node_type"], 0) + 1
     return {
         "schema_version": SCHEMA_VERSION,
         "milestone": MILESTONE_NAME,
@@ -702,7 +882,10 @@ def _build_graph_document(
         "counts": {
             "nodes_total": len(nodes),
             "edges_total": len(edges),
-            "nodes_by_type": {"table": len(table_nodes), "column": len(column_nodes)},
+            "nodes_by_type": {
+                "table": nodes_by_type.get("table", 0),
+                "column": nodes_by_type.get("column", 0),
+            },
             "edges_by_type": edges_by_type,
         },
         "integrity": integrity,
@@ -745,19 +928,27 @@ def main() -> int:
             table_names = [t["table_name"] for t in table_nodes]
             fk_rows = _fetch_foreign_keys(conn, table_names, pk_map)
             elevation_rows = _fetch_semantic_elevations(conn)
+
+            uid_map = allocate_containment_uids(column_nodes)
+            has_column_edges = _build_has_column_edges(column_nodes, uid_map)
+            node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
+            references_edges = _build_references_edges(fk_rows, node_index, integrity)
+            elevates_edges = _build_elevates_edges(elevation_rows, node_index, integrity)
+            edges = has_column_edges + references_edges + elevates_edges
+
+            # Persist the graph into the SQLite source tables, then read it back
+            # so the JSON we emit is provably a serialization of those tables
+            # (SQLite is the source of truth; the JSON is a dump of it).
+            _materialize_to_sqlite(conn, table_nodes, column_nodes, edges)
+            nodes = _load_nodes_from_sqlite(conn)
+            edges = _load_edges_from_sqlite(conn)
         finally:
             conn.close()
     except sqlite3.Error as exc:
         print(f"ERROR: failed to read schema from SQLite: {exc}", file=sys.stderr)
         return 1
 
-    uid_map = allocate_containment_uids(column_nodes)
-    has_column_edges = _build_has_column_edges(column_nodes, uid_map)
-    node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
-    references_edges = _build_references_edges(fk_rows, node_index, integrity)
-    elevates_edges = _build_elevates_edges(elevation_rows, node_index, integrity)
-    edges = has_column_edges + references_edges + elevates_edges
-    doc = _build_graph_document(table_nodes, column_nodes, edges, integrity)
+    doc = _build_graph_document(nodes, edges, integrity)
 
     try:
         _write_triples(edges, TRIPLES_PATH)
