@@ -15,6 +15,12 @@ of the tables.
 **Why:** the user wanted "SQLite will match the graph" to be provable, not
 asserted — a real SQLite↔graph parity, with files/tables named `sql_*`.
 
+**Design-priority note (from the user):** graph development is on the *critical
+path* because resolving triples depends on structural containment living in the
+graph. So graph design takes precedence over the SQLite relational design — the
+relational schema follows the graph, not vice versa. These `sql_*` tables exist
+to *mirror and prove* the graph, not to independently define the model.
+
 **How to apply:**
 - One column per JSON field; columns that apply to only one node/edge kind are
   NULL for the others. An `ordinal` column records emission order (table nodes
