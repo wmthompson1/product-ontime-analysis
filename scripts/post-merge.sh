@@ -79,6 +79,20 @@ if [ -f tests/test_sql_graph_tables.py ]; then
   }
 fi
 
+if [ -f tests/test_authored_edges_merge.py ]; then
+  python tests/test_authored_edges_merge.py || {
+    echo "post-merge: SME-authored edge merge tests failed"
+    exit 1
+  }
+fi
+
+if [ -f hf-space-inventory-sqlgen/tests/test_commit_edge_sqlite_first.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_commit_edge_sqlite_first.py || {
+    echo "post-merge: SQLite-first canonical edge authoring tests failed"
+    exit 1
+  }
+fi
+
 if [ -f replit_integrations/sql_graph_parity_check.py ]; then
   python replit_integrations/sql_graph_parity_check.py || {
     echo "post-merge: SQLite <-> graph_metadata.json parity check failed"

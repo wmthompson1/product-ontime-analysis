@@ -16,6 +16,7 @@ export type GraphStats = {
   arango_available: boolean;
   collections: Record<string, number>;
   sqlite_bridge_rows: number;
+  sql_graph_authored_rows?: number;
 };
 
 export async function fetchGraphStats(): Promise<GraphStats | null> {

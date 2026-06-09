@@ -705,6 +705,26 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     concept           TEXT
 );
 
+-- SME-authored canonical edges (Define Relationship UI source of truth).
+-- Durable input table: the exporter MERGES these into the materialized
+-- sql_graph_edges every run, so authored relationships survive a re-export
+-- (sql_graph_edges itself is delete+reinsert each export). Absent columns are
+-- stored as '' (not NULL) so the UNIQUE constraint dedupes correctly.
+CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
+    authored_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+    edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    from_table    TEXT    NOT NULL,
+    from_column   TEXT    NOT NULL DEFAULT '',
+    to_table      TEXT    NOT NULL,
+    to_column     TEXT    NOT NULL DEFAULT '',
+    perspective   TEXT    NOT NULL DEFAULT 'system',
+    weight        INTEGER,
+    concept       TEXT,
+    created_by    TEXT    NOT NULL DEFAULT 'define_relationship_ui',
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(edge_type, from_table, from_column, to_table, to_column, perspective)
+);
+
 -- Column bindings: maps semantic intent slots to physical columns.
 -- Created here as an additive guard; populated by the solder engine.
 CREATE TABLE IF NOT EXISTS column_bindings (

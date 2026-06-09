@@ -102,6 +102,13 @@ EDGE_PREDICATE_ELEVATES = "elevates"
 SQL_GRAPH_NODES_TABLE = "sql_graph_nodes"
 SQL_GRAPH_EDGES_TABLE = "sql_graph_edges"
 
+# Durable SME-authoring input table (written by the Define Relationship UI via
+# POST /mcp/tools/commit_edge). The exporter MERGES these rows into the upstream
+# foreign-key / elevation feeds below so authored edges survive the delete+
+# reinsert materialization of sql_graph_edges. has_column authored rows are a
+# no-op here: the derived has_column backbone already covers every column.
+AUTHORED_EDGES_TABLE = "sql_graph_authored_edges"
+
 SQL_GRAPH_DDL = """
 CREATE TABLE IF NOT EXISTS sql_graph_nodes (
     ordinal       INTEGER NOT NULL,
@@ -623,6 +630,104 @@ def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
     return edges
 
 
+def _fetch_authored_edges(conn: sqlite3.Connection) -> list[dict]:
+    """Read SME-authored canonical edges from ``sql_graph_authored_edges``.
+
+    Returns one dict per row. Tolerant if the table does not exist yet (older
+    databases that predate the authoring table) — returns an empty list so the
+    export still runs. Absent columns are stored as '' in the table.
+    """
+    try:
+        rows = conn.execute(
+            f"""
+            SELECT edge_type, from_table, from_column, to_table, to_column,
+                   perspective, weight, concept
+            FROM {AUTHORED_EDGES_TABLE}
+            ORDER BY authored_id
+            """
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    return [dict(r) for r in rows]
+
+
+def _merge_authored_into_sources(
+    authored: list[dict],
+    fk_rows: list[dict],
+    elevation_rows: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """Fold SME-authored edges into the derived foreign-key / elevation feeds.
+
+    Authored rows flow through the SAME node-guarded builders as the derived
+    edges (``_build_references_edges`` / ``_build_elevates_edges``), so an
+    authored edge whose endpoints are not canonical nodes is skipped exactly
+    like a derived one — no special-casing, no dangling edges. Returns the
+    augmented (fk_rows, elevation_rows). De-duplicated against what the derived
+    feeds already contain so authoring an edge that the schema already implies
+    is a no-op.
+
+    Mapping:
+      references → fk row   {child_table, child_column, parent_table, parent_column}
+      elevates   → elevation row {table_name, column_name, perspective, weight,
+                                  concept, relationship}
+      has_column → ignored (the derived has_column backbone already covers every
+                   column; authoring one is recorded for audit but emits nothing)
+    """
+    merged_fks = list(fk_rows)
+    merged_elevations = list(elevation_rows)
+
+    fk_seen = {
+        (r["child_table"], r["child_column"], r["parent_table"], r["parent_column"])
+        for r in merged_fks
+    }
+    elevation_seen = {
+        (r["table_name"], r["column_name"], str(r["perspective"]), str(r["concept"]))
+        for r in merged_elevations
+    }
+
+    for a in authored:
+        etype = a["edge_type"]
+        if etype == EDGE_PREDICATE_REFERENCES:
+            child_col = a["from_column"] or None
+            parent_col = a["to_column"] or None
+            # A column-less FK cannot become a canonical column->column edge.
+            if not (child_col and parent_col):
+                continue
+            key = (a["from_table"], child_col, a["to_table"], parent_col)
+            if key in fk_seen:
+                continue
+            fk_seen.add(key)
+            merged_fks.append(
+                {
+                    "child_table": a["from_table"],
+                    "child_column": child_col,
+                    "parent_table": a["to_table"],
+                    "parent_column": parent_col,
+                }
+            )
+        elif etype == EDGE_PREDICATE_ELEVATES:
+            col = a["from_column"] or None
+            if not col:
+                continue
+            key = (a["from_table"], col, str(a["perspective"]), str(a["concept"]))
+            if key in elevation_seen:
+                continue
+            elevation_seen.add(key)
+            merged_elevations.append(
+                {
+                    "table_name": a["from_table"],
+                    "column_name": col,
+                    "perspective": a["perspective"],
+                    "weight": a["weight"],
+                    "concept": a["concept"],
+                    "relationship": "ELEVATES",
+                }
+            )
+        # has_column authored rows: intentionally ignored (no-op).
+
+    return merged_fks, merged_elevations
+
+
 # ---------------------------------------------------------------------------
 # Canonical key-grammar spec (embedded so the artifact is self-describing)
 # ---------------------------------------------------------------------------
@@ -928,6 +1033,14 @@ def main() -> int:
             table_names = [t["table_name"] for t in table_nodes]
             fk_rows = _fetch_foreign_keys(conn, table_names, pk_map)
             elevation_rows = _fetch_semantic_elevations(conn)
+
+            # Fold SME-authored edges (Define Relationship UI) into the derived
+            # feeds so they survive the delete+reinsert of sql_graph_edges. They
+            # pass through the same node-guarded builders below.
+            authored_rows = _fetch_authored_edges(conn)
+            fk_rows, elevation_rows = _merge_authored_into_sources(
+                authored_rows, fk_rows, elevation_rows
+            )
 
             uid_map = allocate_containment_uids(column_nodes)
             has_column_edges = _build_has_column_edges(column_nodes, uid_map)

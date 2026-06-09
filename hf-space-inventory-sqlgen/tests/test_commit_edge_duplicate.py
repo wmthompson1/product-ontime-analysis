@@ -16,7 +16,11 @@ Live mode (gated on ARANGO_DB env var):
     Connects to a real ArangoDB instance and performs actual UPSERT round-trips,
     counting documents before and after each duplicate call.
 
-Covered predicates: ELEVATES, BOUND_TO, HAS_COLUMN, FOREIGN_KEY, CAN_MEAN
+Covered predicates: BOUND_TO, CAN_MEAN (the ArangoDB-routed predicates).
+
+The canonical predicates (HAS_COLUMN, FOREIGN_KEY, ELEVATES, SUPPRESSES) are now
+SQLite-first — their idempotency/undo behaviour is covered by
+test_commit_edge_sqlite_first.py, not here.
 
 Run:
     python hf-space-inventory-sqlgen/tests/test_commit_edge_duplicate.py
@@ -117,10 +121,7 @@ _SOURCE = "intents/test_source_node"
 _TARGET = "concepts/test_target_node"
 
 _PREDICATE_EXTRAS: dict[str, dict] = {
-    "ELEVATES":     {"intent": "quality_check", "explanation": "test elevation"},
     "BOUND_TO":     {"binding_key": "bk_test", "concept_anchor": "ca_test"},
-    "HAS_COLUMN":   {},
-    "FOREIGN_KEY":  {"from_column": "id", "to_column": "ref_id"},
     "CAN_MEAN":     {},
 }
 
@@ -171,24 +172,9 @@ def _run_mock_duplicate_test(predicate: str):
     )
 
 
-def test_elevates_duplicate_is_idempotent():
-    """ELEVATES: second commit_edge call must not create a duplicate edge."""
-    _run_mock_duplicate_test("ELEVATES")
-
-
 def test_bound_to_duplicate_is_idempotent():
     """BOUND_TO: second commit_edge call must not create a duplicate edge."""
     _run_mock_duplicate_test("BOUND_TO")
-
-
-def test_has_column_duplicate_is_idempotent():
-    """HAS_COLUMN: second commit_edge call must not create a duplicate edge."""
-    _run_mock_duplicate_test("HAS_COLUMN")
-
-
-def test_foreign_key_duplicate_is_idempotent():
-    """FOREIGN_KEY: second commit_edge call must not create a duplicate edge."""
-    _run_mock_duplicate_test("FOREIGN_KEY")
 
 
 def test_can_mean_duplicate_is_idempotent():
@@ -211,10 +197,10 @@ def test_distinct_edges_each_created_once():
     tgt_b = "concepts/node_delta"
 
     with mock.patch("importlib.import_module", side_effect=lambda name: fake_gs if name == "graph_sync" else __import__(name)):
-        _, body_a = _post_edge(client, "HAS_COLUMN", src_a, tgt_a)
+        _, body_a = _post_edge(client, "CAN_MEAN", src_a, tgt_a)
         assert body_a.get("created") is True, f"Edge A first insert must be created=true. Got: {body_a}"
 
-        _, body_b = _post_edge(client, "HAS_COLUMN", src_b, tgt_b)
+        _, body_b = _post_edge(client, "CAN_MEAN", src_b, tgt_b)
         assert body_b.get("created") is True, f"Edge B first insert must be created=true. Got: {body_b}"
 
         assert len(call_tracker["seen_edges"]) == 2, (
@@ -253,10 +239,7 @@ def _live_arango_duplicate_test(predicate: str):
 
     # Map predicate to its ArangoDB collection name for counting
     collection_map = {
-        "ELEVATES":    "elevates",
         "BOUND_TO":    "bound_to",
-        "HAS_COLUMN":  "HAS_COLUMN",
-        "FOREIGN_KEY": "FOREIGN_KEY",
         "CAN_MEAN":    "CAN_MEAN",
     }
     coll_name = collection_map[predicate]
@@ -306,20 +289,8 @@ def _live_arango_duplicate_test(predicate: str):
     )
 
 
-def test_live_elevates_duplicate():
-    _live_arango_duplicate_test("ELEVATES")
-
-
 def test_live_bound_to_duplicate():
     _live_arango_duplicate_test("BOUND_TO")
-
-
-def test_live_has_column_duplicate():
-    _live_arango_duplicate_test("HAS_COLUMN")
-
-
-def test_live_foreign_key_duplicate():
-    _live_arango_duplicate_test("FOREIGN_KEY")
 
 
 def test_live_can_mean_duplicate():
@@ -332,16 +303,10 @@ def test_live_can_mean_duplicate():
 
 def main() -> int:
     tests = [
-        test_elevates_duplicate_is_idempotent,
         test_bound_to_duplicate_is_idempotent,
-        test_has_column_duplicate_is_idempotent,
-        test_foreign_key_duplicate_is_idempotent,
         test_can_mean_duplicate_is_idempotent,
         test_distinct_edges_each_created_once,
-        test_live_elevates_duplicate,
         test_live_bound_to_duplicate,
-        test_live_has_column_duplicate,
-        test_live_foreign_key_duplicate,
         test_live_can_mean_duplicate,
     ]
     failed = 0

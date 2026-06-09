@@ -1494,6 +1494,12 @@ export function DefineRelationship() {
                   <span className="text-emerald-400">schema_intent_perspectives + schema_perspective_concepts</span>
                   <span className="font-semibold tabular-nums text-slate-100 ml-3 shrink-0">{graphStats.sqlite_bridge_rows}</span>
                 </div>
+                {typeof graphStats.sql_graph_authored_rows === "number" && (
+                  <div className="flex items-center justify-between px-3 py-0.5">
+                    <span className="text-emerald-400">sql_graph_authored_edges (SME-authored, SQLite-first)</span>
+                    <span className="font-semibold tabular-nums text-slate-100 ml-3 shrink-0">{graphStats.sql_graph_authored_rows}</span>
+                  </div>
+                )}
 
                 {/* Total */}
                 <div className="flex items-center justify-between px-3 pt-1.5 mt-1 border-t border-slate-700/60">

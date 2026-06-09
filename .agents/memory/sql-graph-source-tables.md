@@ -56,6 +56,34 @@ labels):
 **Why:** "the SQL matches the graph" must hold against the *live* graph, not
 just the static JSON file — triple resolution runs on the live Arango graph.
 
+## SME-authored canonical edges are SQLite-first
+The Define Relationship UI's canonical predicates (HAS_COLUMN→has_column,
+FOREIGN_KEY→references, ELEVATES/SUPPRESSES→elevates) write to a separate SQLite
+table `sql_graph_authored_edges` FIRST; ArangoDB is updated best-effort only and
+its failure never blocks the write. The exporter MERGES those authored rows into
+its derived FK/elevation feeds on every run (`_fetch_authored_edges` +
+`_merge_authored_into_sources`), so authored edges survive the delete+reinsert of
+`sql_graph_*` and flow through export→sync into the live graph.
+
+**Why:** the prior code wrote canonical edges Arango-first, so they vanished on
+the next exporter run (which rebuilds the graph from SQLite). SQLite is the
+source of truth; anything that must persist has to live in SQLite.
+
+**How to apply:**
+- Authored rows are column→column to fold in. The UI sends *table-level* FK
+  (no columns), so column-less `references`/`elevates` authored rows are honestly
+  *skipped* by the merge (no fake column invented); `has_column` is always a
+  no-op (the derived backbone already emits every has_column). Merge de-dupes
+  against rows the derived feeds already contain.
+- Weight is a binary gate: ELEVATES→1, SUPPRESSES→0 (NOT the old +1/−1).
+- ELEVATES requires a non-`system` perspective (commit_edge returns 422 without).
+- Endpoints resolve against `sql_graph_nodes` (the verified source), not the live
+  graph — case-insensitive, stripping ` (suffix)` and any `schema.` prefix.
+- edge_id for undo is `sqlite:sql_graph_authored_edges/<authored_id>`; DELETE on a
+  missing id is 404. graph_stats exposes `sql_graph_authored_rows` but it is NOT
+  added into `total_edges` (avoids double-counting; merged rows show up in the
+  next export's edge total instead).
+
 ## SQLite gotcha: `notnull` is reserved
 `notnull` is the SQLite `x NOTNULL` operator token, so a bare column named
 `notnull` is a syntax error ("near \"notnull\""). It must be double-quoted

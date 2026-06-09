@@ -228,6 +228,21 @@ def ensure_app_metadata_tables(conn) -> None:
             weight            INTEGER,
             concept           TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
+            authored_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+            edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+            from_table    TEXT    NOT NULL,
+            from_column   TEXT    NOT NULL DEFAULT '',
+            to_table      TEXT    NOT NULL,
+            to_column     TEXT    NOT NULL DEFAULT '',
+            perspective   TEXT    NOT NULL DEFAULT 'system',
+            weight        INTEGER,
+            concept       TEXT,
+            created_by    TEXT    NOT NULL DEFAULT 'define_relationship_ui',
+            created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(edge_type, from_table, from_column, to_table, to_column, perspective)
+        );
     """)
     conn.commit()
 
@@ -2300,6 +2315,229 @@ def _resolve_arango_handle(label: str, db, graph_name: str) -> str:
     )
 
 
+# ── Canonical SQLite-first authoring (HAS_COLUMN / FOREIGN_KEY / ELEVATES) ────
+# These predicates have a canonical edge type in the SQLite source of truth, so
+# the Define Relationship UI writes them to sql_graph_authored_edges first; the
+# exporter merges them into sql_graph_edges and the existing sync pipeline
+# carries them to the live ArangoDB graph. ArangoDB is updated best-effort only.
+SQL_GRAPH_NODES_TABLE = "sql_graph_nodes"
+AUTHORED_EDGES_TABLE = "sql_graph_authored_edges"
+CANONICAL_SQLITE_PREDICATES = frozenset({"HAS_COLUMN", "FOREIGN_KEY", "ELEVATES", "SUPPRESSES"})
+
+
+def _resolve_sql_graph_endpoint(conn, label: str, expect: str) -> dict:
+    """Resolve a UI display label to a canonical node in ``sql_graph_nodes``.
+
+    ``expect`` is 'table' or 'column'. The label may carry a ' (source)' suffix
+    and/or a schema prefix (e.g. 'dbo.PART' for a table, 'part.part_id' for a
+    column); matching is case-insensitive against the verified SQLite source so
+    an endpoint that is not a real canonical node is rejected (no dangling edge).
+
+    Returns {table, column, node_id}; raises ValueError when no node matches.
+    """
+    raw = label.split(" (")[0].strip()
+    segs = [s for s in raw.split(".") if s]
+    if not segs:
+        raise ValueError(f"Empty endpoint label: {label!r}")
+
+    if expect == "column":
+        if len(segs) < 2:
+            raise ValueError(
+                f"{label!r} is not a column reference (expected table.column)")
+        table_part, col_part = segs[-2], segs[-1]
+        row = conn.execute(
+            f"SELECT table_name, column_name, _id FROM {SQL_GRAPH_NODES_TABLE} "
+            "WHERE node_type='column' AND LOWER(table_name)=LOWER(?) "
+            "AND LOWER(column_name)=LOWER(?) LIMIT 1",
+            (table_part, col_part),
+        ).fetchone()
+        if row is None:
+            raise ValueError(
+                f"No canonical column node in sql_graph_nodes for {label!r} "
+                f"({table_part}.{col_part})")
+        return {"table": row["table_name"], "column": row["column_name"], "node_id": row["_id"]}
+
+    table_part = segs[-1]
+    row = conn.execute(
+        f"SELECT table_name, _id FROM {SQL_GRAPH_NODES_TABLE} "
+        "WHERE node_type='table' AND LOWER(table_name)=LOWER(?) LIMIT 1",
+        (table_part,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(
+            f"No canonical table node in sql_graph_nodes for {label!r} ({table_part})")
+    return {"table": row["table_name"], "column": None, "node_id": row["_id"]}
+
+
+def _best_effort_arango_canonical_sync(predicate: str, req) -> str:
+    """Mirror a canonical authored edge into the live ArangoDB graph (best-effort).
+
+    Never raises: ArangoDB is downstream of the SQLite source here, so any
+    failure (offline, unresolved handle, write error) is swallowed and reported
+    as a note appended to the response message. Uses the same AQL UPSERT and the
+    same live-graph handle resolution the predicate used before this became
+    SQLite-first, so live behaviour is unchanged — only demoted to secondary.
+    """
+    import importlib
+    try:
+        gs = importlib.import_module("graph_sync")
+        client = gs.get_arango_client()
+        db = gs.get_arango_db(client)
+        graph_name = gs.GRAPH_NAME
+        source_handle = _resolve_arango_handle(req.source_id, db, graph_name)
+        target_handle = _resolve_arango_handle(req.target_id, db, graph_name)
+    except Exception:
+        return "; ArangoDB sync skipped (offline or endpoint unresolved)"
+
+    try:
+        if predicate in ("ELEVATES", "SUPPRESSES"):
+            weight = 1 if predicate == "ELEVATES" else 0
+            aql = """
+            UPSERT { _from: @source, _to: @target }
+            INSERT { _from: @source, _to: @target, weight: @weight,
+                     intent_name: @intent, explanation: @explanation,
+                     category: @category, perspective: @perspective,
+                     created_by: 'define_relationship_ui' }
+            UPDATE { weight: @weight, intent_name: @intent,
+                     explanation: @explanation, category: @category,
+                     perspective: @perspective }
+            IN elevates RETURN NEW
+            """
+            db.aql.execute(aql, bind_vars={
+                "source": source_handle, "target": target_handle, "weight": weight,
+                "intent": req.intent or "", "explanation": req.explanation or f"{predicate} via UI",
+                "category": req.category or "", "perspective": req.perspective or "",
+            })
+        elif predicate == "HAS_COLUMN":
+            aql = """
+            UPSERT { _from: @source, _to: @target }
+            INSERT { _from: @source, _to: @target, category: @category,
+                     perspective: @perspective, created_by: 'define_relationship_ui' }
+            UPDATE { category: @category, perspective: @perspective }
+            IN HAS_COLUMN RETURN NEW
+            """
+            db.aql.execute(aql, bind_vars={
+                "source": source_handle, "target": target_handle,
+                "category": req.category or "", "perspective": req.perspective or "",
+            })
+        elif predicate == "FOREIGN_KEY":
+            aql = """
+            UPSERT { _from: @source, _to: @target }
+            INSERT { _from: @source, _to: @target, from_column: @from_column,
+                     to_column: @to_column, category: @category,
+                     perspective: @perspective, created_by: 'define_relationship_ui' }
+            UPDATE { from_column: @from_column, to_column: @to_column,
+                     category: @category, perspective: @perspective }
+            IN FOREIGN_KEY RETURN NEW
+            """
+            db.aql.execute(aql, bind_vars={
+                "source": source_handle, "target": target_handle,
+                "from_column": req.from_column or "", "to_column": req.to_column or "",
+                "category": req.category or "", "perspective": req.perspective or "",
+            })
+        return "; synced to live ArangoDB"
+    except Exception:
+        return "; ArangoDB sync skipped (write failed)"
+
+
+def _commit_canonical_edge_sqlite_first(predicate: str, req) -> dict:
+    """Write a canonical edge to ``sql_graph_authored_edges`` (source of truth).
+
+    Resolves endpoints against ``sql_graph_nodes``, records the authored edge
+    with duplicate protection (the UNIQUE tuple), then best-effort syncs to the
+    live ArangoDB graph. Returns the standard {ok, created, edge_id, message}.
+    """
+    import sqlite3 as _sqlite3
+    from fastapi import HTTPException
+
+    conn = _sqlite3.connect(SQLITE_DB_PATH)
+    conn.row_factory = _sqlite3.Row
+    try:
+        if predicate == "HAS_COLUMN":
+            try:
+                src = _resolve_sql_graph_endpoint(conn, req.source_id, "table")
+                tgt = _resolve_sql_graph_endpoint(conn, req.target_id, "column")
+            except ValueError as ve:
+                raise HTTPException(status_code=422, detail=str(ve))
+            edge_type = "has_column"
+            fields = dict(from_table=src["table"], from_column="",
+                          to_table=tgt["table"], to_column=tgt["column"],
+                          perspective="system", weight=None, concept=None)
+        elif predicate == "FOREIGN_KEY":
+            try:
+                src = _resolve_sql_graph_endpoint(conn, req.source_id, "table")
+                tgt = _resolve_sql_graph_endpoint(conn, req.target_id, "table")
+            except ValueError as ve:
+                raise HTTPException(status_code=422, detail=str(ve))
+            edge_type = "references"
+            fields = dict(from_table=src["table"], from_column=(req.from_column or ""),
+                          to_table=tgt["table"], to_column=(req.to_column or ""),
+                          perspective="system", weight=None, concept=None)
+        elif predicate in ("ELEVATES", "SUPPRESSES"):
+            persp = (req.perspective or "").strip()
+            if not persp or persp.lower() == "system":
+                raise HTTPException(status_code=422,
+                    detail="ELEVATES/SUPPRESSES requires a business perspective "
+                           "(choose a category other than ALL)")
+            try:
+                tgt = _resolve_sql_graph_endpoint(conn, req.target_id, "column")
+            except ValueError as ve:
+                raise HTTPException(status_code=422,
+                    detail=f"{predicate} target must be a canonical column node: {ve}")
+            edge_type = "elevates"
+            fields = dict(from_table=tgt["table"], from_column=tgt["column"],
+                          to_table=tgt["table"], to_column=tgt["column"],
+                          perspective=persp,
+                          weight=(1 if predicate == "ELEVATES" else 0),
+                          concept=(req.concept_anchor or ""))
+        else:
+            raise HTTPException(status_code=400,
+                detail=f"Not a canonical SQLite predicate: {predicate!r}")
+
+        existing = conn.execute(
+            f"""SELECT authored_id FROM {AUTHORED_EDGES_TABLE}
+                WHERE edge_type=? AND from_table=? AND from_column=?
+                  AND to_table=? AND to_column=? AND perspective=?""",
+            (edge_type, fields["from_table"], fields["from_column"],
+             fields["to_table"], fields["to_column"], fields["perspective"]),
+        ).fetchone()
+        if existing is None:
+            cur = conn.execute(
+                f"""INSERT INTO {AUTHORED_EDGES_TABLE}
+                    (edge_type, from_table, from_column, to_table, to_column,
+                     perspective, weight, concept, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'define_relationship_ui')""",
+                (edge_type, fields["from_table"], fields["from_column"],
+                 fields["to_table"], fields["to_column"], fields["perspective"],
+                 fields["weight"], fields["concept"]),
+            )
+            authored_id = cur.lastrowid
+            created = True
+        else:
+            authored_id = existing["authored_id"]
+            conn.execute(
+                f"UPDATE {AUTHORED_EDGES_TABLE} SET weight=?, concept=? WHERE authored_id=?",
+                (fields["weight"], fields["concept"], authored_id),
+            )
+            created = False
+        conn.commit()
+        edge_id = f"sqlite:{AUTHORED_EDGES_TABLE}/{authored_id}"
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"SQLite authoring write failed: {e}")
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    arango_note = _best_effort_arango_canonical_sync(predicate, req)
+    verb = "authored in SQLite" if created else "already authored in SQLite — updated"
+    return {"ok": True, "created": created, "edge_id": edge_id,
+            "message": f"{predicate} edge {verb}{arango_note}"}
+
+
 @app.post("/mcp/tools/commit_edge")
 async def commit_edge(req: CommitEdgeRequest):
     """Write a new edge (or bridge document) using predicate-based routing.
@@ -2465,7 +2703,11 @@ async def commit_edge(req: CommitEdgeRequest):
         return {"ok": True, "created": row_created, "edge_id": edge_id,
                 "message": f"{ud_msg}{arango_note}"}
 
-    # ── ArangoDB-routed predicates ────────────────────────────────────────────
+    # ── Canonical predicates: SQLite source of truth, ArangoDB best-effort ────
+    if predicate in CANONICAL_SQLITE_PREDICATES:
+        return _commit_canonical_edge_sqlite_first(predicate, req)
+
+    # ── ArangoDB-routed predicates (BOUND_TO, MAPS_TO_CONCEPT/CAN_MEAN) ───────
     try:
         gs = importlib.import_module("graph_sync")
     except Exception as e:
@@ -2488,46 +2730,7 @@ async def commit_edge(req: CommitEdgeRequest):
         raise HTTPException(status_code=422, detail=str(ve))
 
     try:
-        if predicate in ("ELEVATES", "SUPPRESSES"):
-            weight = 1 if predicate == "ELEVATES" else -1
-            aql = """
-            UPSERT { _from: @source, _to: @target }
-            INSERT {
-                _from:       @source,
-                _to:         @target,
-                weight:      @weight,
-                intent_name: @intent,
-                explanation: @explanation,
-                category:    @category,
-                perspective: @perspective,
-                created_by:  'define_relationship_ui'
-            }
-            UPDATE {
-                weight:      @weight,
-                intent_name: @intent,
-                explanation: @explanation,
-                category:    @category,
-                perspective: @perspective
-            }
-            IN elevates
-            RETURN { doc: NEW, created: OLD == null }
-            """
-            result = list(db.aql.execute(aql, bind_vars={
-                "source": source_handle,
-                "target": target_handle,
-                "weight": weight,
-                "intent": req.intent or "",
-                "explanation": req.explanation or f"{predicate} via UI",
-                "category": req.category or "",
-                "perspective": req.perspective or "",
-            }))
-            row = result[0]
-            doc, created = row["doc"], row["created"]
-            msg = (f"{predicate} edge created" if created
-                   else f"{predicate} edge already exists — updated")
-            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
-
-        elif predicate == "BOUND_TO":
+        if predicate == "BOUND_TO":
             aql = """
             UPSERT { _from: @source, _to: @target }
             INSERT {
@@ -2562,65 +2765,6 @@ async def commit_edge(req: CommitEdgeRequest):
                    else "BOUND_TO edge already exists — updated")
             return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
 
-        elif predicate == "HAS_COLUMN":
-            aql = """
-            UPSERT { _from: @source, _to: @target }
-            INSERT {
-                _from:       @source,
-                _to:         @target,
-                category:    @category,
-                perspective: @perspective,
-                created_by:  'define_relationship_ui'
-            }
-            UPDATE { category: @category, perspective: @perspective }
-            IN HAS_COLUMN
-            RETURN { doc: NEW, created: OLD == null }
-            """
-            result = list(db.aql.execute(aql, bind_vars={
-                "source": source_handle, "target": target_handle,
-                "category": req.category or "",
-                "perspective": req.perspective or "",
-            }))
-            row = result[0]
-            doc, created = row["doc"], row["created"]
-            msg = ("HAS_COLUMN edge created" if created
-                   else "HAS_COLUMN edge already exists — updated")
-            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
-
-        elif predicate == "FOREIGN_KEY":
-            aql = """
-            UPSERT { _from: @source, _to: @target }
-            INSERT {
-                _from:       @source,
-                _to:         @target,
-                from_column: @from_column,
-                to_column:   @to_column,
-                category:    @category,
-                perspective: @perspective,
-                created_by:  'define_relationship_ui'
-            }
-            UPDATE {
-                from_column: @from_column,
-                to_column:   @to_column,
-                category:    @category,
-                perspective: @perspective
-            }
-            IN FOREIGN_KEY
-            RETURN { doc: NEW, created: OLD == null }
-            """
-            result = list(db.aql.execute(aql, bind_vars={
-                "source": source_handle, "target": target_handle,
-                "from_column": req.from_column or "",
-                "to_column": req.to_column or "",
-                "category": req.category or "",
-                "perspective": req.perspective or "",
-            }))
-            row = result[0]
-            doc, created = row["doc"], row["created"]
-            msg = ("FOREIGN_KEY edge created" if created
-                   else "FOREIGN_KEY edge already exists — updated")
-            return {"ok": True, "created": created, "edge_id": doc["_id"], "message": msg}
-
         elif predicate in ("MAPS_TO_CONCEPT", "CAN_MEAN"):
             aql = """
             UPSERT { _from: @source, _to: @target }
@@ -2649,8 +2793,9 @@ async def commit_edge(req: CommitEdgeRequest):
         else:
             raise HTTPException(status_code=400,
                 detail=f"Unknown predicate: {req.predicate!r}. "
-                "Supported: ELEVATES, SUPPRESSES, BOUND_TO, HAS_COLUMN, FOREIGN_KEY, "
-                "MAPS_TO_CONCEPT, OPERATES_WITHIN, USES_DEFINITION")
+                "Supported: ELEVATES, SUPPRESSES, HAS_COLUMN, FOREIGN_KEY "
+                "(SQLite-first), BOUND_TO, MAPS_TO_CONCEPT, OPERATES_WITHIN, "
+                "USES_DEFINITION")
 
     except Exception as e:
         if "HTTPException" in type(e).__name__:
@@ -2715,6 +2860,22 @@ async def delete_commit_edge(edge_id: str):
                             f"Bridge row already deleted: "
                             f"intent={intent!r}, perspective={perspective!r}"
                         ))
+                conn.commit()
+
+            elif table_name == "sql_graph_authored_edges":
+                # key format: authored_id (integer PK from the authoring table)
+                try:
+                    authored_id = int(composite_key)
+                except ValueError:
+                    raise HTTPException(status_code=422,
+                        detail=f"Malformed authored edge id: {composite_key!r}")
+                cur = conn.execute(
+                    "DELETE FROM sql_graph_authored_edges WHERE authored_id = ?",
+                    (authored_id,),
+                )
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404,
+                        detail=f"Authored edge already deleted: id={authored_id}")
                 conn.commit()
 
             elif table_name == "schema_perspective_concepts":
@@ -2953,7 +3114,13 @@ async def get_graph_stats():
           },
           "arango_available": bool,
           "sqlite_bridge_rows": int,   # schema_intent_perspectives + schema_perspective_concepts
+          "sql_graph_authored_rows": int,  # SME-authored canonical edges (SQLite source of truth)
         }
+
+    Note: sql_graph_authored_rows is reported separately and is NOT added to
+    total_edges — once the exporter/sync pipeline carries an authored edge to
+    the live ArangoDB graph it is already counted in that collection, so folding
+    it into total_edges would double-count it.
     """
     import importlib
     import sqlite3 as _sqlite3
@@ -2980,13 +3147,19 @@ async def get_graph_stats():
         for col_name in ARANGO_EDGE_COLLECTIONS:
             counts[col_name] = 0
 
-    # SQLite bridge rows (always available locally)
+    # SQLite bridge rows + authored canonical edges (always available locally)
     sqlite_bridge_rows = 0
+    sql_graph_authored_rows = 0
     try:
         conn = _sqlite3.connect(SQLITE_DB_PATH)
         r1 = conn.execute("SELECT COUNT(*) FROM schema_intent_perspectives").fetchone()
         r2 = conn.execute("SELECT COUNT(*) FROM schema_perspective_concepts").fetchone()
         sqlite_bridge_rows = (r1[0] if r1 else 0) + (r2[0] if r2 else 0)
+        try:
+            r3 = conn.execute("SELECT COUNT(*) FROM sql_graph_authored_edges").fetchone()
+            sql_graph_authored_rows = r3[0] if r3 else 0
+        except Exception:
+            sql_graph_authored_rows = 0
         conn.close()
     except Exception:
         pass
@@ -2998,6 +3171,7 @@ async def get_graph_stats():
         "collections": counts,
         "arango_available": arango_available,
         "sqlite_bridge_rows": sqlite_bridge_rows,
+        "sql_graph_authored_rows": sql_graph_authored_rows,
     }
 
 

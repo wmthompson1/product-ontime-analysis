@@ -10,8 +10,10 @@ materializes and then serializes graph_metadata.json FROM.  SQLite is the source
 of truth; the JSON is provably a dump of these rows.
 
 Tables created:
-  - sql_graph_nodes   table + column nodes (one column per JSON node field)
-  - sql_graph_edges   has_column + references + elevates edges
+  - sql_graph_nodes           table + column nodes (one column per JSON node field)
+  - sql_graph_edges           has_column + references + elevates edges
+  - sql_graph_authored_edges  durable SME-authored edges (Define Relationship UI)
+                              that the exporter merges into sql_graph_edges
 
 Usage:
     python migrations/add_sql_graph_tables.py [--db PATH]
@@ -65,9 +67,25 @@ DDL_STATEMENTS = [
         concept           TEXT
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
+        authored_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+        from_table    TEXT    NOT NULL,
+        from_column   TEXT    NOT NULL DEFAULT '',
+        to_table      TEXT    NOT NULL,
+        to_column     TEXT    NOT NULL DEFAULT '',
+        perspective   TEXT    NOT NULL DEFAULT 'system',
+        weight        INTEGER,
+        concept       TEXT,
+        created_by    TEXT    NOT NULL DEFAULT 'define_relationship_ui',
+        created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(edge_type, from_table, from_column, to_table, to_column, perspective)
+    )
+    """,
 ]
 
-TARGET_TABLES = {"sql_graph_nodes", "sql_graph_edges"}
+TARGET_TABLES = {"sql_graph_nodes", "sql_graph_edges", "sql_graph_authored_edges"}
 
 
 def get_existing_tables(conn: sqlite3.Connection) -> set:
