@@ -51,6 +51,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_sync_masking_to_dab_config.py ]; th
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_masking_matrix.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_masking_matrix.py || {
+    echo "post-merge: masking matrix tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py ]; then
   python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py || {
     echo "post-merge: graph reconstructor tests failed"

@@ -71,6 +71,7 @@ APP_METADATA_TABLES: set = {
     "dab_field_definitions",
     "column_bindings",
     "column_masking_policies",
+    "masking_matrix",
 }
 
 from bridge_health import (
@@ -212,6 +213,20 @@ def ensure_app_metadata_tables(conn) -> None:
             PRIMARY KEY (source_database, schema_name, table_name, column_name)
         );
 
+        CREATE TABLE IF NOT EXISTS masking_matrix (
+            dag_no           TEXT    NOT NULL PRIMARY KEY,
+            table_name       TEXT    NOT NULL,
+            column_name      TEXT    NOT NULL DEFAULT '',
+            parent_table     TEXT    NOT NULL DEFAULT '',
+            parent_column    TEXT    NOT NULL DEFAULT '',
+            masking_rule     TEXT,
+            masking_type     TEXT,
+            masking_mode     INTEGER NOT NULL DEFAULT 1,
+            pre_stage_server TEXT,
+            status           TEXT    NOT NULL DEFAULT 'active'
+                CHECK(status IN ('active', 'static', 'complete'))
+        );
+
         CREATE TABLE IF NOT EXISTS sql_graph_nodes (
             ordinal       INTEGER NOT NULL,
             _key          TEXT    NOT NULL PRIMARY KEY,
@@ -296,6 +311,21 @@ def init_sqlite_db():
         print(f"Database init warning: {e}")
     finally:
         conn.close()
+
+    # Keep the masking matrix CSV (certificate_for_receiving/masking_matrix.csv)
+    # and the SQLite masking_matrix table in sync on every startup: load the
+    # human-editable CSV into SQLite (idempotent upsert). Wrapped so a missing or
+    # hand-edited CSV never blocks boot.
+    try:
+        from masking_matrix import load_matrix_from_csv, DEFAULT_CSV_PATH
+        if os.path.exists(DEFAULT_CSV_PATH):
+            _mm = load_matrix_from_csv(csv_path=DEFAULT_CSV_PATH, db_path=SQLITE_DB_PATH)
+            if _mm.get("ok"):
+                print(f"masking_matrix: synced {_mm.get('loaded', 0)} row(s) from CSV.")
+            else:
+                print(f"masking_matrix sync warning: {_mm.get('error')}")
+    except Exception as e:
+        print(f"masking_matrix sync warning: {e}")
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""

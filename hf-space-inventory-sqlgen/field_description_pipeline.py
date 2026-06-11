@@ -45,6 +45,7 @@ _METADATA_TABLES = {
     "dab_field_definitions",
     "column_bindings",
     "column_masking_policies",
+    "masking_matrix",
 }
 
 # Abbreviations expanded when humanizing a column/table name into a display name.

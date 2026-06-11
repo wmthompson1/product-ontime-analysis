@@ -682,6 +682,28 @@ CREATE TABLE IF NOT EXISTS column_masking_policies (
     PRIMARY KEY (source_database, schema_name, table_name, column_name)
 );
 
+-- Masking matrix: the column-masking DAG, one row per masked column. Mirrors the
+-- root CSV certificate_for_receiving/masking_matrix.csv (the human-editable copy)
+-- and is kept in sync by masking_matrix.py. Distinct from column_masking_policies
+-- (the SME strategy tab) — the two live side by side. dag_no is the DAG node id
+-- and primary key; parent_table/parent_column carry lineage. status static/complete
+-- means the row is certified/locked (data already pulled into SQLMesh), active means
+-- still in progress. masking_rule notates the transform, e.g. hash_sha256(col,length)
+-- = SHA-256(value+salt) hashed to the same width as the field in the schema.
+CREATE TABLE IF NOT EXISTS masking_matrix (
+    dag_no           TEXT    NOT NULL PRIMARY KEY,
+    table_name       TEXT    NOT NULL,
+    column_name      TEXT    NOT NULL DEFAULT '',
+    parent_table     TEXT    NOT NULL DEFAULT '',
+    parent_column    TEXT    NOT NULL DEFAULT '',
+    masking_rule     TEXT,
+    masking_type     TEXT,
+    masking_mode     INTEGER NOT NULL DEFAULT 1,
+    pre_stage_server TEXT,
+    status           TEXT    NOT NULL DEFAULT 'active'
+        CHECK(status IN ('active', 'static', 'complete'))
+);
+
 -- SQL graph source tables: hold the full canonical graph (nodes + edges in the
 -- fixed 6-slot composite-key form) that replit_integrations/export_graph_metadata.py
 -- materializes and then serializes graph_metadata.json FROM. SQLite is the source
