@@ -8,7 +8,7 @@ strategy/rationale authoring surface) — the two live side by side.
 
 The matrix lives in two places that stay in sync:
 
-  - a human-editable CSV at the repo root: ``certificate_for_receiving/masking_matrix.csv``
+  - a human-editable CSV at the repo root: ``masking_matrix.csv``
   - the SQLite ``masking_matrix`` table (the queryable runtime copy)
 
 The CSV is the authored "certificate": once a row's data has been pulled into
@@ -47,10 +47,9 @@ from field_description_pipeline import DEFAULT_DB_PATH  # noqa: E402
 _HF_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(_HF_DIR)
 
-# The root-level CSV "certificate" that mirrors the masking_matrix table.
-DEFAULT_CSV_PATH = os.path.join(
-    _REPO_ROOT, "certificate_for_receiving", "masking_matrix.csv"
-)
+# The root-level CSV that mirrors the masking_matrix table (the SME-facing copy
+# used for approval; the app can write it back).
+DEFAULT_CSV_PATH = os.path.join(_REPO_ROOT, "masking_matrix.csv")
 
 # The CSV column order — also the table's user-facing column order.
 MATRIX_COLUMNS: tuple = (
@@ -148,6 +147,24 @@ def _dag_sort_key(dag_no: str):
     return parts
 
 
+def _to_int(value: Any, default: int) -> int:
+    """Coerce a CSV/grid cell to int, tolerating '30' / '30.0' / '' / junk.
+
+    The grid editor can hand back floats (``30.0``) or blanks for the numeric
+    columns, so plain ``int(str)`` is not enough.
+    """
+    s = str(value if value is not None else "").strip()
+    if not s:
+        return default
+    try:
+        return int(s)
+    except ValueError:
+        try:
+            return int(float(s))
+        except ValueError:
+            return default
+
+
 def _clean_row(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Normalize one CSV/DB row into the canonical typed shape.
 
@@ -164,17 +181,9 @@ def _clean_row(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if not dag_no:
         return None
 
-    mode_raw = g("masking_mode")
-    try:
-        masking_mode = int(mode_raw) if mode_raw else 1
-    except ValueError:
-        masking_mode = 1
+    masking_mode = _to_int(g("masking_mode"), 1)
 
-    len_raw = g("field_length")
-    try:
-        field_length = int(len_raw) if len_raw else 0
-    except ValueError:
-        field_length = 0
+    field_length = _to_int(g("field_length"), 0)
     if field_length < 0:
         field_length = 0
 
@@ -392,6 +401,72 @@ def mask_row_value(
     return hash_sha256(value, length, salt=salt, salt_env=salt_env)
 
 
+# ── the UI save path: replace the table from edited rows, mirror to the CSV ──
+
+
+def replace_matrix(
+    rows: List[Dict[str, Any]],
+    db_path: str = DEFAULT_DB_PATH,
+    csv_path: str = DEFAULT_CSV_PATH,
+) -> Dict[str, Any]:
+    """Replace the entire ``masking_matrix`` table with *rows*, mirror to the CSV.
+
+    The UI save path: *rows* come from the edited grid. Each is normalized via
+    ``_clean_row`` (rows without a ``dag_no`` are dropped); a duplicate ``dag_no``
+    (the primary key) is rejected; an all-empty input is refused so the matrix is
+    never silently wiped. On success the table is replaced in a single
+    transaction and the CSV — the SME-facing copy used for approval — is rewritten
+    in DAG order. Returns ``{"ok", "saved", "csv_written", "csv_path"}`` or
+    ``{"ok": False, "error"}``.
+    """
+    cleaned: List[Dict[str, Any]] = []
+    seen = set()
+    for raw in rows or []:
+        c = _clean_row(raw)
+        if c is None:
+            continue
+        if c["dag_no"] in seen:
+            return {"ok": False, "error": f"duplicate dag_no '{c['dag_no']}'"}
+        seen.add(c["dag_no"])
+        cleaned.append(c)
+    if not cleaned:
+        return {
+            "ok": False,
+            "error": "refusing to save an empty matrix (no rows with a dag_no)",
+        }
+    conn = sqlite3.connect(db_path)
+    try:
+        ensure_table(conn)
+        conn.execute("DELETE FROM masking_matrix")
+        for r in cleaned:
+            conn.execute(
+                """
+                INSERT INTO masking_matrix
+                    (dag_no, table_name, column_name, parent_table, parent_column,
+                     masking_rule, masking_type, field_length, masking_mode,
+                     pre_stage_server, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (r["dag_no"], r["table_name"], r["column_name"], r["parent_table"],
+                 r["parent_column"], r["masking_rule"], r["masking_type"],
+                 r["field_length"], r["masking_mode"], r["pre_stage_server"],
+                 r["status"]),
+            )
+        conn.commit()
+    except sqlite3.Error as exc:
+        conn.rollback()
+        return {"ok": False, "error": str(exc)}
+    finally:
+        conn.close()
+    written = export_matrix_to_csv(db_path=db_path, csv_path=csv_path)
+    return {
+        "ok": True,
+        "saved": len(cleaned),
+        "csv_written": written,
+        "csv_path": csv_path,
+    }
+
+
 __all__ = [
     "MATRIX_COLUMNS",
     "MATRIX_STATUSES",
@@ -405,6 +480,7 @@ __all__ = [
     "load_matrix_from_csv",
     "read_matrix",
     "export_matrix_to_csv",
+    "replace_matrix",
     "write_default_csv",
     "count_rows",
     "get_salt",
