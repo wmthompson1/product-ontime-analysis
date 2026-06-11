@@ -2,7 +2,8 @@ name: Auto-sync graph when bridge data changes
 
 on:
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 2 * * *'   # daily bridge → ArangoDB sync
+    - cron: '0 3 * * 0'   # weekly self-healing prune (Sundays 03:00 UTC, opt-in)
   push:
     branches: [ main ]
     paths:
@@ -90,6 +91,129 @@ jobs:
         env:
           DRIFT_REPORT_PATH: ${{ github.workspace }}/drift_report.txt
         run: python tests/test_bridge_collection_health.py
+
+      # ──────────────────────────────────────────────────────────────────────
+      # Weekly self-healing prune  [OPT-IN]
+      #
+      # The prune pass removes ArangoDB containment vertices/edges for tables
+      # that no longer exist in SQLite (e.g. after a table drop). It is gated
+      # behind the GRAPH_PRUNE_STALE repository variable (set to "1") so it is
+      # opt-in per environment, and only runs on the weekly schedule cron
+      # ('0 3 * * 0') or a manual workflow_dispatch — never on the daily sync
+      # or push-triggered runs. `graph_sync.py --purge-stale` is the same
+      # self-healing pass an operator would run by hand; this just automates it
+      # on a configurable cadence without touching the (always-on) safety gate.
+      # ──────────────────────────────────────────────────────────────────────
+      - name: Weekly prune of stale containment (opt-in)
+        id: prune
+        if: >-
+          ${{ vars.GRAPH_PRUNE_STALE == '1'
+              && github.event.inputs.dry_run != 'true'
+              && env.ARANGO_HOST != ''
+              && (github.event.schedule == '0 3 * * 0' || github.event_name == 'workflow_dispatch') }}
+        working-directory: hf-space-inventory-sqlgen
+        run: |
+          # Capture the prune exit code without aborting (default shell is
+          # `bash -eo pipefail`), so the parsing block can populate the env vars
+          # / step outputs the notify steps read, then propagate the real status.
+          set +e
+          python graph_sync.py --purge-stale 2>&1 | tee /tmp/prune_output.txt
+          PRUNE_EXIT=${PIPESTATUS[0]}
+          set -e
+          python3 - <<'PYEOF'
+import re, os
+content = open('/tmp/prune_output.txt').read()
+tables = columns = edges = 0
+hdr = re.search(r'Stale containment \((?:would prune|pruned): (\d+) vertices, (\d+) edges\)', content)
+if hdr:
+    edges = int(hdr.group(2))
+tm = re.search(r'^\s*tables:\s*(\d+) vertices', content, re.MULTILINE)
+if tm:
+    tables = int(tm.group(1))
+cm = re.search(r'^\s*columns:\s*(\d+) vertices', content, re.MULTILINE)
+if cm:
+    columns = int(cm.group(1))
+env_path = os.environ.get('GITHUB_ENV')
+if env_path:
+    with open(env_path, 'a') as fh:
+        fh.write(f'PRUNED_TABLES={tables}\n')
+        fh.write(f'PRUNED_COLUMNS={columns}\n')
+        fh.write(f'PRUNED_EDGES={edges}\n')
+out_path = os.environ.get('GITHUB_OUTPUT')
+if out_path:
+    with open(out_path, 'a') as fh:
+        fh.write(f'pruned_tables={tables}\n')
+        fh.write(f'pruned_columns={columns}\n')
+        fh.write(f'pruned_edges={edges}\n')
+PYEOF
+          # Propagate the prune's real status so a failure still fires the
+          # "Notify on failure" Slack alert below.
+          exit "$PRUNE_EXIT"
+
+      - name: Notify on prune (stale tables removed)
+        if: ${{ steps.prune.outputs.pruned_tables != '' && steps.prune.outputs.pruned_tables != '0' }}
+        env:
+          GRAPH_SYNC_ALERT_WEBHOOK: ${{ secrets.GRAPH_SYNC_ALERT_WEBHOOK }}
+        run: |
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          PRUNED_TABLES="${{ steps.prune.outputs.pruned_tables }}"
+          PRUNED_COLUMNS="${{ steps.prune.outputs.pruned_columns }}"
+          PRUNED_EDGES="${{ steps.prune.outputs.pruned_edges }}"
+
+          # Write a GitHub Actions step summary visible in the workflow UI
+          {
+            echo "## :broom: Weekly Stale Prune"
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| **Time (UTC)** | ${TS} |"
+            echo "| **Workflow run** | [View logs](${RUN_URL}) |"
+            echo "| **Branch** | \`${{ github.ref_name }}\` |"
+            echo "| **Tables pruned** | ${PRUNED_TABLES} |"
+            echo "| **Columns pruned** | ${PRUNED_COLUMNS} |"
+            echo "| **Edges pruned** | ${PRUNED_EDGES} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Optionally POST a Slack Block Kit alert if the webhook secret is set
+          if [ -n "${GRAPH_SYNC_ALERT_WEBHOOK}" ]; then
+            PAYLOAD=$(TS="${TS}" RUN_URL="${RUN_URL}" BRANCH="${{ github.ref_name }}" PRUNED_TABLES="${PRUNED_TABLES}" PRUNED_COLUMNS="${PRUNED_COLUMNS}" PRUNED_EDGES="${PRUNED_EDGES}" python3 - <<'PYEOF'
+import datetime, json, os
+
+ts      = os.environ["TS"]
+run_url = os.environ["RUN_URL"]
+branch  = os.environ.get("BRANCH", "")
+pt      = os.environ.get("PRUNED_TABLES", "0")
+pc      = os.environ.get("PRUNED_COLUMNS", "0")
+pe      = os.environ.get("PRUNED_EDGES", "0")
+
+blocks = [
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": ":broom: Weekly Stale Prune"}
+    },
+    {"type": "section", "fields": [
+        {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
+        {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
+        {"type": "mrkdwn", "text": f"*Tables pruned:*\n{pt}"},
+        {"type": "mrkdwn", "text": f"*Columns pruned:*\n{pc}"},
+        {"type": "mrkdwn", "text": f"*Edges pruned:*\n{pe}"},
+    ]},
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": f"Stale containment removed from ArangoDB to match SQLite.\n<{run_url}|View workflow run>"
+        }
+    },
+]
+print(json.dumps({"blocks": blocks}))
+PYEOF
+            )
+            curl -sS -o /dev/null -w "Slack webhook HTTP status: %{http_code}\n" \
+              -X POST -H "Content-Type: application/json" \
+              -d "${PAYLOAD}" \
+              "${GRAPH_SYNC_ALERT_WEBHOOK}"
+          fi
 
       - name: Skip live sync (no ArangoDB secrets or dry-run requested)
         if: ${{ github.event.inputs.dry_run == 'true' || env.ARANGO_HOST == '' }}
@@ -225,6 +349,11 @@ PYEOF
             echo ""
             echo "### Sweep 2 Column Parity"
             echo "${SWEEP2_SUMMARY}"
+            if [ -n "${PRUNED_TABLES:-}" ] && [ "${PRUNED_TABLES:-0}" != "0" ]; then
+              echo ""
+              echo "### Stale Prune"
+              echo ":broom: ${PRUNED_TABLES} stale table(s), ${PRUNED_COLUMNS:-0} column(s), ${PRUNED_EDGES:-0} edge(s) pruned"
+            fi
             if [ -n "${DRIFT_DETAILS}" ]; then
               echo ""
               echo "### Drift Details"
@@ -238,7 +367,7 @@ PYEOF
 
           # Optionally POST to Slack webhook if secret is configured
           if [ -n "${GRAPH_SYNC_ALERT_WEBHOOK}" ]; then
-            PAYLOAD=$(SWEEP1_STATUS="${SWEEP1_STATUS}" SWEEP1_GAP_COUNT="${SWEEP1_GAP_COUNT}" SWEEP2_STATUS="${SWEEP2_STATUS}" SWEEP2_MISSING_COUNT="${SWEEP2_MISSING_COUNT}" python3 - <<'PYEOF'
+            PAYLOAD=$(SWEEP1_STATUS="${SWEEP1_STATUS}" SWEEP1_GAP_COUNT="${SWEEP1_GAP_COUNT}" SWEEP2_STATUS="${SWEEP2_STATUS}" SWEEP2_MISSING_COUNT="${SWEEP2_MISSING_COUNT}" PRUNED_TABLES="${PRUNED_TABLES:-}" PRUNED_COLUMNS="${PRUNED_COLUMNS:-}" PRUNED_EDGES="${PRUNED_EDGES:-}" python3 - <<'PYEOF'
 import datetime, json, os
 
 ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -290,6 +419,20 @@ blocks = [
         "text": {"type": "mrkdwn", "text": sweep2_text}
     },
 ]
+pruned_tables  = os.environ.get("PRUNED_TABLES", "")
+pruned_columns = os.environ.get("PRUNED_COLUMNS", "")
+pruned_edges   = os.environ.get("PRUNED_EDGES", "")
+if pruned_tables and pruned_tables != "0":
+    blocks.append({
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": (
+                f":broom: *Stale prune:* {pruned_tables} table(s), "
+                f"{pruned_columns or '0'} column(s), {pruned_edges or '0'} edge(s) pruned"
+            )
+        }
+    })
 if drift:
     blocks.append({
         "type": "section",
