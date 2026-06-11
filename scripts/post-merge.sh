@@ -37,6 +37,20 @@ if [ -f hf-space-inventory-sqlgen/tests/test_field_description_pipeline.py ]; th
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py || {
+    echo "post-merge: masking policy pipeline tests failed"
+    exit 1
+  }
+fi
+
+if [ -f hf-space-inventory-sqlgen/tests/test_sync_masking_to_dab_config.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_sync_masking_to_dab_config.py || {
+    echo "post-merge: masking DAB sync tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py ]; then
   python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py || {
     echo "post-merge: graph reconstructor tests failed"

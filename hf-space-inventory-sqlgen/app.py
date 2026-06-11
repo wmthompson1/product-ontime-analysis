@@ -47,6 +47,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from solder_engine import SolderEngine
 from production_dispatcher import ProductionDispatcher
 from field_description_pipeline import draft_field_description, compute_field_coverage
+from masking_policy_pipeline import (
+    MASKING_STRATEGIES,
+    suggest_masking_strategy,
+    compute_masking_coverage,
+)
 
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 QUERIES_DIR = os.path.join(SCHEMA_DIR, "queries")
@@ -65,6 +70,7 @@ APP_METADATA_TABLES: set = {
     "schema_topology_metadata",
     "dab_field_definitions",
     "column_bindings",
+    "column_masking_policies",
 }
 
 from bridge_health import (
@@ -191,6 +197,19 @@ def ensure_app_metadata_tables(conn) -> None:
             column_name TEXT    NOT NULL,
             created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(intent_name, slot_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS column_masking_policies (
+            source_database  TEXT    NOT NULL,
+            schema_name      TEXT    NOT NULL,
+            table_name       TEXT    NOT NULL,
+            column_name      TEXT    NOT NULL,
+            masking_strategy TEXT    NOT NULL DEFAULT 'none'
+                CHECK(masking_strategy IN ('none', 'hash', 'partial', 'redact')),
+            rationale        TEXT,
+            certified        INTEGER NOT NULL DEFAULT 0 CHECK(certified IN (0, 1)),
+            updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (source_database, schema_name, table_name, column_name)
         );
 
         CREATE TABLE IF NOT EXISTS sql_graph_nodes (
@@ -419,6 +438,8 @@ def get_unified_schema() -> Dict[str, Dict[str, Any]]:
          example_value per column (matched on table_name + column_name within
          the configured source_database / schema_name defaults).
       3. dab_field_definitions overlay — adds field_definition, certified.
+      4. column_masking_policies overlay — adds masking_strategy,
+         masking_rationale, masking_certified.
 
     Orphaned metadata rows (no matching structural column) are silently skipped
     so stale rows never corrupt the output.
@@ -430,6 +451,8 @@ def get_unified_schema() -> Dict[str, Dict[str, Any]]:
             "type": "TEXT", "notnull": 0, "pk": 0,
             "display_name": ..., "description": ..., "example_value": ...,
             "field_definition": ..., "certified": 0,
+            "masking_strategy": ..., "masking_rationale": ...,
+            "masking_certified": 0,
           }
         }
       }
@@ -462,6 +485,18 @@ def get_unified_schema() -> Dict[str, Dict[str, Any]]:
             if tbl in schema and col in schema[tbl]:
                 schema[tbl][col]["field_definition"] = field_def
                 schema[tbl][col]["certified"]        = certified
+
+        # ── overlay 4: column_masking_policies ────────────────────────────────
+        cur.execute("""
+            SELECT table_name, column_name, masking_strategy, rationale, certified
+            FROM   column_masking_policies
+            WHERE  source_database = ? AND schema_name = ?
+        """, (SQL_MCP_SOURCE_DATABASE, SQL_MCP_DEFAULT_SCHEMA))
+        for tbl, col, strategy, rationale, mask_cert in cur.fetchall():
+            if tbl in schema and col in schema[tbl]:
+                schema[tbl][col]["masking_strategy"]  = strategy
+                schema[tbl][col]["masking_rationale"] = rationale
+                schema[tbl][col]["masking_certified"] = mask_cert
 
         conn.close()
     except Exception as exc:
@@ -618,6 +653,126 @@ def save_dab_field_definition(
                 updated_at       = CURRENT_TIMESTAMP
         """, (source_database, schema_name, table_name, column_name,
               field_definition, certified_int))
+        conn.commit()
+        conn.close()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def get_column_masking_record(
+    table_name: str,
+    column_name: str,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Optional[Dict[str, Any]]:
+    """Return the column_masking_policies row for a column, or None if absent."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT masking_strategy, rationale, certified, updated_at
+            FROM   column_masking_policies
+            WHERE  source_database = ? AND schema_name = ?
+              AND  table_name = ? AND column_name = ?
+        """, (source_database, schema_name, table_name, column_name))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            return {
+                "source_database":  source_database,
+                "schema_name":      schema_name,
+                "table_name":       table_name,
+                "column_name":      column_name,
+                "masking_strategy": row[0],
+                "rationale":        row[1],
+                "certified":        bool(row[2]),
+                "updated_at":       row[3],
+            }
+        return None
+    except Exception as exc:
+        print(f"get_column_masking_record warning: {exc}")
+        return None
+
+
+def save_column_masking_policy(
+    table_name: str,
+    column_name: str,
+    masking_strategy: str,
+    rationale: Optional[str] = None,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Dict[str, Any]:
+    """Upsert a column_masking_policies row (the *save* step).
+
+    Validates structural column existence and the strategy vocabulary before
+    writing. Never changes the certified flag (so saving does not un-certify).
+    Returns {"ok": True} or {"ok": False, "error": "..."}.
+    """
+    import sqlite3
+    if not _validate_column_exists(table_name, column_name):
+        return {"ok": False, "error": f"Column '{table_name}.{column_name}' not found in structural schema."}
+    strategy = (masking_strategy or "none").lower()
+    if strategy not in MASKING_STRATEGIES:
+        return {"ok": False, "error": f"Unknown masking strategy: {masking_strategy!r}"}
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.execute("""
+            INSERT INTO column_masking_policies
+                (source_database, schema_name, table_name, column_name,
+                 masking_strategy, rationale, certified, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+            ON CONFLICT(source_database, schema_name, table_name, column_name)
+            DO UPDATE SET
+                masking_strategy = excluded.masking_strategy,
+                rationale        = excluded.rationale,
+                updated_at       = CURRENT_TIMESTAMP
+        """, (source_database, schema_name, table_name, column_name,
+              strategy, rationale))
+        conn.commit()
+        conn.close()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+def certify_column_masking_policy(
+    table_name: str,
+    column_name: str,
+    masking_strategy: str,
+    rationale: Optional[str] = None,
+    certified: bool = False,
+    source_database: str = SQL_MCP_SOURCE_DATABASE,
+    schema_name: str = SQL_MCP_DEFAULT_SCHEMA,
+) -> Dict[str, Any]:
+    """Upsert a column_masking_policies row including the certified flag.
+
+    Validates structural column existence and the strategy vocabulary before
+    writing. Returns {"ok": True} or {"ok": False, "error": "..."}.
+    """
+    import sqlite3
+    if not _validate_column_exists(table_name, column_name):
+        return {"ok": False, "error": f"Column '{table_name}.{column_name}' not found in structural schema."}
+    strategy = (masking_strategy or "none").lower()
+    if strategy not in MASKING_STRATEGIES:
+        return {"ok": False, "error": f"Unknown masking strategy: {masking_strategy!r}"}
+    certified_int = 1 if certified else 0
+    try:
+        conn = sqlite3.connect(SQLITE_DB_PATH)
+        conn.execute("""
+            INSERT INTO column_masking_policies
+                (source_database, schema_name, table_name, column_name,
+                 masking_strategy, rationale, certified, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(source_database, schema_name, table_name, column_name)
+            DO UPDATE SET
+                masking_strategy = excluded.masking_strategy,
+                rationale        = excluded.rationale,
+                certified        = excluded.certified,
+                updated_at       = CURRENT_TIMESTAMP
+        """, (source_database, schema_name, table_name, column_name,
+              strategy, rationale, certified_int))
         conn.commit()
         conn.close()
         return {"ok": True}
@@ -5600,6 +5755,252 @@ Check that perspective-concept and intent-concept relationships are seeded.
             fd_publish_btn.click(fn=_fd_publish, outputs=[fd_status_md, fd_overall_md])
             demo.load(fn=_fd_load_entities, outputs=fd_entity_dd)
             demo.load(fn=_fd_overall, outputs=fd_overall_md)
+
+        with gr.Tab("🔒 Data Masking"):
+            gr.Markdown(
+                "### Column Masking Policies — Data Masking Authoring\n"
+                "Source: **SQLite** (`column_masking_policies`) overlaid on the "
+                "structural schema. This tab is the local stand-in for the "
+                "company DAB's masking layer: pick a masking **strategy** per "
+                "column, certify it, then **Publish to DAB** to flow certified "
+                "policies into `dab_config.json` (each field's `masking` "
+                "attribute).\n\n"
+                "Strategies: **none** (no masking) · **hash** (irreversible, "
+                "stays joinable) · **partial** (keeps part of the value) · "
+                "**redact** (fully hidden). _Suggest strategy_ is deterministic "
+                "(name-based heuristic, no API cost) — there is no AI on this tab."
+            )
+
+            mk_overall_md = gr.Markdown(value="_Loading overall coverage…_")
+
+            with gr.Row():
+                mk_entity_dd = gr.Dropdown(
+                    label="Entity (table)",
+                    choices=[],
+                    value=None,
+                    interactive=True,
+                    scale=2,
+                )
+                mk_refresh_btn = gr.Button("↺ Refresh", scale=1, size="sm")
+
+            mk_entity_info = gr.Markdown(value="_Select an entity above._")
+
+            mk_fields_table = gr.Dataframe(
+                headers=["Column", "Type", "PK", "Masking Strategy", "Rationale", "Certified"],
+                datatype=["str", "str", "str", "str", "str", "str"],
+                label="Masking Policies (unified schema)",
+                interactive=False,
+                wrap=True,
+            )
+
+            gr.Markdown("---\n#### 🔒 Author / Certify a Masking Policy")
+
+            with gr.Row():
+                mk_col_dd = gr.Dropdown(
+                    label="Column", choices=[], value=None, interactive=True, scale=2,
+                )
+                mk_load_field_btn = gr.Button("Load", scale=1, size="sm")
+
+            with gr.Row():
+                mk_strategy_dd = gr.Dropdown(
+                    label="Masking Strategy",
+                    choices=list(MASKING_STRATEGIES),
+                    value="none",
+                    interactive=True,
+                    scale=1,
+                )
+            mk_rationale_tb = gr.Textbox(
+                label="Rationale (why this column is masked this way)",
+                lines=3,
+            )
+
+            with gr.Row():
+                mk_suggest_btn = gr.Button("✨ Suggest Strategy", size="sm")
+                mk_save_btn = gr.Button("💾 Save Policy", variant="primary", size="sm")
+
+            gr.Markdown("**DAB certification** — the SME-approved masking policy that publishes downstream.")
+            mk_certified_chk = gr.Checkbox(label="Certified", value=False)
+            with gr.Row():
+                mk_certify_btn = gr.Button("✅ Certify to DAB", variant="primary", size="sm")
+                mk_publish_btn = gr.Button("📤 Publish certified → dab_config.json", size="sm")
+
+            mk_status_md = gr.Markdown(value="")
+
+            def _mk_load_entities():
+                try:
+                    schema = get_unified_schema()
+                    names = sorted(schema.keys())
+                    first = names[0] if names else None
+                    return gr.Dropdown(choices=names, value=first)
+                except Exception:
+                    return gr.Dropdown(choices=[], value=None)
+
+            def _mk_overall():
+                """Global policied/certified masking coverage across every table."""
+                try:
+                    cov = compute_masking_coverage(get_unified_schema())
+                    denom = cov["columns"] or 1
+                    pct_p = round(100 * cov["policied"] / denom)
+                    pct_c = round(100 * cov["certified"] / denom)
+                    return (
+                        f"**Overall masking coverage** — {cov['tables']} tables, "
+                        f"{cov['columns']} columns · "
+                        f"{cov['policied']} policied ({pct_p}%) · "
+                        f"{cov['certified']} certified ({pct_c}%)"
+                    )
+                except Exception as exc:
+                    return f"_Overall masking coverage unavailable: {exc}_"
+
+            def _mk_show_entity(entity_name):
+                if not entity_name:
+                    return "_Select an entity above._", [], gr.Dropdown(choices=[], value=None), _mk_overall()
+                try:
+                    schema = get_unified_schema()
+                    cols = schema.get(entity_name)
+                    if not cols:
+                        return (
+                            f"_Table `{entity_name}` not found in structural schema._",
+                            [], gr.Dropdown(choices=[], value=None), _mk_overall(),
+                        )
+                    col_count = len(cols)
+                    policy_count = sum(1 for c in cols.values() if c.get("masking_strategy") is not None)
+                    certified_count = sum(1 for c in cols.values() if c.get("masking_certified"))
+                    info_md = (
+                        f"**Table:** `{entity_name}` — "
+                        f"{col_count} column(s), "
+                        f"{policy_count} policied, "
+                        f"{certified_count} certified"
+                    )
+                    rows = []
+                    for col_name, meta in cols.items():
+                        rows.append([
+                            col_name,
+                            meta.get("type", "—"),
+                            "✓" if meta.get("pk") else "",
+                            meta.get("masking_strategy") or "—",
+                            meta.get("masking_rationale") or "—",
+                            "✓" if meta.get("masking_certified") else "",
+                        ])
+                    col_names = list(cols.keys())
+                    first_col = col_names[0] if col_names else None
+                    return info_md, rows, gr.Dropdown(choices=col_names, value=first_col), _mk_overall()
+                except Exception as exc:
+                    return f"_Error loading schema: {exc}_", [], gr.Dropdown(choices=[], value=None), _mk_overall()
+
+            def _mk_load_field(entity_name, column_name):
+                """Populate the editor from any saved masking policy."""
+                if not entity_name or not column_name:
+                    return "none", "", False, "_Pick an entity and column, then Load._"
+                rec = get_column_masking_record(entity_name, column_name) or {}
+                status = (
+                    f"Loaded `{entity_name}.{column_name}`."
+                    if rec else
+                    f"`{entity_name}.{column_name}` has no saved policy yet — "
+                    f"suggest a strategy below."
+                )
+                return (
+                    rec.get("masking_strategy") or "none",
+                    rec.get("rationale") or "",
+                    bool(rec.get("certified")),
+                    status,
+                )
+
+            def _mk_suggest(entity_name, column_name):
+                if not entity_name or not column_name:
+                    return "none", "", "_Pick an entity and column first._"
+                try:
+                    s = suggest_masking_strategy(entity_name, column_name)
+                    status = (
+                        f"✨ Deterministic suggestion for `{entity_name}.{column_name}`: "
+                        f"**{s.get('masking_strategy')}**. _Review and Save._"
+                    )
+                    return (
+                        s.get("masking_strategy") or "none",
+                        s.get("rationale") or "",
+                        status,
+                    )
+                except Exception as exc:
+                    return "none", "", f"_Suggestion failed: {exc}_"
+
+            def _mk_save(entity_name, column_name, strategy, rationale):
+                if not entity_name or not column_name:
+                    return "_Pick an entity and column first._", "_Select an entity above._", [], _mk_overall()
+                res = save_column_masking_policy(
+                    entity_name, column_name,
+                    masking_strategy=strategy or "none",
+                    rationale=rationale or None,
+                )
+                info, rows, _, overall = _mk_show_entity(entity_name)
+                if not res.get("ok"):
+                    return f"_Save failed: {res.get('error')}_", info, rows, overall
+                return f"💾 Saved masking policy for `{entity_name}.{column_name}`.", info, rows, overall
+
+            def _mk_certify(entity_name, column_name, strategy, rationale, certified):
+                if not entity_name or not column_name:
+                    return "_Pick an entity and column first._", "_Select an entity above._", [], _mk_overall()
+                res = certify_column_masking_policy(
+                    entity_name, column_name,
+                    masking_strategy=strategy or "none",
+                    rationale=rationale or None,
+                    certified=bool(certified),
+                )
+                info, rows, _, overall = _mk_show_entity(entity_name)
+                if not res.get("ok"):
+                    return f"_Certify failed: {res.get('error')}_", info, rows, overall
+                state = "certified" if certified else "saved (uncertified)"
+                return (
+                    f"✅ Masking policy {state} for `{entity_name}.{column_name}`. "
+                    f"Use **Publish to DAB** to write certified rows to `dab_config.json`.",
+                    info, rows, overall,
+                )
+
+            def _mk_publish():
+                import io, contextlib, sys
+                scripts_dir = os.path.join(os.path.dirname(__file__), "scripts")
+                if scripts_dir not in sys.path:
+                    sys.path.insert(0, scripts_dir)
+                try:
+                    import sync_masking_to_dab_config as _sync
+                    _sync.SQLITE_DB_PATH = SQLITE_DB_PATH
+                    _sync.DAB_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "dab_config.json")
+                    _sync.SQL_MCP_SOURCE_DATABASE = SQL_MCP_SOURCE_DATABASE
+                    buf = io.StringIO()
+                    with contextlib.redirect_stdout(buf):
+                        _sync.sync(dry_run=False)
+                    out = buf.getvalue().strip() or "(no output)"
+                    return f"📤 **Published certified masking policies to `dab_config.json`.**\n\n```\n{out}\n```", _mk_overall()
+                except SystemExit as exc:
+                    return f"_Publish stopped: {exc}_", _mk_overall()
+                except Exception as exc:
+                    return f"_Publish failed: {type(exc).__name__}: {exc}_", _mk_overall()
+
+            mk_refresh_btn.click(fn=_mk_load_entities, outputs=mk_entity_dd)
+            mk_entity_dd.change(
+                fn=_mk_show_entity, inputs=mk_entity_dd,
+                outputs=[mk_entity_info, mk_fields_table, mk_col_dd, mk_overall_md],
+            )
+            mk_load_field_btn.click(
+                fn=_mk_load_field, inputs=[mk_entity_dd, mk_col_dd],
+                outputs=[mk_strategy_dd, mk_rationale_tb, mk_certified_chk, mk_status_md],
+            )
+            mk_suggest_btn.click(
+                fn=_mk_suggest,
+                inputs=[mk_entity_dd, mk_col_dd],
+                outputs=[mk_strategy_dd, mk_rationale_tb, mk_status_md],
+            )
+            mk_save_btn.click(
+                fn=_mk_save,
+                inputs=[mk_entity_dd, mk_col_dd, mk_strategy_dd, mk_rationale_tb],
+                outputs=[mk_status_md, mk_entity_info, mk_fields_table, mk_overall_md],
+            )
+            mk_certify_btn.click(
+                fn=_mk_certify,
+                inputs=[mk_entity_dd, mk_col_dd, mk_strategy_dd, mk_rationale_tb, mk_certified_chk],
+                outputs=[mk_status_md, mk_entity_info, mk_fields_table, mk_overall_md],
+            )
+            mk_publish_btn.click(fn=_mk_publish, outputs=[mk_status_md, mk_overall_md])
+            demo.load(fn=_mk_load_entities, outputs=mk_entity_dd)
+            demo.load(fn=_mk_overall, outputs=mk_overall_md)
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
         demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)

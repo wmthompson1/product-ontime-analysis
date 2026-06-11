@@ -44,6 +44,7 @@ _METADATA_TABLES = {
     "schema_topology_metadata",
     "dab_field_definitions",
     "column_bindings",
+    "column_masking_policies",
 }
 
 # Abbreviations expanded when humanizing a column/table name into a display name.

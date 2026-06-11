@@ -28,3 +28,25 @@ report "0 updated, N not matched" and look broken.
 in-loop, so re-runs find the created entity). Any new test that feeds certified
 rows for tables not present in the config must expect entity creation unless it
 explicitly passes `create_missing=False`.
+
+## Two orthogonal syncs write dab_config.json — keep them from fighting
+
+There are now **two** publishers into the same `dab_config.json`:
+`sync_db_to_dab_config.py` (descriptions) and `sync_masking_to_dab_config.py`
+(masking). They are deliberately field-attribute-orthogonal:
+
+- descriptions sync owns each field's `description`, the top-level `note`, and
+  **stale-entity removal**.
+- masking sync owns only each field's `masking` attribute. It must **never**
+  touch `note`, `description`, or remove stale entities (doing so would race the
+  description sync and clobber its output).
+
+**Why:** both syncs auto-create missing entity/field blocks, so they overlap on
+structure but must not overlap on attributes. If a future masking change starts
+writing `note` or pruning entities, the two publishers will overwrite each other
+depending on run order.
+
+**How to apply:** any new per-column attribute that publishes to dab_config.json
+should follow this pattern — its own sync, its own attribute key, atomic
+tmp+`os.replace` write, no `note`/stale-entity mutation. The masking sync's tests
+assert the orthogonality (note/description preserved, stale entities kept).

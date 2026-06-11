@@ -663,6 +663,25 @@ CREATE TABLE IF NOT EXISTS dab_field_definitions (
     PRIMARY KEY (source_database, schema_name, table_name, column_name)
 );
 
+-- Column masking policies: per-column data-masking strategy + rationale keyed on
+-- the same four-part column identity as api_field_descriptions. The local
+-- stand-in for the company DAB's masking layer: an SME picks a strategy
+-- (none/hash/partial/redact), certifies it, then publishes certified rows into
+-- dab_config.json (each field's "masking" attribute). SQLite is the source of
+-- truth; strategies are chosen deterministically (no LLM).
+CREATE TABLE IF NOT EXISTS column_masking_policies (
+    source_database  TEXT    NOT NULL,
+    schema_name      TEXT    NOT NULL,
+    table_name       TEXT    NOT NULL,
+    column_name      TEXT    NOT NULL,
+    masking_strategy TEXT    NOT NULL DEFAULT 'none'
+        CHECK(masking_strategy IN ('none', 'hash', 'partial', 'redact')),
+    rationale        TEXT,
+    certified        INTEGER NOT NULL DEFAULT 0 CHECK(certified IN (0, 1)),
+    updated_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (source_database, schema_name, table_name, column_name)
+);
+
 -- SQL graph source tables: hold the full canonical graph (nodes + edges in the
 -- fixed 6-slot composite-key form) that replit_integrations/export_graph_metadata.py
 -- materializes and then serializes graph_metadata.json FROM. SQLite is the source
