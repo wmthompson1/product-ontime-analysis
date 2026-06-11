@@ -118,6 +118,59 @@ DEFAULT_MATRIX: List[Dict[str, Any]] = [
      "masking_rule": "hash_sha256(column_name,length)",
      "masking_type": "deterministic_hash", "field_length": 0, "masking_mode": 1,
      "pre_stage_server": "sql-lab-2", "status": "active"},
+    # Level 2 — change to null (mode 2): vendor address block + customer contact names.
+    {"dag_no": "3.1", "table_name": "vendor", "column_name": "addr_1",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "3.2", "table_name": "vendor", "column_name": "addr_2",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "3.3", "table_name": "vendor", "column_name": "addr_3",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "3.4", "table_name": "vendor", "column_name": "city",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "3.5", "table_name": "vendor", "column_name": "state",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "3.6", "table_name": "vendor", "column_name": "zipcode",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "4.1", "table_name": "customer_order", "column_name": "contact_first_name",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "4.2", "table_name": "customer_order", "column_name": "contact_last_name",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "set_null(column_name)",
+     "masking_type": "change to null", "field_length": 0, "masking_mode": 2,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    # Level 3 — obfuscate binary text using 0x (mode 3): design spec master then
+    # the operation's design text (specs stage OPER_TYPE_BINARY -> OPERATION_BINARY).
+    {"dag_no": "5.1", "table_name": "oper_type_binary", "column_name": "bits",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "obfuscate_0x(column_name)",
+     "masking_type": "obfuscate binary text", "field_length": 0, "masking_mode": 3,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
+    {"dag_no": "5.2", "table_name": "operation_binary", "column_name": "bits",
+     "parent_table": "", "parent_column": "",
+     "masking_rule": "obfuscate_0x(column_name)",
+     "masking_type": "obfuscate binary text", "field_length": 0, "masking_mode": 3,
+     "pre_stage_server": "sql-lab-2", "status": "active"},
 ]
 
 
@@ -386,18 +439,39 @@ def mask_row_value(
     salt: Optional[str] = None,
     salt_env: str = SALT_ENV_VAR,
 ) -> Any:
-    """Mask *value* for a matrix *row*, sized to that row's schema width.
+    """Mask *value* for a matrix *row* according to the row's ``masking_mode``.
 
-    This is the executable form of the row's ``hash_sha256(col, length)`` rule:
-    ``length`` is the row's stored ``field_length`` (the column's width in the
-    schema), so the masked output is the same width as the field. A
-    ``field_length`` of 0 means unbounded -> the full 64-char digest. NULL /
-    empty values pass through unchanged.
+    The matrix carries three masking modes (mirroring the ``masking_type``
+    lookup); this is the executable preview of each:
+
+      - mode 1 ``deterministic_hash`` — SHA-256 sized to the row's stored
+        ``field_length`` (the column's width in the schema), so the masked output
+        is the same width as the field and masked keys stay joinable. A
+        ``field_length`` of 0 means unbounded -> the full 64-char digest. This is
+        the row's ``hash_sha256(column_name, length)`` rule.
+      - mode 2 ``change to null`` — the value is dropped (returned as ``None``).
+      - mode 3 ``obfuscate binary text`` — the value is replaced with a
+        ``0x``-tagged deterministic digest (sized to ``field_length`` when set),
+        standing in for the binary-text obfuscation the SQLMesh DAG applies.
+
+    NULL / empty values always pass through unchanged. Any unknown mode falls
+    back to the deterministic hash.
     """
+    if value is None or value == "":
+        return value
+    try:
+        mode = int(row.get("masking_mode") or 1)
+    except (TypeError, ValueError):
+        mode = 1
     try:
         length = int(row.get("field_length") or 0)
     except (TypeError, ValueError):
         length = 0
+    if mode == 2:
+        return None
+    if mode == 3:
+        digest = hash_sha256(value, length, salt=salt, salt_env=salt_env)
+        return f"0x{digest}"
     return hash_sha256(value, length, salt=salt, salt_env=salt_env)
 
 

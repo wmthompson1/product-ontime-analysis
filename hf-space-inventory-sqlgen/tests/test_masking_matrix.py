@@ -173,17 +173,29 @@ def test_write_default_csv_seed() -> None:
         csv_path = os.path.join(d, "certificate_for_receiving", "masking_matrix.csv")
         db_path = os.path.join(d, "m.db")
         created = mm.write_default_csv(csv_path)
-        assert created == len(mm.DEFAULT_MATRIX) == 4, created
+        assert created == len(mm.DEFAULT_MATRIX) == 14, created
         assert os.path.exists(csv_path)
         mm.load_matrix_from_csv(csv_path=csv_path, db_path=db_path)
         rows = {r["dag_no"]: r for r in mm.read_matrix(db_path)}
-        assert set(rows) == {"1.1", "1.2", "1.3", "2.0"}, set(rows)
+        assert set(rows) == {
+            "1.1", "1.2", "1.3", "2.0",
+            "3.1", "3.2", "3.3", "3.4", "3.5", "3.6",
+            "4.1", "4.2", "5.1", "5.2",
+        }, set(rows)
         # the user_def_fields row carries an empty column_name + unbounded width
         assert rows["2.0"]["table_name"] == "user_def_fields"
         assert rows["2.0"]["column_name"] == ""
         assert rows["2.0"]["field_length"] == 0
         # the id-style rows carry their schema width
         assert rows["1.1"]["field_length"] == 30
+        # level-2 (change to null) rows carry mode 2 + the matching masking_type
+        assert rows["3.1"]["masking_mode"] == 2
+        assert rows["3.1"]["masking_type"] == "change to null"
+        assert rows["4.1"]["table_name"] == "customer_order"
+        # level-3 (obfuscate binary text) rows carry mode 3 + the matching type
+        assert rows["5.1"]["masking_mode"] == 3
+        assert rows["5.1"]["masking_type"] == "obfuscate binary text"
+        assert rows["5.2"]["table_name"] == "operation_binary"
     print("PASS: write_default_csv recreates the curated default matrix")
 
 
@@ -387,6 +399,32 @@ def test_mask_row_value_uses_field_length() -> None:
     print("PASS: mask_row_value sizes the hash to the row's field_length")
 
 
+def test_mask_row_value_honors_mode() -> None:
+    expected = hashlib.sha256(f"VEND-001{SALT}".encode()).hexdigest().upper()
+
+    # mode 1 (and a missing mode) -> deterministic hash sized to field_length
+    assert mm.mask_row_value(
+        {"masking_mode": 1, "field_length": 8}, "VEND-001", salt=SALT
+    ) == expected[:8]
+    assert mm.mask_row_value({"field_length": 8}, "VEND-001", salt=SALT) == expected[:8]
+
+    # mode 2 (change to null) -> dropped to None
+    assert mm.mask_row_value(
+        {"masking_mode": 2, "field_length": 0}, "123 Main St", salt=SALT
+    ) is None
+
+    # mode 3 (obfuscate binary text) -> 0x-tagged deterministic digest
+    obf = mm.mask_row_value(
+        {"masking_mode": 3, "field_length": 8}, "VEND-001", salt=SALT
+    )
+    assert obf == f"0x{expected[:8]}", obf
+
+    # NULL / empty still passes through unchanged regardless of mode
+    assert mm.mask_row_value({"masking_mode": 2}, None, salt=SALT) is None
+    assert mm.mask_row_value({"masking_mode": 3}, "", salt=SALT) == ""
+    print("PASS: mask_row_value honors masking_mode (hash / null / 0x)")
+
+
 def main() -> int:
     tests = [
         test_load_upsert_and_idempotent,
@@ -402,6 +440,7 @@ def main() -> int:
         test_hash_deterministic_and_width,
         test_hash_passthrough_and_requires_salt,
         test_mask_row_value_uses_field_length,
+        test_mask_row_value_honors_mode,
     ]
     passed = 0
     for t in tests:

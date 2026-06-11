@@ -13,6 +13,7 @@ from __future__ import annotations
 import csv
 import importlib
 import json
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -139,6 +140,14 @@ def generate_certificate() -> Path:
         for table in unique_tables:
             table_probes[table] = {"status": "unreachable", "error": str(exc)}
 
+    # Summarize what this certificate actually masks, derived from the active
+    # rows above — never a hardcoded traversal, since the active set changes over
+    # time (e.g. static/complete rows like 1.1/1.2 are excluded from the import).
+    type_counts = Counter(line["masking_type"] for line in dag_lines)
+    masking_summary = "; ".join(
+        f"{count}x {mtype}" for mtype, count in sorted(type_counts.items())
+    ) or "no active rows"
+
     new_version, new_receiving_id = _next_version_and_id(CERTIFICATE_DIR)
     issued_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -163,7 +172,7 @@ def generate_certificate() -> Path:
         "status": "certified" if connection_status == "connected" else "pending",
         "notes": (
             "PII masking applied per corpus policy before downstream model ingestion. "
-            "DAG traversal: vendor.id (1.1) → part.pref_vendor (1.2). "
+            f"Active DAG lines imported: {len(dag_lines)} ({masking_summary}). "
             f"Server probe: {connection_status}."
         ),
     }
