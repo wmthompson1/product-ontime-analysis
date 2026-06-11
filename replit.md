@@ -28,7 +28,8 @@ Task management: Do NOT auto-create or propose follow-up tasks. Never use propos
 - **ArangoDB graph**: single named graph `manufacturing_graph`, 80 vertices, 41 edges; legacy `semantic_graph` retired
 - **Perspective Bridge Model**: Perspective lives as a property on bridge rows (`Perspective_Intents`, `Perspective_Concepts`) — not as a vertex collection
 - **Define Relationship UI** (mockup panel): live entity search, Add to Graph wired to real endpoints, duplicate-edge protection (AQL UPSERT), undo history (last 5), edge-count badge with per-collection tooltip
-- **Gradio tabs**: Schema browser, Ground Truth SQL browser, Semantic Graph + disambiguation, Bridge Health, Graph Sync, Query Palette, Ask a Question — all showing live ERP source label
+- **Gradio tabs**: Schema browser, Ground Truth SQL browser, Semantic Graph + disambiguation, Bridge Health, Graph Sync, Query Palette, Ask a Question, Masking Matrix — all showing live ERP source label
+- **Masking Matrix tab**: editable grids for the `masking_matrix` DAG and the `masking_type` reference lookup; Save full-replaces SQLite **and** mirrors the SME-facing root CSVs (`masking_matrix.csv`, `masking_type.csv`). Shows salt status (never the value) and a mask preview. The receiving certificate imports only matrix rows whose `status` is `active`.
 - **Sync automation**: SQLite triggers → queue table → polling watcher (`sync_watcher.py`) → ArangoDB sync; GitHub Actions nightly cron
 - **Drift alerts**: 6-hour GitHub Actions drift check with Slack Block Kit alerts (gated on `GRAPH_SYNC_ALERT_WEBHOOK` secret)
 - **CI**: Consolidated `hf-space-ci.yml` runs all 7 test files; ArangoDB smoke test in `arango-legacy-smoke.yml` (nightly + on push)
@@ -66,7 +67,10 @@ All tests run via `scripts/post-merge.sh` (8/8 passing):
 - **Sync**: `sync_watcher.py` daemon polls `graph_sync_queue` SQLite table (populated by triggers); `scripts/install_sync_triggers.py` installs 9 triggers on 3 bridge tables
 
 ### Frontend (Gradio)
-Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question
+Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix
+
+### Masking approval copies (repo root)
+`masking_matrix.csv` and `masking_type.csv` live at the repo root as the SME-facing approval copies (CSV ↔ SQLite, upsert on boot). `masking_matrix.py` / `masking_type.py` manage them; `certificate_for_receiving/generate_certificate.py` reads the root `masking_matrix.csv` and imports only `status == active` rows.
 
 ### Define Relationship mockup (React/Vite)
 Location: `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`

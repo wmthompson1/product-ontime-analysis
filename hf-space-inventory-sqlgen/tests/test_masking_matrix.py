@@ -283,6 +283,90 @@ def test_hash_passthrough_and_requires_salt() -> None:
     print("PASS: hash_sha256 passes through NULL/empty and requires a salt")
 
 
+def test_to_int_handles_floats_and_junk() -> None:
+    assert mm._to_int("30", 0) == 30
+    assert mm._to_int("30.0", 0) == 30      # grid hands back floats
+    assert mm._to_int(" 12 ", 0) == 12      # padded
+    assert mm._to_int("", 7) == 7           # blank -> default
+    assert mm._to_int(None, 7) == 7         # None -> default
+    assert mm._to_int("x", 1) == 1          # junk -> default
+    assert mm._to_int(40.0, 0) == 40        # already a float
+    print("PASS: _to_int handles '30.0' / blanks / junk")
+
+
+def test_replace_matrix_full_replace_and_csv_mirror() -> None:
+    with tempfile.TemporaryDirectory() as d:
+        csv_path = os.path.join(d, "m.csv")
+        db_path = os.path.join(d, "m.db")
+        # Seed two rows the normal way.
+        _write_csv(csv_path, [
+            "1.1,vendor,id,,,rule,deterministic_hash,30,1,srv,active",
+            "1.2,part,pref_vendor,vendor,id,rule,deterministic_hash,30,1,srv,active",
+        ])
+        mm.load_matrix_from_csv(csv_path=csv_path, db_path=db_path)
+        assert mm.count_rows(db_path) == 2
+
+        # Replace with a different set (a grid edit): drop 1.2, change 1.1, add 3.0.
+        # field_length comes in as a float (30.0) like the Dataframe would send it.
+        new_rows = [
+            {"dag_no": "1.1", "table_name": "vendor", "column_name": "id",
+             "parent_table": "", "parent_column": "", "masking_rule": "rule",
+             "masking_type": "deterministic_hash", "field_length": 40.0,
+             "masking_mode": 1, "pre_stage_server": "sql-lab-9", "status": "complete"},
+            {"dag_no": "3.0", "table_name": "ops", "column_name": "code",
+             "parent_table": "", "parent_column": "", "masking_rule": "rule",
+             "masking_type": "deterministic_hash", "field_length": "",
+             "masking_mode": 1, "pre_stage_server": "srv", "status": "active"},
+            # a blank row (no dag_no) is silently dropped
+            {"dag_no": "", "table_name": "ghost"},
+        ]
+        res = mm.replace_matrix(new_rows, db_path=db_path, csv_path=csv_path)
+        assert res["ok"] is True, res
+        assert res["saved"] == 2, res          # ghost dropped
+        assert res["csv_written"] == 2, res
+
+        rows = {r["dag_no"]: r for r in mm.read_matrix(db_path)}
+        assert set(rows) == {"1.1", "3.0"}, set(rows)   # 1.2 gone (full replace)
+        assert rows["1.1"]["field_length"] == 40         # 40.0 -> 40
+        assert rows["1.1"]["status"] == "complete"
+        assert rows["3.0"]["field_length"] == 0          # blank -> 0
+
+        # The CSV was mirrored: reloading it into a fresh DB matches.
+        db2 = os.path.join(d, "m2.db")
+        mm.load_matrix_from_csv(csv_path=csv_path, db_path=db2)
+        assert {r["dag_no"] for r in mm.read_matrix(db2)} == {"1.1", "3.0"}
+    print("PASS: replace_matrix full-replaces SQLite and mirrors the CSV")
+
+
+def test_replace_matrix_guards_empty_and_duplicate() -> None:
+    with tempfile.TemporaryDirectory() as d:
+        csv_path = os.path.join(d, "m.csv")
+        db_path = os.path.join(d, "m.db")
+        _write_csv(csv_path, [
+            "1.1,vendor,id,,,rule,deterministic_hash,30,1,srv,active",
+        ])
+        mm.load_matrix_from_csv(csv_path=csv_path, db_path=db_path)
+
+        # All-empty input is refused (matrix not wiped).
+        res = mm.replace_matrix([{"dag_no": ""}], db_path=db_path, csv_path=csv_path)
+        assert res["ok"] is False and "empty" in res["error"], res
+        assert mm.count_rows(db_path) == 1, "existing matrix must survive a refused save"
+
+        # Duplicate primary key is rejected.
+        dup = [
+            {"dag_no": "1.1", "table_name": "a", "column_name": "x",
+             "masking_type": "deterministic_hash", "field_length": 1,
+             "masking_mode": 1, "status": "active"},
+            {"dag_no": "1.1", "table_name": "b", "column_name": "y",
+             "masking_type": "deterministic_hash", "field_length": 1,
+             "masking_mode": 1, "status": "active"},
+        ]
+        res = mm.replace_matrix(dup, db_path=db_path, csv_path=csv_path)
+        assert res["ok"] is False and "duplicate" in res["error"], res
+        assert mm.count_rows(db_path) == 1
+    print("PASS: replace_matrix refuses empty input and duplicate dag_no")
+
+
 def test_mask_row_value_uses_field_length() -> None:
     expected = hashlib.sha256(f"VEND-001{SALT}".encode()).hexdigest().upper()
 
@@ -312,6 +396,9 @@ def main() -> int:
         test_export_roundtrip,
         test_write_default_csv_seed,
         test_ensure_table_migrates_old_schema,
+        test_to_int_handles_floats_and_junk,
+        test_replace_matrix_full_replace_and_csv_mirror,
+        test_replace_matrix_guards_empty_and_duplicate,
         test_hash_deterministic_and_width,
         test_hash_passthrough_and_requires_salt,
         test_mask_row_value_uses_field_length,

@@ -58,6 +58,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_masking_matrix.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_masking_type.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_masking_type.py || {
+    echo "post-merge: masking type tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py ]; then
   python hf-space-inventory-sqlgen/tests/test_reconstruct_containment_graph.py || {
     echo "post-merge: graph reconstructor tests failed"

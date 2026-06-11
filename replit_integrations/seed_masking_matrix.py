@@ -2,7 +2,7 @@
 
 The matrix lives in two places that stay in sync:
 
-  - the human-editable CSV at ``certificate_for_receiving/masking_matrix.csv``
+  - the human-editable CSV at the repo root: ``masking_matrix.csv``
   - the SQLite ``masking_matrix`` table
 
 This script is the head-less entry point for keeping them in agreement (the app

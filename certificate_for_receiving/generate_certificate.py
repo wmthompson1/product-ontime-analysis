@@ -16,8 +16,9 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+MASKING_MATRIX_PATH = REPO_ROOT / "masking_matrix.csv"
 CERTIFICATE_DIR = Path(__file__).resolve().parent
-MASKING_MATRIX_PATH = CERTIFICATE_DIR / "masking_matrix.csv"
 
 # please update to use environment variables or config management 
 CONNECTION_STRING = (
@@ -154,7 +155,7 @@ def generate_certificate() -> Path:
             "tables": table_probes,
         },
         "masking_matrix_ref": {
-            "file": "masking_matrix.csv",
+            "file": "../masking_matrix.csv",
             "dag_lines": dag_lines,
         },
         "receiver_id_agent": "sqlmesh-receiving-agent-v1",

@@ -47,6 +47,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from solder_engine import SolderEngine
 from production_dispatcher import ProductionDispatcher
 from field_description_pipeline import draft_field_description, compute_field_coverage
+import masking_matrix as mmx
+import masking_type as mtx
 from masking_policy_pipeline import (
     MASKING_STRATEGIES,
     suggest_masking_strategy,
@@ -228,6 +230,13 @@ def ensure_app_metadata_tables(conn) -> None:
                 CHECK(status IN ('active', 'static', 'complete'))
         );
 
+        CREATE TABLE IF NOT EXISTS masking_type (
+            masking_type TEXT    NOT NULL PRIMARY KEY,
+            masking_mode INTEGER NOT NULL DEFAULT 0,
+            status       TEXT    NOT NULL DEFAULT 'active'
+                CHECK(status IN ('active', 'inactive'))
+        );
+
         CREATE TABLE IF NOT EXISTS sql_graph_nodes (
             ordinal       INTEGER NOT NULL,
             _key          TEXT    NOT NULL PRIMARY KEY,
@@ -313,10 +322,11 @@ def init_sqlite_db():
     finally:
         conn.close()
 
-    # Keep the masking matrix CSV (certificate_for_receiving/masking_matrix.csv)
-    # and the SQLite masking_matrix table in sync on every startup: load the
-    # human-editable CSV into SQLite (idempotent upsert). Wrapped so a missing or
-    # hand-edited CSV never blocks boot.
+    # Keep the masking matrix CSV (masking_matrix.csv at the repo root) and the
+    # SQLite masking_matrix table in sync on every startup: load the human-editable
+    # CSV into SQLite (idempotent upsert). The CSV is the SME-facing copy used for
+    # approval; the app can also write it back. Wrapped so a missing or hand-edited
+    # CSV never blocks boot.
     try:
         from masking_matrix import load_matrix_from_csv, DEFAULT_CSV_PATH
         if os.path.exists(DEFAULT_CSV_PATH):
@@ -327,6 +337,19 @@ def init_sqlite_db():
                 print(f"masking_matrix sync warning: {_mm.get('error')}")
     except Exception as e:
         print(f"masking_matrix sync warning: {e}")
+
+    # Same for the masking-type reference lookup (masking_type.csv at the repo
+    # root <-> SQLite masking_type table). Idempotent upsert; never blocks boot.
+    try:
+        from masking_type import load_types_from_csv, DEFAULT_CSV_PATH as _MT_CSV
+        if os.path.exists(_MT_CSV):
+            _mt = load_types_from_csv(csv_path=_MT_CSV, db_path=SQLITE_DB_PATH)
+            if _mt.get("ok"):
+                print(f"masking_type: synced {_mt.get('loaded', 0)} row(s) from CSV.")
+            else:
+                print(f"masking_type sync warning: {_mt.get('error')}")
+    except Exception as e:
+        print(f"masking_type sync warning: {e}")
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
@@ -6032,6 +6055,209 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mk_publish_btn.click(fn=_mk_publish, outputs=[mk_status_md, mk_overall_md])
             demo.load(fn=_mk_load_entities, outputs=mk_entity_dd)
             demo.load(fn=_mk_overall, outputs=mk_overall_md)
+
+        with gr.Tab("🧬 Masking Matrix"):
+            gr.Markdown(
+                "### Masking Matrix — the deterministic column-masking DAG\n"
+                "Source of truth: **SQLite** (`masking_matrix`), mirrored to the "
+                "SME-facing root CSV **`masking_matrix.csv`** (the copy SMEs edit and "
+                "approve). Edit the grid and **Save** to write SQLite **and** the CSV "
+                "in one step. Masking is deterministic — "
+                "`SHA-256(value + GEMIN_SALT secret)` truncated to the column's "
+                "`field_length`. There is no AI on this tab.\n\n"
+                "Only rows with **status `active`** are imported into the receiving "
+                "certificate; `static` / `complete` rows are certified/locked.\n\n"
+                "This is separate from the **🔒 Data Masking** tab "
+                "(`column_masking_policies`, the strategy/rationale surface) — the two "
+                "live side by side."
+            )
+
+            mm_salt_md = gr.Markdown()
+            mm_status_md = gr.Markdown()
+
+            mm_grid = gr.Dataframe(
+                headers=list(mmx.MATRIX_COLUMNS),
+                datatype=[
+                    "str", "str", "str", "str", "str", "str", "str",
+                    "number", "number", "str", "str",
+                ],
+                column_count=(len(mmx.MATRIX_COLUMNS), "fixed"),
+                row_count=(1, "dynamic"),
+                label="masking_matrix (editable)",
+                interactive=True,
+                wrap=True,
+            )
+            with gr.Row():
+                mm_reload_btn = gr.Button("↺ Reload from SQLite", size="sm")
+                mm_save_btn = gr.Button(
+                    "💾 Save to SQLite + CSV", variant="primary", size="sm"
+                )
+
+            gr.Markdown("#### 🧪 Preview a masked value")
+            with gr.Row():
+                mm_prev_dag = gr.Dropdown(
+                    label="DAG row (dag_no)", choices=[], value=None, scale=1
+                )
+                mm_prev_val = gr.Textbox(label="Sample value", scale=2)
+                mm_prev_btn = gr.Button("Mask", size="sm", scale=1)
+            mm_prev_out = gr.Markdown()
+
+            gr.Markdown(
+                "---\n#### Masking types (reference) — `masking_type.csv`\n"
+                "The closed lookup of masking types and their `masking_mode` numbers, "
+                "used by the matrix above. Edit and save the same way."
+            )
+            mt_status_md = gr.Markdown()
+            mt_grid = gr.Dataframe(
+                headers=list(mtx.TYPE_COLUMNS),
+                datatype=["str", "number", "str"],
+                column_count=(len(mtx.TYPE_COLUMNS), "fixed"),
+                row_count=(1, "dynamic"),
+                label="masking_type (editable)",
+                interactive=True,
+                wrap=True,
+            )
+            with gr.Row():
+                mt_reload_btn = gr.Button("↺ Reload types", size="sm")
+                mt_save_btn = gr.Button(
+                    "💾 Save types to SQLite + CSV", variant="primary", size="sm"
+                )
+
+            def _mm_df_to_dicts(grid, columns):
+                """Coerce a Gradio Dataframe value (DataFrame or list) to row dicts."""
+                out = []
+                if grid is None:
+                    return out
+                try:
+                    import pandas as pd
+                    if isinstance(grid, pd.DataFrame):
+                        g2 = grid.where(pd.notnull(grid), "")
+                        for rec in g2.to_dict(orient="records"):
+                            out.append({c: rec.get(c, "") for c in columns})
+                        return out
+                except Exception:
+                    pass
+                rows_iter = grid if isinstance(grid, list) else []
+                for raw in rows_iter:
+                    if isinstance(raw, dict):
+                        out.append({c: raw.get(c, "") for c in columns})
+                    else:
+                        out.append(
+                            {c: (raw[i] if i < len(raw) else "")
+                             for i, c in enumerate(columns)}
+                        )
+                return out
+
+            def _mm_rows_to_grid(rows, columns):
+                """Build a list-of-lists for the grid, coercing None -> ''."""
+                return [
+                    [("" if r.get(c) is None else r.get(c)) for c in columns]
+                    for r in rows
+                ]
+
+            def _mm_salt_status():
+                # Report only whether the salt is configured — never its value.
+                if os.environ.get(mmx.SALT_ENV_VAR):
+                    return (
+                        f"🔑 Masking salt **configured** (from the "
+                        f"`{mmx.SALT_ENV_VAR}` secret). Masking is ready."
+                    )
+                return (
+                    f"⚠️ Masking salt **not set** — set the `{mmx.SALT_ENV_VAR}` "
+                    f"secret to enable masking. Editing and saving the matrix still "
+                    f"works without it."
+                )
+
+            def _mm_load_grid():
+                rows = mmx.read_matrix(SQLITE_DB_PATH)
+                data = _mm_rows_to_grid(rows, mmx.MATRIX_COLUMNS)
+                dags = [r["dag_no"] for r in rows]
+                active = sum(1 for r in rows if r.get("status") == "active")
+                msg = (
+                    f"Loaded **{len(rows)}** row(s) from SQLite · **{active}** active "
+                    f"(imported into the receiving certificate)."
+                )
+                return (
+                    data,
+                    gr.Dropdown(choices=dags, value=(dags[0] if dags else None)),
+                    msg,
+                )
+
+            def _mm_save(grid):
+                rows = _mm_df_to_dicts(grid, mmx.MATRIX_COLUMNS)
+                res = mmx.replace_matrix(
+                    rows, db_path=SQLITE_DB_PATH, csv_path=mmx.DEFAULT_CSV_PATH
+                )
+                if not res.get("ok"):
+                    # Keep the SME's pending edits on screen; don't reload from SQLite.
+                    return f"❌ Save failed: {res.get('error')}", grid, gr.update()
+                data, dd, loaded_msg = _mm_load_grid()
+                return (
+                    f"💾 Saved **{res.get('saved')}** row(s) to SQLite and wrote "
+                    f"**{res.get('csv_written')}** row(s) to `masking_matrix.csv`. "
+                    f"{loaded_msg}",
+                    data,
+                    dd,
+                )
+
+            def _mm_preview(dag_no, value):
+                if not dag_no:
+                    return "_Pick a DAG row first._"
+                rows = {r["dag_no"]: r for r in mmx.read_matrix(SQLITE_DB_PATH)}
+                row = rows.get(dag_no)
+                if not row:
+                    return f"_Row `{dag_no}` not found — reload the grid._"
+                try:
+                    masked = mmx.mask_row_value(row, value)
+                except Exception as exc:
+                    return f"⚠️ {exc}"
+                width = row.get("field_length") or 0
+                width_lbl = f"{width}" if width else "full digest (unbounded)"
+                return (
+                    f"`{row['table_name']}.{row['column_name']}` "
+                    f"(type `{row.get('masking_type') or '—'}`) → masked to width "
+                    f"**{width_lbl}**:\n\n```\n{masked}\n```"
+                )
+
+            def _mt_load_grid():
+                rows = mtx.read_types(SQLITE_DB_PATH)
+                data = _mm_rows_to_grid(rows, mtx.TYPE_COLUMNS)
+                return data, f"Loaded **{len(rows)}** masking type(s) from SQLite."
+
+            def _mt_save(grid):
+                rows = _mm_df_to_dicts(grid, mtx.TYPE_COLUMNS)
+                res = mtx.replace_types(
+                    rows, db_path=SQLITE_DB_PATH, csv_path=mtx.DEFAULT_CSV_PATH
+                )
+                if not res.get("ok"):
+                    # Keep the SME's pending edits on screen; don't reload from SQLite.
+                    return f"❌ Save failed: {res.get('error')}", grid
+                data, loaded_msg = _mt_load_grid()
+                return (
+                    f"💾 Saved **{res.get('saved')}** type(s) to SQLite and wrote "
+                    f"**{res.get('csv_written')}** row(s) to `masking_type.csv`. "
+                    f"{loaded_msg}",
+                    data,
+                )
+
+            mm_reload_btn.click(
+                fn=_mm_load_grid, outputs=[mm_grid, mm_prev_dag, mm_status_md]
+            )
+            mm_save_btn.click(
+                fn=_mm_save, inputs=mm_grid,
+                outputs=[mm_status_md, mm_grid, mm_prev_dag],
+            )
+            mm_prev_btn.click(
+                fn=_mm_preview, inputs=[mm_prev_dag, mm_prev_val], outputs=mm_prev_out
+            )
+            mt_reload_btn.click(fn=_mt_load_grid, outputs=[mt_grid, mt_status_md])
+            mt_save_btn.click(
+                fn=_mt_save, inputs=mt_grid, outputs=[mt_status_md, mt_grid]
+            )
+
+            demo.load(fn=_mm_salt_status, outputs=mm_salt_md)
+            demo.load(fn=_mm_load_grid, outputs=[mm_grid, mm_prev_dag, mm_status_md])
+            demo.load(fn=_mt_load_grid, outputs=[mt_grid, mt_status_md])
 
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
         demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)

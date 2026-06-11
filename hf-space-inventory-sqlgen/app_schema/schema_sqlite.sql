@@ -683,7 +683,7 @@ CREATE TABLE IF NOT EXISTS column_masking_policies (
 );
 
 -- Masking matrix: the column-masking DAG, one row per masked column. Mirrors the
--- root CSV certificate_for_receiving/masking_matrix.csv (the human-editable copy)
+-- root CSV masking_matrix.csv (the human-editable copy)
 -- and is kept in sync by masking_matrix.py. Distinct from column_masking_policies
 -- (the SME strategy tab) — the two live side by side. dag_no is the DAG node id
 -- and primary key; parent_table/parent_column carry lineage. status static/complete
@@ -705,6 +705,23 @@ CREATE TABLE IF NOT EXISTS masking_matrix (
     status           TEXT    NOT NULL DEFAULT 'active'
         CHECK(status IN ('active', 'static', 'complete'))
 );
+
+-- Masking-type reference lookup: the closed set of masking types and their
+-- masking_mode numbers, used by masking_matrix. Mirrors the root CSV
+-- masking_type.csv and is kept in sync by masking_type.py. status 'active' means
+-- the type may be assigned; 'inactive' retires it without deleting it.
+CREATE TABLE IF NOT EXISTS masking_type (
+    masking_type TEXT    NOT NULL PRIMARY KEY,
+    masking_mode INTEGER NOT NULL DEFAULT 0,
+    status       TEXT    NOT NULL DEFAULT 'active'
+        CHECK(status IN ('active', 'inactive'))
+);
+
+-- No seed rows here (intentionally). Like masking_matrix, this table is populated
+-- at boot from the root masking_type.csv (and masking_type.write_default_csv
+-- recreates that CSV if it goes missing). Seeding here would resurrect rows an SME
+-- deleted via the Masking Matrix tab, because init_sqlite_db re-runs this script
+-- with INSERT OR IGNORE on every boot.
 
 -- SQL graph source tables: hold the full canonical graph (nodes + edges in the
 -- fixed 6-slot composite-key form) that replit_integrations/export_graph_metadata.py
