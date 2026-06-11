@@ -1,0 +1,60 @@
+plan_id: plan-008-consumer-delivery-persistence
+title: "Plan-008: Local Graph Metadata Parity Smoke-Test"
+topic: "Standalone Read-Only Verification of Graph Sync Token Readiness"
+created: "2026-05-30"
+status: Completed
+delegated_by: User
+assigned_to:
+  - copilot-cli
+  - documentation-writer
+
+objective: >
+  To deliver a standalone local verification script (replit_integrations/graph_metadata_demo.py)
+  that extracts relational schemas from manufacturing.db, bench-tests an intent-anchored semantic
+  triple, and projects an AQL column parity matrix to confirm graph sync token readiness. The
+  script is invoked from the repo root after activating the .venv
+  (`.\.venv\Scripts\Activate.ps1`; `python replit_integrations\graph_metadata_demo.py`) and reads
+  the local SQLite path from the MANUFACTURING_DB environment variable, defaulting to
+  hf-space-inventory-sqlgen\app_schema\manufacturing.db. It is strictly read-only and must never
+  modify manufacturing.db, so MANUFACTURING_DB should point at a local copy for deterministic runs.
+  The Intent-Driven Semantic Triple Benchmark validates the Supplier_Analysis intent triple
+  (column::SUPPLIERS.PERFORMANCE_RATING -ELEVATES-> concept::VendorQuality), emits an
+  AQL-to-SQLite parity report, and uses native python asserts to fail (AssertionError, non-zero
+  exit) on any mismatch.
+
+# Context:
+#   The graph-metadata changes in this plan exist to support importing the polymorphic special-case
+#   table USER_DEF_FIELDS, which carries unique graph-metadata structures that diverge from the
+#   standard table/column containment shape. The broader graph-building POC planning was advanced
+#   forward to plan-009; plan-008 is scoped only to the read-only parity smoke-test and the
+#   persistence/canonical-edge groundwork it depends on.
+
+steps:
+  - number: 1
+    title: "Build Intent-Anchored Semantic Benchmark"
+    description: >
+      Implement an explicit test-case for a semantic triple (e.g.,
+      column::PAYABLES.PAY_DATE -ELEVATES-> concept::AccruedLiabilities, and the certified
+      Supplier_Analysis benchmark column::SUPPLIERS.PERFORMANCE_RATING -ELEVATES-> concept::VendorQuality)
+      scoped under a localized intent bucket. Assert that it successfully resolves to its
+      pre-approved ground truth template. The Supplier_Analysis fixture lives in
+      metadata_query_templates and the demo verifies it against the live SQLite metadata.
+
+  - number: 2
+    title: "Generate AQL-to-SQLite Parity Matrix"
+    description: >
+      Query physical schema_columns metadata using PRAGMA table_info abstractions. Generate
+      canonical double-colon tokens via metadata_query_templates.generate_column_key and format a
+      side-by-side comparison report proving that the generated ArangoDB token structures match the
+      physical database ground truth. The script discovers relevant tables from sqlite_master, pulls
+      PRAGMA table_info per table, and fails on any parity mismatch via native python asserts.
+
+  - number: 3
+    title: "Final Schema Lock & Canonical Edge Generation"
+    description: >
+      Make final Schema Lock & Canonical Edge Generation adjustments to the persistence layer so the
+      graph metadata is perfectly isomorphic to the physical database schema, enabling flawless
+      multi-hop traversal for downstream agents. To guarantee strict separation between the physical
+      database shape and the semantic business logic, the persistence layer enforces a rigid 6-slot
+      template for all keys and a unified 5-part grammar for all unique IDs, eliminating parsing
+      ambiguity and grounding the graph in the physical database layer.

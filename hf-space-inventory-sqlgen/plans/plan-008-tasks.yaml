@@ -1,0 +1,172 @@
+plan_id: plan-008-consumer-delivery-persistence
+title: "Plan-008: Local Graph Metadata Parity Smoke-Test"
+topic: "Standalone Read-Only Verification of Graph Sync Token Readiness"
+
+# Private Repo Work Board — Iteration Tracking
+# status: pending | delegated | in_progress | completed | failed
+#
+# Context: plan-008's graph-metadata work supports importing the polymorphic special-case
+# table USER_DEF_FIELDS (unique graph-metadata structures). Broader graph-building POC
+# planning was advanced to plan-009.
+
+tasks:
+  # ==========================================
+  # WAVE 1: PERSISTENCE STORAGE LAYER & ADAPTERS
+  # ==========================================
+  - task_id: task-008-001
+    title: "Generate Database Schema Tables for Graph Persistence"
+    status: in_progress
+    assigned_to: copilot-cli
+    wave: 1
+    dependencies: []
+    artifact: Utilities/SQLMesh/ddl/persist_graph_schema.sql
+    notes: >
+      Generates the physical MSSQL DDL script inside Utilities/SQLMesh/ddl/.
+      Enforces singular node_type values ('table', 'column') to natively support downstream
+      AQL validation unit-tests (e.g., FILTER c.node_type == 'column').
+      Document keys must follow the public agent's verified 'prefix::TABLE.COLUMN' layout to
+      natively prevent illegal slash crashes while fully matching the public repo's
+      AQL validation constraints. Enforces edge_type and synced_at metrics.
+
+  - task_id: task-008-002
+    title: "Develop Canonical Graph Naming Adapter Component"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 1
+    dependencies: []
+    artifact: scripts/utils/graph_naming_adapters.py
+    notes: >
+      Created a new graph naming helper script at scripts/utils/graph_naming_adapters.py.
+      This will serve as the canonical naming adapter for all future tasks, ensuring that
+      all graph key/token formatting logic is centralized and reusable across the codebase.
+
+  - task_id: task-008-003
+    title: "Develop Python Table-to-JSON Serialization Engine"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 1
+    dependencies: [task-008-001, task-008-002]
+    artifact: scripts/sync_db_to_dab_config.py
+    notes: >
+      Reads persistent SQL metadata records filtered by synced_at timestamps,
+      and directly manipulates the static dab-config.json fields list array.
+
+  - task_id: task-008-005
+    title: "Refactor Data Relationship Form for Column Selection"
+    status: pending
+    assigned_to: replit-agent
+    wave: 1
+    dependencies: []
+    artifact: hf-space-inventory-sqlgen/app.py
+    notes: >
+      Updates the 'Define Data Relationship' form layout. When Edge Type is
+      CONTAINS, the Target Entity panel must dynamically populate with the specific
+      columns of the chosen Source Table, preventing invalid self-referential table edges.
+      See task-008-001 for the new persistent schema tables that enforce this structure.
+
+  # ==========================================
+  # WAVE 2: GRAPH CONVERSION & TRAVERSAL
+  # ==========================================
+  - task_id: task-008-004
+    title: "Build Automated Database-to-ArangoDB Reconstructor"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 2
+    dependencies: [task-008-001, task-008-002]
+    artifact: scripts/reconstruct_containment_graph.py
+    notes: >
+      Pulls structural relational definitions out of persistence staging tables
+      to assemble 'tables' nodes, 'columns' nodes, and 'contains' edges programmatically.
+
+  - task_id: task-008-006
+    title: "Optimize Multi-Hop Join Discovery AQL Traversals"
+    status: pending
+    assigned_to: documentation-writer
+    wave: 2
+    dependencies: [task-008-004]
+    artifact: Documentation/graph/aql-traversal-templates.md
+    notes: >
+      Documents the exact multi-hop query syntax used by downstream text-to-SQL
+      agents to map physical columns back to shared semantic concepts via structural containment.
+
+  # ==========================================
+  # WAVE 3: REPLIT GRAPH METADATA INTEGRATION
+  # ==========================================
+  - task_id: task-008-prep
+    title: "Verify Replit Environment Path Prep"
+    status: completed
+    assigned_to: copilot-cli
+    wave: 3
+    dependencies: []
+    artifact: replit_integrations/replit_integrations.md
+    notes: >
+      Documents path-alignment rules for cross-repo imports (approved Option A: procedural
+      module-level exports, direct DB queries, offline AQL key validation) plus PYTHONPATH
+      setup for nested SQLMesh models. Package marker replit_integrations/__init__.py enables
+      `from replit_integrations import ...` from the repo root.
+
+  - task_id: task-008-007
+    title: "Create Core Graph Metadata Module"
+    status: completed
+    assigned_to: copilot-cli
+    wave: 3
+    dependencies: [task-008-prep]
+    artifact: replit_integrations/graph_metadata_queries.py
+    notes: >
+      SQLite connection wrapper and query executor. get_manufacturing_db_path() resolves the
+      manufacturing.db path from env var or relative fallback; get_graph_metadata(query, params,
+      db_path) runs read-only SELECTs and returns a pandas DataFrame (connection-per-call, no
+      persistent state). Includes PRAGMA wrappers (get_table_columns, get_table_foreign_keys,
+      get_all_table_names, get_table_index_info) as the information_schema equivalents.
+
+  - task_id: task-008-008
+    title: "Define Query Template Library for Polymorphic Meanings"
+    status: completed
+    assigned_to: copilot-cli
+    wave: 3
+    dependencies: [task-008-prep]
+    artifact: replit_integrations/metadata_query_templates.py
+    notes: >
+      Pre-built read-only SQL string library (perspectives, polymorphic field meanings, foreign-key
+      graph from schema_edges, sqlite_master introspection) plus canonical column-key generation via
+      generate_column_key(source_database, schema_name, table_name, column_name) ->
+      "source_database::table_name.column_name". Carries the Intent-Driven Semantic Triple fixture
+      for the Supplier_Analysis intent (column::SUPPLIERS.PERFORMANCE_RATING -ELEVATES->
+      concept::VendorQuality). SQL strings only — no DB connection in this module.
+
+  - task_id: task-008-009
+    title: "Create Replit Ingestion Demo & Validation Script"
+    status: completed
+    assigned_to: copilot-cli
+    wave: 3
+    dependencies: [task-008-007, task-008-008]
+    artifact: replit_integrations/graph_metadata_demo.py
+    notes: >
+      Standalone read-only parity smoke-test entry point. Run from the repo root after .venv
+      activation; reads MANUFACTURING_DB (defaults to hf-space-inventory-sqlgen/app_schema/
+      manufacturing.db) and never modifies the database. Discovers tables from sqlite_master, pulls
+      PRAGMA table_info per table, generates canonical tokens, and validates parity using the
+      Supplier_Analysis intent. All checks pass: 738 tokens discovered, semantic triple verified;
+      native python asserts fail (non-zero exit) on any mismatch.
+
+  # ==========================================
+  # WAVE 4: FINAL SCHEMA LOCK & CANONICAL EDGE GENERATION
+  # ==========================================
+  - task_id: task-008-010
+    title: "Implement Final Schema Lock & Canonical Edge Generation Adjustments"
+    status: pending
+    assigned_to: copilot-cli
+    wave: 4
+    dependencies: [task-008-001, task-008-002, task-008-009]
+    artifact:
+      - replit_integrations/graph_metadata_canonical_example.json
+      - replit_integrations/graph_metadata_canonical_example.md
+    notes: >
+      Make final Schema Lock & Canonical Edge Generation adjustments to the persistence layer to
+      ensure the graph metadata is perfectly isomorphic to the physical database schema, enabling
+      flawless multi-hop traversal for downstream agents. The persistence layer enforces a rigid
+      6-slot key template and a unified 5-part unique-ID grammar to eliminate parsing ambiguity and
+      ground the graph in the physical database layer. The supporting exporter/sync modules
+      (export_graph_metadata.py, load_canonical_to_arango.py, seed_field_descriptions.py) emit the
+      graph_triples.tsv, graph_metadata.json, frozen graph_metadata.v{N}.json milestone snapshots,
+      and the graph_metadata_canonical_example.json / .md reference pair.
