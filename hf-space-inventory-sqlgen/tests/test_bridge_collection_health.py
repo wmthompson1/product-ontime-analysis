@@ -82,13 +82,37 @@ def _arango_counts(db) -> dict[str, int]:
     return counts
 
 
+def _reset_drift_report() -> None:
+    """Remove any drift report left over from a previous run.
+
+    Called once at the start of the test run so that the append-mode writes
+    in _write_drift_report() accumulate only the failures from THIS run, not
+    stale entries from a prior invocation in the same workspace.
+    """
+    try:
+        if os.path.exists(DRIFT_REPORT_PATH):
+            os.remove(DRIFT_REPORT_PATH)
+    except OSError as exc:
+        print(f"WARNING: could not reset drift report at {DRIFT_REPORT_PATH}: {exc}")
+
+
 def _write_drift_report(lines: list[str]) -> None:
-    """Write drift details to DRIFT_REPORT_PATH for CI notification steps."""
+    """Append drift details to DRIFT_REPORT_PATH for CI notification steps.
+
+    Opened in append ("a") mode so that when multiple health checks fail in the
+    same run (e.g. both the bridge-collection check and the schema_nodes/tables
+    check), every failing check's entries are preserved.  Write ("w") mode would
+    let the second writer silently clobber the first, hiding earlier failures
+    from the Slack alert.  The file is cleared once per run via
+    _reset_drift_report().
+    """
+    if not lines:
+        return
     try:
         report_dir = os.path.dirname(DRIFT_REPORT_PATH)
         if report_dir:
             os.makedirs(report_dir, exist_ok=True)
-        with open(DRIFT_REPORT_PATH, "w", encoding="utf-8") as fh:
+        with open(DRIFT_REPORT_PATH, "a", encoding="utf-8") as fh:
             fh.write("\n".join(lines) + "\n")
     except OSError as exc:
         print(f"WARNING: could not write drift report to {DRIFT_REPORT_PATH}: {exc}")
@@ -488,6 +512,7 @@ def test_schema_nodes_tables_count_match() -> None:
 
 
 def main() -> int:
+    _reset_drift_report()
     tests = [
         test_bridge_health_in_sync,
         test_bridge_health_out_of_sync,
