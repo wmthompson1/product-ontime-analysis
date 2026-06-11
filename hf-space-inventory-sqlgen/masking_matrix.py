@@ -19,10 +19,14 @@ agreement; both are idempotent. There is no LLM anywhere on this surface.
 
 Columns (the closed CSV schema, in order):
   dag_no, table_name, column_name, parent_table, parent_column, masking_rule,
-  masking_type, masking_mode, pre_stage_server, status
+  masking_type, field_length, masking_mode, pre_stage_server, status
 
 ``dag_no`` is the DAG node id and the table's primary key; ``parent_table`` /
-``parent_column`` carry the lineage between nodes.
+``parent_column`` carry the lineage between nodes. ``field_length`` is the
+column's width in the schema — the masked value is truncated to it so it stays
+the same width as the field (0 = unbounded -> full 64-char digest). Because the
+matrix's columns belong to the private SQL Server schema (not this local SQLite
+twin), that width is carried here as data rather than resolved from a live schema.
 
 This module is self-contained (its own sqlite + csv helpers) so it can be
 imported by ``app.py`` to keep the table in sync on startup and run head-less by
@@ -57,6 +61,7 @@ MATRIX_COLUMNS: tuple = (
     "parent_column",
     "masking_rule",
     "masking_type",
+    "field_length",
     "masking_mode",
     "pre_stage_server",
     "status",
@@ -84,6 +89,7 @@ CREATE TABLE IF NOT EXISTS masking_matrix (
     parent_column    TEXT    NOT NULL DEFAULT '',
     masking_rule     TEXT,
     masking_type     TEXT,
+    field_length     INTEGER NOT NULL DEFAULT 0,
     masking_mode     INTEGER NOT NULL DEFAULT 1,
     pre_stage_server TEXT,
     status           TEXT    NOT NULL DEFAULT 'active'
@@ -96,22 +102,22 @@ DEFAULT_MATRIX: List[Dict[str, Any]] = [
     {"dag_no": "1.1", "table_name": "vendor", "column_name": "id",
      "parent_table": "", "parent_column": "",
      "masking_rule": "hash_sha256(id,length)",
-     "masking_type": "deterministic_hash", "masking_mode": 1,
+     "masking_type": "deterministic_hash", "field_length": 30, "masking_mode": 1,
      "pre_stage_server": "sql-lab-2", "status": "static"},
     {"dag_no": "1.2", "table_name": "part", "column_name": "pref_vendor",
      "parent_table": "vendor", "parent_column": "id",
      "masking_rule": "hash_sha256(pref_vendor,length)",
-     "masking_type": "deterministic_hash", "masking_mode": 1,
+     "masking_type": "deterministic_hash", "field_length": 30, "masking_mode": 1,
      "pre_stage_server": "sql-lab-2", "status": "static"},
     {"dag_no": "1.3", "table_name": "work_order", "column_name": "part_id",
      "parent_table": "part", "parent_column": "id",
      "masking_rule": "hash_sha256(id,length)",
-     "masking_type": "deterministic_hash", "masking_mode": 1,
+     "masking_type": "deterministic_hash", "field_length": 30, "masking_mode": 1,
      "pre_stage_server": "sql-lab-2", "status": "static"},
     {"dag_no": "2.0", "table_name": "user_def_fields", "column_name": "",
      "parent_table": "", "parent_column": "",
      "masking_rule": "hash_sha256(id,length)",
-     "masking_type": "deterministic_hash", "masking_mode": 1,
+     "masking_type": "deterministic_hash", "field_length": 0, "masking_mode": 1,
      "pre_stage_server": "sql-lab-2", "status": "active"},
 ]
 
@@ -120,8 +126,18 @@ DEFAULT_MATRIX: List[Dict[str, Any]] = [
 
 
 def ensure_table(conn: sqlite3.Connection) -> None:
-    """Create the masking_matrix table if it does not exist (idempotent)."""
+    """Create the masking_matrix table if missing; self-heal older tables.
+
+    ``CREATE TABLE IF NOT EXISTS`` is a no-op when the table already exists, so a
+    column added after a DB was first created (``field_length``) is back-filled
+    here with an idempotent ``ALTER TABLE ADD COLUMN``.
+    """
     conn.execute(CREATE_TABLE_SQL)
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(masking_matrix)")}
+    if "field_length" not in existing:
+        conn.execute(
+            "ALTER TABLE masking_matrix ADD COLUMN field_length INTEGER NOT NULL DEFAULT 0"
+        )
 
 
 def _dag_sort_key(dag_no: str):
@@ -135,7 +151,8 @@ def _dag_sort_key(dag_no: str):
 def _clean_row(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Normalize one CSV/DB row into the canonical typed shape.
 
-    Trims whitespace on every field, coerces ``masking_mode`` to int (default 1),
+    Trims whitespace on every field, coerces ``masking_mode``/``field_length`` to
+    int (defaults 1 / 0; ``field_length`` is clamped to >= 0),
     defaults blank required text columns to '', and coerces an unknown/blank
     ``status`` to 'active' so a hand-edited CSV never breaks the load. Returns
     ``None`` for a row with no ``dag_no`` (the primary key) — it is skipped.
@@ -153,6 +170,14 @@ def _clean_row(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     except ValueError:
         masking_mode = 1
 
+    len_raw = g("field_length")
+    try:
+        field_length = int(len_raw) if len_raw else 0
+    except ValueError:
+        field_length = 0
+    if field_length < 0:
+        field_length = 0
+
     status = g("status").lower() or "active"
     if status not in MATRIX_STATUSES:
         status = "active"
@@ -165,6 +190,7 @@ def _clean_row(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "parent_column": g("parent_column"),
         "masking_rule": g("masking_rule"),
         "masking_type": g("masking_type"),
+        "field_length": field_length,
         "masking_mode": masking_mode,
         "pre_stage_server": g("pre_stage_server"),
         "status": status,
@@ -204,8 +230,9 @@ def load_matrix_from_csv(
                 """
                 INSERT INTO masking_matrix
                     (dag_no, table_name, column_name, parent_table, parent_column,
-                     masking_rule, masking_type, masking_mode, pre_stage_server, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     masking_rule, masking_type, field_length, masking_mode,
+                     pre_stage_server, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(dag_no) DO UPDATE SET
                     table_name       = excluded.table_name,
                     column_name      = excluded.column_name,
@@ -213,13 +240,15 @@ def load_matrix_from_csv(
                     parent_column    = excluded.parent_column,
                     masking_rule     = excluded.masking_rule,
                     masking_type     = excluded.masking_type,
+                    field_length     = excluded.field_length,
                     masking_mode     = excluded.masking_mode,
                     pre_stage_server = excluded.pre_stage_server,
                     status           = excluded.status
                 """,
                 (r["dag_no"], r["table_name"], r["column_name"], r["parent_table"],
                  r["parent_column"], r["masking_rule"], r["masking_type"],
-                 r["masking_mode"], r["pre_stage_server"], r["status"]),
+                 r["field_length"], r["masking_mode"], r["pre_stage_server"],
+                 r["status"]),
             )
         conn.commit()
         return {"ok": True, "loaded": len(rows)}
@@ -342,6 +371,27 @@ def hash_sha256(
     return digest
 
 
+def mask_row_value(
+    row: Dict[str, Any],
+    value: Any,
+    salt: Optional[str] = None,
+    salt_env: str = SALT_ENV_VAR,
+) -> Any:
+    """Mask *value* for a matrix *row*, sized to that row's schema width.
+
+    This is the executable form of the row's ``hash_sha256(col, length)`` rule:
+    ``length`` is the row's stored ``field_length`` (the column's width in the
+    schema), so the masked output is the same width as the field. A
+    ``field_length`` of 0 means unbounded -> the full 64-char digest. NULL /
+    empty values pass through unchanged.
+    """
+    try:
+        length = int(row.get("field_length") or 0)
+    except (TypeError, ValueError):
+        length = 0
+    return hash_sha256(value, length, salt=salt, salt_env=salt_env)
+
+
 __all__ = [
     "MATRIX_COLUMNS",
     "MATRIX_STATUSES",
@@ -359,4 +409,5 @@ __all__ = [
     "count_rows",
     "get_salt",
     "hash_sha256",
+    "mask_row_value",
 ]

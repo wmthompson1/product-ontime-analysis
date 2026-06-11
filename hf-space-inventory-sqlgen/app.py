@@ -221,6 +221,7 @@ def ensure_app_metadata_tables(conn) -> None:
             parent_column    TEXT    NOT NULL DEFAULT '',
             masking_rule     TEXT,
             masking_type     TEXT,
+            field_length     INTEGER NOT NULL DEFAULT 0,
             masking_mode     INTEGER NOT NULL DEFAULT 1,
             pre_stage_server TEXT,
             status           TEXT    NOT NULL DEFAULT 'active'

@@ -689,7 +689,8 @@ CREATE TABLE IF NOT EXISTS column_masking_policies (
 -- and primary key; parent_table/parent_column carry lineage. status static/complete
 -- means the row is certified/locked (data already pulled into SQLMesh), active means
 -- still in progress. masking_rule notates the transform, e.g. hash_sha256(col,length)
--- = SHA-256(value+salt) hashed to the same width as the field in the schema.
+-- = SHA-256(value+salt) hashed to the same width as the field in the schema; that
+-- width is held in field_length (0 = unbounded -> full 64-char digest).
 CREATE TABLE IF NOT EXISTS masking_matrix (
     dag_no           TEXT    NOT NULL PRIMARY KEY,
     table_name       TEXT    NOT NULL,
@@ -698,6 +699,7 @@ CREATE TABLE IF NOT EXISTS masking_matrix (
     parent_column    TEXT    NOT NULL DEFAULT '',
     masking_rule     TEXT,
     masking_type     TEXT,
+    field_length     INTEGER NOT NULL DEFAULT 0,
     masking_mode     INTEGER NOT NULL DEFAULT 1,
     pre_stage_server TEXT,
     status           TEXT    NOT NULL DEFAULT 'active'
