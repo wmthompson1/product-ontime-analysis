@@ -8,3 +8,4 @@
 - [FK canonical model](fk-canonical-model.md) — FK = `foreign_key` bool on column node + `references` structural edge (child→parent); no FOREIGN_KEY edge type / is_foreign_key edge prop. Live graph still on old model, so canonical fixtures fail until migration (out of scope).
 - [dab_config.json generation](dab-config-generation.md) — generated from dab_field_definitions (certified=1) by sync; publish auto-creates entity blocks for manufacturing tables absent from config; never hand-edit.
 - [SQL graph source tables](sql-graph-source-tables.md) — graph_metadata.json is serialized FROM sql_graph_nodes/sql_graph_edges (materialize→read-back); parity gated in post-merge; SQLite `notnull` is reserved, must be quoted.
+- [Masking matrix](masking-matrix.md) — CSV↔SQLite upsert-only mirror (deletes don't propagate); rows name the private SQL Server schema, not local SQLite; salt=GEMIN_SALT env; separate from column_masking_policies.
