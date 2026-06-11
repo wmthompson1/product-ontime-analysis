@@ -254,8 +254,43 @@ CREATE TABLE IF NOT EXISTS operation (
     close_date         DATETIME,
     last_disp_date     DATETIME,                 -- last outside-service dispatch date
     last_recv_date     DATETIME,                 -- last outside-service receipt date
+    operation_type_id  TEXT,                     -- FK → operation_type (the KIND of op: CNC, PAINT, NDT, …)
     UNIQUE(wo_id, sequence_no)
 );
+
+-- Operation-type reference lookup: the closed set of operation "kinds"
+-- (CNC, Paint, NDT, Inspect, Assembly, …) an operation row can be classified
+-- as. operation.operation_type_id is a foreign key into this table. resource_id
+-- names a representative default work center; active=0 retires a type without
+-- deleting it. Seeded below so a fresh database carries the full taxonomy; the
+-- committed manufacturing.db has its existing operation rows stamped by
+-- migrations/add_operation_type.py. Mirrors the private SQL Server
+-- OPERATION_TYPE (ID, DESCRIPTION, RESOURCE_ID) model.
+CREATE TABLE IF NOT EXISTS operation_type (
+    operation_type_id TEXT    NOT NULL PRIMARY KEY,
+    description       TEXT    NOT NULL,
+    category          TEXT    NOT NULL DEFAULT 'Other',
+    resource_id       TEXT,
+    active            INTEGER NOT NULL DEFAULT 1
+);
+
+INSERT INTO operation_type (operation_type_id, description, category, resource_id, active) VALUES
+    ('CNC',      'CNC Milling',                   'Machining',         'CNC-MILL-1',   1),
+    ('TURN',     'CNC Turning / Lathe',           'Machining',         'LATHE-1',      1),
+    ('WJET',     'Waterjet Cutting',              'Machining',         'MC-006',       1),
+    ('DEBURR',   'Deburr / Finishing',            'Finishing',         'DRILL-PRESS',  1),
+    ('WELD',     'Welding',                       'Fabrication',       'WELD-A',       1),
+    ('ASSY',     'Assembly',                      'Assembly',          'ASSEM-LINE-1', 1),
+    ('INSPECT',  'In-Process Inspection / CMM',   'Quality',           'INSPECT-CMM',  1),
+    ('FINSP',    'Final Inspection',              'Quality',           'LB-004',       1),
+    ('NDT',      'Non-Destructive Test',          'Quality',           'SV-003',       1),
+    ('REVIEW',   'Engineering / Planning Review', 'Engineering',       NULL,           1),
+    ('ANOD',     'Anodize',                       'Outside Finishing', 'SV-001',       1),
+    ('CHEM',     'Chemical Film',                 'Outside Finishing', 'SV-004',       1),
+    ('HTRT',     'Heat Treat',                    'Outside Process',   'SV-002',       1),
+    ('PLATE',    'Plating',                       'Outside Finishing', 'OUTSIDE',      1),
+    ('PAINT',    'Paint / Prime',                 'Outside Finishing', 'SV-005',       1),
+    ('PARTMARK', 'Part Marking / Etch',           'Finishing',         'DRILL-PRESS',  1);
 
 CREATE TABLE IF NOT EXISTS material_issue (
     issue_id         INTEGER PRIMARY KEY AUTOINCREMENT,

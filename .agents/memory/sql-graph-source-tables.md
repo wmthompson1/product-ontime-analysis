@@ -86,6 +86,25 @@ source of truth; anything that must persist has to live in SQLite.
   added into `total_edges` (avoids double-counting; merged rows show up in the
   next export's edge total instead).
 
+## Adding a SQLite column/table does NOT break the parity gates
+The post-merge graph gates compare **frozen artifacts only**: `graph_metadata.json`
+↔ the `sql_graph_*` tables (and a hardcoded CUSTOMER fixture in
+`tests/test_sql_graph_tables.py`). None of them re-derive the graph from live
+PRAGMA columns. So you can add a new ERP column (e.g. `operation.operation_type_id`)
+or a new lookup table without touching the graph or failing parity — the curated
+graph simply will not contain the new column/table until someone *manually* re-runs
+`export_graph_metadata.py` (frozen-once; re-exporting is a separate, bigger change
+that also needs an Arango re-sync).
+
+**Why:** the `operation` table and all its columns ARE enumerated in
+`sql_graph_nodes`, which looks scary, but the materializer is manual and not run by
+post-merge — the committed JSON + tables stay byte-stable. Verified: adding
+`operation_type_id` left parity at 245 nodes / 278 edges, all gates green.
+
+**How to apply:** additive ERP schema changes are safe and graph-invisible by
+design. Only when you *want* the new field in the semantic/triple-resolution layer
+do you re-run the exporter (and accept the re-freeze + AQL sync cost).
+
 ## SQLite gotcha: `notnull` is reserved
 `notnull` is the SQLite `x NOTNULL` operator token, so a bare column named
 `notnull` is a syntax error ("near \"notnull\""). It must be double-quoted

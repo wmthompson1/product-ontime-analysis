@@ -11,6 +11,11 @@ Run from repo root:
 
 Or with --clear to wipe and reseed all ERP tables:
     python hf-space-inventory-sqlgen/scripts/seed_erp_synthetic.py --clear
+
+NOTE: this seeder does not set operation.operation_type_id. After a from-scratch
+reseed, run migrations/add_operation_type.py to (re)stamp the operation rows with
+their operation_type (CNC, Paint, NDT, …); it is idempotent and backfills only
+rows where the type is still NULL.
 """
 
 import argparse
