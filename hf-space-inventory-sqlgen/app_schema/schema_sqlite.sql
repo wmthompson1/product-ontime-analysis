@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS operation (
     rowid_pk           INTEGER PRIMARY KEY AUTOINCREMENT,
     wo_id              TEXT NOT NULL,            -- FK → work_order
     workorder_type     TEXT NOT NULL,
-    sequence_no        INTEGER NOT NULL,         -- multiples of 10
+    sequence_no        INTEGER NOT NULL,         -- routing step number; gapped (e.g. 20, 80, 220), set by migrations/regap_and_seed_requirements.py
     resource_id        TEXT NOT NULL,            -- FK → shop_resource
     service_id         TEXT,                     -- FK → service (outside ops only)
     vendor_id          TEXT,                     -- FK → suppliers (outside ops only)
@@ -323,13 +323,16 @@ CREATE TABLE IF NOT EXISTS labor_ticket (
 -- component_type is the ENGINEERING vs MANUFACTURING differentiator:
 --   PART       -> design level (as-designed routing standard; engineering, per-unit basis)
 --   WORK_ORDER -> work-order level (as-built actuals; manufacturing, batch basis)
+-- The committed manufacturing.db has work-order-level MATERIAL rows seeded by
+-- migrations/regap_and_seed_requirements.py (each tied to a concrete operation via
+-- operation_rowid), so operations can be queried for the material they require.
 CREATE TABLE IF NOT EXISTS requirement (
     requirement_id    TEXT PRIMARY KEY,                  -- e.g. REQ-000001
     component_type    TEXT NOT NULL CHECK(component_type IN ('PART','WORK_ORDER')),
     component_id      TEXT NOT NULL,                     -- part_id (design) or wo_id (work order)
     requirement_level TEXT NOT NULL CHECK(requirement_level IN ('DESIGN','WORK_ORDER')),
     requirement_type  TEXT NOT NULL CHECK(requirement_type IN ('LABOR','MATERIAL','BURDEN')),
-    operation_seq     INTEGER NOT NULL,                  -- routing sequence step (multiples of 10); design-level operation handle
+    operation_seq     INTEGER NOT NULL,                  -- routing sequence step (gapped, e.g. 20, 80, 220); design-level operation handle
     operation_rowid   INTEGER,                           -- FK -> operation (work-order-level concrete op; NULL at design level)
     material_part_id  TEXT,                              -- FK -> part when requirement_type='MATERIAL'
     std_qty           REAL DEFAULT 0.0,                  -- per-unit standard quantity / hours (as-designed)

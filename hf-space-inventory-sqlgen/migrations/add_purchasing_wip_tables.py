@@ -13,6 +13,13 @@ Field naming follows dbo.OPERATION DDL conventions:
   - SERVICE_ID / VENDOR_ID: outside service fields on operation
   - EST/ACT cost columns: estimated vs actual for LAB, BUR, SER
 
+NOTE: this seeder emits plain multiples-of-10 SEQUENCE_NO. The committed
+manufacturing.db is finished by migrations/regap_and_seed_requirements.py, which
+renumbers operation.sequence_no into realistic gapped values (e.g. 20, 80, 220),
+keeps labor_ticket.sequence_no aligned, and seeds operation-level MATERIAL rows in
+the `requirement` table. It reads the live operation table, so it covers rows from
+this migration and from scripts/seed_erp_synthetic.py alike; it is idempotent.
+
 Run once:
     cd hf-space-inventory-sqlgen
     python migrations/add_purchasing_wip_tables.py
