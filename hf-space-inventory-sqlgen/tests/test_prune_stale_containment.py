@@ -245,6 +245,15 @@ class TestPruneStaleContainmentLogic(unittest.TestCase):
         self.assertEqual(result["tables_pruned"], 2)
         self.assertEqual(result["edges_pruned"], 4)
         self.assertEqual(result["columns_pruned"], 6)
+        self.assertEqual(
+            result["stale_table_names"], ["GHOST_A", "GHOST_B"]
+        )
+
+    def test_stale_table_names_empty_when_no_stale(self):
+        arango_keys = [table_key("ORDERS")]
+        db = _mock_db(arango_keys, edges_per_table=2, cols_per_table=3)
+        result = prune_stale_containment(db, db_path=self.db_path)
+        self.assertEqual(result["stale_table_names"], [])
 
 
 # ---------------------------------------------------------------------------

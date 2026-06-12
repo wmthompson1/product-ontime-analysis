@@ -5302,15 +5302,40 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 with gr.Column():
                     sync_dry_run_btn = gr.Button("Dry Run (Preview)", variant="secondary")
                     sync_live_btn = gr.Button("Sync to ArangoDB", variant="primary")
+                    sync_purge_stale = gr.Checkbox(
+                        label="Purge stale tables (remove vertices/edges for tables no longer in SQLite)",
+                        value=False,
+                    )
                 with gr.Column():
                     sync_status = gr.Textbox(label="Status", interactive=False, value="Ready — click Dry Run or Sync")
-            
+
+            sync_stale_panel = gr.Markdown(value="**Stale tables:** 0 stale tables removed")
+
             sync_report_output = gr.Code(label="Sync Report", language=None, lines=22)
-            
-            def run_graph_sync(dry_run: bool):
+
+            def _stale_panel_md(report, dry_run: bool) -> str:
+                """Render the pruned-vertex/edge counts and stale table names (#149)."""
+                if not report.stale_tables:
+                    return "**Stale tables:** 0 stale tables removed"
+                verb = "would be removed" if dry_run else "removed"
+                total_pv = report.total_pruned_vertices
+                total_pe = report.total_pruned_edges
+                lines = [
+                    f"**Stale tables — {len(report.stale_tables)} {verb}**",
+                    "",
+                    f"- Vertices pruned: **{total_pv}**",
+                    f"- Edges pruned: **{total_pe}**",
+                    "",
+                    "Stale table names:",
+                ]
+                for name in report.stale_tables:
+                    lines.append(f"- `{name}`")
+                return "\n".join(lines)
+
+            def run_graph_sync(dry_run: bool, purge_stale: bool):
                 try:
                     from graph_sync import sync_graph
-                    report = sync_graph(dry_run=dry_run)
+                    report = sync_graph(dry_run=dry_run, purge_stale=purge_stale)
                     if dry_run:
                         status = f"DRY RUN — {report.total_vertices} vertices, {report.total_edges} edges ready to sync"
                     elif report.success:
@@ -5318,11 +5343,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     else:
                         status = f"FAILED — see errors in report below"
                     _SYNC_LAST_STATUS[0] = status
-                    return status, report.summary()
+                    return status, report.summary(), _stale_panel_md(report, dry_run)
                 except Exception as e:
                     err = f"ERROR: {e}"
                     _SYNC_LAST_STATUS[0] = err
-                    return err, str(e)
+                    return err, str(e), "**Stale tables:** 0 stale tables removed"
 
             def _health_inline() -> str:
                 """Append bridge health to the last sync status for inline display (#121)."""
@@ -5330,12 +5355,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return f"{_SYNC_LAST_STATUS[0]}  ·  {health}"
 
             sync_dry_run_btn.click(
-                fn=lambda: run_graph_sync(dry_run=True),
-                outputs=[sync_status, sync_report_output]
+                fn=lambda purge: run_graph_sync(dry_run=True, purge_stale=purge),
+                inputs=[sync_purge_stale],
+                outputs=[sync_status, sync_report_output, sync_stale_panel]
             )
             sync_live_btn.click(
-                fn=lambda: run_graph_sync(dry_run=False),
-                outputs=[sync_status, sync_report_output]
+                fn=lambda purge: run_graph_sync(dry_run=False, purge_stale=purge),
+                inputs=[sync_purge_stale],
+                outputs=[sync_status, sync_report_output, sync_stale_panel]
             ).then(
                 fn=_health_inline,
                 outputs=sync_status,

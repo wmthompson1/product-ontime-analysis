@@ -89,6 +89,7 @@ class SyncReport:
     edges_updated: Dict[str, int] = field(default_factory=dict)
     vertices_pruned: Dict[str, int] = field(default_factory=dict)
     edges_pruned: Dict[str, int] = field(default_factory=dict)
+    stale_tables: List[str] = field(default_factory=list)
     bridges_pruned: Dict[str, int] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -833,6 +834,7 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
                     report.vertices_pruned[TABLES_COLLECTION] = prune_result["tables_pruned"]
                     report.vertices_pruned[COLUMNS_COLLECTION] = prune_result["columns_pruned"]
                     report.edges_pruned[CONTAINS_EDGE_COLLECTION] = prune_result["edges_pruned"]
+                    report.stale_tables = list(prune_result["stale_table_names"])
             except Exception as ex:
                 report.warnings.append(f"Stale containment prune failed: {ex}")
 
