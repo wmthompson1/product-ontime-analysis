@@ -2,11 +2,11 @@
 set -e
 
 if [ -f requirements.txt ]; then
-  pip install --quiet --disable-pip-version-check -r requirements.txt || true
+  uv pip install --quiet --python .pythonlibs/bin/python -r requirements.txt || true
 fi
 
 if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
-  pip install --quiet --disable-pip-version-check -r hf-space-inventory-sqlgen/requirements.txt || true
+  uv pip install --quiet --python .pythonlibs/bin/python -r hf-space-inventory-sqlgen/requirements.txt || true
 fi
 
 if [ -f hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py ]; then

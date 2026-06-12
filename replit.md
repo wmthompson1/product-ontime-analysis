@@ -17,6 +17,13 @@ Task management: Do NOT auto-create or propose follow-up tasks. Never use propos
 
 ## Current System State (May 2026)
 
+### Python runtime baseline (June 2026)
+- **Runtime: Python 3.13.11** — upgraded from 3.11. Pinned to **3.13 specifically**; do NOT move to 3.14 (3.14 removes `ast.Str`, which SQLGlot/SQLMesh AST handling depends on).
+- Replit runtime module: `python-base-3.13` (the old `python-3.11` module was removed). The virtualenv lives at `.pythonlibs`, rebuilt on 3.13.
+- Dependencies are installed with `uv pip install` from `requirements.txt` + `hf-space-inventory-sqlgen/requirements.txt` (not `uv sync` — `uv.lock` is stale and intentionally not used).
+- `pyproject.toml` `requires-python = ">=3.13"`.
+- Verified on 3.13: both apps boot (HF Space on :8080 with the Gradio UI serving, Flask on :5000), every dependency imports, and the full `scripts/post-merge.sh` gate passes.
+
 ### HF Space app — fully operational
 - Entry point: `hf-space-inventory-sqlgen/app.py` (FastAPI + Gradio, port 8080)
 - Database: `hf-space-inventory-sqlgen/app_schema/manufacturing.db` (SQLite, 33 tables, WAL mode)
