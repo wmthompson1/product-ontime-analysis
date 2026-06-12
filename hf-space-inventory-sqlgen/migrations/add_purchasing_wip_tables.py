@@ -13,14 +13,17 @@ Field naming follows dbo.OPERATION DDL conventions:
   - SERVICE_ID / VENDOR_ID: outside service fields on operation
   - EST/ACT cost columns: estimated vs actual for LAB, BUR, SER
 
-NOTE: this seeder emits plain multiples-of-10 SEQUENCE_NO and only marks ops 'C'
-when the whole WO is done (else random Q/Q/S, unordered), and never sets
-operation.close_date. The committed manufacturing.db is finished by two idempotent
-migrations that both read the live operation table (covering rows from this
-migration and from scripts/seed_erp_synthetic.py alike):
+NOTE: this seeder emits plain multiples-of-10 SEQUENCE_NO, only marks ops 'C'
+when the whole WO is done (else random Q/Q/S, unordered), never sets
+operation.close_date, and emits older work_order.status labels (Open / Released /
+In Process / Complete / Closed). The committed manufacturing.db is finished by these
+idempotent migrations, which read the live tables (covering rows from this migration
+and from scripts/seed_erp_synthetic.py alike), in this order:
   - migrations/regap_and_seed_requirements.py — renumber operation.sequence_no into
     realistic gapped values (e.g. 20, 80, 220), keep labor_ticket.sequence_no
     aligned, and seed operation-level MATERIAL rows in the `requirement` table.
+  - migrations/relabel_work_order_status.py — map work_order.status onto the real
+    planner vocabulary (unreleased / firmed / released / closed).
   - migrations/backfill_operation_progress.py — derive realistic, sequence-ordered
     job progress (operation.status Q/S/C + close_date) from each work order's
     status, so progress is measured by status/close_date, not by sequence_no.

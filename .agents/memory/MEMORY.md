@@ -9,5 +9,6 @@
 - [dab_config.json generation](dab-config-generation.md) — generated from dab_field_definitions (certified=1) by sync; publish auto-creates entity blocks for manufacturing tables absent from config; never hand-edit.
 - [SQL graph source tables](sql-graph-source-tables.md) — graph_metadata.json is serialized FROM sql_graph_nodes/sql_graph_edges (materialize→read-back); parity gated in post-merge; SQLite `notnull` is reserved, must be quoted.
 - [Masking matrix](masking-matrix.md) — CSV↔SQLite upsert-only mirror; rows target the private SQL Server schema; mask width = per-row `field_length`; salt=GEMIN_SALT env.
+- [ERP planner vocabulary](wo-status-vocab.md) — real WO statuses unreleased/firmed/released/closed (firmed=first lots/new parts); deferred demand-side shipped/allocated/ATP=on-hand−allocated.
 - [WAL-mode DB migration verification](wal-db-verification.md) — app DB is gitignored & WAL-mode; verify migrations via sqlite3 dumps (not file copy), checkpoint before trusting the main file.
 - [Operation job-progress model](operation-progress-model.md) — progress = operation.status (Q/S/C) + close_date derived from work_order.status + routing order, NOT sequence_no; backfill must use data-derived AS_OF, never wall-clock.

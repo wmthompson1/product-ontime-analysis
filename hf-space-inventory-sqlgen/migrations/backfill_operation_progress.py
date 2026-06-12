@@ -1,42 +1,45 @@
 """
 Migration: Make operation-level job progress realistic and measurable.
 
-Job progress is read from operation.status (Q/S/C) and operation.close_date — NOT
-from sequence_no, which is only the routing step ORDER (a gapped numeric handle).
-This migration derives a coherent, sequence-ordered progress state for every
-operation from its parent work_order's status, and stamps a close_date on each
-completed operation.
+Job progress for a work order is measured from operation.status (Q=Queued,
+S=Started, C=Complete) and operation.close_date — NOT from sequence_no, which is
+only the routing step ORDER (a gapped numeric handle). This migration derives a
+coherent, sequence-ordered progress state for every operation from its parent
+work_order's status, and stamps a close_date on each completed operation.
 
 Why this is needed (the seeders left progress un-measurable / inconsistent):
   - operation.close_date was NEVER set by either seeder, so progress could not be
     measured by date at all.
   - scripts/seed_erp_synthetic.py forced EVERY operation to 'Q' regardless of the
-    work order's status, so "Closed" jobs had all-Queued operations.
+    work order's status.
   - migrations/add_purchasing_wip_tables.py marked ops 'C' only when the whole WO
-    was done, otherwise random Q/Q/S — never ordered along the routing, so no job
-    showed a realistic "early steps done, current step running, later steps queued"
-    progression.
+    was done, otherwise random Q/Q/S — never ordered along the routing.
 
-Progress model (work_order.status -> its operations, ordered by sequence_no):
-  Open, Released      -> not started: all ops 'Q', no close_date
-  In Process          -> running: leading ops 'C' (with close_date), exactly one
-                         current op 'S', trailing ops 'Q'
-  Complete, Closed    -> done: all ops 'C' (with close_date)
+Progress model (work_order.status -> its operations, ordered by sequence_no). The
+work-order statuses are the real planner vocabulary set by
+migrations/relabel_work_order_status.py (older labels are still accepted here so the
+two migrations are order-tolerant):
+  unreleased, firmed  -> not started: all ops 'Q', no close_date
+  released            -> on the floor: a realistic SPREAD per work order —
+                         some just released (all 'Q'), most in progress (leading
+                         'C' with close_date + one current 'S' + trailing 'Q'),
+                         some finished awaiting close-out (all 'C')
+  closed              -> done: all ops 'C' with close_date
 
 close_date: completed ops get dates spread in routing order (earlier step closes
 earlier) inside the work order's window [open_date .. end], where end is the work
-order's own close_date when present, else min(required_date, AS_OF). AS_OF is the
-latest work_order.close_date in the DB — a fixed, data-derived "today" so re-runs
-are stable (wall-clock time is intentionally NOT used, which would break the fixed
-point). Every completed op closes on/before its work order's close_date.
+order's own close_date when present (closed jobs), else min(required_date, AS_OF).
+AS_OF is the latest work_order.close_date in the DB — a fixed, data-derived "today"
+so re-runs are stable (wall-clock time is intentionally NOT used). Every completed
+op closes on/before its work order's close_date.
 
 Idempotency (safe to re-run — a fixed point): status and close_date are pure
 functions of (wo_id, work_order.status, operation ordinal, op count, work-order
-dates), with the single in-process cut point seeded by zlib.crc32(wo_id) (NOT
-Python's builtin hash(), which is salted per process). Re-running reproduces the
-identical state. Updates are by operation.rowid_pk.
+dates), with per-work-order randomness seeded by zlib.crc32(wo_id) (NOT Python's
+builtin hash(), which is salted per process). Re-running reproduces the identical
+state. Updates are by operation.rowid_pk.
 
-Run once (safe to re-run):
+Run order: AFTER migrations/relabel_work_order_status.py. Safe to re-run.
     cd hf-space-inventory-sqlgen
     python migrations/backfill_operation_progress.py
 """
@@ -49,9 +52,10 @@ from random import Random
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "app_schema", "manufacturing.db")
 
-NOT_STARTED = {"Open", "Released"}
-IN_PROCESS  = {"In Process"}
-DONE        = {"Complete", "Closed"}
+# Real planner vocabulary (older invented labels kept for order-tolerance).
+NOT_STARTED = {"unreleased", "firmed", "Open"}
+RELEASED    = {"released", "Released", "In Process"}
+DONE        = {"closed", "Closed", "Complete"}
 
 ISO = "%Y-%m-%d"
 FALLBACK_AS_OF = date(2026, 6, 12)
@@ -87,19 +91,35 @@ def _spread_dates(start: date, end: date, k: int):
 
 
 def progress_for_wo(wstatus, n, rng):
-    """Return (statuses, completed_count) for a work order's n operations, ordered
-    by sequence_no, given the work order's status."""
+    """Return the per-operation status list (ordered by sequence_no) for a work
+    order's n operations, given the work order's status."""
     if n == 0:
-        return [], 0
+        return []
     if wstatus in DONE:
-        return ["C"] * n, n
-    if wstatus in IN_PROCESS:
-        frac = 0.25 + rng.random() * 0.5          # 0.25 .. 0.75
-        cut = max(0, min(int(round((n - 1) * frac)), n - 1))  # index of current 'S'
-        statuses = ["C" if i < cut else ("S" if i == cut else "Q") for i in range(n)]
-        return statuses, cut
-    # Open / Released / unknown -> not started
-    return ["Q"] * n, 0
+        return ["C"] * n
+    if wstatus in NOT_STARTED:
+        return ["Q"] * n
+    # released (on the floor) -> realistic spread, or unknown -> treat conservatively
+    if wstatus not in RELEASED:
+        return ["Q"] * n
+    r = rng.random()
+    if r < 0.20:                       # just released, not started yet
+        completed, started = 0, False
+    elif r >= 0.85:                    # all steps done, awaiting close-out
+        completed, started = n, False
+    else:                             # in progress
+        frac = (r - 0.20) / 0.65
+        completed = min(max(int(round((n - 1) * frac)), 0), n - 1)
+        started = True
+    out = []
+    for i in range(n):
+        if i < completed:
+            out.append("C")
+        elif started and i == completed:
+            out.append("S")
+        else:
+            out.append("Q")
+    return out
 
 
 def run():
@@ -123,22 +143,24 @@ def run():
 
     updates = []                          # (status, close_date, rowid_pk)
     counts = {"Q": 0, "S": 0, "C": 0}
-    wo_buckets = {"not started": 0, "in process": 0, "done": 0}
+    wo_buckets = {"not started": 0, "released": 0, "closed": 0}
 
     for wo_id, op_rowids in by_wo.items():
         meta = wo_meta.get(wo_id)
         n = len(op_rowids)
-        wstatus = meta[1] if meta else "Open"
+        wstatus = meta[1] if meta else "unreleased"
         open_d = (_parse(meta[2]) if meta else None) or (as_of - timedelta(days=60))
         close_d = _parse(meta[3]) if meta else None
         req_d = _parse(meta[4]) if meta else None
         rng = _rng(wo_id)
 
-        statuses, completed = progress_for_wo(wstatus, n, rng)
+        statuses = progress_for_wo(wstatus, n, rng)
+        completed = statuses.count("C")
+
         if wstatus in DONE:
-            wo_buckets["done"] += 1
-        elif wstatus in IN_PROCESS:
-            wo_buckets["in process"] += 1
+            wo_buckets["closed"] += 1
+        elif wstatus in RELEASED:
+            wo_buckets["released"] += 1
         else:
             wo_buckets["not started"] += 1
 
@@ -146,7 +168,7 @@ def run():
         if completed > 0:
             if wstatus in DONE:
                 end = close_d or (req_d if (req_d and req_d > open_d) else as_of)
-            else:  # in process — completed work happened on/before the as-of date
+            else:  # released — completed work happened on/before the as-of date
                 end = min(req_d or as_of, as_of)
             if end <= open_d:
                 end = max(as_of, open_d + timedelta(days=completed + 1))
@@ -170,8 +192,9 @@ def run():
     conn.commit()
 
     print(f"  as-of date (data-derived): {as_of.strftime(ISO)}")
-    print(f"  work orders: {wo_buckets['not started']} not started, "
-          f"{wo_buckets['in process']} in process, {wo_buckets['done']} done")
+    print(f"  work orders: {wo_buckets['not started']} not started "
+          f"(unreleased/firmed), {wo_buckets['released']} released, "
+          f"{wo_buckets['closed']} closed")
     print(f"  operations: {counts['C']} Complete (C), {counts['S']} Started (S), "
           f"{counts['Q']} Queued (Q)")
     closed_ops = cur.execute(
@@ -181,17 +204,17 @@ def run():
     ).fetchone()[0]
     print(f"  close_date set on {with_date}/{closed_ops} completed operations")
 
-    print("  sample in-process work order routing:")
-    ip = cur.execute(
+    print("  sample released work order routing:")
+    rel = cur.execute(
         "SELECT o.wo_id FROM operation o JOIN work_order w ON w.wo_id=o.wo_id "
-        "WHERE w.status='In Process' ORDER BY o.wo_id LIMIT 1"
+        "WHERE w.status='released' AND o.status='S' ORDER BY o.wo_id LIMIT 1"
     ).fetchone()
-    if ip:
+    if rel:
         for seq, ot, st, cd in cur.execute(
             "SELECT sequence_no, operation_type_id, status, close_date FROM operation "
-            "WHERE wo_id=? ORDER BY sequence_no", (ip[0],)
+            "WHERE wo_id=? ORDER BY sequence_no", (rel[0],)
         ):
-            print(f"    {ip[0]}  seq={seq:<5} {ot or '?':<8} {st}  {cd or ''}")
+            print(f"    {rel[0]}  seq={seq:<5} {ot or '?':<8} {st}  {cd or ''}")
 
     conn.close()
     print("Done.")

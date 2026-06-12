@@ -214,7 +214,7 @@ CREATE TABLE IF NOT EXISTS work_order (
     part_id          TEXT NOT NULL,              -- FK → part
     part_description TEXT NOT NULL,
     quantity         REAL NOT NULL,
-    status           TEXT NOT NULL,              -- Open / Released / Closed / Cancelled
+    status           TEXT NOT NULL,              -- unreleased / firmed / released / closed (firmed = first lots tested or recently engineered parts; set by migrations/relabel_work_order_status.py)
     open_date        DATE,
     close_date       DATE,
     required_date    DATE,

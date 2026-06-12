@@ -13,15 +13,18 @@ Or with --clear to wipe and reseed all ERP tables:
     python hf-space-inventory-sqlgen/scripts/seed_erp_synthetic.py --clear
 
 NOTE: this seeder emits plain multiples-of-10 sequences, forces every operation
-to status='Q', never sets operation.close_date, and does NOT set
-operation.operation_type_id or seed the operation-level `requirement` table.
-After a from-scratch reseed, run (all idempotent, in this order):
+to status='Q', never sets operation.close_date, emits older work_order.status
+labels (Open/Released/Closed), and does NOT set operation.operation_type_id or seed
+the operation-level `requirement` table. After a from-scratch reseed, run (all
+idempotent, in this order):
   1. migrations/add_operation_type.py — (re)stamp operation rows with their
      operation_type (CNC, Paint, NDT, …); backfills only rows still NULL.
   2. migrations/regap_and_seed_requirements.py — renumber sequences into realistic
      gapped values (e.g. 20, 80, 220), keep labor_ticket aligned, and seed MATERIAL
      requirements tied to specific operations.
-  3. migrations/backfill_operation_progress.py — derive realistic, sequence-ordered
+  3. migrations/relabel_work_order_status.py — map work_order.status onto the real
+     planner vocabulary (unreleased / firmed / released / closed).
+  4. migrations/backfill_operation_progress.py — derive realistic, sequence-ordered
      job progress (operation.status Q/S/C + close_date) from each work order's
      status, so progress is measured by status/close_date, not by sequence_no.
 """
