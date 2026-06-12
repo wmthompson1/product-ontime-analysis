@@ -247,11 +247,11 @@ CREATE TABLE IF NOT EXISTS operation (
     act_atl_lab_cost   REAL DEFAULT 0.0,
     act_atl_bur_cost   REAL DEFAULT 0.0,
     act_atl_ser_cost   REAL DEFAULT 0.0,
-    status             TEXT DEFAULT 'Q',         -- Q=Queued  S=Started  C=Complete
+    status             TEXT DEFAULT 'Q',         -- Q=Queued  S=Started  C=Complete  (job progress is read from status + close_date, NOT sequence_no)
     sched_start_date   DATETIME,
     sched_finish_date  DATETIME,
     service_begin_date DATETIME,
-    close_date         DATETIME,
+    close_date         DATETIME,                  -- set when status='C'; ordered along the routing (see migrations/backfill_operation_progress.py)
     last_disp_date     DATETIME,                 -- last outside-service dispatch date
     last_recv_date     DATETIME,                 -- last outside-service receipt date
     operation_type_id  TEXT,                     -- FK → operation_type (the KIND of op: CNC, PAINT, NDT, …)

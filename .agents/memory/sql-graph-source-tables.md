@@ -98,8 +98,8 @@ that also needs an Arango re-sync).
 
 **Why:** the `operation` table and all its columns ARE enumerated in
 `sql_graph_nodes`, which looks scary, but the materializer is manual and not run by
-post-merge — the committed JSON + tables stay byte-stable. Verified: adding
-`operation_type_id` left parity at 245 nodes / 278 edges, all gates green.
+post-merge — the committed JSON + tables stay byte-stable, so adding an ERP column
+(e.g. `operation_type_id`) leaves parity untouched and all gates green.
 
 **How to apply:** additive ERP schema changes are safe and graph-invisible by
 design. Only when you *want* the new field in the semantic/triple-resolution layer
