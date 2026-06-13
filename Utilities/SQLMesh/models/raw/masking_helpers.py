@@ -44,6 +44,13 @@ _HF_DIR = _REPO_ROOT / "hf-space-inventory-sqlgen"
 # masking_type). Deliberately do NOT add the repo root to sys.path: it contains
 # an unrelated models.py that would shadow SQLMesh's project-local `models`
 # package when the loader imports `models.raw.<name>`.
+#
+# NOTE: this bootstrap only fixes the import at LOAD time (when SQLMesh imports
+# the model files). SQLMesh executes Python models from a serialized snapshot
+# whose python_env captures `import masking_matrix` but NOT this module-level
+# side effect — so at EXECUTION time (e.g. CI plan/run reusing committed
+# snapshots) the hf-space dir must already be on sys.path. CI sets PYTHONPATH to
+# this dir; see .github/workflows/sqlmesh.yml.
 if str(_HF_DIR) not in sys.path:
     sys.path.insert(0, str(_HF_DIR))
 

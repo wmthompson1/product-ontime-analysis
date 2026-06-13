@@ -27,6 +27,19 @@ fingerprinting/state, so non-trivial live objects can't ride along.
 - List project-local, non-model helper modules under `ignore_patterns` in
   `config.yaml` so the loader doesn't treat them as models.
 
+**Module-level side effects are NOT captured.** The snapshot `python_env` keeps
+only referenced names (imports/values/callables). An `import other_dir_module`
+*survives* serialization, but the `sys.path.insert(...)` that made it importable
+does **not**. So loading the project works (the helper's module-level bootstrap
+runs in-process), yet EXECUTION from a reused snapshot (e.g. CI plan/run against
+committed state) re-runs the bare `import` with no bootstrap and dies with
+`ModuleNotFoundError`. Satisfy cross-directory imports needed at execution via
+`PYTHONPATH` (or a lazy import inside a serialized function), never a load-time
+`sys.path` hack alone. Concretely: models importing `masking_matrix` /
+`masking_type` from `hf-space-inventory-sqlgen` need that dir on `PYTHONPATH` at
+runtime (set it in CI), because the load-time bootstrap in `masking_helpers.py`
+never reaches snapshot execution.
+
 ## Empty python models must be generators
 A FULL python model that can legitimately produce zero rows must be a **generator**
 (`def execute(...) -> Iterator[pd.DataFrame]:` using `yield df`, and a bare

@@ -14,6 +14,12 @@ on:
 env:
   PYTHON_VERSION: "3.13"
   SQLMESH_PROJECT_PATH: "Utilities/SQLMesh"
+  # The two raw models import the SME-approved masking_matrix / masking_type
+  # modules that live in hf-space-inventory-sqlgen. SQLMesh executes Python
+  # models from a serialized snapshot whose env does NOT replay the in-file
+  # sys.path bootstrap, so that dir must be importable at interpreter startup
+  # (load AND snapshot execution) — not just when the model files are imported.
+  PYTHONPATH: ${{ github.workspace }}/hf-space-inventory-sqlgen
 
 jobs:
   lint-and-test:
