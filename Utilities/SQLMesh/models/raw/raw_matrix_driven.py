@@ -13,8 +13,8 @@ keeps SQLMesh render/plan stable. The masking transform comes from
 
 Note: ``pyodbc`` + the SQL Server source are only needed to *execute* this
 model. SQLMesh renders/plans it from the static ``columns`` schema without them;
-when ``pyodbc`` or Staging is unavailable the model returns an empty (typed)
-frame rather than failing.
+when ``pyodbc`` or Staging is unavailable the model yields no rows (an empty
+result) rather than failing.
 """
 from __future__ import annotations
 
@@ -70,15 +70,12 @@ _OUT_COLUMNS = [
         "certificate. One row per masked source value."
     ),
 )
-def execute(context: ExecutionContext, **kwargs: t.Any) -> pd.DataFrame:
-    def _empty() -> pd.DataFrame:
-        return pd.DataFrame(columns=_OUT_COLUMNS).astype(str)
-
+def execute(context: ExecutionContext, **kwargs: t.Any) -> t.Iterator[pd.DataFrame]:
     mask_df = load_masking_matrix()
     types_df = load_masking_types()
     if mask_df is None or mask_df.empty:
         logging.info("masking_matrix.csv is empty; nothing to load")
-        return _empty()
+        return
 
     cert = _load_active_cert()
     r_id = str(cert.get("receiving_id", "")) if cert else ""
@@ -101,7 +98,7 @@ def execute(context: ExecutionContext, **kwargs: t.Any) -> pd.DataFrame:
         table_names = [t for t in table_names if t.lower() in active_tables]
     if not table_names:
         logging.info("no active tables to load from the masking matrix")
-        return _empty()
+        return
 
     try:
         pyodbc = importlib.import_module("pyodbc")
@@ -110,7 +107,7 @@ def execute(context: ExecutionContext, **kwargs: t.Any) -> pd.DataFrame:
             "pyodbc unavailable; SQL Server staging not loaded — "
             "returning empty matrix-driven frame"
         )
-        return _empty()
+        return
 
     seed = os.environ.get("RECEIVING_PSEED")
     rows: t.List[t.Dict[str, t.Any]] = []
@@ -155,5 +152,5 @@ def execute(context: ExecutionContext, **kwargs: t.Any) -> pd.DataFrame:
             conn.close()
 
     if not rows:
-        return _empty()
-    return pd.DataFrame(rows, columns=_OUT_COLUMNS).astype(str)
+        return
+    yield pd.DataFrame(rows, columns=_OUT_COLUMNS).astype(str)

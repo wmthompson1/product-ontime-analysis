@@ -13,7 +13,10 @@ deterministically masked projection of the record's string value.
 
 Note: ``pyodbc`` + the SQL Server source are only needed to *execute* this
 model. SQLMesh renders/plans it from the static ``columns`` schema without them;
-in this repo execution is skipped (no ``pyodbc`` / no Staging server).
+when ``pyodbc`` or Staging is unavailable the model yields no rows (an empty
+result) rather than failing — matching ``raw_matrix_driven`` so dev/CI backfills
+succeed. A real connection/query error while ``pyodbc`` *is* present still
+propagates, by design (fail loud in production, never silently mask).
 """
 from __future__ import annotations
 
@@ -103,14 +106,17 @@ FROM Staging.dbo.USER_DEF_FIELDS WITH (NOLOCK)
         "masking_matrix.csv and annotated with the active receiving certificate."
     ),
 )
-def execute(context: ExecutionContext, **kwargs: t.Any) -> pd.DataFrame:
+def execute(context: ExecutionContext, **kwargs: t.Any) -> t.Iterator[pd.DataFrame]:
     if not is_safe_identifier(_TABLE):
         raise ValueError(f"unsafe table identifier: {_TABLE!r}")
     try:
         pyodbc = importlib.import_module("pyodbc")
     except Exception:
-        logging.exception("pyodbc import failed (SQL Server source unavailable)")
-        raise
+        logging.warning(
+            "pyodbc unavailable; SQL Server staging not loaded — "
+            "yielding no user-def-fields rows"
+        )
+        return
 
     conn = pyodbc.connect(_CONNECTION_STRING)
     try:
@@ -155,4 +161,4 @@ def execute(context: ExecutionContext, **kwargs: t.Any) -> pd.DataFrame:
         cert_status=c_status,
         cert_version=c_ver,
     )
-    return df
+    yield df
