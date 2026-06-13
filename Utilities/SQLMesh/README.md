@@ -122,6 +122,46 @@ Future enhancements planned:
 
 ---
 
+## Raw Masked Staging Models & Orchestrator Handshake
+
+Two Python models in `models/raw/` pull ERP staging data through this repo's
+SME-approved masking pipeline (the **Solder Pattern** — never LLM-generated SQL):
+
+| Model | Source | What it returns |
+|-------|--------|-----------------|
+| `raw.raw_user_def_fields` | `Staging.dbo.USER_DEF_FIELDS` | One masked row per user-defined field, with the "Legacy Manufacturer Code" (`USER_DEF_1`) projection and the active receiving certificate's metadata. |
+| `raw.raw_matrix_driven` | every active table in `masking_matrix.csv` | Long-format, one row per masked source value, annotated with the active receiving certificate. |
+
+Both import their masking primitives from `models/raw/masking_helpers.py`, which
+reuses the canonical logic in `hf-space-inventory-sqlgen/masking_matrix.py` and
+`masking_type.py`. `masking_helpers.py` is listed under `ignore_patterns` in
+`config.yaml` so the loader does not treat it as a model. SQLMesh serializes the
+helper functions (by source) into each model's snapshot and walks the globals
+they reference, so those globals are kept serializable (plain strings / modules,
+never `Path` or compiled-regex objects).
+
+### Orchestrator handshake
+
+`orchestrator_handshake.py` (repo root) is a non-interactive validation script
+that proves the environment is wired correctly end-to-end:
+
+```bash
+python orchestrator_handshake.py
+```
+
+- **Phase 1 (environment):** Python 3.13, SQLMesh + SQLGlot install, project
+  structure, `app_schema/manufacturing.db`, and a successful SQLMesh context load.
+- **Phase 2 (semantic):** resolves a natural-language intent
+  (e.g. `"Legacy Manufacturer Code"`) to its physical column (`USER_DEF_1`) via
+  this repo's schema metadata, then confirms `raw.raw_user_def_fields` exposes
+  that column — i.e. the orchestrator routes semantic requests to masked staging
+  data, never to generated SQL.
+
+The script exits non-zero if any check fails, so it is safe to run in CI or a
+pre-merge gate.
+
+---
+
 ## Configuration
 
 The project is configured to use **DuckDB** as the database engine with persistent file-based storage.

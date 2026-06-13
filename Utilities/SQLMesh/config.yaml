@@ -23,6 +23,14 @@ gateways:
 
 default_gateway: duckdb
 
+# --- Loader ---
+# masking_helpers.py lives under models/raw so the Python models can import it as
+# Utilities.SQLMesh.models.raw.masking_helpers, but it is a shared helper module,
+# not a SQLMesh model — keep the loader from trying to load it as one.
+ignore_patterns:
+  - ".ipynb_checkpoints/*"
+  - "models/raw/masking_helpers.py"
+
 # --- Model Defaults ---
 # https://sqlmesh.readthedocs.io/en/stable/reference/model_configuration/#model-defaults
 

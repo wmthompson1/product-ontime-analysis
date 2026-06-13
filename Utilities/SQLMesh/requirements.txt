@@ -1,6 +1,10 @@
 # Local requirements for the Utilities/SQLMesh project
-# Pin sqlmesh to the currently installed version with LSP extras
-sqlmesh[lsp]==0.228.1
+# Pin sqlmesh to the currently installed/verified version with LSP extras
+sqlmesh[lsp]==0.235.4
+
+# Required by the raw Python models (raw_user_def_fields, raw_matrix_driven):
+# their masking helpers build/return pandas DataFrames.
+pandas>=2.0
 
 # Add any additional local deps below, e.g.:
 # -e .  # if you later make this an installable package

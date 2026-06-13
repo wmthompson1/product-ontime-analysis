@@ -86,6 +86,13 @@ FIELD_DESCRIPTIONS = [
      "The kind of supplier / material certification on file — e.g. Certificate of "
      "Conformance, First Article Inspection, PPAP, FAA 8130-3, or Material Test "
      "Report.", "CoC"),
+    # SQL Server user-defined field (no SQLite twin column): the human-label
+    # mapping the SQLMesh orchestrator resolves to the physical column USER_DEF_1.
+    ("user_def_fields", "USER_DEF_1", "Legacy Manufacturer Code",
+     "Pre-migration manufacturer / vendor code carried in an ERP user-defined "
+     "field (USER_DEF_1). Used to reconcile parts against the legacy system "
+     "during the data migration; masked deterministically before staging.",
+     "MFR-00417"),
 ]
 
 
