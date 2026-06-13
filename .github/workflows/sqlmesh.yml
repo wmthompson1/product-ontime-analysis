@@ -35,6 +35,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ${{ env.SQLMESH_PROJECT_PATH }}/requirements.txt
 
+      - name: Migrate state to installed SQLMesh version
+        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+        run: sqlmesh migrate
+
       - name: Validate SQLMesh project
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
@@ -71,6 +75,10 @@ jobs:
       - name: Install SQLMesh
         run: pip install -r ${{ env.SQLMESH_PROJECT_PATH }}/requirements.txt
 
+      - name: Migrate state to installed SQLMesh version
+        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+        run: sqlmesh migrate
+
       - name: Plan dev environment
         working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
         run: |
@@ -96,6 +104,10 @@ jobs:
 
       - name: Install SQLMesh
         run: pip install -r ${{ env.SQLMESH_PROJECT_PATH }}/requirements.txt
+
+      - name: Migrate state to installed SQLMesh version
+        working-directory: ${{ env.SQLMESH_PROJECT_PATH }}
+        run: sqlmesh migrate
 
       # Audits execute automatically during plan and run phases
       - name: Plan and apply production

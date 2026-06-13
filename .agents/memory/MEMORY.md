@@ -13,4 +13,4 @@
 - [ERP planner vocabulary](wo-status-vocab.md) — real WO statuses unreleased/firmed/released/closed (firmed=first lots/new parts); deferred demand-side shipped/allocated/ATP=on-hand−allocated.
 - [WAL-mode DB migration verification](wal-db-verification.md) — app DB is gitignored & WAL-mode; verify migrations via sqlite3 dumps (not file copy), checkpoint before trusting the main file.
 - [Operation job-progress model](operation-progress-model.md) — progress = operation.status (Q/S/C) + close_date derived from work_order.status + routing order, NOT sequence_no; backfill must use data-derived AS_OF, never wall-clock.
-- [SQLMesh python model serialization](sqlmesh-python-model-serialization.md) — project-local @model helpers snapshotted by source; module globals must be serializable (no Path/compiled-regex); repo-root models.py shadow.
+- [SQLMesh project gotchas](sqlmesh-python-model-serialization.md) — @model helper globals must serialize (no Path/regex); empty models must be generators; bump sqlmesh ⇒ migrate; models.py shadow.

@@ -1,38 +1,60 @@
 ---
-name: SQLMesh Python model serialization
-description: Why shared helpers imported by SQLMesh @model python files must keep their module-level globals serializable (no Path / compiled regex).
+name: SQLMesh project gotchas
+description: Non-obvious SQLMesh failure modes hit porting the orchestrator/raw models — helper serialization, empty python models, state/version migration, repo-root models.py shadow.
 ---
 
-# SQLMesh Python model serialization
+# SQLMesh project gotchas
 
-When a SQLMesh `@model` python file imports a helper function that lives **inside
-the project's models tree** (a project-local module, e.g. `models.raw.masking_helpers`),
-SQLMesh snapshots that helper **by source** and recursively walks the module-level
-globals the helper references. Only a narrow set serializes: literals
-(`int/float/str/bytes/tuple/list/dict/set/bool`), modules, and callables
-(`type`, `FunctionType`). Anything else — notably a `pathlib.Path` object or a
-compiled `re.Pattern` held as a module global — raises
+## Project-local @model helper serialization
+When a SQLMesh `@model` python file imports a helper from inside the project's
+models tree (e.g. `models.raw.masking_helpers`), SQLMesh snapshots that helper
+**by source** and recursively walks the module-level globals it references. Only
+literals (`int/float/str/bytes/tuple/list/dict/set/bool`), modules, and callables
+serialize. A module-global `pathlib.Path` or compiled `re.Pattern` raises
 `SQLMesh cannot serialize ...` at load time (`sqlmesh info` / context load fails).
 
 **Why:** the snapshot must be reconstructable in a fresh interpreter for
 fingerprinting/state, so non-trivial live objects can't ride along.
 
-**How to apply (for project-local helpers used by python models):**
-- Keep module globals that helpers touch as plain strings/numbers, not `Path` or
-  compiled patterns. Store a path as a `str` (e.g. `_REPO_ROOT_STR`) and wrap it
-  in `Path(...)` *inside* the function body. Store a regex as its pattern `str`
-  and compile (or use `re.match(pattern, ...)`) inside the function.
-- Helpers that resolve a default path should take `path=None` and look up the
-  canonical default *inside* the call, not bind a `Path` at import time.
-- Modules imported from **outside** the project models tree (site-packages like
-  `pandas`, or app modules added to `sys.path`) serialize as plain imports and are
-  fine — the by-source walk only applies to project-local helper source.
-- List any project-local, non-model helper module under `ignore_patterns` in
-  `config.yaml` so the loader doesn't try to treat it as a model.
+**How to apply (project-local helpers used by python models):**
+- Keep helper module globals as plain str/num, not `Path`/compiled regex. Store a
+  path as a `str` and wrap in `Path(...)` *inside* the function; store a regex as
+  its pattern `str` and compile/`re.match` inside the function.
+- Helpers resolving a default path should take `path=None` and look up the default
+  *inside* the call, not bind a `Path` at import time.
+- Modules imported from *outside* the models tree (site-packages, app modules on
+  `sys.path`) serialize as plain imports — fine.
+- List project-local, non-model helper modules under `ignore_patterns` in
+  `config.yaml` so the loader doesn't treat them as models.
 
-**Repo-root `models.py` shadow:** running a SQLMesh context from a script at the
-repo root puts the repo root on `sys.path`, where an unrelated `models.py` shadows
-SQLMesh's project-local `models/` package. Fix by removing the repo root from
-`sys.path` before loading the context, or run from inside the project dir (CI does
-`cd Utilities/SQLMesh && sqlmesh ...`, so its `sys.path[0]` is the project dir and
-there is no shadow).
+## Empty python models must be generators
+A FULL python model that can legitimately produce zero rows must be a **generator**
+(`def execute(...) -> Iterator[pd.DataFrame]:` using `yield df`, and a bare
+`return` / `yield from ()` for the empty case). Returning an empty `pd.DataFrame`
+fails *backfill* with: `Cannot construct source query from an empty DataFrame`.
+This only bites at `plan`/`run` backfill time — `sqlmesh info` and `plan
+--skip-backfill` won't catch it, so an empty-DataFrame model looks fine until
+something actually executes it.
+
+**How to apply:** a model reading from an external source that may be absent
+(e.g. SQL Server via pyodbc in dev/CI) should `yield` rows when present and
+`return` (empty generator) when the source can't be reached — while still letting
+a real connection/query error propagate when the driver *is* present (fail loud in
+prod, never silently mask).
+
+## State/version migration coupling
+SQLMesh state lives in the project's tracked DuckDB file (`Utilities/SQLMesh/db.db`,
+~16MB, NOT gitignored) and records the SQLMesh version it was last migrated at. If
+the installed/pinned SQLMesh is **ahead** of that state version, `sqlmesh plan`/`run`
+abort: `SQLMesh (local) ... ahead of ... (remote). Please run a migration`.
+`sqlmesh info`/`test` do *not* trip this check, so a mismatch hides until plan.
+
+**How to apply:** when bumping `sqlmesh` in `Utilities/SQLMesh/requirements.txt`,
+run `sqlmesh migrate` from the project dir and commit the updated `db.db`. CI runs
+`sqlmesh migrate` before every plan/run as a safety net.
+
+## Repo-root models.py shadow
+Running a SQLMesh context from a script at the repo root puts the repo root on
+`sys.path`, where an unrelated repo-root `models.py` shadows SQLMesh's project-local
+`models/` package. Fix by removing the repo root from `sys.path` before loading the
+context, or run from inside the project dir (CI does `cd Utilities/SQLMesh`).
