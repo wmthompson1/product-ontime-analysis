@@ -78,6 +78,7 @@ APP_METADATA_TABLES: set = {
 
 from bridge_health import (
     BRIDGE_HEALTH_MAP,
+    SCHEMA_NODES_HEALTH_MAP,
     run_bridge_health_check_impl as _bridge_health_check_impl,
     get_sweep1_coverage_gaps as _get_sweep1_coverage_gaps,
 )
@@ -5380,6 +5381,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             |---------------------|--------------|
             | `Perspective_Intents` | `schema_intent_perspectives` |
             | `Perspective_Concepts` | `schema_perspective_concepts` |
+            | `tables` | `schema_nodes` |
             """)
 
             health_check_btn = gr.Button("Check Now", variant="primary")
@@ -5462,7 +5464,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return "\n".join(lines)
 
             def run_bridge_health_check():
-                bridge_result = _bridge_health_check_impl(SQLITE_DB_PATH, BRIDGE_HEALTH_MAP)
+                bridge_result = _bridge_health_check_impl(
+                    SQLITE_DB_PATH,
+                    {**BRIDGE_HEALTH_MAP, **SCHEMA_NODES_HEALTH_MAP},
+                )
                 coverage_result = _get_sweep1_coverage_gaps(MANIFEST_PATH)
 
                 status = coverage_result.get("status", "error")

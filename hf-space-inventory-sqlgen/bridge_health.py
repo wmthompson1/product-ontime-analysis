@@ -17,6 +17,14 @@ BRIDGE_HEALTH_MAP: dict[str, str] = {
     "Perspective_Concepts": "schema_perspective_concepts",
 }
 
+# ArangoDB vertex collection ↔ SQLite registry table for the schema-node /
+# tables drift check.  ``schema_nodes`` is the canonical registry of ERP tables
+# that have been synced into the graph as ``tables`` vertices; a count mismatch
+# means tables were added/removed in SQLite but graph_sync.py was not re-run.
+SCHEMA_NODES_HEALTH_MAP: dict[str, str] = {
+    "tables": "schema_nodes",
+}
+
 
 def run_bridge_health_check_impl(
     sqlite_db_path: str,
