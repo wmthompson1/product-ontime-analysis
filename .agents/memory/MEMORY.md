@@ -13,6 +13,7 @@
 - [ERP planner vocabulary](wo-status-vocab.md) — real WO statuses unreleased/firmed/released/closed (firmed=first lots/new parts); deferred demand-side shipped/allocated/ATP=on-hand−allocated.
 - [WAL-mode DB migration verification](wal-db-verification.md) — app DB is gitignored & WAL-mode; verify migrations via sqlite3 dumps (not file copy), checkpoint before trusting the main file.
 - [Operation job-progress model](operation-progress-model.md) — progress = operation.status (Q/S/C) + close_date derived from work_order.status + routing order, NOT sequence_no; backfill must use data-derived AS_OF, never wall-clock.
+- [Concept-as-node direction](concept-as-node-direction.md) — ratified plan to add Concept as a 3rd graph node (Option C); not built yet; living spec in docs/; gated by B1/B2/B3 before M1.
 - [mockup-sandbox build vs dev typecheck](mockup-sandbox-build.md) — Vite dev server doesn't type-check; only CI `tsc` does, so a green preview ≠ passing build. Entry files must import mockup components as named exports.
 - [Parity report & columnar CSV artifacts](parity-report-artifacts.md) — parity checkers emit .txt reports + columnar CSVs (--csv-dir); CSVs cleared up front so presence⟺fresh run; committed (not gitignored) for private-repo diffing.
 - [SQLMesh project gotchas](sqlmesh-python-model-serialization.md) — @model helper globals must serialize (no Path/regex); empty models must be generators; bump sqlmesh ⇒ migrate; models.py shadow.
