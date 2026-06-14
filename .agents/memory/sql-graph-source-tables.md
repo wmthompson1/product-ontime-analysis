@@ -87,23 +87,43 @@ source of truth; anything that must persist has to live in SQLite.
   next export's edge total instead).
 
 ## Adding a SQLite column/table does NOT break the parity gates
-The post-merge graph gates compare **frozen artifacts only**: `graph_metadata.json`
-↔ the `sql_graph_*` tables (and a hardcoded CUSTOMER fixture in
-`tests/test_sql_graph_tables.py`). None of them re-derive the graph from live
-PRAGMA columns. So you can add a new ERP column (e.g. `operation.operation_type_id`)
-or a new lookup table without touching the graph or failing parity — the curated
-graph simply will not contain the new column/table until someone *manually* re-runs
+The post-merge graph gates compare `graph_metadata.json` ↔ the `sql_graph_*` tables
+(and a hardcoded CUSTOMER fixture in `tests/test_sql_graph_tables.py`). The committed
+JSON is a *curated, frozen* snapshot that is allowed to lag the live ERP schema. So
+you can add a new ERP column (e.g. `operation.operation_type_id`) or a new lookup
+table without touching the graph or failing parity — the curated graph will not
+contain the new column/table until someone deliberately re-runs
 `export_graph_metadata.py` (frozen-once; re-exporting is a separate, bigger change
 that also needs an Arango re-sync).
 
-**Why:** the `operation` table and all its columns ARE enumerated in
-`sql_graph_nodes`, which looks scary, but the materializer is manual and not run by
-post-merge — the committed JSON + tables stay byte-stable, so adding an ERP column
-(e.g. `operation_type_id`) leaves parity untouched and all gates green.
+**Why it stays green:** the `operation` table and all its columns ARE enumerated by
+the exporter, so a fresh export WOULD pick up a newly-added column. But adding the
+column alone does not re-materialize the tables — the committed JSON and the
+persistent `sql_graph_*` tables both stay at the last frozen export and so still
+match each other. The gate compares JSON↔tables, not schema↔tables, so it stays
+green.
 
 **How to apply:** additive ERP schema changes are safe and graph-invisible by
 design. Only when you *want* the new field in the semantic/triple-resolution layer
 do you re-run the exporter (and accept the re-freeze + AQL sync cost).
+
+## post-merge self-heals a stale gitignored DB — but ONLY when already out of parity
+`manufacturing.db` is gitignored, so when a *task* re-exports the graph it commits a
+new `graph_metadata.json`, but main's persistent `sql_graph_*` tables (materialized
+in the task's own throwaway DB) lag behind → the parity gate fails on main even
+though the committed artifacts are correct. `scripts/post-merge.sh` heals this: it
+runs `sql_graph_parity_check.py` first and ONLY when it FAILS re-materializes
+(`seed_elevations.py` → `export_graph_metadata.py`), preserving the committed
+`graph_metadata.json` across the export (backup/restore + EXIT trap) so the
+downstream gate is not a tautology.
+
+**Why the "only when already failing" guard matters:** an unconditional re-export on
+every post-merge would pull in ERP columns added to the schema but not yet curated
+into the graph, breaking the "additive columns are graph-invisible" property above.
+Gating on parity-already-failing leaves the additive-column case (tables still match
+JSON) untouched, while genuine cross-merge staleness (tables lag JSON) self-heals.
+**How to apply:** never make this regeneration unconditional, and never let the
+export overwrite the committed JSON the gate compares against.
 
 ## SQLite gotcha: `notnull` is reserved
 `notnull` is the SQLite `x NOTNULL` operator token, so a bare column named
