@@ -40,7 +40,9 @@ if _HERE not in sys.path:
 import export_graph_metadata as ex  # noqa: E402
 from sql_graph_parity_check import (  # noqa: E402
     _build_report,
+    _clear_columnar_pair,
     _compare,
+    _write_columnar_pair,
     _write_report_file,
     _write_status_report,
 )
@@ -93,10 +95,14 @@ def check_sql_aql_parity(
     skip_on_missing: bool = False,
     require_arango: bool = False,
     report_file: Optional[str] = None,
+    csv_dir: Optional[str] = None,
     env_get: Callable[[str], Optional[str]] = os.environ.get,
 ) -> int:
     node_col = node_col or ex.NODE_COLLECTION
     edge_col = edge_col or ex.EDGE_COLLECTION
+
+    if csv_dir:
+        _clear_columnar_pair(csv_dir, "arango_graph")
 
     # --- SQLite source side -------------------------------------------------
     if not os.path.exists(db_path):
@@ -155,6 +161,9 @@ def check_sql_aql_parity(
         print(f"[sql_aql_parity] SKIP — {msg}")
         _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
         return 0
+
+    if csv_dir:
+        _write_columnar_pair(csv_dir, "arango_graph", aql_nodes, aql_edges)
 
     # --- field-by-field comparison (order not asserted: AQL is unordered) ----
     node_errors = _compare("nodes", sql_nodes, aql_nodes, check_order=False, left="SQLite", right="ArangoDB")
@@ -229,6 +238,12 @@ def main() -> int:
         default=None,
         help="Also write the parity report (count table + status) to this file.",
     )
+    parser.add_argument(
+        "--csv-dir",
+        default=None,
+        help="Also write columnar per-record CSVs (arango_graph_nodes.csv / "
+        "arango_graph_edges.csv) of the live graph into this directory.",
+    )
     args = parser.parse_args()
     return check_sql_aql_parity(
         args.db,
@@ -237,6 +252,7 @@ def main() -> int:
         skip_on_missing=args.skip_on_missing,
         require_arango=args.require_arango,
         report_file=args.report_file,
+        csv_dir=args.csv_dir,
     )
 
 

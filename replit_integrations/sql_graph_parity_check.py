@@ -22,6 +22,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import sqlite3
@@ -114,6 +115,73 @@ def _write_report_file(path: str, text: str) -> None:
         print(f"[parity] WARNING — could not write report file {path!r}: {exc}", file=sys.stderr)
 
 
+# Identity columns are emitted first; the remaining fields follow alphabetically.
+_COLUMNAR_LEAD = ("_key", "_id", "_from", "_to")
+
+
+def _columnar_fieldnames(items: List[dict]) -> List[str]:
+    """Column order for a columnar CSV: identity columns first, then the rest of
+    the fields (the union across all rows) alphabetically — so two dumps of the
+    same collection always have identical, diff-friendly headers."""
+    present: set[str] = set()
+    for it in items:
+        present.update(it.keys())
+    lead = [c for c in _COLUMNAR_LEAD if c in present]
+    rest = sorted(present - set(lead))
+    return lead + rest
+
+
+def _csv_value(value: Any) -> Any:
+    """Stable scalar rendering for a CSV cell so the two sides diff cleanly:
+    None -> '', bool -> 'true'/'false', dict/list -> compact sorted JSON."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return value
+
+
+def _write_columnar_csv(path: str, items: List[dict]) -> None:
+    """Write ``items`` as a columnar CSV (one row per record, one column per
+    field, rows sorted by ``_key``). Like the report writer, a filesystem error
+    is warned about but never masks the parity exit code."""
+    try:
+        parent = os.path.dirname(os.path.abspath(path))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        fieldnames = _columnar_fieldnames(items)
+        with open(path, "w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames, extrasaction="ignore")
+            writer.writeheader()
+            for it in sorted(items, key=lambda d: str(d.get("_key", ""))):
+                writer.writerow({k: _csv_value(it.get(k)) for k in fieldnames})
+    except OSError as exc:
+        print(f"[parity] WARNING — could not write columnar CSV {path!r}: {exc}", file=sys.stderr)
+
+
+def _write_columnar_pair(csv_dir: str, prefix: str, nodes: List[dict], edges: List[dict]) -> None:
+    """Write ``<csv_dir>/<prefix>_nodes.csv`` and ``<csv_dir>/<prefix>_edges.csv``
+    — the per-record columnar reports used to confirm a metadata <-> graph resync."""
+    _write_columnar_csv(os.path.join(csv_dir, f"{prefix}_nodes.csv"), nodes)
+    _write_columnar_csv(os.path.join(csv_dir, f"{prefix}_edges.csv"), edges)
+
+
+def _clear_columnar_pair(csv_dir: str, prefix: str) -> None:
+    """Remove any previously written columnar CSVs for ``prefix`` up front, so a
+    skipped/failed run never leaves a stale snapshot behind. The presence of
+    these files therefore always means a fresh, successful dump from *this* run —
+    a CSV-only consumer can trust their existence as the freshness signal."""
+    for suffix in ("nodes", "edges"):
+        path = os.path.join(csv_dir, f"{prefix}_{suffix}.csv")
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except OSError as exc:
+            print(f"[parity] WARNING — could not remove stale CSV {path!r}: {exc}", file=sys.stderr)
+
+
 def _build_report(
     *,
     title: str,
@@ -166,7 +234,11 @@ def check_parity(
     json_path: str,
     skip_on_missing: bool = False,
     report_file: str | None = None,
+    csv_dir: str | None = None,
 ) -> int:
+    if csv_dir:
+        _clear_columnar_pair(csv_dir, "graph_metadata")
+
     if not os.path.exists(json_path):
         msg = f"graph JSON not found: {json_path}"
         if skip_on_missing:
@@ -210,6 +282,9 @@ def check_parity(
         conn.close()
 
     json_nodes, json_edges = _load_json_graph(json_path)
+
+    if csv_dir:
+        _write_columnar_pair(csv_dir, "graph_metadata", json_nodes, json_edges)
 
     node_errors = _compare("nodes", json_nodes, db_nodes)
     edge_errors = _compare("edges", json_edges, db_edges)
@@ -265,12 +340,19 @@ def main() -> int:
         default=None,
         help="Also write the parity report (count table + status) to this file.",
     )
+    parser.add_argument(
+        "--csv-dir",
+        default=None,
+        help="Also write columnar per-record CSVs (graph_metadata_nodes.csv / "
+        "graph_metadata_edges.csv) into this directory.",
+    )
     args = parser.parse_args()
     return check_parity(
         args.db,
         args.json,
         skip_on_missing=args.skip_on_missing,
         report_file=args.report_file,
+        csv_dir=args.csv_dir,
     )
 
 

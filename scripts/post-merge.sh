@@ -173,7 +173,8 @@ fi
 
 if [ -f replit_integrations/sql_graph_parity_check.py ]; then
   python replit_integrations/sql_graph_parity_check.py \
-    --report-file replit_integrations/sql_graph_parity_report.txt || {
+    --report-file replit_integrations/sql_graph_parity_report.txt \
+    --csv-dir replit_integrations || {
     echo "post-merge: SQLite <-> graph_metadata.json parity check failed"
     exit 1
   }
@@ -190,7 +191,8 @@ if [ -f replit_integrations/sql_aql_parity_check.py ]; then
   # SQL (SQLite tables) vs AQL (live ArangoDB graph). Offline-tolerant: an
   # unreachable/unconfigured graph is a skip, a real field drift is a failure.
   python replit_integrations/sql_aql_parity_check.py --skip-on-missing \
-    --report-file replit_integrations/sql_aql_parity_report.txt || {
+    --report-file replit_integrations/sql_aql_parity_report.txt \
+    --csv-dir replit_integrations || {
     echo "post-merge: SQLite <-> live ArangoDB (SQL vs AQL) parity check failed"
     exit 1
   }
