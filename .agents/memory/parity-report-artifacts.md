@@ -32,6 +32,18 @@ status marker — so presence is the only honest freshness signal.
 "always write". If you add a new early-return branch, the up-front clear
 already covers it (don't write CSVs on that branch).
 
+## Windows-friendly runner (don't fold it into post-merge.sh)
+`write_parity_reports.py` is a cross-platform Python entry point that regenerates
+both reports + CSVs by shelling out to the two checkers with the *same* flags
+`post-merge.sh` uses — so the private Windows/SQL-Server repo can produce the same
+artifacts without bash. It forwards an optional `--db` to both checks; report/CSV
+targets are fixed.
+
+**Why not have `post-merge.sh` delegate to it (DRY):** `post-merge.sh`
+intentionally runs `tests/test_sql_aql_parity.py` *between* the two checker
+scripts. Collapsing the two checks into one runner call would reorder that gate.
+The mild flag duplication is the accepted tradeoff; keep the two in sync by hand.
+
 ## These artifacts are committed, not gitignored
 Reversed the earlier "gitignore as runtime artifact" decision: the `.txt`
 reports and the CSVs live tracked in `replit_integrations/` so the private repo
