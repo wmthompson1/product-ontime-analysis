@@ -101,12 +101,17 @@ _REPORT_TITLE = "SQLite <-> graph_metadata.json parity report"
 
 def _write_report_file(path: str, text: str) -> None:
     """Write a parity report to ``path`` (creating parent dirs) as UTF-8 with a
-    trailing newline. Shared by both parity checkers."""
-    parent = os.path.dirname(os.path.abspath(path))
-    if parent:
-        os.makedirs(parent, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(text if text.endswith("\n") else text + "\n")
+    trailing newline. Shared by both parity checkers. A filesystem error here is
+    warned about but never masks the parity exit code — the report is a
+    convenience artifact, not the gate itself."""
+    try:
+        parent = os.path.dirname(os.path.abspath(path))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text if text.endswith("\n") else text + "\n")
+    except OSError as exc:
+        print(f"[parity] WARNING — could not write report file {path!r}: {exc}", file=sys.stderr)
 
 
 def _build_report(
