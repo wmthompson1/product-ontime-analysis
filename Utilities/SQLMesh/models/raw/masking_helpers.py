@@ -155,6 +155,12 @@ def get_masking_rules_for_table(
     ``masking_mode`` is used, falling back to the ``masking_type`` lookup when a
     row leaves it blank. Rows without a ``column_name`` (table-level markers) are
     skipped — there is no column to mask.
+
+    Only rows whose ``status`` is ``active`` produce a rule — ``static`` /
+    ``complete`` rows are certified / locked and must not be re-masked (matching
+    the model docstring and the receiving certificate's active-only import). If
+    the ``status`` column is absent or a row leaves it blank, the row is treated
+    as active so a hand-edited CSV never silently drops a column.
     """
     if mask_df is None or mask_df.empty:
         return []
@@ -169,6 +175,9 @@ def get_masking_rules_for_table(
     rules: List[Dict[str, Any]] = []
     for _, row in mask_df.iterrows():
         if str(row.get("table_name", "")).strip().lower() != want:
+            continue
+        status = str(row.get("status", "")).strip().lower() or "active"
+        if status != "active":
             continue
         column = str(row.get("column_name", "")).strip()
         if not column:
