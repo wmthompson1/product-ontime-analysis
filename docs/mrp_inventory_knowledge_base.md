@@ -16,6 +16,13 @@
 > become a graph concept — it lives in SME-approved SQL. SQL is never
 > machine-generated (Solder Pattern).
 
+> **⚠ Open decision — measures vs. categories.** The existing `elevates` edge
+> elevates only **bounded categorical discriminators** (status / type / class /
+> location) — explicitly *not* continuous measures or IDs (curation rule in
+> `seed_elevations.py`). Most MRP terms here (reorder point, lead time, on-hand,
+> EOQ) are **numbers, not categories**, so they do **not** fit today's `elevates`
+> as-is. How we handle measures is an open decision — see §4 and §8.
+
 This document does two things:
 1. **Revises the proposed topology** so it fits the graph we already froze at
    `SCHEMA_VERSION = 14`.
@@ -113,6 +120,14 @@ can author each one as a single `elevates` triple.
 **SME litmus test for any new concept:**
 1. Can you point to the exact column it comes from? *(no → it's a derived metric, not a concept)*
 2. Would you use this exact word describing your actual work? *(no → rename it to the word you do use, or drop it)*
+
+> **⚠ Provisional.** The measure-based cards below (`OnHandQuantity`,
+> `ReorderPoint`, `LeadTime`, `ReceivedQuantity`, `OrderedQuantity`, …) are
+> column-anchored and recognizable, but they map to **numeric measure** columns,
+> which today's categorical-only `elevates` rule excludes. They become buildable
+> only after the "measures vs. categories" decision (§8). `StandardQuantity` /
+> `ActualQuantity` are the exception: they already exist as the *categorical
+> lens* concepts `QuantityBasisEngineering` / `QuantityBasisManufacturing`.
 
 ### Concept card template (what an SME fills in)
 - **Concept name** — concrete noun (`OnHandQuantity`, not `Quantity`)
