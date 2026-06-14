@@ -53,5 +53,3 @@ hf-space-inventory-sqlgen/app_schema/manufacturing.db
 
 # Runtime-generated CI/health-check artifacts
 drift_report.txt
-replit_integrations/sql_graph_parity_report.txt
-replit_integrations/sql_aql_parity_report.txt
