@@ -9,18 +9,23 @@ Every `_key` has **exactly 6 `:`-delimited slots**, parsed by **fixed position**
 (no prefix tag, no slot-count branching):
 
 ```
-table : column|entity : family : perspective : predicate|none : unique_id|none
-  0          1            2          3              4               5
+table|concept : column|entity : family : perspective : predicate|none : unique_id|none
+      0              1            2          3              4               5
 ```
 
 - table node      `PAYABLE:entity:structural:system:none:none`
 - column node     `PAYABLE:INVOICE_ID:structural:system:none:none`
+- concept node    `CertificationType:entity:semantic:canonical:none:none` (node_type=concept, M1/v13)
 - structural edge `PAYABLE:INVOICE_ID:structural:system:has_column:<UID>`
-- semantic edge   `PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:<UID>` (DEFERRED v2)
+- semantic edge   `PAYABLE_LINE:RECEIVER_ID:semantic:Payables:elevates:<UID>`
 
-**Classify:** it is a NODE iff `slot[4]=='none' and slot[5]=='none'` (table node
-if `slot[1]=='entity'`, else column node); otherwise it is an EDGE whose family
-is `slot[2]` (`structural` | `semantic`).
+**Classify (node-first, then family):** it is a NODE iff `slot[4]=='none' and
+slot[5]=='none'` — a **concept** node if `slot[2]=='semantic'` (a concept is a
+SEMANTIC-family node, NOT a new "concept" family); else a **table** node if
+`slot[1]=='entity'`; else a **column** node (table+column are both `structural`).
+Otherwise it is an EDGE whose family is `slot[2]` (`structural` | `semantic`).
+`semantic`+node is unambiguously a concept because a semantic EDGE (`elevates`)
+always carries a predicate AND a business perspective.
 
 **Why:** the user moved from a variable-width scheme to a fixed 6-slot template
 so parse position is constant and node-vs-edge is a trivial `none:none` check.
@@ -30,7 +35,15 @@ This finally makes edge keys impossible to confuse with node keys (the old
 **How to apply:**
 - Reserved tokens — the exporter HARD-FAILS if a source name collides:
   `entity` (no column may be named it), `none` (no column/table may be named it),
-  `system` (no business view may be named it; it marks the structural layer).
+  `system` (structural-layer scope) and `canonical` (perspective-agnostic scope
+  owned by CONCEPT nodes) — no business perspective may be either; a concept name
+  may not equal any grammar token.
+- **Why concept = `semantic`/`canonical` (not `concept`/`system`):** the family
+  axis is ONLY `structural`|`semantic` (the physical-vs-meaning layer), so a
+  concept (a meaning-layer thing) is `semantic` family — "concept" is its
+  node_type, not a family. Perspective `system` is the structural layer; a concept
+  is perspective-agnostic (perspective attaches on the `elevates` edge), so it gets
+  its own `canonical` perspective rather than reusing `system`. User-ratified.
 - Components must be non-empty and contain no `:` or `/`.
 - Edges fill slots 4-5 with predicate + unique_id; the structural containment
   predicate is `has_column`.
@@ -61,14 +74,25 @@ This finally makes edge keys impossible to confuse with node keys (the old
   manufacturing entity in different perspectives). This is why slot 1 is
   `column|entity` — keep entity granularity open; do NOT add a guard binding a
   table to a single perspective.
-- **`replit_integrations/graph_metadata.json` is the CANONICAL TARGET (the plan),
-  NOT a mirror of the live graph.** It embeds the full grammar in a `key_scheme`
-  block, is stamped `metadata_version`/`milestone_name`, uses collections
-  `manufacturing_graph_node` / `manufacturing_graph_edge`, and the exporter
-  freezes a create-once snapshot `graph_metadata.v{metadata_version}.json`. The
-  LIVE ArangoDB still uses old `column::TABLE.COLUMN` keys (`arangodb_helpers`,
-  `migrations`, `scripts`) — untouched; the export does not run in CI.
-- Current milestone `database_bound_unambiguous_slots` = structural footprint
-  only (table+column nodes + has_column edges).
+- **`replit_integrations/graph_metadata.json` is the CANONICAL TARGET (the plan).**
+  It embeds the full grammar in a `key_scheme` block, is stamped
+  `metadata_version`/`milestone_name`, uses collections `manufacturing_graph_node`
+  / `manufacturing_graph_edge`, and the exporter freezes a create-once snapshot
+  `graph_metadata.v{metadata_version}.json`.
+- **The canonical IS now mirrored to live** in the `manufacturing_graph_node` /
+  `manufacturing_graph_edge` collections via `load_canonical_to_arango.py`
+  (truncate-then-import from graph_metadata.json; touches ONLY those 2 canonical
+  collections). `scripts/post-merge.sh` runs SQL-vs-AQL parity against them
+  (`--skip-on-missing`: unreachable = skip, real drift = fail). GOTCHA: when you
+  add canonical nodes (e.g. concepts) and Arango is REACHABLE, the gate FAILS
+  until you re-run the loader — syncing additive nodes to live is part of the
+  milestone. The LEGACY named-graph collections (`columns`/`tables`/`contains`/
+  `elevates`, old `column::TABLE.COL` keys) are separate, untouched, and are what
+  the HF app currently reads.
+- Current milestone `concept_nodes_introduced` (SCHEMA_VERSION 13 /
+  `graph_metadata.v13.json`): M1 of "concept as a node" — adds identity-only
+  concept nodes (name + description ONLY; richer type/domain/tags deferred to M3),
+  edges UNCHANGED. App resolvers filter `node_type` in (`table`,`column`) so
+  concept rows are inert in the HF app.
 - Reference artifacts: `graph_metadata.canonical_example.json` (hand-verified,
   4 records) and assertions in `graph_metadata_demo.py` (Example 4).

@@ -220,6 +220,84 @@ class RoundTrip(unittest.TestCase):
         self.assertEqual(direct, from_tables)
 
 
+# The sql_graph_nodes shape that predates the concept node type: node_type CHECK
+# admits only table/column, table_name is NOT NULL, and there is no concept_name
+# column. This is what an old manufacturing.db carries before M1.
+_LEGACY_NODES_DDL = """
+CREATE TABLE sql_graph_nodes (
+    ordinal       INTEGER NOT NULL,
+    _key          TEXT    NOT NULL PRIMARY KEY,
+    _id           TEXT    NOT NULL,
+    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+    node_family   TEXT    NOT NULL,
+    perspective   TEXT    NOT NULL,
+    table_name    TEXT    NOT NULL,
+    column_name   TEXT,
+    column_slot   TEXT,
+    predicate     TEXT    NOT NULL,
+    unique_id     TEXT    NOT NULL,
+    description   TEXT,
+    column_type   TEXT,
+    "notnull"     INTEGER,
+    default_value TEXT,
+    primary_key   INTEGER,
+    foreign_key   INTEGER
+);
+"""
+
+
+class LegacyDbMigration(unittest.TestCase):
+    """The exporter must rebuild an old sql_graph_nodes even after app.py's boot
+    guard has additively bolted on the concept_name column (which leaves the old
+    CHECK + table_name NOT NULL intact). Keying the rebuild on the column alone
+    would miss this half-migrated state and break concept inserts."""
+
+    def _half_migrated_conn(self):
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_LEGACY_NODES_DDL)
+        # Simulate app.py's additive boot guard adding only the new column.
+        conn.execute("ALTER TABLE sql_graph_nodes ADD COLUMN concept_name TEXT")
+        return conn
+
+    def test_half_migrated_table_is_detected_stale(self):
+        conn = self._half_migrated_conn()
+        self.addCleanup(conn.close)
+        self.assertTrue(
+            ex._sql_graph_nodes_is_stale(conn),
+            "old table with concept_name bolted on must still be seen as stale",
+        )
+
+    def test_fresh_modern_table_is_not_stale(self):
+        conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
+        conn.executescript(ex.SQL_GRAPH_DDL)
+        self.assertFalse(ex._sql_graph_nodes_is_stale(conn))
+
+    def test_ensure_rebuilds_half_migrated_table_so_concept_inserts(self):
+        conn = self._half_migrated_conn()
+        self.addCleanup(conn.close)
+
+        ex._ensure_sql_graph_tables(conn)
+
+        # A concept row has table_name NULL and node_type 'concept' — both of
+        # which the legacy shape rejected. After the rebuild it must insert.
+        name = "CertificationType"
+        key = ex.concept_key(name)
+        conn.execute(
+            f"INSERT INTO {ex.SQL_GRAPH_NODES_TABLE} "
+            "(ordinal, _key, _id, node_type, node_family, perspective, "
+            " table_name, concept_name, predicate, unique_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (1, key, ex.concept_id(name), "concept", ex.FAMILY_SEMANTIC,
+             ex.PERSPECTIVE_CANONICAL, None, name, "none", "none"),
+        )
+        conn.commit()
+        row = conn.execute(
+            f"SELECT node_type, table_name, concept_name FROM {ex.SQL_GRAPH_NODES_TABLE}"
+        ).fetchone()
+        self.assertEqual(row, ("concept", None, name))
+
+
 class CommittedParity(unittest.TestCase):
     def test_committed_db_matches_committed_json(self):
         if not (os.path.exists(ex.DB_PATH) and os.path.exists(ex.JSON_PATH)):

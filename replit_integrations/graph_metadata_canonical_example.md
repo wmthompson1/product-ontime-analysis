@@ -40,6 +40,9 @@ PAY_ELE_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3
 * **Column/Entity (3):** `INV` (INVOICE_ID)
 * **Uniquifier (3):** `001`
 
+# Concept Node
+Name:entity:semantic:canonical:none:none
+
 ## Updated Canonical Milestone
 
 replit_integrations\graph_metadata_canonical_example.json

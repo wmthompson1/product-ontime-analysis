@@ -85,9 +85,9 @@ EDGE_COLLECTION = "manufacturing_graph_edge"
 
 # Fixed 6-slot composite-key vocabulary.
 FAMILY_STRUCTURAL = "structural"
-FAMILY_SEMANTIC = "semantic"
-FAMILY_CONCEPT = "concept"      # slot 2 family, marks a concept node
-PERSPECTIVE_SYSTEM = "system"   # slot 3, perspective-agnostic scope (all nodes)
+FAMILY_SEMANTIC = "semantic"        # slot 2 family: the meaning layer (concept nodes + elevates edges)
+PERSPECTIVE_SYSTEM = "system"       # slot 3, structural-layer scope (tables, columns, FK edges)
+PERSPECTIVE_CANONICAL = "canonical" # slot 3, perspective-agnostic scope for concept nodes
 PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table or concept node
 NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
@@ -159,11 +159,12 @@ FORBIDDEN_IN_COMPONENT = (KEY_DELIMITER, "/")
 # or slot-position parsing would become ambiguous.
 RESERVED_COLUMN_NAMES = frozenset({PLACEHOLDER_ENTITY, NONE_SLOT})
 RESERVED_TABLE_NAMES = frozenset({NONE_SLOT})
-# A concept name occupies slot 0 but is classified by its family (slot 2), so it
-# may never equal any grammar token or fixed-slot parsing would be ambiguous.
+# A concept name occupies slot 0 but the node is classified by its family
+# (slot 2 == semantic) + perspective (slot 3 == canonical), so the name may never
+# equal any grammar token or fixed-slot parsing would be ambiguous.
 RESERVED_CONCEPT_NAMES = frozenset({
-    PLACEHOLDER_ENTITY, NONE_SLOT, PERSPECTIVE_SYSTEM,
-    FAMILY_STRUCTURAL, FAMILY_SEMANTIC, FAMILY_CONCEPT,
+    PLACEHOLDER_ENTITY, NONE_SLOT, PERSPECTIVE_SYSTEM, PERSPECTIVE_CANONICAL,
+    FAMILY_STRUCTURAL, FAMILY_SEMANTIC,
 })
 
 
@@ -286,18 +287,22 @@ def column_key(table_name: str, column_name: str) -> str:
 
 
 def concept_key(concept_name: str) -> str:
-    """Concept node: ``concept:entity:concept:system:none:none`` (6 slots).
+    """Concept node: ``<ConceptName>:entity:semantic:canonical:none:none`` (6 slots).
 
     The concept name anchors slot 0; slot 1 is the ``entity`` placeholder (a
-    concept, like a table, is an entity with no column) and slot 2 is the
-    ``concept`` family that classifies the node. All concepts are
-    perspective-agnostic, so slot 3 is ``system``.
+    concept, like a table, is an entity with no column). A concept lives in the
+    ``semantic`` family (slot 2) — it is a meaning-layer node, not structural.
+    Slot 3 is ``canonical``: a concept is perspective-agnostic (a perspective
+    only attaches later, on the ``elevates`` edge), and ``canonical`` keeps the
+    structural ``system`` scope distinct from the perspective-spanning concept.
+    Because slots 4-5 are ``none`` it is a node, and ``semantic`` + node can only
+    mean a concept (a semantic *edge* always carries a predicate + perspective).
     """
     _assert_component_safe(concept_name)
     _assert_name_not_reserved(concept_name, RESERVED_CONCEPT_NAMES, "concept")
     return _slots(
-        concept_name, PLACEHOLDER_ENTITY, FAMILY_CONCEPT,
-        PERSPECTIVE_SYSTEM, NONE_SLOT, NONE_SLOT,
+        concept_name, PLACEHOLDER_ENTITY, FAMILY_SEMANTIC,
+        PERSPECTIVE_CANONICAL, NONE_SLOT, NONE_SLOT,
     )
 
 
@@ -342,12 +347,15 @@ def references_edge_id(child_table: str, child_column: str, unique_id: str) -> s
 def semantic_edge_key(table: str, column: str, perspective: str, unique_id: str) -> str:
     """Semantic edge: ``table:column:semantic:{perspective}:elevates:uid`` (6 slots).
 
-    A real business perspective may never be the reserved token ``system`` (that
-    slot value is owned by the structural layer), so we hard-fail on it here to
-    keep fixed-slot parsing unambiguous.
+    A real business perspective may never be a reserved perspective token —
+    ``system`` (owned by the structural layer) or ``canonical`` (owned by
+    concept nodes) — so we hard-fail on either here to keep fixed-slot parsing
+    unambiguous.
     """
     _assert_component_safe(table, column, perspective, unique_id)
-    _assert_name_not_reserved(perspective, frozenset({PERSPECTIVE_SYSTEM}), "perspective")
+    _assert_name_not_reserved(
+        perspective, frozenset({PERSPECTIVE_SYSTEM, PERSPECTIVE_CANONICAL}), "perspective"
+    )
     return _slots(
         table, column, FAMILY_SEMANTIC, perspective,
         EDGE_PREDICATE_ELEVATES, unique_id,
@@ -497,8 +505,8 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
                 "_id": concept_id(name),
                 "_key": concept_key(name),
                 "node_type": "concept",
-                "node_family": FAMILY_CONCEPT,
-                "perspective": PERSPECTIVE_SYSTEM,
+                "node_family": FAMILY_SEMANTIC,
+                "perspective": PERSPECTIVE_CANONICAL,
                 "concept_name": name,
                 "predicate": NONE_SLOT,
                 "unique_id": NONE_SLOT,
@@ -819,22 +827,22 @@ def _key_scheme_spec() -> dict:
         "edge_collection": EDGE_COLLECTION,
         "reserved_tokens": {
             PLACEHOLDER_ENTITY: "slot 2 (index 1): placeholder marking a TABLE or CONCEPT node (the entity itself — no column)",
-            FAMILY_CONCEPT: "slot 3 (index 2): family marking a CONCEPT node (a perspective-agnostic semantic entity)",
             NONE_SLOT: "slots 5-6 (index 4-5): placeholder marking a NODE (no predicate / no unique_id)",
-            PERSPECTIVE_SYSTEM: "slot 4 (index 3): reserved non-business / perspective-agnostic scope (structural layer and all nodes)",
+            PERSPECTIVE_SYSTEM: "slot 4 (index 3): reserved structural-layer scope (tables, columns, FK edges)",
+            PERSPECTIVE_CANONICAL: "slot 4 (index 3): reserved perspective-agnostic scope for CONCEPT nodes (a concept spans all perspectives; the perspective attaches on the elevates edge, not the concept)",
         },
         "name_constraints": (
             "A real column may never be named 'entity' or 'none'; a real table "
             "may never be named 'none'; a business perspective may never be "
-            "'system'; a concept may never be named any grammar token ('entity', "
-            "'none', 'system', 'structural', 'semantic', 'concept'). The exporter "
-            "hard-fails if any source name collides."
+            "'system' or 'canonical'; a concept may never be named any grammar "
+            "token ('entity', 'none', 'system', 'canonical', 'structural', "
+            "'semantic'). The exporter hard-fails if any source name collides."
         ),
         "parse_by": (
             "fixed slot positions: NODE iff slot[4]=='none' and slot[5]=='none' "
-            "(concept node if slot[2]=='concept'; else table node if "
-            "slot[1]=='entity'; else column node); otherwise EDGE, whose family "
-            "is slot[2]."
+            "(concept node if slot[2]=='semantic'; else table node if "
+            "slot[1]=='entity'; else column node — both structural); otherwise "
+            "EDGE, whose family is slot[2]."
         ),
         "rules": [
             {
@@ -856,9 +864,9 @@ def _key_scheme_spec() -> dict:
             {
                 "kind": "concept_node",
                 "slots": 6,
-                "marker": "slot[2]=='concept' and slot[1]=='entity' and slot[4:6]==['none','none']",
-                "form": "concept:entity:concept:system:none:none",
-                "example": "OrderLifecycleState:entity:concept:system:none:none",
+                "marker": "slot[2]=='semantic' and slot[1]=='entity' and slot[4:6]==['none','none']",
+                "form": "<ConceptName>:entity:semantic:canonical:none:none",
+                "example": "OrderLifecycleState:entity:semantic:canonical:none:none",
                 "status": "active",
             },
             {
@@ -907,20 +915,48 @@ def _bool_to_int(value):
     return 1 if value else 0
 
 
+def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
+    """True if ``sql_graph_nodes`` predates the concept node type and must be rebuilt.
+
+    The concept node shape needs THREE changes SQLite cannot ALTER in place: the
+    ``node_type`` CHECK must admit ``'concept'``, ``table_name`` must be nullable,
+    and the ``concept_name`` column must exist. We must detect ALL THREE — not
+    just the column — because ``app.py``'s additive boot guard can add
+    ``concept_name`` to an old table while leaving the old CHECK and the old
+    ``table_name NOT NULL`` intact. Keying the rebuild only on the column would
+    then mistake that half-migrated table for an up-to-date one and concept
+    inserts would fail (NOT NULL on ``table_name`` / CHECK on ``node_type``).
+    """
+    info = {row[1]: row for row in conn.execute("PRAGMA table_info(sql_graph_nodes)")}
+    if "concept_name" not in info:
+        return True
+    table_name_col = info.get("table_name")
+    if table_name_col is not None and table_name_col[3]:  # PRAGMA "notnull" flag
+        return True
+    ddl_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='sql_graph_nodes'"
+    ).fetchone()
+    ddl = (ddl_row[0] if ddl_row else "") or ""
+    # The modern CHECK literal is the only place ``'concept'`` (quoted) appears;
+    # the concept_name column is unquoted, so this marker is unambiguous.
+    if "'concept'" not in ddl:
+        return True
+    return False
+
+
 def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
     """Create sql_graph_nodes / sql_graph_edges if they do not yet exist.
 
     Two in-place migrations keep older databases current, since
     CREATE TABLE IF NOT EXISTS never alters an existing table:
       * sql_graph_edges gets ``field_component`` added (a plain additive column).
-      * sql_graph_nodes is rebuilt when it predates the concept node type — the
-        node_type CHECK, the now-nullable table_name, and the new concept_name
-        column are constraint changes SQLite cannot ALTER in place. The table is
-        fully regenerated from schema_* on every export, so the drop is safe.
+      * sql_graph_nodes is rebuilt when it predates the concept node type (see
+        ``_sql_graph_nodes_is_stale`` for the full set of pre-concept markers).
+        The table is fully regenerated from schema_* on every export, so the
+        drop is safe.
     """
     conn.executescript(SQL_GRAPH_DDL)
-    node_cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_nodes)")}
-    if "concept_name" not in node_cols:
+    if _sql_graph_nodes_is_stale(conn):
         conn.execute("DROP TABLE sql_graph_nodes")
         conn.executescript(SQL_GRAPH_DDL)
     cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}

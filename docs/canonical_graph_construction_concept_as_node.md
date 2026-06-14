@@ -41,17 +41,23 @@ edge-changing milestones (M2+): M1 only adds inert concept-node rows and touches
 no edge, so it does not trip them.
 
 - **B1 — Concept `_key` grammar. — RESOLVED (Rev 0.3).** Ratified grammar:
-  `<ConceptName>:entity:concept:system:none:none` — slot 0 = concept name, slot 1
-  = `entity` placeholder (a concept, like a table, has no column), slot 2 =
-  `concept` family, slot 3 = `system`, slots 4–5 = `none`. **Classifier
-  (family-first):** a key is a NODE iff `slot[4:6]==['none','none']`; it is a
-  *concept* iff `slot[2]=='concept'`, else a *table* iff `slot[1]=='entity'`, else
-  a *column*. The `node_type` enum, reserved tokens (a concept name may not equal
-  any grammar token — `entity`, `none`, `system`, `structural`, `semantic`,
-  `concept`), the SQL CHECK constraints, and both parity flatteners now admit
-  `concept`. **`system` broadened:** it is the perspective-agnostic / non-business
-  scope for the structural layer **and** for every node identity (tables, columns,
-  and the perspective-agnostic concepts), all keyed under `system`.
+  `<ConceptName>:entity:semantic:canonical:none:none` — slot 0 = concept name,
+  slot 1 = `entity` placeholder (a concept, like a table, has no column), slot 2 =
+  `semantic` family (a concept is a meaning-layer node, **not** structural), slot 3
+  = `canonical` (a concept is perspective-agnostic — a perspective attaches later
+  on the `elevates` edge, not on the concept), slots 4–5 = `none`. **Classifier
+  (node-first, then family):** a key is a NODE iff `slot[4:6]==['none','none']`; a
+  node is a *concept* iff `slot[2]=='semantic'`, else a *table* iff
+  `slot[1]=='entity'`, else a *column* (tables and columns are both `structural`).
+  This is unambiguous because a semantic *edge* (`elevates`) always carries a
+  predicate **and** a business perspective, so `semantic` + node can only be a
+  concept. The `node_type` enum (`table`/`column`/`concept`), reserved tokens (a
+  concept name may not equal any grammar token — `entity`, `none`, `system`,
+  `canonical`, `structural`, `semantic`; a business perspective may not be `system`
+  or `canonical`), the SQL CHECK constraints, and both parity flatteners now admit
+  `concept`. **Two reserved perspective scopes:** `system` is the structural-layer
+  scope (tables, columns, FK edges); `canonical` is the perspective-agnostic scope
+  owned by concept nodes.
 - **B2 — Shadow-graph cutover + rollback.** Re-pointing `ELEVATES` in place would
   break the running HF Space and any consumer expecting self-loop edges with a
   `concept` string. Construction must build vNext in **isolated collections / a
@@ -124,12 +130,12 @@ in SQLite, not promoted to a structured edge (see Open Questions for the fork).
 Each milestone = one `SCHEMA_VERSION` bump + a frozen `graph_metadata.v{N}.json`,
 built in **shadow collections** (B2) and accepted only when its checks pass.
 
-1. **M1 — introduce the `concepts` node type. — IN PROGRESS (v13).** Exporter emits
+1. **M1 — introduce the `concepts` node type. — COMPLETE (v13).** Exporter emits
    concept nodes from `schema_concepts`; parser/constraints/parity learn `concept`
    (B1 resolved). **M1 payload is identity-only: `concept_name` + `description`**
-   (the `concept:entity:concept:system:none:none` key plus a human description);
-   richer metadata (type, domain, synonyms, tags) is deferred to M3. `ELEVATES`
-   still a self-loop string (no selection change yet).
+   (the `<ConceptName>:entity:semantic:canonical:none:none` key plus a human
+   description); richer metadata (type, domain, synonyms, tags) is deferred to M3.
+   `ELEVATES` still a self-loop string (no selection change yet).
    *Accept when:* node count rises by exactly the concept count, no edge changes,
    both parity pairs byte-identical for the new shape, HF Space app unaffected.
 2. **M2 — re-point `ELEVATES` to concept nodes.** Edge `_to` becomes the concept
@@ -218,7 +224,8 @@ promoted to the Pre-M1 blocking gates **B1** and **B2**.)
 |---|---|---|
 | 0.1 | 2026-06-14 | Adopt **Option C — Concept as a node** (architect strongly advocated). Tags settled as a **lightweight filter only**. Value-level discriminator routing stays in `context_hint` pending the discriminator Open Question. Drafted iterative milestones M1–M4, each a `SCHEMA_VERSION` snapshot. |
 | 0.2 | 2026-06-14 | Architect review folded in: promoted concept-key grammar (**B1**) and live-graph shadow cutover/rollback (**B2**) to Pre-M1 blocking gates; added weight-normalization gate (**B3**); added per-milestone acceptance criteria, the M2 uniqueness invariant + compatibility window, and a Consumer compatibility & deprecation section (§7). |
-| 0.3 | 2026-06-14 | **B1 resolved.** Ratified the concept `_key` grammar `<ConceptName>:entity:concept:system:none:none` with a **family-first classifier** (node iff slots 4–5 are `none`; concept if slot 2 is `concept`, else table if slot 1 is `entity`, else column). Broadened the `system` perspective to the perspective-agnostic scope for the structural layer **and** all node identities. Scoped **M1 to a minimal identity-only payload** (name + description); type/domain/tags deferred to M3. B2/B3 reaffirmed as gates for the edge-changing milestones (M2+), not M1. Froze `SCHEMA_VERSION = 13` (`concept_nodes_introduced`). |
+| 0.3 | 2026-06-14 | **B1 resolved.** Ratified the concept `_key` grammar `<ConceptName>:entity:semantic:canonical:none:none` (a concept is a **semantic-family** node, not a new family; perspective-agnostic concepts get the dedicated **`canonical`** perspective so `system` stays the structural-layer scope) with a **node-first classifier** (node iff slots 4–5 are `none`; concept if slot 2 is `semantic`, else table if slot 1 is `entity`, else column). Scoped **M1 to a minimal identity-only payload** (name + description); type/domain/tags deferred to M3. B2/B3 reaffirmed as gates for the edge-changing milestones (M2+), not M1. Froze `SCHEMA_VERSION = 13` (`concept_nodes_introduced`). |
+| 0.4 | 2026-06-14 | **M1 complete.** Exporter emits the concept nodes; node count rose by exactly the concept count with no edge changes; both parity pairs (SQL↔file, SQL↔live-AQL) byte-identical for the new shape; the canonical was loaded into the live ArangoDB (additive nodes only — does not trip B2); HF Space app unaffected (resolvers filter `node_type` to table/column). Hardened the SQLite upgrade path so an old `sql_graph_nodes` that has had only `concept_name` bolted on by the app boot guard is still rebuilt (the old `node_type` CHECK + `table_name NOT NULL` are detected, not just the missing column). |
 
 ---
 
