@@ -22,8 +22,14 @@ fi
 _app_db="hf-space-inventory-sqlgen/app_schema/manufacturing.db"
 if [ -f "$_app_db" ] && [ -f replit_integrations/seed_elevations.py ] && [ -f replit_integrations/export_graph_metadata.py ]; then
   _gm_json="replit_integrations/graph_metadata.json"
-  _gm_bak="$(mktemp)"
-  [ -f "$_gm_json" ] && cp "$_gm_json" "$_gm_bak"
+  _gm_bak=""
+  if [ -f "$_gm_json" ]; then
+    _gm_bak="$(mktemp)"
+    cp "$_gm_json" "$_gm_bak"
+    # If the exporter fails mid-run after rewriting the JSON, restore the committed
+    # copy on exit so the tracked file is never left modified.
+    trap 'if [ -n "$_gm_bak" ] && [ -f "$_gm_bak" ]; then cp "$_gm_bak" "$_gm_json"; rm -f "$_gm_bak"; fi' EXIT
+  fi
   python replit_integrations/seed_elevations.py || {
     echo "post-merge: seed_elevations regeneration failed"
     exit 1
@@ -32,10 +38,15 @@ if [ -f "$_app_db" ] && [ -f replit_integrations/seed_elevations.py ] && [ -f re
     echo "post-merge: export_graph_metadata regeneration failed"
     exit 1
   }
-  if [ -f "$_gm_bak" ]; then
+  # Restore the committed graph_metadata.json now (before the parity gates) so the
+  # gate compares the *committed* JSON against the freshly-materialized tables and
+  # still catches a stale/hand-edited committed JSON instead of becoming a tautology.
+  if [ -n "$_gm_bak" ] && [ -f "$_gm_bak" ]; then
     cp "$_gm_bak" "$_gm_json"
     rm -f "$_gm_bak"
+    _gm_bak=""
   fi
+  trap - EXIT
 fi
 
 if [ -f hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py ]; then
