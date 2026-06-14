@@ -38,10 +38,17 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 import export_graph_metadata as ex  # noqa: E402
-from sql_graph_parity_check import _compare  # noqa: E402
+from sql_graph_parity_check import (  # noqa: E402
+    _build_report,
+    _compare,
+    _write_report_file,
+    _write_status_report,
+)
 
 # Fields the ArangoDB server adds that are not part of the canonical document.
 _SERVER_FIELDS = ("_rev",)
+
+_REPORT_TITLE = "SQLite (SQL) <-> ArangoDB (AQL) parity report"
 
 
 def flatten_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
@@ -85,6 +92,7 @@ def check_sql_aql_parity(
     edge_col: Optional[str] = None,
     skip_on_missing: bool = False,
     require_arango: bool = False,
+    report_file: Optional[str] = None,
     env_get: Callable[[str], Optional[str]] = os.environ.get,
 ) -> int:
     node_col = node_col or ex.NODE_COLLECTION
@@ -95,8 +103,10 @@ def check_sql_aql_parity(
         msg = f"SQLite database not found: {db_path}"
         if skip_on_missing:
             print(f"[sql_aql_parity] SKIP — {msg}")
+            _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
             return 0
         print(f"[sql_aql_parity] ERROR — {msg}", file=sys.stderr)
+        _write_status_report(report_file, _REPORT_TITLE, f"ERROR — {msg}")
         return 2
 
     conn = sqlite3.connect(db_path)
@@ -111,8 +121,10 @@ def check_sql_aql_parity(
             )
             if skip_on_missing:
                 print(f"[sql_aql_parity] SKIP — {msg}")
+                _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
                 return 0
             print(f"[sql_aql_parity] ERROR — {msg}", file=sys.stderr)
+            _write_status_report(report_file, _REPORT_TITLE, f"ERROR — {msg}")
             return 2
         sql_nodes = ex._load_nodes_from_sqlite(conn)
         sql_edges = ex._load_edges_from_sqlite(conn)
@@ -124,8 +136,10 @@ def check_sql_aql_parity(
         msg = "ArangoDB not configured (ARANGO_HOST not set)"
         if require_arango:
             print(f"[sql_aql_parity] FAIL — {msg}", file=sys.stderr)
+            _write_status_report(report_file, _REPORT_TITLE, f"FAIL — {msg}")
             return 1
         print(f"[sql_aql_parity] SKIP — {msg}")
+        _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
         return 0
 
     factory = arango_factory or _default_arango_db
@@ -136,13 +150,16 @@ def check_sql_aql_parity(
         msg = f"could not reach the live graph: {type(exc).__name__}: {exc}"
         if require_arango:
             print(f"[sql_aql_parity] FAIL — {msg}", file=sys.stderr)
+            _write_status_report(report_file, _REPORT_TITLE, f"FAIL — {msg}")
             return 1
         print(f"[sql_aql_parity] SKIP — {msg}")
+        _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
         return 0
 
     # --- field-by-field comparison (order not asserted: AQL is unordered) ----
-    errors = _compare("nodes", sql_nodes, aql_nodes, check_order=False, left="SQLite", right="ArangoDB")
-    errors += _compare("edges", sql_edges, aql_edges, check_order=False, left="SQLite", right="ArangoDB")
+    node_errors = _compare("nodes", sql_nodes, aql_nodes, check_order=False, left="SQLite", right="ArangoDB")
+    edge_errors = _compare("edges", sql_edges, aql_edges, check_order=False, left="SQLite", right="ArangoDB")
+    errors = node_errors + edge_errors
 
     report = _flat_report(
         node_diff=len(sql_nodes) - len(aql_nodes),
@@ -151,6 +168,33 @@ def check_sql_aql_parity(
         aql_counts=(len(aql_nodes), len(aql_edges)),
     )
     print(report)
+
+    if errors:
+        status_line = (
+            "[sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph"
+        )
+    else:
+        status_line = (
+            f"[sql_aql_parity] OK — {len(sql_nodes)} nodes and {len(sql_edges)} edges "
+            "match between SQLite (SQL) and ArangoDB (AQL)"
+        )
+
+    if report_file:
+        _write_report_file(report_file, _build_report(
+            title=_REPORT_TITLE,
+            sources=[
+                ("db", db_path),
+                ("arango_node_collection", node_col),
+                ("arango_edge_collection", edge_col),
+            ],
+            left_name="SQLite",
+            right_name="ArangoDB",
+            node_counts=(len(sql_nodes), len(aql_nodes)),
+            edge_counts=(len(sql_edges), len(aql_edges)),
+            node_errors=node_errors,
+            edge_errors=edge_errors,
+            status_line=status_line,
+        ))
 
     if errors:
         print("[sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph:")
@@ -180,6 +224,11 @@ def main() -> int:
         action="store_true",
         help="Treat an unreachable/unconfigured ArangoDB as a failure (exit 1) instead of a skip.",
     )
+    parser.add_argument(
+        "--report-file",
+        default=None,
+        help="Also write the parity report (count table + status) to this file.",
+    )
     args = parser.parse_args()
     return check_sql_aql_parity(
         args.db,
@@ -187,6 +236,7 @@ def main() -> int:
         edge_col=args.edge_collection,
         skip_on_missing=args.skip_on_missing,
         require_arango=args.require_arango,
+        report_file=args.report_file,
     )
 
 

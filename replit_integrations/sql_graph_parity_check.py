@@ -26,6 +26,7 @@ import json
 import os
 import sqlite3
 import sys
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -95,21 +96,90 @@ def _compare(
     return errors
 
 
-def check_parity(db_path: str, json_path: str, skip_on_missing: bool = False) -> int:
+_REPORT_TITLE = "SQLite <-> graph_metadata.json parity report"
+
+
+def _write_report_file(path: str, text: str) -> None:
+    """Write a parity report to ``path`` (creating parent dirs) as UTF-8 with a
+    trailing newline. Shared by both parity checkers."""
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text if text.endswith("\n") else text + "\n")
+
+
+def _build_report(
+    *,
+    title: str,
+    sources: List[tuple[str, str]],
+    left_name: str,
+    right_name: str,
+    node_counts: tuple[int, int],
+    edge_counts: tuple[int, int],
+    node_errors: List[str],
+    edge_errors: List[str],
+    status_line: str,
+) -> str:
+    """Render a human-readable parity report: header, count table, any diffs,
+    then the one-line status. Shared by both parity checkers so the SQL<->file
+    and SQL<->AQL reports look identical."""
+    generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    out = [title, f"generated: {generated}"]
+    out.extend(f"{name}: {value}" for name, value in sources)
+    out.append("")
+    out.append(f"{'collection':<14}{left_name:>10}{right_name:>12}{'Match':>9}")
+    out.append("-" * 45)
+    out.append(
+        f"{'nodes':<14}{node_counts[0]:>10}{node_counts[1]:>12}"
+        f"{('OK' if not node_errors else 'MISMATCH'):>9}"
+    )
+    out.append(
+        f"{'edges':<14}{edge_counts[0]:>10}{edge_counts[1]:>12}"
+        f"{('OK' if not edge_errors else 'MISMATCH'):>9}"
+    )
+    out.append("")
+    diffs = node_errors + edge_errors
+    if diffs:
+        out.append("differences:")
+        out.extend(f"  - {d}" for d in diffs)
+        out.append("")
+    out.append(status_line)
+    return "\n".join(out)
+
+
+def _write_status_report(report_file: str | None, title: str, status: str) -> None:
+    """Write a minimal report for skip/error outcomes where no comparison ran."""
+    if not report_file:
+        return
+    generated = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    _write_report_file(report_file, f"{title}\ngenerated: {generated}\n\n{status}")
+
+
+def check_parity(
+    db_path: str,
+    json_path: str,
+    skip_on_missing: bool = False,
+    report_file: str | None = None,
+) -> int:
     if not os.path.exists(json_path):
         msg = f"graph JSON not found: {json_path}"
         if skip_on_missing:
             print(f"[sql_graph_parity] SKIP — {msg}")
+            _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
             return 0
         print(f"[sql_graph_parity] ERROR — {msg}", file=sys.stderr)
+        _write_status_report(report_file, _REPORT_TITLE, f"ERROR — {msg}")
         return 2
 
     if not os.path.exists(db_path):
         msg = f"SQLite database not found: {db_path}"
         if skip_on_missing:
             print(f"[sql_graph_parity] SKIP — {msg}")
+            _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
             return 0
         print(f"[sql_graph_parity] ERROR — {msg}", file=sys.stderr)
+        _write_status_report(report_file, _REPORT_TITLE, f"ERROR — {msg}")
         return 2
 
     conn = sqlite3.connect(db_path)
@@ -124,8 +194,10 @@ def check_parity(db_path: str, json_path: str, skip_on_missing: bool = False) ->
             )
             if skip_on_missing:
                 print(f"[sql_graph_parity] SKIP — {msg}")
+                _write_status_report(report_file, _REPORT_TITLE, f"SKIP — {msg}")
                 return 0
             print(f"[sql_graph_parity] ERROR — {msg}", file=sys.stderr)
+            _write_status_report(report_file, _REPORT_TITLE, f"ERROR — {msg}")
             return 2
         db_nodes = ex._load_nodes_from_sqlite(conn)
         db_edges = ex._load_edges_from_sqlite(conn)
@@ -134,8 +206,32 @@ def check_parity(db_path: str, json_path: str, skip_on_missing: bool = False) ->
 
     json_nodes, json_edges = _load_json_graph(json_path)
 
-    errors = _compare("nodes", json_nodes, db_nodes)
-    errors += _compare("edges", json_edges, db_edges)
+    node_errors = _compare("nodes", json_nodes, db_nodes)
+    edge_errors = _compare("edges", json_edges, db_edges)
+    errors = node_errors + edge_errors
+
+    if errors:
+        status_line = (
+            "[sql_graph_parity] FAIL — graph_metadata.json does not match the SQLite graph tables"
+        )
+    else:
+        status_line = (
+            f"[sql_graph_parity] OK — {len(json_nodes)} nodes and {len(json_edges)} edges "
+            "match between SQLite and graph_metadata.json"
+        )
+
+    if report_file:
+        _write_report_file(report_file, _build_report(
+            title=_REPORT_TITLE,
+            sources=[("db", db_path), ("json", json_path)],
+            left_name="JSON",
+            right_name="SQLite",
+            node_counts=(len(json_nodes), len(db_nodes)),
+            edge_counts=(len(json_edges), len(db_edges)),
+            node_errors=node_errors,
+            edge_errors=edge_errors,
+            status_line=status_line,
+        ))
 
     if errors:
         print("[sql_graph_parity] FAIL — graph_metadata.json does not match the SQLite graph tables:")
@@ -159,8 +255,18 @@ def main() -> int:
         action="store_true",
         help="Exit 0 instead of erroring when the DB, JSON, or tables are absent.",
     )
+    parser.add_argument(
+        "--report-file",
+        default=None,
+        help="Also write the parity report (count table + status) to this file.",
+    )
     args = parser.parse_args()
-    return check_parity(args.db, args.json, skip_on_missing=args.skip_on_missing)
+    return check_parity(
+        args.db,
+        args.json,
+        skip_on_missing=args.skip_on_missing,
+        report_file=args.report_file,
+    )
 
 
 if __name__ == "__main__":
