@@ -242,12 +242,13 @@ def ensure_app_metadata_tables(conn) -> None:
             ordinal       INTEGER NOT NULL,
             _key          TEXT    NOT NULL PRIMARY KEY,
             _id           TEXT    NOT NULL,
-            node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+            node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column', 'concept')),
             node_family   TEXT    NOT NULL,
             perspective   TEXT    NOT NULL,
-            table_name    TEXT    NOT NULL,
+            table_name    TEXT,
             column_name   TEXT,
             column_slot   TEXT,
+            concept_name  TEXT,
             predicate     TEXT    NOT NULL,
             unique_id     TEXT    NOT NULL,
             description   TEXT,
@@ -309,6 +310,8 @@ def ensure_app_metadata_tables(conn) -> None:
     )
     # field_component on elevates edges mirrors schema_concept_fields.component_index.
     _add_column_if_missing("sql_graph_edges", "field_component", "field_component INTEGER")
+    # concept_name on concept nodes (node_type='concept'); NULL for table/column rows.
+    _add_column_if_missing("sql_graph_nodes", "concept_name", "concept_name TEXT")
 
     conn.commit()
 

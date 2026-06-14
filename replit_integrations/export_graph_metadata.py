@@ -75,8 +75,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 12
-MILESTONE_NAME = "field_component_definitions"
+SCHEMA_VERSION = 13
+MILESTONE_NAME = "concept_nodes_introduced"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -86,8 +86,9 @@ EDGE_COLLECTION = "manufacturing_graph_edge"
 # Fixed 6-slot composite-key vocabulary.
 FAMILY_STRUCTURAL = "structural"
 FAMILY_SEMANTIC = "semantic"
-PERSPECTIVE_SYSTEM = "system"
-PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table node
+FAMILY_CONCEPT = "concept"      # slot 2 family, marks a concept node
+PERSPECTIVE_SYSTEM = "system"   # slot 3, perspective-agnostic scope (all nodes)
+PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table or concept node
 NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
 EDGE_PREDICATE_HAS_COLUMN = "has_column"
@@ -114,12 +115,13 @@ CREATE TABLE IF NOT EXISTS sql_graph_nodes (
     ordinal       INTEGER NOT NULL,
     _key          TEXT    NOT NULL PRIMARY KEY,
     _id           TEXT    NOT NULL,
-    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column', 'concept')),
     node_family   TEXT    NOT NULL,
     perspective   TEXT    NOT NULL,
-    table_name    TEXT    NOT NULL,
+    table_name    TEXT,
     column_name   TEXT,
     column_slot   TEXT,
+    concept_name  TEXT,
     predicate     TEXT    NOT NULL,
     unique_id     TEXT    NOT NULL,
     description   TEXT,
@@ -157,6 +159,12 @@ FORBIDDEN_IN_COMPONENT = (KEY_DELIMITER, "/")
 # or slot-position parsing would become ambiguous.
 RESERVED_COLUMN_NAMES = frozenset({PLACEHOLDER_ENTITY, NONE_SLOT})
 RESERVED_TABLE_NAMES = frozenset({NONE_SLOT})
+# A concept name occupies slot 0 but is classified by its family (slot 2), so it
+# may never equal any grammar token or fixed-slot parsing would be ambiguous.
+RESERVED_CONCEPT_NAMES = frozenset({
+    PLACEHOLDER_ENTITY, NONE_SLOT, PERSPECTIVE_SYSTEM,
+    FAMILY_STRUCTURAL, FAMILY_SEMANTIC, FAMILY_CONCEPT,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -277,6 +285,22 @@ def column_key(table_name: str, column_name: str) -> str:
     )
 
 
+def concept_key(concept_name: str) -> str:
+    """Concept node: ``concept:entity:concept:system:none:none`` (6 slots).
+
+    The concept name anchors slot 0; slot 1 is the ``entity`` placeholder (a
+    concept, like a table, is an entity with no column) and slot 2 is the
+    ``concept`` family that classifies the node. All concepts are
+    perspective-agnostic, so slot 3 is ``system``.
+    """
+    _assert_component_safe(concept_name)
+    _assert_name_not_reserved(concept_name, RESERVED_CONCEPT_NAMES, "concept")
+    return _slots(
+        concept_name, PLACEHOLDER_ENTITY, FAMILY_CONCEPT,
+        PERSPECTIVE_SYSTEM, NONE_SLOT, NONE_SLOT,
+    )
+
+
 def has_column_edge_key(table_name: str, column_name: str, unique_id: str) -> str:
     """Structural edge: ``table:column:structural:system:has_column:uid`` (6 slots)."""
     _assert_component_safe(table_name, column_name, unique_id)
@@ -292,6 +316,10 @@ def table_id(table_name: str) -> str:
 
 def column_id(table_name: str, column_name: str) -> str:
     return f"{NODE_COLLECTION}/{column_key(table_name, column_name)}"
+
+
+def concept_id(concept_name: str) -> str:
+    return f"{NODE_COLLECTION}/{concept_key(concept_name)}"
 
 
 def has_column_edge_id(table_name: str, column_name: str, unique_id: str) -> str:
@@ -440,6 +468,44 @@ def _fetch_structure(conn: sqlite3.Connection):
             )
 
     return table_nodes, column_nodes, pk_map, integrity
+
+
+def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
+    """Concept nodes — perspective-agnostic semantic entities from schema_concepts.
+
+    The M1 payload is intentionally MINIMAL: identity (the concept-anchored key)
+    plus a human description, mirroring the shape of a table node. Richer
+    metadata (type, domain, synonyms, tags) and the semantic edges that connect a
+    concept to the columns that elevate to it arrive in later milestones. Emitted
+    in a deterministic order (by concept_name) so the export stays diff-stable. A
+    database without the schema_concepts table simply yields no concept nodes.
+    """
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT concept_name, description FROM schema_concepts "
+            "ORDER BY concept_name"
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+
+    concept_nodes: list[dict] = []
+    for r in rows:
+        name = r["concept_name"]
+        concept_nodes.append(
+            {
+                "_id": concept_id(name),
+                "_key": concept_key(name),
+                "node_type": "concept",
+                "node_family": FAMILY_CONCEPT,
+                "perspective": PERSPECTIVE_SYSTEM,
+                "concept_name": name,
+                "predicate": NONE_SLOT,
+                "unique_id": NONE_SLOT,
+                "description": r["description"] or "",
+            }
+        )
+    return concept_nodes
 
 
 def _build_has_column_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -> list[dict]:
@@ -744,7 +810,7 @@ def _key_scheme_spec() -> dict:
     the anti-drift anchor for this milestone.
     """
     return {
-        "template": "table : column|entity : family : perspective : predicate|none : unique_id|none",
+        "template": "table|concept : column|entity : family : perspective : predicate|none : unique_id|none",
         "slots": 6,
         "fixed_width": True,
         "delimiter": KEY_DELIMITER,
@@ -752,35 +818,47 @@ def _key_scheme_spec() -> dict:
         "node_collection": NODE_COLLECTION,
         "edge_collection": EDGE_COLLECTION,
         "reserved_tokens": {
-            PLACEHOLDER_ENTITY: "slot 2 (index 1): placeholder marking a TABLE node (a table has no column)",
+            PLACEHOLDER_ENTITY: "slot 2 (index 1): placeholder marking a TABLE or CONCEPT node (the entity itself — no column)",
+            FAMILY_CONCEPT: "slot 3 (index 2): family marking a CONCEPT node (a perspective-agnostic semantic entity)",
             NONE_SLOT: "slots 5-6 (index 4-5): placeholder marking a NODE (no predicate / no unique_id)",
-            PERSPECTIVE_SYSTEM: "slot 4 (index 3): perspective reserved for the structural layer",
+            PERSPECTIVE_SYSTEM: "slot 4 (index 3): reserved non-business / perspective-agnostic scope (structural layer and all nodes)",
         },
         "name_constraints": (
             "A real column may never be named 'entity' or 'none'; a real table "
             "may never be named 'none'; a business perspective may never be "
-            "'system'. The exporter hard-fails if any source name collides."
+            "'system'; a concept may never be named any grammar token ('entity', "
+            "'none', 'system', 'structural', 'semantic', 'concept'). The exporter "
+            "hard-fails if any source name collides."
         ),
         "parse_by": (
             "fixed slot positions: NODE iff slot[4]=='none' and slot[5]=='none' "
-            "(table node if slot[1]=='entity', else column node); otherwise EDGE, "
-            "whose family is slot[2]."
+            "(concept node if slot[2]=='concept'; else table node if "
+            "slot[1]=='entity'; else column node); otherwise EDGE, whose family "
+            "is slot[2]."
         ),
         "rules": [
             {
                 "kind": "table_node",
                 "slots": 6,
-                "marker": "slot[1]=='entity' and slot[4:6]==['none','none']",
-                "form": "table:entity:family:perspective:none:none",
+                "marker": "slot[2]=='structural' and slot[1]=='entity' and slot[4:6]==['none','none']",
+                "form": "table:entity:structural:system:none:none",
                 "example": "PAYABLE:entity:structural:system:none:none",
                 "status": "active",
             },
             {
                 "kind": "column_node",
                 "slots": 6,
-                "marker": "slot[1]!='entity' and slot[4:6]==['none','none']",
-                "form": "table:column:family:perspective:none:none",
+                "marker": "slot[2]=='structural' and slot[1]!='entity' and slot[4:6]==['none','none']",
+                "form": "table:column:structural:system:none:none",
                 "example": "PAYABLE:INVOICE_ID:structural:system:none:none",
+                "status": "active",
+            },
+            {
+                "kind": "concept_node",
+                "slots": 6,
+                "marker": "slot[2]=='concept' and slot[1]=='entity' and slot[4:6]==['none','none']",
+                "form": "concept:entity:concept:system:none:none",
+                "example": "OrderLifecycleState:entity:concept:system:none:none",
                 "status": "active",
             },
             {
@@ -832,41 +910,53 @@ def _bool_to_int(value):
 def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
     """Create sql_graph_nodes / sql_graph_edges if they do not yet exist.
 
-    Also applies additive column guards: CREATE TABLE IF NOT EXISTS never widens
-    an already-existing table, so older databases get ``field_component`` added in
-    place rather than silently materializing into a too-narrow table.
+    Two in-place migrations keep older databases current, since
+    CREATE TABLE IF NOT EXISTS never alters an existing table:
+      * sql_graph_edges gets ``field_component`` added (a plain additive column).
+      * sql_graph_nodes is rebuilt when it predates the concept node type — the
+        node_type CHECK, the now-nullable table_name, and the new concept_name
+        column are constraint changes SQLite cannot ALTER in place. The table is
+        fully regenerated from schema_* on every export, so the drop is safe.
     """
     conn.executescript(SQL_GRAPH_DDL)
+    node_cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_nodes)")}
+    if "concept_name" not in node_cols:
+        conn.execute("DROP TABLE sql_graph_nodes")
+        conn.executescript(SQL_GRAPH_DDL)
     cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
     if "field_component" not in cols:
         conn.execute("ALTER TABLE sql_graph_edges ADD COLUMN field_component INTEGER")
 
 
 def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
-                           column_nodes: list[dict], edges: list[dict]) -> None:
+                           column_nodes: list[dict], edges: list[dict],
+                           concept_nodes: list[dict] | None = None) -> None:
     """Write the canonical nodes/edges into the SQLite graph source tables.
 
     The tables are emptied and re-filled in a single transaction so the result
     is idempotent (re-running on an unchanged schema yields identical rows). An
-    ``ordinal`` column records the exact emission order — table nodes before
-    column nodes, then has_column / references / elevates edges — so the JSON
-    read back from these tables preserves byte-for-byte ordering.
+    ``ordinal`` column records the exact emission order — table nodes, then
+    column nodes, then concept nodes, then has_column / references / elevates
+    edges — so the JSON read back from these tables preserves byte-for-byte
+    ordering.
     """
     _ensure_sql_graph_tables(conn)
+    all_nodes = table_nodes + column_nodes + (concept_nodes or [])
     with conn:
         conn.execute(f"DELETE FROM {SQL_GRAPH_NODES_TABLE}")
         conn.execute(f"DELETE FROM {SQL_GRAPH_EDGES_TABLE}")
-        for i, n in enumerate(table_nodes + column_nodes, start=1):
+        for i, n in enumerate(all_nodes, start=1):
             conn.execute(
                 f"INSERT INTO {SQL_GRAPH_NODES_TABLE} "
                 "(ordinal, _key, _id, node_type, node_family, perspective, "
-                "table_name, column_name, column_slot, predicate, unique_id, "
-                "description, column_type, \"notnull\", default_value, primary_key, "
-                "foreign_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "table_name, column_name, column_slot, concept_name, predicate, "
+                "unique_id, description, column_type, \"notnull\", default_value, "
+                "primary_key, foreign_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, n["_key"], n["_id"], n["node_type"], n["node_family"],
-                    n["perspective"], n["table_name"],
+                    n["perspective"], n.get("table_name"),
                     n.get("column_name"), n.get("column_slot"),
+                    n.get("concept_name"),
                     n["predicate"], n["unique_id"], n.get("description"),
                     n.get("column_type"), _bool_to_int(n.get("notnull")),
                     n.get("default_value"), _bool_to_int(n.get("primary_key")),
@@ -900,6 +990,18 @@ def _node_dict_from_row(row: sqlite3.Row) -> dict:
             "perspective": row["perspective"],
             "table_name": row["table_name"],
             "column_slot": row["column_slot"],
+            "predicate": row["predicate"],
+            "unique_id": row["unique_id"],
+            "description": row["description"] if row["description"] is not None else "",
+        }
+    if row["node_type"] == "concept":
+        return {
+            "_id": row["_id"],
+            "_key": row["_key"],
+            "node_type": "concept",
+            "node_family": row["node_family"],
+            "perspective": row["perspective"],
+            "concept_name": row["concept_name"],
             "predicate": row["predicate"],
             "unique_id": row["unique_id"],
             "description": row["description"] if row["description"] is not None else "",
@@ -983,14 +1085,18 @@ def _build_graph_document(
         "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
         "description": (
             "Canonical structural graph exported from SQLite in the fixed 6-slot "
-            "composite-key scheme: table + column nodes, has_column edges "
-            "(table -> column), and references edges (child column -> parent "
+            "composite-key scheme: table + column + concept nodes, has_column "
+            "edges (table -> column), and references edges (child column -> parent "
             "column) built from declared foreign keys, all with unified "
             "abbreviated unique_ids. Covers the business ERP tables "
             "(schema_* metadata tables excluded — the graph models the domain, "
             "not its own bookkeeping); the semantic ``elevates`` layer is active "
             "and node-guarded — it emits SME-curated column elevations under "
-            "business perspectives only for columns that are exported nodes."
+            "business perspectives only for columns that are exported nodes. "
+            "Concept nodes carry an identity-only payload (name + description, "
+            "emitted from schema_concepts) introducing the perspective-agnostic "
+            "semantic vocabulary; their richer metadata and the semantic edges "
+            "that link columns to concepts follow in later milestones."
         ),
         "key_scheme": _key_scheme_spec(),
         "graph": {
@@ -1003,6 +1109,7 @@ def _build_graph_document(
             "nodes_by_type": {
                 "table": nodes_by_type.get("table", 0),
                 "column": nodes_by_type.get("column", 0),
+                "concept": nodes_by_type.get("concept", 0),
             },
             "edges_by_type": edges_by_type,
         },
@@ -1043,6 +1150,7 @@ def main() -> int:
         conn = sqlite3.connect(DB_PATH)
         try:
             table_nodes, column_nodes, pk_map, integrity = _fetch_structure(conn)
+            concept_nodes = _fetch_concept_nodes(conn)
             table_names = [t["table_name"] for t in table_nodes]
             fk_rows = _fetch_foreign_keys(conn, table_names, pk_map)
             elevation_rows = _fetch_semantic_elevations(conn)
@@ -1065,7 +1173,7 @@ def main() -> int:
             # Persist the graph into the SQLite source tables, then read it back
             # so the JSON we emit is provably a serialization of those tables
             # (SQLite is the source of truth; the JSON is a dump of it).
-            _materialize_to_sqlite(conn, table_nodes, column_nodes, edges)
+            _materialize_to_sqlite(conn, table_nodes, column_nodes, edges, concept_nodes)
             nodes = _load_nodes_from_sqlite(conn)
             edges = _load_edges_from_sqlite(conn)
         finally:
@@ -1093,7 +1201,7 @@ def main() -> int:
     print(f"  triples : {TRIPLES_PATH}  ({len(edges)} rows)")
     print(f"  graph   : {JSON_PATH}")
     print(f"  {snapshot_action}")
-    print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns)")
+    print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns, {len(concept_nodes)} concepts)")
     print(
         f"  edges   : {doc['counts']['edges_total']}  "
         f"({len(has_column_edges)} {EDGE_PREDICATE_HAS_COLUMN}, "

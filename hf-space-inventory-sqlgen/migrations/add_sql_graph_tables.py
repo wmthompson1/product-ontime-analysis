@@ -10,7 +10,7 @@ materializes and then serializes graph_metadata.json FROM.  SQLite is the source
 of truth; the JSON is provably a dump of these rows.
 
 Tables created:
-  - sql_graph_nodes           table + column nodes (one column per JSON node field)
+  - sql_graph_nodes           table + column + concept nodes (one column per JSON node field)
   - sql_graph_edges           has_column + references + elevates edges
   - sql_graph_authored_edges  durable SME-authored edges (Define Relationship UI)
                               that the exporter merges into sql_graph_edges
@@ -34,12 +34,13 @@ DDL_STATEMENTS = [
         ordinal       INTEGER NOT NULL,
         _key          TEXT    NOT NULL PRIMARY KEY,
         _id           TEXT    NOT NULL,
-        node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column')),
+        node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column', 'concept')),
         node_family   TEXT    NOT NULL,
         perspective   TEXT    NOT NULL,
-        table_name    TEXT    NOT NULL,
+        table_name    TEXT,
         column_name   TEXT,
         column_slot   TEXT,
+        concept_name  TEXT,
         predicate     TEXT    NOT NULL,
         unique_id     TEXT    NOT NULL,
         description   TEXT,
