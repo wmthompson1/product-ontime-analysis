@@ -220,6 +220,66 @@ class RoundTrip(unittest.TestCase):
         self.assertEqual(direct, from_tables)
 
 
+class ConceptPayloadRoundTrip(unittest.TestCase):
+    """M3: a concept node carries concept_type, domain, and authored JSON-array
+    synonyms / tags alongside its description. All four survive the materialize ->
+    read-back round trip; a concept with blank/empty metadata comes back as
+    "" / [] (never None); authored synonym order is preserved (never re-sorted)."""
+
+    def setUp(self):
+        self.conn = sqlite3.connect(":memory:")
+
+    def tearDown(self):
+        self.conn.close()
+
+    def _concept(self, name, ctype, domain, synonyms, tags, desc):
+        return {
+            "_id": ex.concept_id(name),
+            "_key": ex.concept_key(name),
+            "node_type": "concept",
+            "node_family": ex.FAMILY_SEMANTIC,
+            "perspective": ex.PERSPECTIVE_CANONICAL,
+            "concept_name": name,
+            "concept_type": ctype,
+            "domain": domain,
+            "synonyms": synonyms,
+            "tags": tags,
+            "predicate": "none",
+            "unique_id": "none",
+            "description": desc,
+        }
+
+    def test_full_payload_round_trips(self):
+        concept = self._concept(
+            "ReorderPoint", "metric", "operations",
+            ["ROP", "reorder level"], ["mrp", "inventory"],
+            "Inventory level that triggers replenishment",
+        )
+        ex._materialize_to_sqlite(self.conn, [], [], [], [concept])
+        self.assertEqual(ex._load_nodes_from_sqlite(self.conn), [concept])
+
+    def test_empty_metadata_defaults_to_blank_and_empty_lists(self):
+        # A glossary-only concept with no synonyms/tags and blank type/domain must
+        # come back as "" / [] (never None), matching _fetch_concept_nodes.
+        concept = self._concept("SafetyStock", "", "", [], [], "")
+        ex._materialize_to_sqlite(self.conn, [], [], [], [concept])
+        loaded = ex._load_nodes_from_sqlite(self.conn)
+        self.assertEqual(loaded, [concept])
+        self.assertEqual(loaded[0]["synonyms"], [])
+        self.assertEqual(loaded[0]["tags"], [])
+
+    def test_synonym_order_is_preserved(self):
+        ordered = ["zeta", "alpha", "mike"]
+        concept = self._concept(
+            "LeadTime", "metric", "operations", ordered, ["mrp"], "lead time",
+        )
+        ex._materialize_to_sqlite(self.conn, [], [], [], [concept])
+        self.assertEqual(
+            ex._load_nodes_from_sqlite(self.conn)[0]["synonyms"], ordered,
+            "authored synonym order must survive the round trip (never re-sorted)",
+        )
+
+
 # The sql_graph_nodes shape that predates the concept node type: node_type CHECK
 # admits only table/column, table_name is NOT NULL, and there is no concept_name
 # column. This is what an old manufacturing.db carries before M1.

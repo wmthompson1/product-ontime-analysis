@@ -76,8 +76,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 14
-MILESTONE_NAME = "elevates_repointed_to_concepts"
+SCHEMA_VERSION = 15
+MILESTONE_NAME = "concept_metadata_mrp_seed"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -123,6 +123,10 @@ CREATE TABLE IF NOT EXISTS sql_graph_nodes (
     column_name   TEXT,
     column_slot   TEXT,
     concept_name  TEXT,
+    concept_type  TEXT,
+    domain        TEXT,
+    synonyms      TEXT,
+    tags          TEXT,
     predicate     TEXT    NOT NULL,
     unique_id     TEXT    NOT NULL,
     description   TEXT,
@@ -505,24 +509,58 @@ def _fetch_structure(conn: sqlite3.Connection):
     return table_nodes, column_nodes, pk_map, integrity
 
 
+def _parse_json_list(raw) -> list:
+    """Parse a canonical JSON-array string into a list (NULL / bad value => []).
+
+    Concept ``synonyms`` / ``tags`` are stored as a JSON-array string in SQLite.
+    A missing, empty, or malformed value degrades to the empty list so one bad
+    row can never break the export. Authored order is preserved (never re-sorted).
+    """
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    return value if isinstance(value, list) else []
+
+
 def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
     """Concept nodes — perspective-agnostic semantic entities from schema_concepts.
 
-    The M1 payload is intentionally MINIMAL: identity (the concept-anchored key)
-    plus a human description, mirroring the shape of a table node. Richer
-    metadata (type, domain, synonyms, tags) and the semantic edges that connect a
-    concept to the columns that elevate to it arrive in later milestones. Emitted
-    in a deterministic order (by concept_name) so the export stays diff-stable. A
-    database without the schema_concepts table simply yields no concept nodes.
+    The payload is the concept identity (the concept-anchored key) plus the human
+    ``description`` (which serves as the definition) and, from M3 on, richer
+    glossary metadata: ``concept_type``, ``domain``, and authored JSON-array
+    ``synonyms`` / ``tags``. The perspective stays OFF the node — it attaches on
+    the elevates edge (the dual-namespace rule). Emitted in a deterministic order
+    (by concept_name) so the export stays diff-stable. A database without the
+    schema_concepts table yields no concept nodes; databases predating the M3
+    columns default them ("" for type/domain, [] for synonyms/tags), so the
+    SELECT only asks for columns that actually exist.
     """
     conn.row_factory = sqlite3.Row
     try:
-        rows = conn.execute(
-            "SELECT concept_name, description FROM schema_concepts "
-            "ORDER BY concept_name"
-        ).fetchall()
+        present = {row[1] for row in conn.execute("PRAGMA table_info(schema_concepts)")}
     except sqlite3.Error:
         return []
+    if not present:
+        return []
+    has_type = "concept_type" in present
+    has_domain = "domain" in present
+    has_syn = "synonyms" in present
+    has_tags = "tags" in present
+    cols = ["concept_name", "description"]
+    if has_type:
+        cols.append("concept_type")
+    if has_domain:
+        cols.append("domain")
+    if has_syn:
+        cols.append("synonyms")
+    if has_tags:
+        cols.append("tags")
+    rows = conn.execute(
+        f"SELECT {', '.join(cols)} FROM schema_concepts ORDER BY concept_name"
+    ).fetchall()
 
     concept_nodes: list[dict] = []
     for r in rows:
@@ -535,6 +573,10 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
                 "node_family": FAMILY_SEMANTIC,
                 "perspective": PERSPECTIVE_CANONICAL,
                 "concept_name": name,
+                "concept_type": (r["concept_type"] if has_type else None) or "",
+                "domain": (r["domain"] if has_domain else None) or "",
+                "synonyms": _parse_json_list(r["synonyms"]) if has_syn else [],
+                "tags": _parse_json_list(r["tags"]) if has_tags else [],
                 "predicate": NONE_SLOT,
                 "unique_id": NONE_SLOT,
                 "description": r["description"] or "",
@@ -906,6 +948,12 @@ def _key_scheme_spec() -> dict:
                 "marker": "slot[2]=='semantic' and slot[1]=='entity' and slot[4:6]==['none','none']",
                 "form": "<ConceptName>:entity:semantic:canonical:none:none",
                 "example": "OrderLifecycleState:entity:semantic:canonical:none:none",
+                "payload": (
+                    "M3: concept_type, domain, description (the definition), and "
+                    "authored JSON-array synonyms / tags. The perspective stays "
+                    "OFF the node (it attaches on the elevates edge — dual-namespace). "
+                    "A concept may be a glossary-only node with no elevates edge yet."
+                ),
                 "status": "active",
             },
             {
@@ -955,6 +1003,17 @@ def _bool_to_int(value):
     return 1 if value else 0
 
 
+def _json_or_none(value):
+    """Serialize a list to a canonical JSON-array string; None stays NULL.
+
+    Concept nodes carry ``synonyms`` / ``tags`` lists (stored as JSON text);
+    table / column nodes have no such key, so they store SQL NULL.
+    """
+    if value is None:
+        return None
+    return json.dumps(value)
+
+
 def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
     """True if ``sql_graph_nodes`` predates the concept node type and must be rebuilt.
 
@@ -969,6 +1028,10 @@ def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
     """
     info = {row[1]: row for row in conn.execute("PRAGMA table_info(sql_graph_nodes)")}
     if "concept_name" not in info:
+        return True
+    # M3 widened the concept payload. The table must carry ALL four new columns to
+    # round-trip; the app boot guard can bolt some on, so rebuild if any is absent.
+    if any(c not in info for c in ("concept_type", "domain", "synonyms", "tags")):
         return True
     table_name_col = info.get("table_name")
     if table_name_col is not None and table_name_col[3]:  # PRAGMA "notnull" flag
@@ -1044,14 +1107,18 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
             conn.execute(
                 f"INSERT INTO {SQL_GRAPH_NODES_TABLE} "
                 "(ordinal, _key, _id, node_type, node_family, perspective, "
-                "table_name, column_name, column_slot, concept_name, predicate, "
+                "table_name, column_name, column_slot, concept_name, concept_type, "
+                "domain, synonyms, tags, predicate, "
                 "unique_id, description, column_type, \"notnull\", default_value, "
-                "primary_key, foreign_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "primary_key, foreign_key) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, n["_key"], n["_id"], n["node_type"], n["node_family"],
                     n["perspective"], n.get("table_name"),
                     n.get("column_name"), n.get("column_slot"),
-                    n.get("concept_name"),
+                    n.get("concept_name"), n.get("concept_type"),
+                    n.get("domain"), _json_or_none(n.get("synonyms")),
+                    _json_or_none(n.get("tags")),
                     n["predicate"], n["unique_id"], n.get("description"),
                     n.get("column_type"), _bool_to_int(n.get("notnull")),
                     n.get("default_value"), _bool_to_int(n.get("primary_key")),
@@ -1097,6 +1164,10 @@ def _node_dict_from_row(row: sqlite3.Row) -> dict:
             "node_family": row["node_family"],
             "perspective": row["perspective"],
             "concept_name": row["concept_name"],
+            "concept_type": row["concept_type"] if row["concept_type"] is not None else "",
+            "domain": row["domain"] if row["domain"] is not None else "",
+            "synonyms": _parse_json_list(row["synonyms"]),
+            "tags": _parse_json_list(row["tags"]),
             "predicate": row["predicate"],
             "unique_id": row["unique_id"],
             "description": row["description"] if row["description"] is not None else "",
@@ -1189,10 +1260,12 @@ def _build_graph_document(
             "and node-guarded — each SME-curated elevation is an edge from a "
             "column node to the CONCEPT node it expresses under a business "
             "perspective (M2 re-point), carrying the binary weight gate and the "
-            "raw priority_weight. Concept nodes carry an identity-only payload "
-            "(name + description, emitted from schema_concepts) introducing the "
-            "perspective-agnostic semantic vocabulary; their richer metadata "
-            "follows in later milestones."
+            "raw priority_weight. Concept nodes are perspective-agnostic and carry "
+            "the M3 payload (concept_type, domain, description as the definition, "
+            "and the synonyms/tags arrays, emitted from schema_concepts); "
+            "perspective is never stored on the node — it lives only on the "
+            "elevates edge. A concept may exist without an elevates edge (an orphan "
+            "glossary term) until a real ERP column is onboarded."
         ),
         "key_scheme": _key_scheme_spec(),
         "graph": {

@@ -1,38 +1,42 @@
 # MRP & Inventory — Knowledge Base and Revised Proposal
 
-> **Status:** DRAFT v1 — a reference document (no code or schema changes).
+> **Status:** v15 — concept payload + MRP/inventory vocabulary seeded (in sync with
+> the frozen `SCHEMA_VERSION = 15`). Earlier revisions of this file were a v14 draft
+> proposal; §8 now records the decision **as built**.
 > **Purpose:** Formalize manufacturing resource planning (MRP) and inventory
 > concepts so an SME can read this and know *exactly what to build* in the
 > semantic graph.
-> **Two hard rules (read first):**
-> 1. **Column-anchored** — a graph **concept must point to a real ERP column**
->    an SME can put their finger on.
-> 2. **Operationally recognizable** — a concept must be a thing an SME
+> **Two rules (read first):**
+> 1. **Operationally recognizable** — a concept must be a thing an SME
 >    *recognizes from doing the work* (the words used on the job), **not an
 >    abstract category**. If a materials manager wouldn't say it on the floor,
 >    it isn't a concept.
+> 2. **Column-anchored only for an `elevates` edge** — a recognized term becomes a
+>    graph **concept node** right away, *whether or not* a column exists yet. It
+>    only gains an `elevates` edge once it points to a real ERP column an SME can
+>    put their finger on. A recognized term with no column is an **orphan glossary
+>    node** (see §8) — it is kept, not dropped.
 >
-> If something is only a formula, it is a **derived metric** and it does **not**
-> become a graph concept — it lives in SME-approved SQL. SQL is never
+> If something is only a formula, it is a **derived metric**: it may still hold a
+> concept node as recognized vocabulary, but its math lives in SME-approved SQL — a
+> concept node records that a term *exists*, not how it is *computed*. SQL is never
 > machine-generated (Solder Pattern).
 
-> **⚠ Open decision — measures vs. categories.** The existing `elevates` edge
-> elevates only **bounded categorical discriminators** (status / type / class /
-> location) — explicitly *not* continuous measures or IDs (curation rule in
-> `seed_elevations.py`). Most MRP terms here (reorder point, lead time, on-hand,
-> EOQ) are **numbers, not categories**, so they do **not** fit today's `elevates`
-> as-is. **Recommended resolution (§8):** admit *canonical named measures*
-> (`concept_type = metric`) into `elevates`; pure formulas still stay in SQL.
+> **Resolved (§8) — measures vs. categories.** The `elevates` curation rule, which
+> once admitted only **bounded categorical discriminators** (status / type / class /
+> location), was extended at v15 to also admit *canonical named measures*
+> (`concept_type = metric`, e.g. reorder point, lead time, on-hand). Pure formulas
+> (EOQ, ATP, lead-time demand) still stay in SME-approved SQL — they keep a concept
+> node as vocabulary but get no `elevates` edge.
 
 This document does two things:
-1. **Revises the proposed topology** so it fits the graph we already froze at
-   `SCHEMA_VERSION = 14`.
-2. Starts the **inventory concept knowledge base** — concrete, column-anchored
-   concept cards an SME can author today.
+1. **Records the topology as built** at `SCHEMA_VERSION = 15` (§1, §8).
+2. Maintains the **inventory concept knowledge base** — concrete concept cards an
+   SME can author.
 
 ---
 
-## 1. What already exists today (v14 — facts, not proposals)
+## 1. What already exists today (v15 — facts, not proposals)
 
 The graph already has three kinds of nodes and three kinds of edges. Nothing
 below needs to be invented:
@@ -41,13 +45,13 @@ below needs to be invented:
 |---|---|---|
 | `table` | 23 | `part`, `purchase_order`, `work_order` |
 | `column` | 223 | `part:reorder_point`, `part:on_hand_qty` |
-| `concept` | 33 | `QuantityBasisEngineering`, `StockMovementDirection` |
+| `concept` | 43 | `QuantityBasisEngineering`, `StockMovementDirection`, `ReorderPoint` |
 
 | Edge type | Count | Meaning |
 |---|---|---|
 | `has_column` | 223 | table → its columns (structural) |
 | `references` | 39 | column → column foreign key (structural) |
-| `elevates` | 17 | **column → concept** (semantic) — *this is the important one* |
+| `elevates` | 20 | **column → concept** (semantic) — *this is the important one* |
 
 **Edges already carry meaning.** Each edge has an `edge_type` and an
 `edge_family`. (The `predicate: none` you saw is a *node* field, not the edge's
@@ -74,7 +78,7 @@ Your proposed topology:
 [Column/MIN_STOCK_QTY] --[MAPS_TO {perspective:"Inventory"}]--> [Concept/SafetyStock]
 ```
 
-Revised to fit v14 (three small changes, same spirit):
+Revised to fit the graph as built (v15) — three small changes, same spirit:
 
 ```
 part.reorder_point --[elevates {perspective:"Inventory_Transactions", weight:1}]--> ReorderPoint
@@ -215,89 +219,92 @@ SME-approved SQL snippets. They are listed here so everyone shares the words.
 
 ---
 
-## 8. Decision & M3 build plan (measures join the graph)
+## 8. M3 — concept metadata + MRP/inventory vocabulary (COMPLETE, v15)
 
-### 8.1 Decision — recommended (pending your OK)
-**Extend the `elevates` curation rule** from "bounded categorical discriminator
-only" to:
+### 8.1 Decision — concepts are perspective-agnostic glossary nodes
+Two rules were settled and built for this milestone:
 
-> A column may elevate to a concept if it is **either** a bounded categorical
-> discriminator (status / type / class / location) **or** a *canonical named
-> measure* (a real, stored business quantity like reorder point or lead time)
-> with `concept_type = 'metric'`.
+1. **The `elevates` curation rule is extended** from "bounded categorical
+   discriminator only" to also admit a *canonical named measure* — a real, stored
+   business quantity (reorder point, lead time, on-hand) with
+   `concept_type = 'metric'`. `elevates` already means "column → business concept"
+   and the existing `QuantityBasisEngineering` / `…Manufacturing` metric concepts
+   already elevate from a quantity column, so a stored measure needs no new
+   predicate. **Formulas stay out:** EOQ, available-to-promise, lead-time-demand,
+   and safety-stock math remain *derived metrics* in SME-approved SQL (§5) — only a
+   *stored* column elevates.
 
-- **Why this, not a new edge:** `elevates` already means "column → business
-  concept," `concept_type = 'metric'` already exists, and the existing
-  `QuantityBasisEngineering` / `…Manufacturing` metric concepts already elevate
-  from a quantity column. A second predicate would duplicate the exporter, DDL,
-  parity gates, tests, and live load for no semantic gain.
-- **Formulas stay out.** EOQ, available-to-promise, and safety-stock math remain
-  **derived metrics** in SME-approved SQL (§5). Only *stored* measures elevate.
-- **Safety Stock is excluded** — no safety-stock column exists here, so it fails
-  rule 1 (column-anchored). It stays in the §5 glossary until a real column is
-  onboarded.
+2. **The whole SME vocabulary is seeded as concept nodes — even terms with no
+   column yet (user decision).** A concept node is the ontology's record that a term
+   *exists and is recognized*; it does not require a source column. So all 10
+   MRP/inventory terms become concept nodes now. The 3 that map to a real column
+   also get an `elevates` edge; the other 7 are **orphan glossary nodes** —
+   intentionally edgeless until their column is onboarded by ETL. This lets the
+   ontology lead the warehouse instead of trailing it.
 
-### 8.2 First MRP concept batch — reconciled against the live schema
-The SME proposed 10 MRP terms. Each was run past **rule 1 (must map to a real
-column in *this* schema)** using the live `manufacturing.db`. Three are stored
-measures with a real column and are seeded now; the rest are captured here as SME
-vocabulary but **not** seeded — they are either formulas (derived metrics, §5) or
-have no column in the public schema yet (they exist in the private SQL Server
-schema). Perspectives use the real name `Inventory_Transactions` (there is no
-`Inventory` / `Procurement` / `Planning` perspective).
+**Perspective is dual-namespace.** Perspective is stamped **only on the `elevates`
+edge**, never on the concept node. `ReorderPoint` is one canonical,
+perspective-agnostic thing; the *reading* of a column through a lens — that
+`Inventory_Transactions` sees `part.reorder_point` as `ReorderPoint` — lives on the
+edge. (This resolves the spec's Open Question 1: perspective = edge property, not a
+node.)
 
-**Seed now — column-anchored measures (the v15 payload):**
+### 8.2 The MRP/inventory vocabulary — all 10 seeded as concept nodes
+The SME proposed 10 MRP terms. **All 10 are seeded as concept nodes**
+(`concept_type = 'metric'`, `domain = 'operations'`, each carrying synonyms + tags).
+Each was then run past **rule 1 (does a real column exist in *this* schema?)** using
+the live `manufacturing.db` to decide whether it *also* gets an `elevates` edge.
+Perspectives use the real name `Inventory_Transactions` (there is no `Inventory` /
+`Procurement` / `Planning` perspective).
 
-| Concept | Type | Domain | Source column | Perspective | Definition | Synonyms |
-|---|---|---|---|---|---|---|
-| `ReorderPoint` | metric | inventory | `part.reorder_point` | Inventory_Transactions | Inventory level at which a replenishment order should be triggered to avoid stockout. | ROP, reorder level, trigger point, replenishment trigger |
-| `LeadTime` | metric | inventory | `part.lead_time_days` | Inventory_Transactions | Total time between placing an order and receiving usable inventory (supplier + transit + internal). | lead time, supply lead time, replenishment lead time, planning lead time |
-| `OnHandQuantity` | metric | inventory | `part.on_hand_qty` | Inventory_Transactions | Physically available inventory at a location. | OHQ, on hand, physical stock, stock on hand |
+**Column-anchored — concept node + `elevates` edge (perspective `Inventory_Transactions`):**
 
-**Not seeded — derived metrics (stay in approved SQL, §5):**
+| Concept | Source column | Synonyms | Tags |
+|---|---|---|---|
+| `ReorderPoint` | `part.reorder_point` | ROP, reorder level, order point | mrp, inventory, replenishment |
+| `LeadTime` | `part.lead_time_days` | replenishment lead time, procurement lead time, supplier lead time | mrp, inventory, planning |
+| `OnHandQuantity` | `part.on_hand_qty` | on hand, QOH, quantity on hand, stock on hand | mrp, inventory, stock |
 
-| Term | Why not a concept | Synonyms (kept for glossary) |
-|---|---|---|
-| Lead Time Demand | Formula: demand rate × lead time — no stored column | LTD, demand during lead time |
-| Economic Order Quantity (EOQ) | Formula: balances ordering vs holding cost — no stored column | EOQ, optimal order size |
-| Available to Promise (ATP) | Formula: on-hand − allocated — no stored column (and `allocated` is absent) | ATP, promiseable inventory |
+**Orphan glossary nodes — concept node now, no `elevates` edge until a column is onboarded:**
 
-**Not seeded — no column in the public schema yet (deferred):**
+| Concept | Why no edge yet | Synonyms | Tags |
+|---|---|---|---|
+| `SafetyStock` | No safety-stock column here (`MIN_STOCK_QTY` in private SQL Server) | buffer stock, safety inventory | mrp, inventory, buffer |
+| `LeadTimeDemand` | Derived: demand rate × lead time — no stored column | demand during lead time, DLT | mrp, inventory, demand |
+| `MinimumStockQuantity` | No `min_stock` column here | min stock, minimum level, min | mrp, inventory, min-max |
+| `MaximumStockQuantity` | No `max_stock` column here | max stock, maximum level, max | mrp, inventory, min-max |
+| `EconomicOrderQuantity` | Derived: balances ordering vs holding cost — no stored column | EOQ, economic order qty, optimal order quantity | mrp, inventory, ordering |
+| `AvailableToPromise` | Derived: on-hand − allocated — no stored column (`allocated` absent) | ATP, available to promise quantity | mrp, inventory, availability |
+| `AllocatedQuantity` | No `allocated` / `reserved` column here | allocated, reserved quantity, committed quantity | mrp, inventory, allocation |
 
-| Term | Status | Synonyms (kept for glossary) |
-|---|---|---|
-| Safety Stock | No column here (`MIN_STOCK_QTY` in private SQL Server) | buffer stock, reserve stock, protection stock |
-| Minimum Stock Quantity | No `min_stock` column here | min stock, min qty, minimum inventory level |
-| Maximum Stock Quantity | No `max_stock` column here | max stock, max qty, maximum inventory level |
-| Allocated Quantity | No `allocated` / `reserved` column here | reserved qty, committed qty |
+> An orphan node becomes anchored the moment its column is onboarded: add the
+> elevation triple, re-run the seed + exporter, and the edge appears with no node
+> churn. The derived (formula) terms keep their concept node as recognized
+> vocabulary — a concept node records that the term *exists*, not how it is
+> *computed*; the math still lives in SME-approved SQL (§5).
 
-> Each deferred term becomes a one-line addition to the seed table above the
-> moment its column is onboarded — anchor it, carry its synonyms, re-run the seed
-> + exporter. Nothing in the SME's vocabulary is discarded; it is staged here.
-
-Example triple authored in `seed_elevations.py`:
+Example elevation triple authored in `seed_elevations.py` (batch 6):
 ```
 ("Inventory_Transactions", "ReorderPoint", "part", "reorder_point", 3,
  "Stock level that triggers replenishment")
 ```
 
-### 8.3 Build sequence (one v15 bump)
-1. **Docs** — record this decision here + in the spec's M3 section / decision log.
-2. **DDL (additive guards)** — add `synonyms`, `tags` (TEXT, canonical JSON
-   array) to `schema_concepts`; add `concept_type`, `domain`, `synonyms`, `tags`
-   to `sql_graph_nodes`. Mirror M2's `PRAGMA table_info` + `ALTER TABLE ADD
-   COLUMN` guard pattern.
-3. **Exporter** — `SCHEMA_VERSION = 15`, milestone `concept_metadata_mrp_seed`;
-   `_fetch_concept_nodes` surfaces type/domain/synonyms/tags; parity checkers
-   normalize the JSON arrays deterministically (`[]` default, sorted, no
-   null↔empty drift).
-4. **Seed** — update the `seed_elevations.py` curation rule + add the batch above
-   (concepts with synonyms/tags + their metric elevations).
-5. **Freeze + gate** — regenerate, freeze `graph_metadata.v15.json`, run
-   `scripts/post-merge.sh` (both parity pairs), add tests (metadata surfacing,
-   stable JSON serialization, safety-stock exclusion).
-6. **Live load** — dry-run then live-load the canonical graph.
+### 8.3 Build outcome (one v15 bump)
+1. **DDL (additive guards)** — `synonyms`, `tags` (TEXT, canonical JSON array)
+   added to `schema_concepts`; `concept_type`, `domain`, `synonyms`, `tags` added to
+   `sql_graph_nodes`, mirroring M2's `PRAGMA table_info` + `ALTER TABLE ADD COLUMN`
+   boot-guard pattern.
+2. **Exporter** — `SCHEMA_VERSION = 15`, milestone `concept_metadata_mrp_seed`;
+   `_fetch_concept_nodes` surfaces type/domain/synonyms/tags; the JSON arrays
+   serialize deterministically (`[]` default, no null↔empty drift).
+3. **Seed** — `seed_elevations.py` carries the 10 MRP concept nodes (synonyms/tags)
+   and the 3 metric elevations (batch 6).
+4. **Freeze + gate** — regenerated, froze `graph_metadata.v15.json`, ran
+   `scripts/post-merge.sh` (both parity pairs byte-identical: SQL↔file,
+   SQL↔live-AQL); added concept-payload round-trip + JSON-stability tests.
+5. **Live load** — dry-ran, then truncate-then-imported the canonical into live
+   ArangoDB (289 / 282, all endpoints resolve); both apps boot unaffected.
 
-**Counts will change** (expected for a content milestone): +3 concept nodes and
-+3 `elevates` edges → concepts 33 → 36, `elevates` 17 → 20, totals 279 → **282**
-nodes / **282** edges. The new counts are recorded in the v15 snapshot + spec.
+**Counts (content milestone):** +10 concept nodes, +3 `elevates` edges → concepts
+33 → **43**, `elevates` 17 → **20**, totals 279 → **289** nodes / **282** edges.
+Recorded in the v15 snapshot + the spec Decision Log (rev 0.7).

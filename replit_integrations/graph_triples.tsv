@@ -266,6 +266,9 @@ manufacturing_graph_node/requirement:component_type:structural:system:none:none	
 manufacturing_graph_node/work_order:quantity:structural:system:none:none	elevates	manufacturing_graph_node/QuantityBasisEngineering:entity:semantic:canonical:none:none
 manufacturing_graph_node/inventory_transaction:site_id:structural:system:none:none	elevates	manufacturing_graph_node/WarehouseLocation:entity:semantic:canonical:none:none
 manufacturing_graph_node/inventory_transaction:type:structural:system:none:none	elevates	manufacturing_graph_node/StockMovementDirection:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:lead_time_days:structural:system:none:none	elevates	manufacturing_graph_node/LeadTime:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:on_hand_qty:structural:system:none:none	elevates	manufacturing_graph_node/OnHandQuantity:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:reorder_point:structural:system:none:none	elevates	manufacturing_graph_node/ReorderPoint:entity:semantic:canonical:none:none
 manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none	elevates	manufacturing_graph_node/QuantityBasisManufacturing:entity:semantic:canonical:none:none
 manufacturing_graph_node/operation:status:structural:system:none:none	elevates	manufacturing_graph_node/OperationExecutionState:entity:semantic:canonical:none:none
 manufacturing_graph_node/requirement:component_type:structural:system:none:none	elevates	manufacturing_graph_node/RequirementBasisManufacturing:entity:semantic:canonical:none:none

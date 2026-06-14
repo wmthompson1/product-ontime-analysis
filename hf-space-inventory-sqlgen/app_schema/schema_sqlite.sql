@@ -370,6 +370,8 @@ CREATE TABLE IF NOT EXISTS schema_concepts (
     concept_type TEXT NOT NULL,  -- 'state', 'metric', 'classification', 'outcome'
     description TEXT,
     domain TEXT,  -- 'quality', 'finance', 'operations', 'compliance', 'customer'
+    synonyms TEXT,  -- M3: canonical JSON array of synonym strings (e.g. '["ROP","reorder level"]'); NULL/absent => []
+    tags TEXT,      -- M3: canonical JSON array of curated filter tags (e.g. '["mrp","inventory"]'); NULL/absent => []
     parent_concept_id INTEGER,  -- for REFINES relationship
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (parent_concept_id) REFERENCES schema_concepts(concept_id)

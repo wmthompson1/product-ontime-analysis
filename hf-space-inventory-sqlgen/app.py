@@ -249,6 +249,10 @@ def ensure_app_metadata_tables(conn) -> None:
             column_name   TEXT,
             column_slot   TEXT,
             concept_name  TEXT,
+            concept_type  TEXT,
+            domain        TEXT,
+            synonyms      TEXT,
+            tags          TEXT,
             predicate     TEXT    NOT NULL,
             unique_id     TEXT    NOT NULL,
             description   TEXT,
@@ -322,6 +326,16 @@ def ensure_app_metadata_tables(conn) -> None:
     _add_column_if_missing("sql_graph_edges", "priority_weight", "priority_weight INTEGER")
     # concept_name on concept nodes (node_type='concept'); NULL for table/column rows.
     _add_column_if_missing("sql_graph_nodes", "concept_name", "concept_name TEXT")
+    # M3: richer concept-node payload — concept_type / domain / synonyms / tags.
+    # NULL for table/column rows; synonyms/tags hold canonical JSON arrays.
+    _add_column_if_missing("sql_graph_nodes", "concept_type", "concept_type TEXT")
+    _add_column_if_missing("sql_graph_nodes", "domain", "domain TEXT")
+    _add_column_if_missing("sql_graph_nodes", "synonyms", "synonyms TEXT")
+    _add_column_if_missing("sql_graph_nodes", "tags", "tags TEXT")
+    # M3: schema_concepts gains synonyms / tags (canonical JSON arrays) so the
+    # exporter can surface the richer concept payload from older databases too.
+    _add_column_if_missing("schema_concepts", "synonyms", "synonyms TEXT")
+    _add_column_if_missing("schema_concepts", "tags", "tags TEXT")
     # M2: the elevates edge no longer stores a concept string — identity lives on
     # the _to concept node — so drop the legacy column from older edges tables. No
     # compatibility window, so the app's shape matches the exporter's rebuilt one.

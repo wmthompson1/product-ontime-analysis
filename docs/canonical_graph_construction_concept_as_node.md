@@ -1,10 +1,10 @@
 # Canonical Graph Construction — Concept as a Node
 
-> **Status:** LIVING — M2 complete (M3+ pending)
-> **Revision:** 0.6
+> **Status:** LIVING — M3 complete (M4 pending)
+> **Revision:** 0.7
 > **Last updated:** 2026-06-14
-> **Baseline graph:** `graph_metadata.v14.json` (`SCHEMA_VERSION = 14`, concept nodes + re-pointed `elevates`)
-> **Current milestone:** M2 — `elevates` re-pointed to concept nodes (COMPLETE); M3 (richer concept payload) next
+> **Baseline graph:** `graph_metadata.v15.json` (`SCHEMA_VERSION = 15`, concept payload + MRP/inventory vocabulary)
+> **Current milestone:** M3 — richer concept payload + MRP/inventory seed (COMPLETE); M4 (AQL resolution + routing agent) next
 
 This is the canonical reference for how the manufacturing semantic-layer graph is
 constructed once **Concept becomes a first-class node** (Option C). It is written
@@ -176,10 +176,17 @@ built in **shadow collections** (B2) and accepted only when its checks pass.
    (truncate-then-import, legacy graph untouched), with rollback to `v13`.
    *Accept when:* every prior self-loop has a matching column→concept edge,
    selection results are identical pre/post, parity pairs byte-identical.
-3. **M3 — concept metadata + tags.** Add domain/family, definition, synonyms, and
-   the curated `tags` array to concept nodes; expose them in the parity CSVs.
-   *Accept when:* tags are queryable as an AQL prefilter; metadata round-trips
-   through the parity CSVs; no selection change.
+3. **M3 — concept metadata + tags. — COMPLETE (v15).** Concept nodes gained
+   `concept_type`, `domain`, `synonyms[]`, and the curated `tags[]` array (the
+   `description` already serves as the definition; perspective stays *off* the node).
+   The MRP/inventory vocabulary (10 terms) was seeded as **perspective-agnostic**
+   concept nodes — 3 column-anchored (with `elevates` edges, perspective
+   `Inventory_Transactions`) and 7 **orphan glossary nodes** (edgeless until ETL
+   onboards their column). Counts rose by +10 concept nodes / +3 `elevates` edges
+   (279 → **289** nodes / **282** edges); both parity pairs byte-identical; live
+   graph loaded; both apps unaffected.
+   *Accepted:* metadata round-trips through the parity CSVs; tags are an AQL
+   prefilter (§6); no selection change for existing edges.
 4. **M4 — AQL resolution + routing agent.** Ship the forward/reverse/enriched
    resolution queries; wire the private-repo routing agent to traverse
    column → concept and prefilter on tags.
@@ -244,10 +251,11 @@ Active drift points (design-level, non-blocking for M1). Resolve → move into t
 body + Decision Log. (Former Q1 "concept key format" and Q5 "live migration" were
 promoted to the Pre-M1 blocking gates **B1** and **B2**.)
 
-1. **Perspective: edge property vs. its own node/edge.** With concept as a node,
-   does perspective stay an `ELEVATES` edge property, or become a
-   `concept → perspective` relationship (mirroring the existing `Perspective_*`
-   bridges)?
+1. **Perspective: edge property vs. its own node/edge. — RESOLVED (v15).**
+   Perspective stays an `elevates` **edge property** (dual-namespace): the concept
+   node is canonical and perspective-agnostic, and the perspective-specific reading
+   of a column lives on the edge. Concept nodes are therefore never stamped with a
+   perspective. (See Decision Log 0.7.)
 2. **Discriminator condition.** Keep value routing in `context_hint` (text, not
    traversable) or promote it to a structured `when:{column,value}` edge property
    / a graph edge sourced from `schema_edges` so the routing agent can traverse it?
@@ -264,6 +272,7 @@ promoted to the Pre-M1 blocking gates **B1** and **B2**.)
 | 0.4 | 2026-06-14 | **M1 complete.** Exporter emits the concept nodes; node count rose by exactly the concept count with no edge changes; both parity pairs (SQL↔file, SQL↔live-AQL) byte-identical for the new shape; the canonical was loaded into the live ArangoDB (additive nodes only — does not trip B2); HF Space app unaffected (resolvers filter `node_type` to table/column). Hardened the SQLite upgrade path so an old `sql_graph_nodes` that has had only `concept_name` bolted on by the app boot guard is still rebuilt (the old `node_type` CHECK + `table_name NOT NULL` are detected, not just the missing column). |
 | 0.5 | 2026-06-14 | **B2 + B3 resolved; M2 in progress (v14).** B2: no live consumer reads the canonical edges (the HF app uses the legacy named graph), so the shadow graph is waived — safety comes from the freeze-once `v{N}` snapshot, both parity gates, and a documented rollback to `v13`; the live load is truncate-then-import on the canonical collections only. B3: `weight = 1 if (priority_weight or 0) > 0 else 0`, with `priority_weight` kept as non-gating edge metadata (new `sql_graph_edges.priority_weight`). M2: re-pointed `ELEVATES` to `column → concept`; **dropped the `concept` string now (no compatibility window — user decision)** from both the JSON edge and the `sql_graph_edges.concept` column; made the elevates uid concept-aware/deterministic via `semantic_uid_stable(perspective,table,column,concept,field_component)` so sibling churn no longer renumbers edges; guarded both endpoints. Froze `SCHEMA_VERSION = 14` (`elevates_repointed_to_concepts`); counts unchanged 279/279 (17 elevates re-pointed). |
 | 0.6 | 2026-06-14 | **M2 complete (v14).** Loaded the re-pointed canonical into live ArangoDB — 279 nodes / 279 edges, all endpoints resolve, 17 `elevates` now `column → concept`; both parity pairs byte-identical (SQL↔file, SQL↔live-AQL). Realigned the two remaining format-lock suites to the M2 shape: `test_semantic_scaffolding.py` (column→concept, no `concept` string on the edge, binary `weight` derived from `priority_weight`, concept-aware/stable uid, both-endpoint guard) and `test_authored_edges_merge.py` (authored SME weight folds into the elevation feed as `priority_weight` + `field_component`). `bash scripts/post-merge.sh` EXIT=0; both apps boot unaffected (HF Space :8080 Gradio serving, Flask :5000). |
+| 0.7 | 2026-06-14 | **M3 complete (v15).** Concept nodes gained `concept_type`, `domain`, `synonyms[]`, `tags[]` (description = definition; perspective stays off the node). **Resolved Open Question 1:** perspective is an `elevates` **edge property** (dual-namespace) — concept nodes are canonical and perspective-agnostic, never perspective-stamped. Seeded the full 10-term MRP/inventory vocabulary as concept nodes: 3 column-anchored (`ReorderPoint`→`part.reorder_point`, `LeadTime`→`part.lead_time_days`, `OnHandQuantity`→`part.on_hand_qty`, perspective `Inventory_Transactions`) + 7 **orphan glossary nodes** (`SafetyStock`, `LeadTimeDemand`, `MinimumStockQuantity`, `MaximumStockQuantity`, `EconomicOrderQuantity`, `AvailableToPromise`, `AllocatedQuantity`) that stay edgeless until ETL onboards a column — the ontology may hold a term before the warehouse has the column. Froze `SCHEMA_VERSION = 15` (`concept_metadata_mrp_seed`); counts 279 → 289 nodes / 282 edges (concepts 33→43, elevates 17→20); both parity pairs byte-identical; live ArangoDB loaded (289/282, endpoints resolve); both apps boot (HF Space :8080 Gradio, Flask :5000). |
 
 ---
 

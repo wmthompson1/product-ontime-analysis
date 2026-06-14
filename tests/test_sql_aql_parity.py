@@ -54,6 +54,10 @@ def _sample_graph():
         "_key": ex.concept_key("CustomerNameSales"),
         "node_type": "concept", "node_family": ex.FAMILY_SEMANTIC,
         "perspective": ex.PERSPECTIVE_CANONICAL, "concept_name": "CustomerNameSales",
+        # M3: the richer concept payload (type / domain / synonyms / tags) must
+        # round-trip field-for-field through the live-AQL parity flattener too.
+        "concept_type": "classification", "domain": "customer",
+        "synonyms": ["account name", "client name"], "tags": ["sales", "crm"],
         "predicate": "none", "unique_id": "none",
         "description": "Customer name under the Sales lens",
     }]

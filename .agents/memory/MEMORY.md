@@ -4,7 +4,7 @@
 - [Live graph key/edge conventions](live-graph-key-conventions.md) — live ArangoDB: raw table keys, column::TABLE.COL keeping schema+case, structural edges in `contains` (NOT manufacturing_graph_edges); query API on host:8529.
 - [Structural FK layer & schema_edges](structural-fk-and-schema-edges.md) — FK enforcement OFF so declared FKs are structural-only (declare over orphans); schema_edges = 1 row/relationship guarded by unique index; graph_metadata.v{N}.json frozen-once, bump SCHEMA_VERSION to re-freeze.
 - [Seed re-insertion & bridge drift](seed-reseed-behavior.md) — app re-seeds schema_sqlite.sql via INSERT OR IGNORE every startup; deleting seeded rows from live DB only is futile — fix the seed file too. Bridge prune is ungated.
-- [Semantic elevates scaffolding](semantic-elevates-scaffolding.md) — exporter wires elevates from SQLite but node-guard keeps it at 0 edges until an SME maps a canonical column; self-loop, perspective≠system.
+- [Semantic elevates scaffolding](semantic-elevates-scaffolding.md) — elevates are node-guarded column→concept edges (M2); 20 live at v15; perspective lives on the edge, never on the node.
 - [FK canonical model](fk-canonical-model.md) — FK = `foreign_key` bool on column node + `references` structural edge (child→parent); no FOREIGN_KEY edge type / is_foreign_key edge prop. Live graph still on old model, so canonical fixtures fail until migration (out of scope).
 - [dab_config.json generation](dab-config-generation.md) — generated from dab_field_definitions (certified=1) by sync; publish auto-creates entity blocks for manufacturing tables absent from config; never hand-edit.
 - [SQL graph source tables](sql-graph-source-tables.md) — graph_metadata.json is serialized FROM sql_graph_nodes/sql_graph_edges (materialize→read-back); parity gated in post-merge; SQLite `notnull` is reserved, must be quoted.
@@ -13,7 +13,7 @@
 - [ERP planner vocabulary](wo-status-vocab.md) — real WO statuses unreleased/firmed/released/closed (firmed=first lots/new parts); deferred demand-side shipped/allocated/ATP=on-hand−allocated.
 - [WAL-mode DB migration verification](wal-db-verification.md) — app DB is gitignored & WAL-mode; verify migrations via sqlite3 dumps (not file copy), checkpoint before trusting the main file.
 - [Operation job-progress model](operation-progress-model.md) — progress = operation.status (Q/S/C) + close_date derived from work_order.status + routing order, NOT sequence_no; backfill must use data-derived AS_OF, never wall-clock.
-- [Concept-as-node direction](concept-as-node-direction.md) — Option C (Concept = 3rd node type) built through M2/v14 (B1/B2/B3 closed); M3 richer payload pending; living spec in docs/.
+- [Concept-as-node direction](concept-as-node-direction.md) — Option C (Concept = 3rd node type) built through M3/v15 (B1/B2/B3 closed); concepts perspective-agnostic; orphan glossary nodes allowed; spec in docs/.
 - [mockup-sandbox build vs dev typecheck](mockup-sandbox-build.md) — Vite dev server doesn't type-check; only CI `tsc` does, so a green preview ≠ passing build. Entry files must import mockup components as named exports.
 - [Parity report & columnar CSV artifacts](parity-report-artifacts.md) — parity checkers emit .txt reports + columnar CSVs (--csv-dir); CSVs cleared up front so presence⟺fresh run; committed (not gitignored) for private-repo diffing.
 - [SQLMesh project gotchas](sqlmesh-python-model-serialization.md) — @model helper globals must serialize (no Path/regex); empty models must be generators; bump sqlmesh ⇒ migrate; models.py shadow.

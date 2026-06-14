@@ -10,10 +10,22 @@ concept_id); schema_concept_fields(table_name, field_name, concept_id)), so
 re-running is a no-op via INSERT OR IGNORE / name lookups. This file holds the
 full approved list across all batches — run it once to reproduce every elevation.
 
-Curation rule: each elevation is a bounded categorical discriminator
+Curation rule: M1-M2 elevations are bounded categorical discriminators
 (status / type / class / location) on a canonical business column — not a unique
-id, date, free-text label, or continuous measure.
+id, date, free-text label, or continuous measure. M3 adds two further kinds:
+  * canonical named MEASURES — a column that directly realizes a single named
+    business metric (e.g. part.reorder_point -> ReorderPoint). These are
+    continuous, but the elevation maps the column to ONE canonical measure
+    concept, so the categorical-discriminator rule does not apply.
+  * glossary-only concept NODES — business vocabulary seeded as perspective-
+    agnostic concept nodes with NO elevates edge yet, because no physical column
+    anchors them (the ontology can hold a term before the ETL pipeline catches
+    up). They become elevations later when a column is mapped.
+
+Concept identity is perspective-agnostic: the perspective is stamped ONLY on the
+elevates edge, never on the concept node (the dual-namespace rule).
 """
+import json
 import os
 import sqlite3
 
@@ -90,6 +102,84 @@ NEW_CONCEPTS = {
     ),
 }
 
+# M3 — MRP / inventory-planning vocabulary, seeded as perspective-AGNOSTIC
+# concept NODES enriched with synonyms + tags. Only the 3 terms with a real
+# physical column get an elevates edge (see batch 6 below); the other 7 are
+# intentional glossary-only nodes — the ontology can securely hold a business
+# term before a column / ETL pipeline maps it.
+# concept_name -> (concept_type, domain, description, synonyms, tags)
+MRP_CONCEPTS = {
+    # --- the 3 column-anchored measures (get an elevates edge in batch 6) ---
+    "ReorderPoint": (
+        "metric", "operations",
+        "Inventory level at which a replenishment order is triggered "
+        "(lead-time demand + safety stock)",
+        ["ROP", "reorder level", "order point"],
+        ["mrp", "inventory", "replenishment"],
+    ),
+    "LeadTime": (
+        "metric", "operations",
+        "Elapsed time from placing a replenishment order to receiving the stock "
+        "(in days)",
+        ["replenishment lead time", "procurement lead time", "supplier lead time"],
+        ["mrp", "inventory", "planning"],
+    ),
+    "OnHandQuantity": (
+        "metric", "operations",
+        "Physical quantity of a part currently in stock (book inventory on hand)",
+        ["on hand", "QOH", "quantity on hand", "stock on hand"],
+        ["mrp", "inventory", "stock"],
+    ),
+    # --- the 7 glossary-only nodes (no anchoring column yet) ---
+    "SafetyStock": (
+        "metric", "operations",
+        "Buffer inventory held to absorb demand and lead-time variability and "
+        "prevent stockouts",
+        ["buffer stock", "safety inventory"],
+        ["mrp", "inventory", "buffer"],
+    ),
+    "LeadTimeDemand": (
+        "metric", "operations",
+        "Expected demand for a part over its replenishment lead time "
+        "(average daily demand x lead time)",
+        ["demand during lead time", "DLT"],
+        ["mrp", "inventory", "demand"],
+    ),
+    "MinimumStockQuantity": (
+        "metric", "operations",
+        "Lowest stock level allowed before replenishment is required "
+        "(min in a min/max policy)",
+        ["min stock", "minimum level", "min"],
+        ["mrp", "inventory", "min-max"],
+    ),
+    "MaximumStockQuantity": (
+        "metric", "operations",
+        "Highest stock level a part is replenished up to (max in a min/max policy)",
+        ["max stock", "maximum level", "max"],
+        ["mrp", "inventory", "min-max"],
+    ),
+    "EconomicOrderQuantity": (
+        "metric", "operations",
+        "Order quantity that minimizes combined ordering and holding cost "
+        "(classic EOQ formula)",
+        ["EOQ", "economic order qty", "optimal order quantity"],
+        ["mrp", "inventory", "ordering"],
+    ),
+    "AvailableToPromise": (
+        "metric", "operations",
+        "Uncommitted inventory available to promise to new customer orders "
+        "(on hand minus allocated)",
+        ["ATP", "available to promise quantity"],
+        ["mrp", "inventory", "availability"],
+    ),
+    "AllocatedQuantity": (
+        "metric", "operations",
+        "Quantity of on-hand stock already committed / reserved to existing orders",
+        ["allocated", "reserved quantity", "committed quantity"],
+        ["mrp", "inventory", "allocation"],
+    ),
+}
+
 # (perspective_name, concept_name, table, column, weight, context_hint)
 ELEVATIONS = [
     # --- batch 1 ---
@@ -156,6 +246,19 @@ ELEVATIONS = [
     ("Manufacturing", "RequirementBasisManufacturing",
      "requirement", "component_type", 3,
      "component_type = 'WORK_ORDER' — as-built actuals (batch, manufacturing)"),
+    # --- batch 6: M3 canonical MRP measures. Unlike batches 1-5 (categorical
+    # discriminators), these map a part column to ONE named inventory metric.
+    # The perspective (Inventory_Transactions) is stamped on the edge only; the
+    # concept node itself stays perspective-agnostic.
+    ("Inventory_Transactions", "ReorderPoint",
+     "part", "reorder_point", 3,
+     "Part reorder point — replenishment trigger level"),
+    ("Inventory_Transactions", "LeadTime",
+     "part", "lead_time_days", 3,
+     "Part replenishment lead time (days)"),
+    ("Inventory_Transactions", "OnHandQuantity",
+     "part", "on_hand_qty", 3,
+     "Part on-hand stock quantity"),
 ]
 
 
@@ -197,7 +300,44 @@ def main() -> int:
             cur.execute(
                 "INSERT OR IGNORE INTO schema_concepts "
                 "(concept_name, concept_type, description, domain) VALUES (?,?,?,?)",
-                (name, ctype, domain, desc),
+                (name, ctype, desc, domain),
+            )
+            # Repair: an earlier revision of this manifest inserted description /
+            # domain in swapped column order. Re-set them from the authoritative
+            # manifest values so existing rows are corrected too (INSERT OR IGNORE
+            # leaves a pre-existing — possibly swapped — row untouched). Idempotent:
+            # it always writes the same authored values.
+            cur.execute(
+                "UPDATE schema_concepts SET description = ?, domain = ? "
+                "WHERE concept_name = ?",
+                (desc, domain, name),
+            )
+
+        # M3 additive guard: older databases predate schema_concepts.synonyms /
+        # tags. Add them in place so this manifest stays self-contained.
+        concept_cols = {row[1] for row in cur.execute("PRAGMA table_info(schema_concepts)")}
+        if "synonyms" not in concept_cols:
+            cur.execute("ALTER TABLE schema_concepts ADD COLUMN synonyms TEXT")
+        if "tags" not in concept_cols:
+            cur.execute("ALTER TABLE schema_concepts ADD COLUMN tags TEXT")
+
+        # M3 MRP vocabulary — concept nodes carry synonyms + tags (canonical JSON
+        # arrays) on top of concept_type / domain / description.
+        for name, (ctype, domain, desc, synonyms, tags) in MRP_CONCEPTS.items():
+            cur.execute(
+                "INSERT OR IGNORE INTO schema_concepts "
+                "(concept_name, concept_type, description, domain, synonyms, tags) "
+                "VALUES (?,?,?,?,?,?)",
+                (name, ctype, desc, domain, json.dumps(synonyms), json.dumps(tags)),
+            )
+            # Set the full M3 payload from the authoritative manifest values. This
+            # is unconditional (not just a NULL backfill) so it both upgrades a
+            # pre-M3 row and repairs the historical description/domain swap; it is
+            # idempotent because it always writes the same authored values.
+            cur.execute(
+                "UPDATE schema_concepts SET description = ?, domain = ?, "
+                "synonyms = ?, tags = ? WHERE concept_name = ?",
+                (desc, domain, json.dumps(synonyms), json.dumps(tags), name),
             )
 
         for persp, concept, table, column, weight, hint in ELEVATIONS:
@@ -243,8 +383,9 @@ def main() -> int:
     finally:
         conn.close()
 
-    print(f"seeded {len(NEW_CONCEPTS)} concept(s), {len(ELEVATIONS)} elevation(s) "
-          f"(idempotent). Re-run export_graph_metadata.py to emit elevates edges.")
+    print(f"seeded {len(NEW_CONCEPTS) + len(MRP_CONCEPTS)} concept(s), "
+          f"{len(ELEVATIONS)} elevation(s) (idempotent). "
+          f"Re-run export_graph_metadata.py to emit elevates edges.")
     return 0
 
 
