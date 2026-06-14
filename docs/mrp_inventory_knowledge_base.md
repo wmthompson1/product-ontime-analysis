@@ -4,10 +4,17 @@
 > **Purpose:** Formalize manufacturing resource planning (MRP) and inventory
 > concepts so an SME can read this and know *exactly what to build* in the
 > semantic graph.
-> **Hard rule (read first):** A graph **concept must point to a real ERP column**
-> an SME can put their finger on. If something is only a formula, it is a
-> **derived metric** and it does **not** become a graph concept — it lives in
-> SME-approved SQL. SQL is never machine-generated (Solder Pattern).
+> **Two hard rules (read first):**
+> 1. **Column-anchored** — a graph **concept must point to a real ERP column**
+>    an SME can put their finger on.
+> 2. **Operationally recognizable** — a concept must be a thing an SME
+>    *recognizes from doing the work* (the words used on the job), **not an
+>    abstract category**. If a materials manager wouldn't say it on the floor,
+>    it isn't a concept.
+>
+> If something is only a formula, it is a **derived metric** and it does **not**
+> become a graph concept — it lives in SME-approved SQL. SQL is never
+> machine-generated (Solder Pattern).
 
 This document does two things:
 1. **Revises the proposed topology** so it fits the graph we already froze at
@@ -91,12 +98,21 @@ Revised model:
 So "subset of a perspective" becomes "tagged with a category." Same browsing
 benefit, no loss of reuse.
 
+> **Important:** a `category` is only a *label on a concrete concept*. The
+> category itself is never a concept. Concepts stay operationally recognizable
+> (rule 2); categories are just how we file them.
+
 ---
 
 ## 4. The inventory concept knowledge base (buildable now)
 
-Every concept below is anchored to a **real, verified column**. An SME can
-author each one as a single `elevates` triple.
+Every concept below passes **both** hard rules: it is anchored to a **real,
+verified column** *and* it is a term an SME would recognize on the job. An SME
+can author each one as a single `elevates` triple.
+
+**SME litmus test for any new concept:**
+1. Can you point to the exact column it comes from? *(no → it's a derived metric, not a concept)*
+2. Would you use this exact word describing your actual work? *(no → rename it to the word you do use, or drop it)*
 
 ### Concept card template (what an SME fills in)
 - **Concept name** — concrete noun (`OnHandQuantity`, not `Quantity`)
@@ -176,3 +192,6 @@ SME-approved SQL snippets. They are listed here so everyone shares the words.
 4. Should `LeadTime` be one concept used by several perspectives, or separate
    per perspective? (Recommendation: one concept, many perspectives.)
 5. Confirm the unit of measure rules before comparing quantities across tables.
+6. A few **existing** concept names lean abstract (e.g. `QuantityBasisEngineering`,
+   `RequirementBasisManufacturing`). Do they pass rule 2 (operationally
+   recognizable), or should a future version rename them to shop-floor language?
