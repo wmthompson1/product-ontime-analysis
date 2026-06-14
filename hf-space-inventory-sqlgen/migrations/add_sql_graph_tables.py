@@ -64,7 +64,8 @@ DDL_STATEMENTS = [
         references_table  TEXT,
         references_column TEXT,
         weight            INTEGER,
-        concept           TEXT
+        concept           TEXT,
+        field_component   INTEGER
     )
     """,
     """

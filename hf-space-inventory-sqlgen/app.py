@@ -271,7 +271,8 @@ def ensure_app_metadata_tables(conn) -> None:
             references_table  TEXT,
             references_column TEXT,
             weight            INTEGER,
-            concept           TEXT
+            concept           TEXT,
+            field_component   INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
@@ -289,6 +290,26 @@ def ensure_app_metadata_tables(conn) -> None:
             UNIQUE(edge_type, from_table, from_column, to_table, to_column, perspective)
         );
     """)
+
+    # ── (c) additive column guards for already-existing tables ─────────────────
+    # CREATE TABLE IF NOT EXISTS never adds a column to a table that already
+    # exists, so widen the source-of-truth tables in place for older databases.
+    def _add_column_if_missing(table: str, column: str, decl: str) -> None:
+        cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+        if not cur.fetchone():
+            return
+        cur.execute(f"PRAGMA table_info({table})")
+        if column not in {row[1] for row in cur.fetchall()}:
+            cur.execute(f"ALTER TABLE {table} ADD COLUMN {decl}")
+
+    # Field-definition number on each field's elevation (1 = primary; 2,3.. = further meanings).
+    _add_column_if_missing(
+        "schema_concept_fields", "component_index",
+        "component_index INTEGER NOT NULL DEFAULT 1",
+    )
+    # field_component on elevates edges mirrors schema_concept_fields.component_index.
+    _add_column_if_missing("sql_graph_edges", "field_component", "field_component INTEGER")
+
     conn.commit()
 
 

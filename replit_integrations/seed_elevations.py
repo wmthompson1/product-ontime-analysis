@@ -184,6 +184,15 @@ def main() -> int:
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     try:
+        # Additive guard: older databases predate ``component_index``. Add it in
+        # place so this manifest stays self-contained (idempotent).
+        cur.execute("PRAGMA table_info(schema_concept_fields)")
+        if "component_index" not in {row[1] for row in cur.fetchall()}:
+            cur.execute(
+                "ALTER TABLE schema_concept_fields "
+                "ADD COLUMN component_index INTEGER NOT NULL DEFAULT 1"
+            )
+
         for name, (ctype, domain, desc) in NEW_CONCEPTS.items():
             cur.execute(
                 "INSERT OR IGNORE INTO schema_concepts "
@@ -207,6 +216,28 @@ def main() -> int:
                 (table, column, cid, hint),
             )
             print(f"  elevation: {persp:24} {table}.{column} -> {concept}")
+
+        # Number each field's definitions deterministically: per (table, field)
+        # the primary meaning is 1 and each further definition increments. This
+        # is the authoritative ``component_index`` the exporter carries into the
+        # graph as ``field_component`` — authored in SQLite, never inferred at
+        # runtime. Ordered by concept_id so re-running is idempotent (same DB =
+        # same numbering). Requires SQLite >= 3.25 for window functions.
+        cur.execute(
+            """
+            WITH numbered AS (
+                SELECT id,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY table_name, field_name
+                           ORDER BY concept_id
+                       ) AS rn
+                FROM schema_concept_fields
+            )
+            UPDATE schema_concept_fields
+               SET component_index = (SELECT rn FROM numbered
+                                       WHERE numbered.id = schema_concept_fields.id)
+            """
+        )
 
         conn.commit()
     finally:

@@ -383,6 +383,7 @@ CREATE TABLE IF NOT EXISTS schema_concept_fields (
     concept_id INTEGER NOT NULL,
     is_primary_meaning INTEGER DEFAULT 0,  -- 1 = default interpretation
     context_hint TEXT,  -- when this meaning applies
+    component_index INTEGER NOT NULL DEFAULT 1,  -- field-definition number (1 = primary; 2,3.. = further meanings)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (concept_id) REFERENCES schema_concepts(concept_id),
     UNIQUE(table_name, field_name, concept_id)
@@ -800,7 +801,8 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     references_table  TEXT,
     references_column TEXT,
     weight            INTEGER,
-    concept           TEXT
+    concept           TEXT,
+    field_component   INTEGER
 );
 
 -- SME-authored canonical edges (Define Relationship UI source of truth).

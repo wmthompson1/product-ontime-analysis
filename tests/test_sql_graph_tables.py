@@ -105,6 +105,7 @@ def _sample_graph():
             "unique_id": "SAL_ELE_CUS_NAM_001",
             "weight": 3,
             "concept": "CustomerNameSales",
+            "field_component": 1,
         },
     ]
     return table_nodes, column_nodes, edges
@@ -156,6 +157,46 @@ class RoundTrip(unittest.TestCase):
             self.conn.execute(f"SELECT COUNT(*) FROM {ex.SQL_GRAPH_NODES_TABLE}").fetchone()[0],
             len(table_nodes) + len(column_nodes),
         )
+
+    def test_field_component_round_trips_for_multiple_definitions(self):
+        """A field with N definitions yields N elevates edges numbered 1..N, and
+        ``field_component`` survives the materialize → read-back round trip."""
+        table_nodes, column_nodes, edges = _sample_graph()
+        # Give CUSTOMER.NAME a second meaning (component 2) under another
+        # perspective — same source column, distinct definition.
+        edges.append({
+            "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME_2",
+            "_key": "ele_CUSTOMER_NAME_2",
+            "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
+            "_to": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
+            "edge_family": ex.FAMILY_SEMANTIC,
+            "edge_type": ex.EDGE_PREDICATE_ELEVATES,
+            "perspective": "Marketing",
+            "unique_id": "MAR_ELE_CUS_NAM_001",
+            "weight": 3,
+            "concept": "CustomerNameMarketing",
+            "field_component": 2,
+        })
+        ex._materialize_to_sqlite(self.conn, table_nodes, column_nodes, edges)
+        loaded_edges = ex._load_edges_from_sqlite(self.conn)
+        self.assertEqual(loaded_edges, edges)
+
+        elevates = [e for e in loaded_edges
+                    if e["edge_type"] == ex.EDGE_PREDICATE_ELEVATES]
+        self.assertEqual(
+            sorted(e["field_component"] for e in elevates), [1, 2],
+            "two definitions of one field must carry field_component 1 and 2",
+        )
+
+    def test_non_elevates_edges_omit_field_component(self):
+        """field_component is an elevates-only attribute; structural edges never
+        carry it (its column is NULL for them and absent from their dict)."""
+        table_nodes, column_nodes, edges = _sample_graph()
+        ex._materialize_to_sqlite(self.conn, table_nodes, column_nodes, edges)
+        loaded_edges = ex._load_edges_from_sqlite(self.conn)
+        for e in loaded_edges:
+            if e["edge_type"] != ex.EDGE_PREDICATE_ELEVATES:
+                self.assertNotIn("field_component", e)
 
     def test_document_from_tables_matches_direct(self):
         table_nodes, column_nodes, edges = _sample_graph()

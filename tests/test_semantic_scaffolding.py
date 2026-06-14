@@ -58,7 +58,7 @@ class ElevatesBuilder(unittest.TestCase):
         rows = [{
             "table_name": "PAYABLE", "column_name": "INVOICE_ID",
             "perspective": "Payables", "weight": 3, "concept": "Invoice",
-            "relationship": "USES_DEFINITION",
+            "relationship": "USES_DEFINITION", "field_component": 1,
         }]
         integ = self._integrity()
         node_index = {("PAYABLE", "INVOICE_ID")}
@@ -72,7 +72,39 @@ class ElevatesBuilder(unittest.TestCase):
         self.assertEqual(e["perspective"], "Payables")
         self.assertEqual(e["weight"], 3)
         self.assertEqual(e["concept"], "Invoice")
+        self.assertEqual(e["field_component"], 1)
         self.assertEqual(integ["semantic_elevations_skipped"], [])
+
+    def test_field_component_defaults_to_one_when_absent(self):
+        """A row without an explicit component_index still gets field_component 1
+        (the primary definition), never None."""
+        rows = [{
+            "table_name": "PAYABLE", "column_name": "INVOICE_ID",
+            "perspective": "Payables", "weight": 3, "concept": "Invoice",
+            "relationship": "USES_DEFINITION",
+        }]
+        integ = self._integrity()
+        node_index = {("PAYABLE", "INVOICE_ID")}
+        edges = ex._build_elevates_edges(rows, node_index=node_index, integrity=integ)
+        self.assertEqual(edges[0]["field_component"], 1)
+
+    def test_multiple_definitions_carry_their_component_index(self):
+        """A field with two definitions emits two elevates edges, each carrying
+        its own field_component (1 and 2)."""
+        rows = [
+            {"table_name": "PAYABLE", "column_name": "INVOICE_ID",
+             "perspective": "Payables", "weight": 3, "concept": "InvoiceA",
+             "relationship": "r", "field_component": 1},
+            {"table_name": "PAYABLE", "column_name": "INVOICE_ID",
+             "perspective": "Receivables", "weight": 2, "concept": "InvoiceB",
+             "relationship": "r", "field_component": 2},
+        ]
+        integ = self._integrity()
+        node_index = {("PAYABLE", "INVOICE_ID")}
+        edges = ex._build_elevates_edges(rows, node_index=node_index, integrity=integ)
+        self.assertEqual(len(edges), 2)
+        by_concept = {e["concept"]: e["field_component"] for e in edges}
+        self.assertEqual(by_concept, {"InvoiceA": 1, "InvoiceB": 2})
 
     def test_uniqifier_increments_for_colliding_prefix(self):
         rows = [

@@ -75,8 +75,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 11
-MILESTONE_NAME = "requirement_perspective_wiring"
+SCHEMA_VERSION = 12
+MILESTONE_NAME = "field_component_definitions"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -142,7 +142,8 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     references_table  TEXT,
     references_column TEXT,
     weight            INTEGER,
-    concept           TEXT
+    concept           TEXT,
+    field_component   INTEGER
 );
 """
 
@@ -568,7 +569,8 @@ def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
                    p.perspective_name         AS perspective,
                    pc.priority_weight         AS weight,
                    c.concept_name             AS concept,
-                   pc.relationship_type       AS relationship
+                   pc.relationship_type       AS relationship,
+                   cf.component_index         AS field_component
             FROM schema_concept_fields cf
             JOIN schema_perspective_concepts pc ON pc.concept_id = cf.concept_id
             JOIN schema_perspectives p          ON p.perspective_id = pc.perspective_id
@@ -625,6 +627,7 @@ def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
                 "unique_id": uid,
                 "weight": r["weight"],
                 "concept": r["concept"],
+                "field_component": r.get("field_component", 1) or 1,
             }
         )
     return edges
@@ -721,6 +724,7 @@ def _merge_authored_into_sources(
                     "weight": a["weight"],
                     "concept": a["concept"],
                     "relationship": "ELEVATES",
+                    "field_component": 1,
                 }
             )
         # has_column authored rows: intentionally ignored (no-op).
@@ -826,8 +830,16 @@ def _bool_to_int(value):
 
 
 def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
-    """Create sql_graph_nodes / sql_graph_edges if they do not yet exist."""
+    """Create sql_graph_nodes / sql_graph_edges if they do not yet exist.
+
+    Also applies additive column guards: CREATE TABLE IF NOT EXISTS never widens
+    an already-existing table, so older databases get ``field_component`` added in
+    place rather than silently materializing into a too-narrow table.
+    """
     conn.executescript(SQL_GRAPH_DDL)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
+    if "field_component" not in cols:
+        conn.execute("ALTER TABLE sql_graph_edges ADD COLUMN field_component INTEGER")
 
 
 def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
@@ -866,13 +878,13 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                 f"INSERT INTO {SQL_GRAPH_EDGES_TABLE} "
                 "(ordinal, _key, _id, _from, _to, edge_family, edge_type, "
                 "perspective, unique_id, references_table, references_column, "
-                "weight, concept) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "weight, concept, field_component) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, e["_key"], e["_id"], e["_from"], e["_to"],
                     e["edge_family"], e["edge_type"], e["perspective"],
                     e["unique_id"], e.get("references_table"),
                     e.get("references_column"), e.get("weight"),
-                    e.get("concept"),
+                    e.get("concept"), e.get("field_component"),
                 ),
             )
 
@@ -929,6 +941,7 @@ def _edge_dict_from_row(row: sqlite3.Row) -> dict:
     elif et == EDGE_PREDICATE_ELEVATES:
         doc["weight"] = row["weight"]
         doc["concept"] = row["concept"]
+        doc["field_component"] = row["field_component"]
     return doc
 
 

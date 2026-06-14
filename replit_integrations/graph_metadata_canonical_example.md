@@ -83,7 +83,8 @@ replit_integrations\graph_metadata_canonical_example.json
       "edge_family": "semantic",
       "edge_type": "elevates",
       "perspective": "Payables",
-      "unique_id": "PAY_ELE_PAY_INV_001"
+      "unique_id": "PAY_ELE_PAY_INV_001",
+      "field_component": 1
     },
     {
       "//": "--- PHYSICAL references EDGE ---",

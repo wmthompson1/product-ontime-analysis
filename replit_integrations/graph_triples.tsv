@@ -94,6 +94,7 @@ manufacturing_graph_node/operation:entity:structural:system:none:none	has_column
 manufacturing_graph_node/operation:entity:structural:system:none:none	has_column	manufacturing_graph_node/operation:close_date:structural:system:none:none
 manufacturing_graph_node/operation:entity:structural:system:none:none	has_column	manufacturing_graph_node/operation:last_disp_date:structural:system:none:none
 manufacturing_graph_node/operation:entity:structural:system:none:none	has_column	manufacturing_graph_node/operation:last_recv_date:structural:system:none:none
+manufacturing_graph_node/operation:entity:structural:system:none:none	has_column	manufacturing_graph_node/operation:operation_type_id:structural:system:none:none
 manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:part_id:structural:system:none:none
 manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:part_description:structural:system:none:none
 manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:part_class:structural:system:none:none
