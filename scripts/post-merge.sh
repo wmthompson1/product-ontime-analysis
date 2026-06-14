@@ -9,44 +9,54 @@ if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
   uv pip install --quiet --python .pythonlibs/bin/python -r hf-space-inventory-sqlgen/requirements.txt || true
 fi
 
-# Regenerate the SQL graph source tables (sql_graph_nodes / sql_graph_edges) from
-# the SME seeds before any parity gate runs. The app DB (manufacturing.db) is
-# gitignored, so a merged or freshly-checked-out environment always carries a
-# stale or unmaterialized graph relative to the committed graph_metadata.json.
-# The deterministic seed + export rebuilds the tables in lockstep with the schema.
-# The committed graph_metadata.json is preserved (the exporter rewrites it) so the
-# downstream parity check still compares the *committed* JSON against the
-# freshly-materialized tables: a real drift (or a hand-edited / stale JSON) still
+# Self-heal stale SQL graph source tables (sql_graph_nodes / sql_graph_edges).
+# main's app DB (manufacturing.db) is gitignored, so when a task re-exports the
+# graph it bumps the committed graph_metadata.json, but main's persistent
+# sql_graph_* tables (materialized in the task's own gitignored DB) lag behind and
+# the parity gate below then fails. Re-materialize the tables from the schema to
+# heal that staleness — but ONLY when they are already out of parity with the
+# committed JSON. If they already match, do nothing: re-exporting unconditionally
+# would pull in ERP columns that were added to the schema but not yet curated into
+# the graph and wrongly fail the build (additive ERP schema changes are
+# graph-invisible by design). The committed JSON is preserved across the export so
+# the downstream parity check still compares the *committed* JSON against the
+# freshly-materialized tables — real drift (or a hand-edited / stale JSON) still
 # fails, while mere DB staleness self-heals. Guarded on the DB existing so a
 # no-DB environment falls through to the existing skip/error handling.
 _app_db="hf-space-inventory-sqlgen/app_schema/manufacturing.db"
-if [ -f "$_app_db" ] && [ -f replit_integrations/seed_elevations.py ] && [ -f replit_integrations/export_graph_metadata.py ]; then
-  _gm_json="replit_integrations/graph_metadata.json"
-  _gm_bak=""
-  if [ -f "$_gm_json" ]; then
-    _gm_bak="$(mktemp)"
-    cp "$_gm_json" "$_gm_bak"
-    # If the exporter fails mid-run after rewriting the JSON, restore the committed
-    # copy on exit so the tracked file is never left modified.
-    trap 'if [ -n "$_gm_bak" ] && [ -f "$_gm_bak" ]; then cp "$_gm_bak" "$_gm_json"; rm -f "$_gm_bak"; fi' EXIT
-  fi
-  python replit_integrations/seed_elevations.py || {
-    echo "post-merge: seed_elevations regeneration failed"
-    exit 1
-  }
-  python replit_integrations/export_graph_metadata.py || {
-    echo "post-merge: export_graph_metadata regeneration failed"
-    exit 1
-  }
-  # Restore the committed graph_metadata.json now (before the parity gates) so the
-  # gate compares the *committed* JSON against the freshly-materialized tables and
-  # still catches a stale/hand-edited committed JSON instead of becoming a tautology.
-  if [ -n "$_gm_bak" ] && [ -f "$_gm_bak" ]; then
-    cp "$_gm_bak" "$_gm_json"
-    rm -f "$_gm_bak"
+if [ -f "$_app_db" ] \
+  && [ -f replit_integrations/seed_elevations.py ] \
+  && [ -f replit_integrations/export_graph_metadata.py ] \
+  && [ -f replit_integrations/sql_graph_parity_check.py ]; then
+  if ! python replit_integrations/sql_graph_parity_check.py >/dev/null 2>&1; then
+    echo "post-merge: sql_graph_* tables are stale vs committed graph_metadata.json — re-materializing"
+    _gm_json="replit_integrations/graph_metadata.json"
     _gm_bak=""
+    if [ -f "$_gm_json" ]; then
+      _gm_bak="$(mktemp)"
+      cp "$_gm_json" "$_gm_bak"
+      # If the exporter fails mid-run after rewriting the JSON, restore the
+      # committed copy on exit so the tracked file is never left modified.
+      trap 'if [ -n "$_gm_bak" ] && [ -f "$_gm_bak" ]; then cp "$_gm_bak" "$_gm_json"; rm -f "$_gm_bak"; fi' EXIT
+    fi
+    python replit_integrations/seed_elevations.py || {
+      echo "post-merge: seed_elevations regeneration failed"
+      exit 1
+    }
+    python replit_integrations/export_graph_metadata.py || {
+      echo "post-merge: export_graph_metadata regeneration failed"
+      exit 1
+    }
+    # Restore the committed graph_metadata.json now (before the parity gates) so the
+    # gate compares the *committed* JSON against the freshly-materialized tables and
+    # still catches a stale/hand-edited committed JSON instead of becoming a tautology.
+    if [ -n "$_gm_bak" ] && [ -f "$_gm_bak" ]; then
+      cp "$_gm_bak" "$_gm_json"
+      rm -f "$_gm_bak"
+      _gm_bak=""
+    fi
+    trap - EXIT
   fi
-  trap - EXIT
 fi
 
 if [ -f hf-space-inventory-sqlgen/tests/test_perspective_deprecation.py ]; then
