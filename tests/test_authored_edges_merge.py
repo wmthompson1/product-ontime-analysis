@@ -78,7 +78,12 @@ class TestMergeElevates(unittest.TestCase):
         self.assertEqual(elevs[0]["table_name"], "part")
         self.assertEqual(elevs[0]["column_name"], "part_id")
         self.assertEqual(elevs[0]["perspective"], "quality")
-        self.assertEqual(elevs[0]["weight"], 1)
+        # M2/B3: the authored SME weight folds into the elevation feed as the raw
+        # non-gating ``priority_weight`` (the binary ``weight`` is derived later in
+        # the builder); the row carries an explicit primary field_component.
+        self.assertEqual(elevs[0]["priority_weight"], 1)
+        self.assertEqual(elevs[0]["field_component"], 1)
+        self.assertNotIn("weight", elevs[0])
         self.assertEqual(elevs[0]["concept"], "defects")
 
     def test_column_less_elevates_skipped(self):

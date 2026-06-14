@@ -272,7 +272,7 @@ def ensure_app_metadata_tables(conn) -> None:
             references_table  TEXT,
             references_column TEXT,
             weight            INTEGER,
-            concept           TEXT,
+            priority_weight   INTEGER,
             field_component   INTEGER
         );
 
@@ -303,6 +303,14 @@ def ensure_app_metadata_tables(conn) -> None:
         if column not in {row[1] for row in cur.fetchall()}:
             cur.execute(f"ALTER TABLE {table} ADD COLUMN {decl}")
 
+    def _drop_column_if_present(table: str, column: str) -> None:
+        cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+        if not cur.fetchone():
+            return
+        cur.execute(f"PRAGMA table_info({table})")
+        if column in {row[1] for row in cur.fetchall()}:
+            cur.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+
     # Field-definition number on each field's elevation (1 = primary; 2,3.. = further meanings).
     _add_column_if_missing(
         "schema_concept_fields", "component_index",
@@ -310,8 +318,14 @@ def ensure_app_metadata_tables(conn) -> None:
     )
     # field_component on elevates edges mirrors schema_concept_fields.component_index.
     _add_column_if_missing("sql_graph_edges", "field_component", "field_component INTEGER")
+    # priority_weight on elevates edges — non-gating SME priority kept beside the binary weight (M2).
+    _add_column_if_missing("sql_graph_edges", "priority_weight", "priority_weight INTEGER")
     # concept_name on concept nodes (node_type='concept'); NULL for table/column rows.
     _add_column_if_missing("sql_graph_nodes", "concept_name", "concept_name TEXT")
+    # M2: the elevates edge no longer stores a concept string — identity lives on
+    # the _to concept node — so drop the legacy column from older edges tables. No
+    # compatibility window, so the app's shape matches the exporter's rebuilt one.
+    _drop_column_if_present("sql_graph_edges", "concept")
 
     conn.commit()
 

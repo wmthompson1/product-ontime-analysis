@@ -1,10 +1,10 @@
 # Canonical Graph Construction — Concept as a Node
 
-> **Status:** DRAFT — living document (canonical-in-progress)
-> **Revision:** 0.2
+> **Status:** LIVING — M2 complete (M3+ pending)
+> **Revision:** 0.6
 > **Last updated:** 2026-06-14
-> **Baseline graph:** `graph_metadata.v12.json` (`SCHEMA_VERSION = 12`, two node types)
-> **Target milestone:** first concept-as-node snapshot (next `SCHEMA_VERSION` bump)
+> **Baseline graph:** `graph_metadata.v14.json` (`SCHEMA_VERSION = 14`, concept nodes + re-pointed `elevates`)
+> **Current milestone:** M2 — `elevates` re-pointed to concept nodes (COMPLETE); M3 (richer concept payload) next
 
 This is the canonical reference for how the manufacturing semantic-layer graph is
 constructed once **Concept becomes a first-class node** (Option C). It is written
@@ -58,15 +58,28 @@ no edge, so it does not trip them.
   `concept`. **Two reserved perspective scopes:** `system` is the structural-layer
   scope (tables, columns, FK edges); `canonical` is the perspective-agnostic scope
   owned by concept nodes.
-- **B2 — Shadow-graph cutover + rollback.** Re-pointing `ELEVATES` in place would
-  break the running HF Space and any consumer expecting self-loop edges with a
-  `concept` string. Construction must build vNext in **isolated collections / a
-  versioned graph**, pass SQL↔file + SQL↔AQL parity and app-compatibility checks,
-  then switch readers atomically, with a documented rollback to `v12`.
-- **B3 — Weight normalization.** `schema_perspective_concepts.priority_weight` is
-  not the binary gate. Define the conversion rule (e.g. `weight = 1 if
-  priority_weight > 0 else 0`) and whether `priority_weight` survives as separate
-  non-gating metadata on the concept/edge.
+- **B2 — Shadow-graph cutover + rollback. — RESOLVED (Rev 0.5).** Re-pointing
+  `ELEVATES` in place would break any consumer expecting self-loop edges with a
+  `concept` string — but there is **no such live consumer**: the HF Space app reads
+  the legacy named graph (`ELEVATES`/`HAS_COLUMN`/… collections), never the
+  canonical `manufacturing_graph_node`/`manufacturing_graph_edge` collections this
+  exporter owns. A literal shadow graph is therefore unnecessary. **Resolution:**
+  the safety a shadow would give is provided by (1) the freeze-once
+  `graph_metadata.v{N}.json` snapshot per milestone, (2) both parity gates
+  (SQL↔file byte-identical, SQL↔live-AQL field-for-field) gating every change, and
+  (3) a documented rollback to the prior frozen snapshot. The live load
+  (`load_canonical_to_arango.py`) is **truncate-then-import on the canonical
+  node/edge collections only** (idempotent, keyed on `_key`), so it never touches
+  the legacy graph the app reads. **Rollback path:** re-import the prior
+  `graph_metadata.v13.json` into the canonical collections (same loader, same
+  truncate-then-import) and revert `SCHEMA_VERSION`.
+- **B3 — Weight normalization. — RESOLVED (Rev 0.5).**
+  `schema_perspective_concepts.priority_weight` is not the binary gate. **Rule:**
+  `weight = 1 if (priority_weight or 0) > 0 else 0` — `weight` stays the binary
+  candidate-set gate (1 = selectable, 0 = suppressed). **`priority_weight`
+  survives** as a separate non-gating metadata field on the `elevates` edge (new
+  `sql_graph_edges.priority_weight` column), so the SME's raw priority is preserved
+  for later ranking without overloading the gate.
 
 ---
 
@@ -138,13 +151,29 @@ built in **shadow collections** (B2) and accepted only when its checks pass.
    `ELEVATES` still a self-loop string (no selection change yet).
    *Accept when:* node count rises by exactly the concept count, no edge changes,
    both parity pairs byte-identical for the new shape, HF Space app unaffected.
-2. **M2 — re-point `ELEVATES` to concept nodes.** Edge `_to` becomes the concept
-   node; concept identity now lives on the target, not as an edge attribute.
-   **Invariant:** uniqueness/stability of multiple meanings on the same
-   column+perspective is guaranteed by `_to` + deterministic `unique_id`
-   allocation. The old `concept` string MAY remain during a compatibility window
-   (see §7), removed in a later snapshot. Built in shadow collections; readers
-   switched atomically with rollback to the prior `v{N}` (B2).
+2. **M2 — re-point `ELEVATES` to concept nodes. — COMPLETE (v14).** Edge `_to`
+   becomes the concept node (`_from` stays the column); concept identity now lives
+   on the target, not as an edge attribute. Node/edge counts are unchanged (the 17
+   self-loops become 17 column→concept edges); only the endpoints move.
+   **Concept string dropped now (no compatibility window — user decision):** the
+   concept node is the single home for concept identity, so the `concept` field is
+   removed from the JSON edge **and** the `sql_graph_edges.concept` column in this
+   same snapshot (see §7 deprecation ledger). The concept name remains an *input*
+   to the uid, just not a stored edge property.
+   **Uniqueness/stability invariant:** the `elevates` `unique_id` is no longer a
+   per-prefix counter — it is **concept-aware and deterministic**, derived from the
+   natural key `(perspective, table, column, concept, field_component)` via
+   `semantic_uid_stable(...)`. Adding or removing a sibling concept on the same
+   column+perspective therefore does **not** renumber unrelated edges. The 6-slot
+   key grammar is unchanged (no 7th slot); the key still encodes the *source*
+   column and the concept lives only on `_to`. Two concepts on the same
+   column+perspective get distinct uids (distinct hash) → distinct keys.
+   **Both endpoints guarded:** an elevation whose column is not an exported node OR
+   whose concept has no concept node is skipped and recorded in
+   `integrity["semantic_elevations_skipped"]`.
+   **B2 cutover:** built as a freeze-once `v14` snapshot, accepted only when both
+   parity pairs pass, then loaded into the canonical collections
+   (truncate-then-import, legacy graph untouched), with rollback to `v13`.
    *Accept when:* every prior self-loop has a matching column→concept edge,
    selection results are identical pre/post, parity pairs byte-identical.
 3. **M3 — concept metadata + tags.** Add domain/family, definition, synonyms, and
@@ -192,15 +221,22 @@ FOR n IN manufacturing_graph_node
 
 ## 7. Consumer compatibility & deprecation
 
-- **Compatibility window.** During M2, the edge may carry BOTH the new `_to`
-  concept identity and the legacy `concept` string so existing consumers keep
-  working; the string is deprecated and removed only in a later frozen snapshot.
-- **Atomic reader switch.** Consumers (HF Space app, parity gates, routing agent)
-  read the promoted graph only after the shadow build passes all acceptance
-  checks; a single documented step flips them, with rollback to the prior `v{N}`.
-- **Deprecation ledger.** Anything removed (the self-loop edge shape, the edge
-  `concept` string) is recorded here with the snapshot that removes it, so a
-  consumer can see exactly when it must stop relying on the old shape.
+- **Compatibility window — waived for M2 (user decision).** The plan allowed the
+  edge to carry BOTH the new `_to` and the legacy `concept` string for a window. We
+  **skipped the window**: there is no live consumer of the canonical edges (the HF
+  Space app reads the legacy named graph), so the `concept` string is removed in the
+  same `v14` snapshot that re-points the edge. The concept node is the single home
+  for concept identity.
+- **Atomic reader switch.** Consumers (parity gates, future routing agent) read the
+  promoted graph only after the build passes both parity gates; the live load is a
+  single truncate-then-import step, with rollback to the prior `v{N}`.
+- **Deprecation ledger.** What was removed, and the snapshot that removed it:
+
+  | Removed | Snapshot | Replacement |
+  |---|---|---|
+  | `ELEVATES` self-loop shape (`_from == _to == column`) | v14 | `column → concept` edge (`_to` = concept node) |
+  | `concept` string on the `elevates` edge | v14 | the `_to` concept node (identity lives on the target) |
+  | `sql_graph_edges.concept` column | v14 | `_to` + new `sql_graph_edges.priority_weight` (raw SME priority) |
 
 ## Open Questions
 
@@ -226,6 +262,8 @@ promoted to the Pre-M1 blocking gates **B1** and **B2**.)
 | 0.2 | 2026-06-14 | Architect review folded in: promoted concept-key grammar (**B1**) and live-graph shadow cutover/rollback (**B2**) to Pre-M1 blocking gates; added weight-normalization gate (**B3**); added per-milestone acceptance criteria, the M2 uniqueness invariant + compatibility window, and a Consumer compatibility & deprecation section (§7). |
 | 0.3 | 2026-06-14 | **B1 resolved.** Ratified the concept `_key` grammar `<ConceptName>:entity:semantic:canonical:none:none` (a concept is a **semantic-family** node, not a new family; perspective-agnostic concepts get the dedicated **`canonical`** perspective so `system` stays the structural-layer scope) with a **node-first classifier** (node iff slots 4–5 are `none`; concept if slot 2 is `semantic`, else table if slot 1 is `entity`, else column). Scoped **M1 to a minimal identity-only payload** (name + description); type/domain/tags deferred to M3. B2/B3 reaffirmed as gates for the edge-changing milestones (M2+), not M1. Froze `SCHEMA_VERSION = 13` (`concept_nodes_introduced`). |
 | 0.4 | 2026-06-14 | **M1 complete.** Exporter emits the concept nodes; node count rose by exactly the concept count with no edge changes; both parity pairs (SQL↔file, SQL↔live-AQL) byte-identical for the new shape; the canonical was loaded into the live ArangoDB (additive nodes only — does not trip B2); HF Space app unaffected (resolvers filter `node_type` to table/column). Hardened the SQLite upgrade path so an old `sql_graph_nodes` that has had only `concept_name` bolted on by the app boot guard is still rebuilt (the old `node_type` CHECK + `table_name NOT NULL` are detected, not just the missing column). |
+| 0.5 | 2026-06-14 | **B2 + B3 resolved; M2 in progress (v14).** B2: no live consumer reads the canonical edges (the HF app uses the legacy named graph), so the shadow graph is waived — safety comes from the freeze-once `v{N}` snapshot, both parity gates, and a documented rollback to `v13`; the live load is truncate-then-import on the canonical collections only. B3: `weight = 1 if (priority_weight or 0) > 0 else 0`, with `priority_weight` kept as non-gating edge metadata (new `sql_graph_edges.priority_weight`). M2: re-pointed `ELEVATES` to `column → concept`; **dropped the `concept` string now (no compatibility window — user decision)** from both the JSON edge and the `sql_graph_edges.concept` column; made the elevates uid concept-aware/deterministic via `semantic_uid_stable(perspective,table,column,concept,field_component)` so sibling churn no longer renumbers edges; guarded both endpoints. Froze `SCHEMA_VERSION = 14` (`elevates_repointed_to_concepts`); counts unchanged 279/279 (17 elevates re-pointed). |
+| 0.6 | 2026-06-14 | **M2 complete (v14).** Loaded the re-pointed canonical into live ArangoDB — 279 nodes / 279 edges, all endpoints resolve, 17 `elevates` now `column → concept`; both parity pairs byte-identical (SQL↔file, SQL↔live-AQL). Realigned the two remaining format-lock suites to the M2 shape: `test_semantic_scaffolding.py` (column→concept, no `concept` string on the edge, binary `weight` derived from `priority_weight`, concept-aware/stable uid, both-endpoint guard) and `test_authored_edges_merge.py` (authored SME weight folds into the elevation feed as `priority_weight` + `field_component`). `bash scripts/post-merge.sh` EXIT=0; both apps boot unaffected (HF Space :8080 Gradio serving, Flask :5000). |
 
 ---
 

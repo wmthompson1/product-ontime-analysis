@@ -18,11 +18,17 @@ are settled as a *lightweight filter only* (no meaning, AQL prefilter).
 **How to apply:**
 - The canonical, *living* spec is `docs/canonical_graph_construction_concept_as_node.md`
   (revision header + Open Questions + Decision Log; iterate it, don't fork it).
-- Not built yet — current code/graph still has two node types, so
-  `solder-pattern-architecture.md` is still accurate for what *exists*. When you
-  actually implement, update that memory in lockstep.
-- Three Pre-M1 blocking gates must close first: concept `_key` grammar under the
-  6-slot scheme (B1), shadow-graph cutover + rollback to v12 (B2), and
-  priority_weight → binary `weight` normalization (B3).
-- `ELEVATES` changes from a column self-loop carrying a `concept` string to a
-  `column → concept` edge; build in shadow collections, switch readers atomically.
+- **Built through M2 (SCHEMA_VERSION 14).** The graph now has THREE node types, so
+  the old two-node-type invariant in `solder-pattern-architecture.md` no longer
+  describes what *exists* — concept nodes are real. M1 added identity-only concept
+  nodes (v13); M2 re-pointed `ELEVATES` to `column → concept` and dropped the edge
+  `concept` string (detail in `semantic-elevates-scaffolding.md`). M3 (richer
+  concept payload: type / domain / synonyms / tags) is the next milestone, not yet
+  built.
+- All three Pre-M1 gates are CLOSED: B1 (concept `_key` grammar, see
+  `composite-key-scheme.md`); B2 (no shadow graph was needed — no live consumer
+  reads the canonical edges, so safety is freeze-once `vN` + both parity gates +
+  rollback to the prior `vN`; live load is truncate-then-import on the canonical
+  collections only); B3 (`priority_weight` → binary `weight`).
+- The HF app still reads the LEGACY named graph, so concept nodes + re-pointed
+  edges are inert there (resolvers filter `node_type` to table/column).

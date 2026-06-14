@@ -60,6 +60,7 @@ Run from the repo root:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -75,8 +76,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 13
-MILESTONE_NAME = "concept_nodes_introduced"
+SCHEMA_VERSION = 14
+MILESTONE_NAME = "elevates_repointed_to_concepts"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -144,7 +145,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     references_table  TEXT,
     references_column TEXT,
     weight            INTEGER,
-    concept           TEXT,
+    priority_weight   INTEGER,
     field_component   INTEGER
 );
 """
@@ -231,6 +232,32 @@ def _edge_uid_prefix(perspective: str, edge_type: str, table: str, column: str) 
     return "_".join(
         [_abbrev(perspective), _abbrev(edge_type), _abbrev(table), _abbrev(column)]
     )
+
+
+def semantic_uid_stable(perspective: str, table: str, column: str,
+                        concept: str, field_component) -> str:
+    """Concept-stable slot-5 uid for an ``elevates`` edge.
+
+    Unlike the structural uid (``unified_unique_id``), which counts up per
+    (perspective, edge_type, table, column) prefix, the elevates uid is DERIVED
+    from the elevation's natural key — perspective, table, column, concept, and
+    field_component — via a short content hash. A column may carry several
+    meanings under one perspective; deriving (not counting) the uid guarantees
+    that adding or removing one meaning never renumbers its siblings, so frozen
+    vN snapshots and live ArangoDB keys stay stable under concept churn (the M2
+    invariant). The readable prefix is kept for inspection; the hash makes the
+    uid unique even when two concept names abbreviate alike.
+    """
+    prefix = "_".join(
+        [_abbrev(perspective), _abbrev(EDGE_PREDICATE_ELEVATES),
+         _abbrev(table), _abbrev(column)]
+    )
+    natural = "|".join(
+        [str(perspective), str(table), str(column), str(concept),
+         str(field_component if field_component is not None else 1)]
+    )
+    digest = hashlib.sha1(natural.encode("utf-8")).hexdigest()[:8].upper()
+    return f"{prefix}_{digest}"
 
 
 def _containment_prefix(table: str, column: str) -> str:
@@ -641,7 +668,7 @@ def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
             SELECT cf.table_name              AS table_name,
                    cf.field_name              AS column_name,
                    p.perspective_name         AS perspective,
-                   pc.priority_weight         AS weight,
+                   pc.priority_weight         AS priority_weight,
                    c.concept_name             AS concept,
                    pc.relationship_type       AS relationship,
                    cf.component_index         AS field_component
@@ -657,21 +684,24 @@ def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
 
 
 def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
-                          integrity: dict) -> list[dict]:
-    """One ``elevates`` self-edge per curated elevation: column -> same column.
+                          concept_index: set, integrity: dict) -> list[dict]:
+    """One ``elevates`` edge per curated elevation: column node -> concept node.
 
-    The edge is a self-loop on the column node (``_from == _to``), carrying the
-    perspective, the SME weight, and the concept it expresses — matching the
-    locked semantic-edge shape in ``graph_metadata_canonical_example.json``.
+    M2 re-point: ``_from`` is the elevated column, ``_to`` is the CONCEPT NODE
+    the column expresses (it was a self-loop on the column in M1, carrying the
+    concept as a string). The concept's identity now lives on the target node,
+    so the edge no longer stores a ``concept`` string — the name is encoded in
+    ``_to`` and is still an input to the stable uid.
 
-    Endpoints are guarded exactly like ``references`` edges: an elevation whose
-    column is not an exported node is skipped and recorded in the integrity
-    report rather than emitting a dangling edge. The uniqifier is allocated per
-    abbreviated (perspective, edge_type, table, column) prefix in deterministic
-    sorted order, so re-running the export is reproducible.
+    Both endpoints are node-guarded: an elevation whose column is not an exported
+    node, OR whose concept has no concept node, is skipped and recorded in the
+    integrity report rather than emitting a dangling edge. ``weight`` is the
+    binary gate normalized from ``priority_weight`` (1 iff priority_weight > 0);
+    the raw ``priority_weight`` is kept as non-gating metadata. The uid is
+    derived from the elevation's natural key (see ``semantic_uid_stable``), so it
+    is reproducible and stable when sibling concepts are added or removed.
     """
     edges: list[dict] = []
-    counter: dict[str, int] = {}
     ordered = sorted(
         elevation_rows,
         key=lambda r: (
@@ -680,28 +710,34 @@ def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
     )
     for r in ordered:
         t, col, persp = r["table_name"], r["column_name"], r["perspective"]
+        concept = r["concept"]
         if (t, col) not in node_index:
             integrity["semantic_elevations_skipped"].append(
                 f"{persp}:{t}.{col} (column not a canonical node)"
             )
             continue
-        prefix = _edge_uid_prefix(persp, EDGE_PREDICATE_ELEVATES, t, col)
-        n = counter.get(prefix, 0) + 1
-        counter[prefix] = n
-        uid = f"{prefix}_{n:03d}"
+        if concept not in concept_index:
+            integrity["semantic_elevations_skipped"].append(
+                f"{persp}:{t}.{col} -> {concept} (concept not a canonical node)"
+            )
+            continue
+        field_component = r.get("field_component", 1) or 1
+        priority_weight = r.get("priority_weight")
+        weight = 1 if (priority_weight or 0) > 0 else 0
+        uid = semantic_uid_stable(persp, t, col, concept, field_component)
         edges.append(
             {
                 "_id": semantic_edge_id(t, col, persp, uid),
                 "_key": semantic_edge_key(t, col, persp, uid),
                 "_from": column_id(t, col),
-                "_to": column_id(t, col),
+                "_to": concept_id(concept),
                 "edge_family": FAMILY_SEMANTIC,
                 "edge_type": EDGE_PREDICATE_ELEVATES,
                 "perspective": persp,
                 "unique_id": uid,
-                "weight": r["weight"],
-                "concept": r["concept"],
-                "field_component": r.get("field_component", 1) or 1,
+                "weight": weight,
+                "priority_weight": priority_weight,
+                "field_component": field_component,
             }
         )
     return edges
@@ -745,8 +781,11 @@ def _merge_authored_into_sources(
 
     Mapping:
       references → fk row   {child_table, child_column, parent_table, parent_column}
-      elevates   → elevation row {table_name, column_name, perspective, weight,
-                                  concept, relationship}
+      elevates   → elevation row {table_name, column_name, perspective,
+                                  priority_weight, concept, relationship,
+                                  field_component} — the authored SME weight maps
+                                  to the raw non-gating ``priority_weight``; the
+                                  builder derives the binary ``weight`` from it.
       has_column → ignored (the derived has_column backbone already covers every
                    column; authoring one is recorded for audit but emits nothing)
     """
@@ -795,7 +834,7 @@ def _merge_authored_into_sources(
                     "table_name": a["from_table"],
                     "column_name": col,
                     "perspective": a["perspective"],
-                    "weight": a["weight"],
+                    "priority_weight": a["weight"],
                     "concept": a["concept"],
                     "relationship": "ELEVATES",
                     "field_component": 1,
@@ -886,20 +925,21 @@ def _key_scheme_spec() -> dict:
                 "kind": "semantic_edge",
                 "slots": 6,
                 "marker": "slot[2]=='semantic' and slot[4]!='none'",
-                "form": "table:column:semantic:perspective:predicate:unique_id",
-                "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
-                "status": "active (node-guarded scaffolding; zero content until an SME elevates a canonical column)",
+                "form": "table:column:semantic:perspective:elevates:unique_id  (_from=column node, _to=concept node)",
+                "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_1A2B3C4D",
+                "status": "active (node-guarded; column -> concept node, M2 re-point; uid is concept-stable)",
             },
         ],
         "unique_id_grammar": {
-            "unified": "structural AND semantic edges share one slot-5 grammar",
+            "structural": "structural edges (has_column, references) share one COUNTED slot-5 grammar",
             "form": "perspective(3)_edge_type(3)_table(3)_column|entity(3)_uniqifier(3, default 001)",
             "abbrev": "first 3 alphanumeric chars of each part, uppercased; collisions are expected and resolved by the uniqifier",
-            "uniqifier": "allocated (not derived) per (perspective, edge_type, table, column|entity) prefix; default '001'",
+            "uniqifier": "structural only: allocated (not derived) per (perspective, edge_type, table, column|entity) prefix; default '001'",
             "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
             "structural_example": "SYS_HAS_PAY_INV_001 (system / has_column / PAYABLE / INVOICE_ID / 001)",
             "structural_references_example": "SYS_REF_SCH_PAR_001 (system / references / schema_concepts / parent_concept_id / 001)",
-            "semantic_example": "PAY_ELE_PAY_INV_001 (Payables / elevates / PAYABLE / INVOICE_ID / 001)",
+            "elevates_uid": "elevates uid is concept-STABLE and DERIVED (not counted): <perspective>_ELE_<table>_<column>_<8-hex SHA1 of perspective|table|column|concept|field_component>; deriving it from the elevation's natural key means adding/removing one meaning never renumbers a column's other elevations (M2 invariant)",
+            "semantic_example": "PAY_ELE_PAY_INV_1A2B3C4D (Payables / elevates / PAYABLE / INVOICE_ID / concept-hash)",
         },
     }
 
@@ -944,24 +984,43 @@ def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
     return False
 
 
+def _sql_graph_edges_is_stale(conn: sqlite3.Connection) -> bool:
+    """True if sql_graph_edges predates the M2 elevates re-point and must rebuild.
+
+    M2 drops the edge ``concept`` string (the concept identity now lives on the
+    ``_to`` concept node) and adds ``priority_weight`` as non-gating metadata.
+    Dropping a column is not an in-place SQLite ALTER, and app.py's additive boot
+    guard can add ``priority_weight`` while leaving the old ``concept`` column
+    behind — so the table is rebuilt when EITHER the legacy ``concept`` column is
+    still present OR ``priority_weight`` is missing. The table is fully
+    regenerated from schema_* on every export, so the drop is safe. An absent
+    table is not stale (CREATE handles it).
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
+    if not cols:
+        return False
+    return "concept" in cols or "priority_weight" not in cols
+
+
 def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
     """Create sql_graph_nodes / sql_graph_edges if they do not yet exist.
 
-    Two in-place migrations keep older databases current, since
-    CREATE TABLE IF NOT EXISTS never alters an existing table:
-      * sql_graph_edges gets ``field_component`` added (a plain additive column).
-      * sql_graph_nodes is rebuilt when it predates the concept node type (see
-        ``_sql_graph_nodes_is_stale`` for the full set of pre-concept markers).
-        The table is fully regenerated from schema_* on every export, so the
-        drop is safe.
+    CREATE TABLE IF NOT EXISTS never alters an existing table, so both source
+    tables are rebuilt in place when they predate the current shape (each is
+    fully regenerated from schema_* on every export, so the drops are safe):
+      * sql_graph_nodes — rebuilt when it predates the concept node type (see
+        ``_sql_graph_nodes_is_stale``).
+      * sql_graph_edges — rebuilt when it predates the M2 elevates re-point (see
+        ``_sql_graph_edges_is_stale``): the legacy ``concept`` column is dropped
+        and ``priority_weight`` is added.
     """
     conn.executescript(SQL_GRAPH_DDL)
     if _sql_graph_nodes_is_stale(conn):
         conn.execute("DROP TABLE sql_graph_nodes")
         conn.executescript(SQL_GRAPH_DDL)
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
-    if "field_component" not in cols:
-        conn.execute("ALTER TABLE sql_graph_edges ADD COLUMN field_component INTEGER")
+    if _sql_graph_edges_is_stale(conn):
+        conn.execute("DROP TABLE sql_graph_edges")
+        conn.executescript(SQL_GRAPH_DDL)
 
 
 def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
@@ -1004,13 +1063,13 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                 f"INSERT INTO {SQL_GRAPH_EDGES_TABLE} "
                 "(ordinal, _key, _id, _from, _to, edge_family, edge_type, "
                 "perspective, unique_id, references_table, references_column, "
-                "weight, concept, field_component) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "weight, priority_weight, field_component) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, e["_key"], e["_id"], e["_from"], e["_to"],
                     e["edge_family"], e["edge_type"], e["perspective"],
                     e["unique_id"], e.get("references_table"),
                     e.get("references_column"), e.get("weight"),
-                    e.get("concept"), e.get("field_component"),
+                    e.get("priority_weight"), e.get("field_component"),
                 ),
             )
 
@@ -1078,7 +1137,7 @@ def _edge_dict_from_row(row: sqlite3.Row) -> dict:
         doc["references_column"] = row["references_column"]
     elif et == EDGE_PREDICATE_ELEVATES:
         doc["weight"] = row["weight"]
-        doc["concept"] = row["concept"]
+        doc["priority_weight"] = row["priority_weight"]
         doc["field_component"] = row["field_component"]
     return doc
 
@@ -1127,12 +1186,13 @@ def _build_graph_document(
             "abbreviated unique_ids. Covers the business ERP tables "
             "(schema_* metadata tables excluded — the graph models the domain, "
             "not its own bookkeeping); the semantic ``elevates`` layer is active "
-            "and node-guarded — it emits SME-curated column elevations under "
-            "business perspectives only for columns that are exported nodes. "
-            "Concept nodes carry an identity-only payload (name + description, "
-            "emitted from schema_concepts) introducing the perspective-agnostic "
-            "semantic vocabulary; their richer metadata and the semantic edges "
-            "that link columns to concepts follow in later milestones."
+            "and node-guarded — each SME-curated elevation is an edge from a "
+            "column node to the CONCEPT node it expresses under a business "
+            "perspective (M2 re-point), carrying the binary weight gate and the "
+            "raw priority_weight. Concept nodes carry an identity-only payload "
+            "(name + description, emitted from schema_concepts) introducing the "
+            "perspective-agnostic semantic vocabulary; their richer metadata "
+            "follows in later milestones."
         ),
         "key_scheme": _key_scheme_spec(),
         "graph": {
@@ -1203,7 +1263,10 @@ def main() -> int:
             has_column_edges = _build_has_column_edges(column_nodes, uid_map)
             node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
             references_edges = _build_references_edges(fk_rows, node_index, integrity)
-            elevates_edges = _build_elevates_edges(elevation_rows, node_index, integrity)
+            concept_index = {c["concept_name"] for c in concept_nodes}
+            elevates_edges = _build_elevates_edges(
+                elevation_rows, node_index, concept_index, integrity
+            )
             edges = has_column_edges + references_edges + elevates_edges
 
             # Persist the graph into the SQLite source tables, then read it back

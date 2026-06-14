@@ -11,16 +11,26 @@ The plumbing landed first as scaffolding (zero content); the **first SME batch o
 `schema_perspective_concepts` (concept→perspective + priority_weight) ⋈
 `schema_perspectives` (id→name) ⋈ `schema_concepts` (id→name).
 
-**Edge shape (locked, matches `graph_metadata_canonical_example.json`):** a
-self-loop on the column node — `_from == _to == column_id` — family `semantic`,
-type `elevates`, carrying `perspective`, `weight`, `concept`. Key is the 6-slot
-`table:column:semantic:{perspective}:elevates:{uid}`; uid via the same
-abbreviated allocator as references (`PAY_ELE_PAY_INV_001`).
+**Edge shape (M2 / v14 — re-pointed):** `elevates` runs **column → concept node**:
+`_from = column_id(t,col)`, `_to = concept_id(concept)` (it was a self-loop
+carrying the concept as a STRING in ≤v13). The concept node is the SINGLE home for
+concept identity, so the edge **no longer stores a `concept` string** — dropped
+from the JSON edge AND the `sql_graph_edges.concept` column in v14 (no
+compatibility window — user decision). The edge carries `perspective`, binary
+`weight`, raw non-gating `priority_weight`, and `field_component`. Key is still the
+6-slot `table:column:semantic:{perspective}:elevates:{uid}` — it encodes the SOURCE
+column; the concept lives only on `_to`.
+**uid is concept-aware + DERIVED, not counted (M2 invariant):** elevates uid =
+`semantic_uid_stable(perspective,table,column,concept,field_component)` = readable
+prefix + sha1 hash of that natural key. Adding/removing a sibling concept on the
+same column+perspective NEVER renumbers other edges, so frozen vN snapshots + live
+keys stay stable. (references/has_column still use the COUNTED allocator.)
 
 **Why zero edges emit today:** the only curated `schema_concept_fields` rows
 target `stg_manufacturing_flat`, a staging table that is NOT one of the 22
-canonical business nodes. The builder guards endpoints exactly like references
-edges — a column not in the exported node set is skipped and recorded in
+canonical business nodes. The builder now guards BOTH endpoints — an elevation
+whose column is not an exported node OR whose concept has no concept node is
+skipped and recorded in
 `integrity["semantic_elevations_skipped"]`, never emitted as a dangling edge. It
 lights up automatically when an SME maps a real ERP column.
 
@@ -64,8 +74,8 @@ Engineering / QuantityBasisEngineering and Manufacturing /
 QuantityBasisManufacturing = 4 edges. v9 adds: purchase_order.status → Payables /
 PurchaseOrderLifecycleState; receiving.inspection_status → Quality /
 ReceivingInspectionState; certification.status → Quality / CertificationStatusState;
-certification.cert_type → Quality / CertificationType. Live graph 231 nodes /
-261 edges (15 elevates).
+certification.cert_type → Quality / CertificationType. Live graph (v14): 279
+nodes / 279 edges (17 elevates, all re-pointed column→concept).
 
 **Engineering vs manufacturing quantity (durable domain rule):** in aerospace,
 engineering material requirements are stated **per unit (qty = 1, as-designed)**;
@@ -100,10 +110,12 @@ RequirementBasisEngineering (Engineering) + RequirementBasisManufacturing
 (Manufacturing). The VALUE selects the perspective (PART→Engineering,
 WORK_ORDER→Manufacturing); that value condition is carried in the existing
 `schema_concept_fields.context_hint` slot ("when this meaning applies"), so NO
-schema/exporter extension was needed — the elevates edge still only carries
-{perspective, weight, concept}; the value rule stays in SQLite (source of truth).
-This is the key lesson: value-level perspective routing already fits the model
-via context_hint; don't invent a new edge property/type for it.
+schema/exporter extension was needed — the value rule stays in SQLite (source of
+truth) in the `context_hint` slot. (Since v14 the elevates edge points at the
+concept NODE and carries {perspective, binary weight, priority_weight,
+field_component} — concept identity moved off the edge onto `_to` — but the
+value-routing lesson is unchanged: context_hint already handles value-level
+perspective routing; don't invent a new edge property/type for it.)
 
 **Field descriptions take precedence over concept names (durable decision):**
 the concept layer is structurally first-class (disambiguation / synonymy /

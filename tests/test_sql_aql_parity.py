@@ -41,6 +41,21 @@ def _sample_graph():
         "column_name": "ID", "predicate": "none", "unique_id": "none",
         "column_type": "INTEGER", "notnull": True, "default_value": None,
         "primary_key": True, "foreign_key": False,
+    }, {
+        "_id": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME", "_key": "column::CUSTOMER.NAME",
+        "node_type": "column", "node_family": ex.FAMILY_STRUCTURAL,
+        "perspective": ex.PERSPECTIVE_SYSTEM, "table_name": "CUSTOMER",
+        "column_name": "NAME", "predicate": "none", "unique_id": "none",
+        "column_type": "TEXT", "notnull": False, "default_value": None,
+        "primary_key": False, "foreign_key": False,
+    }]
+    concept_nodes = [{
+        "_id": ex.concept_id("CustomerNameSales"),
+        "_key": ex.concept_key("CustomerNameSales"),
+        "node_type": "concept", "node_family": ex.FAMILY_SEMANTIC,
+        "perspective": ex.PERSPECTIVE_CANONICAL, "concept_name": "CustomerNameSales",
+        "predicate": "none", "unique_id": "none",
+        "description": "Customer name under the Sales lens",
     }]
     edges = [{
         "_id": f"{ex.EDGE_COLLECTION}/hc_CUSTOMER_ID", "_key": "hc_CUSTOMER_ID",
@@ -48,8 +63,18 @@ def _sample_graph():
         "_to": f"{ex.NODE_COLLECTION}/column::CUSTOMER.ID",
         "edge_family": ex.FAMILY_STRUCTURAL, "edge_type": ex.EDGE_PREDICATE_HAS_COLUMN,
         "perspective": ex.PERSPECTIVE_SYSTEM, "unique_id": "CUS_HAS_ID_001",
+    }, {
+        # M2: a re-pointed elevates edge (column -> concept node, no concept string,
+        # binary weight + raw priority_weight) must round-trip field-for-field
+        # through the live-AQL parity flattener too.
+        "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME", "_key": "ele_CUSTOMER_NAME",
+        "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
+        "_to": ex.concept_id("CustomerNameSales"),
+        "edge_family": ex.FAMILY_SEMANTIC, "edge_type": ex.EDGE_PREDICATE_ELEVATES,
+        "perspective": "Sales", "unique_id": "SAL_ELE_CUS_NAM_1A2B3C4D",
+        "weight": 1, "priority_weight": 3, "field_component": 1,
     }]
-    return table_nodes, column_nodes, edges
+    return table_nodes, column_nodes, concept_nodes, edges
 
 
 class FakeAql:
@@ -83,15 +108,15 @@ class SqlAqlParity(unittest.TestCase):
         self.tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         self.tmp.close()
         self.db_path = self.tmp.name
-        table_nodes, column_nodes, edges = _sample_graph()
+        table_nodes, column_nodes, concept_nodes, edges = _sample_graph()
         conn = sqlite3.connect(self.db_path)
         try:
-            ex._materialize_to_sqlite(conn, table_nodes, column_nodes, edges)
+            ex._materialize_to_sqlite(conn, table_nodes, column_nodes, edges, concept_nodes)
             conn.commit()
         finally:
             conn.close()
         # The canonical docs the live graph should mirror.
-        self.exp_nodes = table_nodes + column_nodes
+        self.exp_nodes = table_nodes + column_nodes + concept_nodes
         self.exp_edges = edges
 
     def tearDown(self):

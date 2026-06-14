@@ -801,7 +801,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     references_table  TEXT,
     references_column TEXT,
     weight            INTEGER,
-    concept           TEXT,
+    priority_weight   INTEGER,
     field_component   INTEGER
 );
 

@@ -98,13 +98,13 @@ def _sample_graph():
             "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME",
             "_key": "ele_CUSTOMER_NAME",
             "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
-            "_to": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
+            "_to": ex.concept_id("CustomerNameSales"),
             "edge_family": ex.FAMILY_SEMANTIC,
             "edge_type": ex.EDGE_PREDICATE_ELEVATES,
             "perspective": "Sales",
-            "unique_id": "SAL_ELE_CUS_NAM_001",
-            "weight": 3,
-            "concept": "CustomerNameSales",
+            "unique_id": "SAL_ELE_CUS_NAM_1A2B3C4D",
+            "weight": 1,
+            "priority_weight": 3,
             "field_component": 1,
         },
     ]
@@ -168,13 +168,13 @@ class RoundTrip(unittest.TestCase):
             "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME_2",
             "_key": "ele_CUSTOMER_NAME_2",
             "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
-            "_to": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
+            "_to": ex.concept_id("CustomerNameMarketing"),
             "edge_family": ex.FAMILY_SEMANTIC,
             "edge_type": ex.EDGE_PREDICATE_ELEVATES,
             "perspective": "Marketing",
-            "unique_id": "MAR_ELE_CUS_NAM_001",
-            "weight": 3,
-            "concept": "CustomerNameMarketing",
+            "unique_id": "MAR_ELE_CUS_NAM_5E6F7A8B",
+            "weight": 1,
+            "priority_weight": 3,
             "field_component": 2,
         })
         ex._materialize_to_sqlite(self.conn, table_nodes, column_nodes, edges)
@@ -296,6 +296,166 @@ class LegacyDbMigration(unittest.TestCase):
             f"SELECT node_type, table_name, concept_name FROM {ex.SQL_GRAPH_NODES_TABLE}"
         ).fetchone()
         self.assertEqual(row, ("concept", None, name))
+
+
+class ElevatesRepoint(unittest.TestCase):
+    """M2: an elevates edge runs column node -> concept node, carries a binary
+    weight gate plus the raw priority_weight, drops the concept string, and gets
+    a concept-stable uid that survives sibling churn."""
+
+    def _rows(self, specs):
+        # specs: list of (concept, priority_weight, field_component)
+        return [
+            {"table_name": "CUSTOMER", "column_name": "NAME",
+             "perspective": "Sales", "concept": c,
+             "priority_weight": pw, "field_component": fc}
+            for (c, pw, fc) in specs
+        ]
+
+    def _integrity(self):
+        return {"tables_without_columns": [], "foreign_keys_skipped": [],
+                "semantic_elevations_skipped": []}
+
+    def test_edge_points_from_column_to_concept_node(self):
+        edges = ex._build_elevates_edges(
+            self._rows([("OrderState", 3, 1)]),
+            {("CUSTOMER", "NAME")}, {"OrderState"}, self._integrity())
+        self.assertEqual(len(edges), 1)
+        e = edges[0]
+        self.assertEqual(e["_from"], ex.column_id("CUSTOMER", "NAME"))
+        self.assertEqual(e["_to"], ex.concept_id("OrderState"))
+        self.assertNotEqual(e["_from"], e["_to"])  # no self-loop
+        self.assertNotIn("concept", e)             # concept string dropped
+
+    def test_weight_is_normalized_to_binary_gate(self):
+        edges = ex._build_elevates_edges(
+            self._rows([("Hot", 5, 1), ("Cold", 0, 1)]),
+            {("CUSTOMER", "NAME")}, {"Hot", "Cold"}, self._integrity())
+        by_to = {e["_to"]: e for e in edges}
+        hot = by_to[ex.concept_id("Hot")]
+        cold = by_to[ex.concept_id("Cold")]
+        self.assertEqual((hot["weight"], hot["priority_weight"]), (1, 5))
+        self.assertEqual((cold["weight"], cold["priority_weight"]), (0, 0))
+
+    def test_missing_concept_node_is_skipped_and_recorded(self):
+        integ = self._integrity()
+        edges = ex._build_elevates_edges(
+            self._rows([("Ghost", 3, 1)]), {("CUSTOMER", "NAME")}, set(), integ)
+        self.assertEqual(edges, [])
+        self.assertEqual(len(integ["semantic_elevations_skipped"]), 1)
+        msg = integ["semantic_elevations_skipped"][0]
+        self.assertIn("Ghost", msg)
+        self.assertIn("concept not a canonical node", msg)
+
+    def test_missing_column_node_is_skipped_and_recorded(self):
+        integ = self._integrity()
+        edges = ex._build_elevates_edges(
+            self._rows([("OrderState", 3, 1)]), set(), {"OrderState"}, integ)
+        self.assertEqual(edges, [])
+        self.assertEqual(len(integ["semantic_elevations_skipped"]), 1)
+        self.assertIn("column not a canonical node",
+                      integ["semantic_elevations_skipped"][0])
+
+    def test_uid_is_deterministic_and_concept_aware(self):
+        a = ex.semantic_uid_stable("Sales", "CUSTOMER", "NAME", "C1", 1)
+        b = ex.semantic_uid_stable("Sales", "CUSTOMER", "NAME", "C1", 1)
+        c = ex.semantic_uid_stable("Sales", "CUSTOMER", "NAME", "C2", 1)
+        self.assertEqual(a, b)       # deterministic, not a counter
+        self.assertNotEqual(a, c)    # derived from the concept
+
+    def test_sibling_concept_churn_does_not_renumber_uids(self):
+        node_index = {("CUSTOMER", "NAME")}
+        both = ex._build_elevates_edges(
+            self._rows([("Keep", 3, 1), ("Drop", 3, 1)]),
+            node_index, {"Keep", "Drop"}, self._integrity())
+        keep_before = {e["_to"]: e["unique_id"] for e in both}[ex.concept_id("Keep")]
+        # Remove the sibling 'Drop'; 'Keep's uid (and thus _key) must not shift.
+        one = ex._build_elevates_edges(
+            self._rows([("Keep", 3, 1)]), node_index, {"Keep"}, self._integrity())
+        self.assertEqual(keep_before, one[0]["unique_id"])
+
+
+# The sql_graph_edges shape that predates the M2 elevates re-point: it carries the
+# now-removed `concept` string and lacks `priority_weight`. This is what an old
+# manufacturing.db (<= v13) carries before M2.
+_LEGACY_EDGES_DDL = """
+CREATE TABLE sql_graph_edges (
+    ordinal           INTEGER NOT NULL,
+    _key              TEXT    NOT NULL PRIMARY KEY,
+    _id               TEXT    NOT NULL,
+    _from             TEXT    NOT NULL,
+    _to               TEXT    NOT NULL,
+    edge_family       TEXT    NOT NULL,
+    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    perspective       TEXT    NOT NULL,
+    unique_id         TEXT    NOT NULL,
+    references_table  TEXT,
+    references_column TEXT,
+    weight            INTEGER,
+    concept           TEXT,
+    field_component   INTEGER
+);
+"""
+
+
+class LegacyEdgesMigration(unittest.TestCase):
+    """The exporter must rebuild an old sql_graph_edges that predates M2: drop the
+    `concept` string column and add `priority_weight`. app.py's additive boot
+    guard can add priority_weight while leaving `concept` behind, so a lingering
+    `concept` column alone must still keep the table stale."""
+
+    def _legacy_conn(self):
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_LEGACY_EDGES_DDL)
+        return conn
+
+    def test_legacy_edges_with_concept_is_stale(self):
+        conn = self._legacy_conn()
+        self.addCleanup(conn.close)
+        self.assertTrue(ex._sql_graph_edges_is_stale(conn))
+
+    def test_half_migrated_edges_with_concept_and_priority_weight_is_stale(self):
+        conn = self._legacy_conn()
+        self.addCleanup(conn.close)
+        conn.execute("ALTER TABLE sql_graph_edges ADD COLUMN priority_weight INTEGER")
+        self.assertTrue(
+            ex._sql_graph_edges_is_stale(conn),
+            "a lingering concept column must keep the table stale even after "
+            "priority_weight is bolted on by the app boot guard",
+        )
+
+    def test_fresh_modern_edges_is_not_stale(self):
+        conn = sqlite3.connect(":memory:")
+        self.addCleanup(conn.close)
+        conn.executescript(ex.SQL_GRAPH_DDL)
+        self.assertFalse(ex._sql_graph_edges_is_stale(conn))
+
+    def test_ensure_rebuilds_legacy_edges_drops_concept_adds_priority_weight(self):
+        conn = self._legacy_conn()
+        self.addCleanup(conn.close)
+
+        ex._ensure_sql_graph_tables(conn)
+
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
+        self.assertNotIn("concept", cols)
+        self.assertIn("priority_weight", cols)
+        # A re-pointed elevates row (priority_weight set, no concept, _to=concept)
+        # must insert into the rebuilt table.
+        conn.execute(
+            f"INSERT INTO {ex.SQL_GRAPH_EDGES_TABLE} "
+            "(ordinal, _key, _id, _from, _to, edge_family, edge_type, "
+            " perspective, unique_id, weight, priority_weight, field_component) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (1, "k", "i", ex.column_id("CUSTOMER", "NAME"),
+             ex.concept_id("OrderState"), ex.FAMILY_SEMANTIC,
+             ex.EDGE_PREDICATE_ELEVATES, "Sales", "SAL_ELE_CUS_NAM_DEADBEEF",
+             1, 7, 1),
+        )
+        conn.commit()
+        row = conn.execute(
+            f"SELECT _to, weight, priority_weight FROM {ex.SQL_GRAPH_EDGES_TABLE}"
+        ).fetchone()
+        self.assertEqual(row, (ex.concept_id("OrderState"), 1, 7))
 
 
 class CommittedParity(unittest.TestCase):
