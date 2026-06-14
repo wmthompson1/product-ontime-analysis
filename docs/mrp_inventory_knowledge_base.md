@@ -237,23 +237,43 @@ only" to:
   rule 1 (column-anchored). It stays in the §5 glossary until a real column is
   onboarded.
 
-### 8.2 First MRP concept batch (the M3 payload)
-Each concept carries a plain-English definition + synonyms (the new M3 fields)
-and a single `elevates` triple. Perspectives use the real names
-(`Inventory_Transactions`, `Manufacturing`).
+### 8.2 First MRP concept batch — reconciled against the live schema
+The SME proposed 10 MRP terms. Each was run past **rule 1 (must map to a real
+column in *this* schema)** using the live `manufacturing.db`. Three are stored
+measures with a real column and are seeded now; the rest are captured here as SME
+vocabulary but **not** seeded — they are either formulas (derived metrics, §5) or
+have no column in the public schema yet (they exist in the private SQL Server
+schema). Perspectives use the real name `Inventory_Transactions` (there is no
+`Inventory` / `Procurement` / `Planning` perspective).
 
-| Concept | Type | Domain | Source column | Perspective | Synonyms |
-|---|---|---|---|---|---|
-| `ReorderPoint` | metric | inventory | `part.reorder_point` | Inventory_Transactions | ROP, reorder level, replenishment trigger |
-| `PartLeadTime` | metric | inventory | `part.lead_time_days` | Inventory_Transactions | lead time, planning lead time, days to replenish |
-| `OnHandQuantity` | metric | inventory | `part.on_hand_qty` | Inventory_Transactions | on hand, stock on hand, available stock |
-| `RequiredMaterialQuantity` *(optional 4th)* | metric | manufacturing | `requirement.std_qty` | Manufacturing *(or Engineering?)* | required qty, standard requirement, planned material need |
+**Seed now — column-anchored measures (the v15 payload):**
 
-> **Two choices for you:** (a) ship the **3 clean `part.*` inventory measures**,
-> or **add the 4th** (`RequiredMaterialQuantity`)? (b) if added, `std_qty` is the
-> *as-designed standard* quantity — perspective **Manufacturing** or
-> **Engineering**? (It may also overlap with the existing
-> `QuantityBasisEngineering`.)
+| Concept | Type | Domain | Source column | Perspective | Definition | Synonyms |
+|---|---|---|---|---|---|---|
+| `ReorderPoint` | metric | inventory | `part.reorder_point` | Inventory_Transactions | Inventory level at which a replenishment order should be triggered to avoid stockout. | ROP, reorder level, trigger point, replenishment trigger |
+| `LeadTime` | metric | inventory | `part.lead_time_days` | Inventory_Transactions | Total time between placing an order and receiving usable inventory (supplier + transit + internal). | lead time, supply lead time, replenishment lead time, planning lead time |
+| `OnHandQuantity` | metric | inventory | `part.on_hand_qty` | Inventory_Transactions | Physically available inventory at a location. | OHQ, on hand, physical stock, stock on hand |
+
+**Not seeded — derived metrics (stay in approved SQL, §5):**
+
+| Term | Why not a concept | Synonyms (kept for glossary) |
+|---|---|---|
+| Lead Time Demand | Formula: demand rate × lead time — no stored column | LTD, demand during lead time |
+| Economic Order Quantity (EOQ) | Formula: balances ordering vs holding cost — no stored column | EOQ, optimal order size |
+| Available to Promise (ATP) | Formula: on-hand − allocated — no stored column (and `allocated` is absent) | ATP, promiseable inventory |
+
+**Not seeded — no column in the public schema yet (deferred):**
+
+| Term | Status | Synonyms (kept for glossary) |
+|---|---|---|
+| Safety Stock | No column here (`MIN_STOCK_QTY` in private SQL Server) | buffer stock, reserve stock, protection stock |
+| Minimum Stock Quantity | No `min_stock` column here | min stock, min qty, minimum inventory level |
+| Maximum Stock Quantity | No `max_stock` column here | max stock, max qty, maximum inventory level |
+| Allocated Quantity | No `allocated` / `reserved` column here | reserved qty, committed qty |
+
+> Each deferred term becomes a one-line addition to the seed table above the
+> moment its column is onboarded — anchor it, carry its synonyms, re-run the seed
+> + exporter. Nothing in the SME's vocabulary is discarded; it is staged here.
 
 Example triple authored in `seed_elevations.py`:
 ```
@@ -278,7 +298,6 @@ Example triple authored in `seed_elevations.py`:
    stable JSON serialization, safety-stock exclusion).
 6. **Live load** — dry-run then live-load the canonical graph.
 
-**Counts will change** (expected for a content milestone): with all 4 concepts,
-concepts 33 → 37 and `elevates` 17 → 21, so totals go 279 → **283** nodes /
-**283** edges (36 / 20 / **282** with just the 3 core). The new counts are
-recorded in the v15 snapshot + spec.
+**Counts will change** (expected for a content milestone): +3 concept nodes and
++3 `elevates` edges → concepts 33 → 36, `elevates` 17 → 20, totals 279 → **282**
+nodes / **282** edges. The new counts are recorded in the v15 snapshot + spec.
