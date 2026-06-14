@@ -18,3 +18,9 @@ id = "fuqvup-tkpLzfmcbMNKj3"
 uri = "file://replit_integrations/plan-8-wave-4-synthetic-erp-expansion.md"
 type = "text"
 title = "Plan 8 · Wave 4 — Synthetic ERP Expansion"
+
+[[outputs]]
+id = "mIg3o8qtCteAaE5jAXQ9c"
+uri = "file://docs/mrp_inventory_knowledge_base.md"
+type = "text"
+title = "MRP & Inventory — Knowledge Base & Revised Proposal"
