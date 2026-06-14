@@ -21,7 +21,8 @@
 > location) — explicitly *not* continuous measures or IDs (curation rule in
 > `seed_elevations.py`). Most MRP terms here (reorder point, lead time, on-hand,
 > EOQ) are **numbers, not categories**, so they do **not** fit today's `elevates`
-> as-is. How we handle measures is an open decision — see §4 and §8.
+> as-is. **Recommended resolution (§8):** admit *canonical named measures*
+> (`concept_type = metric`) into `elevates`; pure formulas still stay in SQL.
 
 This document does two things:
 1. **Revises the proposed topology** so it fits the graph we already froze at
@@ -125,8 +126,9 @@ can author each one as a single `elevates` triple.
 > `ReorderPoint`, `LeadTime`, `ReceivedQuantity`, `OrderedQuantity`, …) are
 > column-anchored and recognizable, but they map to **numeric measure** columns,
 > which today's categorical-only `elevates` rule excludes. They become buildable
-> only after the "measures vs. categories" decision (§8). `StandardQuantity` /
-> `ActualQuantity` are the exception: they already exist as the *categorical
+> only after the "measures vs. categories" decision (§8 — **now recommended:
+> admit canonical named measures**, so these become buildable). `StandardQuantity`
+> / `ActualQuantity` are the exception: they already exist as the *categorical
 > lens* concepts `QuantityBasisEngineering` / `QuantityBasisManufacturing`.
 
 ### Concept card template (what an SME fills in)
@@ -210,3 +212,73 @@ SME-approved SQL snippets. They are listed here so everyone shares the words.
 6. A few **existing** concept names lean abstract (e.g. `QuantityBasisEngineering`,
    `RequirementBasisManufacturing`). Do they pass rule 2 (operationally
    recognizable), or should a future version rename them to shop-floor language?
+
+---
+
+## 8. Decision & M3 build plan (measures join the graph)
+
+### 8.1 Decision — recommended (pending your OK)
+**Extend the `elevates` curation rule** from "bounded categorical discriminator
+only" to:
+
+> A column may elevate to a concept if it is **either** a bounded categorical
+> discriminator (status / type / class / location) **or** a *canonical named
+> measure* (a real, stored business quantity like reorder point or lead time)
+> with `concept_type = 'metric'`.
+
+- **Why this, not a new edge:** `elevates` already means "column → business
+  concept," `concept_type = 'metric'` already exists, and the existing
+  `QuantityBasisEngineering` / `…Manufacturing` metric concepts already elevate
+  from a quantity column. A second predicate would duplicate the exporter, DDL,
+  parity gates, tests, and live load for no semantic gain.
+- **Formulas stay out.** EOQ, available-to-promise, and safety-stock math remain
+  **derived metrics** in SME-approved SQL (§5). Only *stored* measures elevate.
+- **Safety Stock is excluded** — no safety-stock column exists here, so it fails
+  rule 1 (column-anchored). It stays in the §5 glossary until a real column is
+  onboarded.
+
+### 8.2 First MRP concept batch (the M3 payload)
+Each concept carries a plain-English definition + synonyms (the new M3 fields)
+and a single `elevates` triple. Perspectives use the real names
+(`Inventory_Transactions`, `Manufacturing`).
+
+| Concept | Type | Domain | Source column | Perspective | Synonyms |
+|---|---|---|---|---|---|
+| `ReorderPoint` | metric | inventory | `part.reorder_point` | Inventory_Transactions | ROP, reorder level, replenishment trigger |
+| `PartLeadTime` | metric | inventory | `part.lead_time_days` | Inventory_Transactions | lead time, planning lead time, days to replenish |
+| `OnHandQuantity` | metric | inventory | `part.on_hand_qty` | Inventory_Transactions | on hand, stock on hand, available stock |
+| `RequiredMaterialQuantity` *(optional 4th)* | metric | manufacturing | `requirement.std_qty` | Manufacturing *(or Engineering?)* | required qty, standard requirement, planned material need |
+
+> **Two choices for you:** (a) ship the **3 clean `part.*` inventory measures**,
+> or **add the 4th** (`RequiredMaterialQuantity`)? (b) if added, `std_qty` is the
+> *as-designed standard* quantity — perspective **Manufacturing** or
+> **Engineering**? (It may also overlap with the existing
+> `QuantityBasisEngineering`.)
+
+Example triple authored in `seed_elevations.py`:
+```
+("Inventory_Transactions", "ReorderPoint", "part", "reorder_point", 3,
+ "Stock level that triggers replenishment")
+```
+
+### 8.3 Build sequence (one v15 bump)
+1. **Docs** — record this decision here + in the spec's M3 section / decision log.
+2. **DDL (additive guards)** — add `synonyms`, `tags` (TEXT, canonical JSON
+   array) to `schema_concepts`; add `concept_type`, `domain`, `synonyms`, `tags`
+   to `sql_graph_nodes`. Mirror M2's `PRAGMA table_info` + `ALTER TABLE ADD
+   COLUMN` guard pattern.
+3. **Exporter** — `SCHEMA_VERSION = 15`, milestone `concept_metadata_mrp_seed`;
+   `_fetch_concept_nodes` surfaces type/domain/synonyms/tags; parity checkers
+   normalize the JSON arrays deterministically (`[]` default, sorted, no
+   null↔empty drift).
+4. **Seed** — update the `seed_elevations.py` curation rule + add the batch above
+   (concepts with synonyms/tags + their metric elevations).
+5. **Freeze + gate** — regenerate, freeze `graph_metadata.v15.json`, run
+   `scripts/post-merge.sh` (both parity pairs), add tests (metadata surfacing,
+   stable JSON serialization, safety-stock exclusion).
+6. **Live load** — dry-run then live-load the canonical graph.
+
+**Counts will change** (expected for a content milestone): with all 4 concepts,
+concepts 33 → 37 and `elevates` 17 → 21, so totals go 279 → **283** nodes /
+**283** edges (36 / 20 / **282** with just the 3 core). The new counts are
+recorded in the v15 snapshot + spec.
