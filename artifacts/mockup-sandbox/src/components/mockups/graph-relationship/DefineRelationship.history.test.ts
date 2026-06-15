@@ -44,7 +44,7 @@ function makeEntry(overrides: Partial<HistoryEntry> = {}): HistoryEntry {
     ok: true,
     message: "Edge created",
     edge_id: "sqlite:schema_intent_perspectives/Quality__Defect",
-    predicate: "ELEVATES",
+    predicate: "RESOLVES_TO",
     source: "intents/quality_intent",
     target: "concepts/defect_cost",
     addedAt: Date.now(),
@@ -84,7 +84,7 @@ describe("DefineRelationship history — sessionStorage persistence", () => {
     saveToSession(entries);
     const restored = loadFromSession();
     expect(restored).toHaveLength(2);
-    expect(restored[0].predicate).toBe("ELEVATES");
+    expect(restored[0].predicate).toBe("RESOLVES_TO");
     expect(restored[1].predicate).toBe("BOUND_TO");
   });
 
@@ -142,7 +142,7 @@ describe("DefineRelationship history — MAX_HISTORY cap", () => {
     // The component slices to MAX_HISTORY before saving; test that
     // loadFromSession handles MAX_HISTORY entries correctly.
     const entries = Array.from({ length: MAX_HISTORY }, (_, i) =>
-      makeEntry({ id: `entry-${i}`, predicate: "ELEVATES" })
+      makeEntry({ id: `entry-${i}`, predicate: "RESOLVES_TO" })
     );
     saveToSession(entries);
     const restored = loadFromSession();

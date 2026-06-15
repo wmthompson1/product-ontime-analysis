@@ -45,7 +45,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const EDGE_MEANINGS: Record<string, string> = {
   references: "Defined as: Structural referential integrity edge — a child column node references a parent column node (carries references_table/references_column). The FK flag itself is the foreign_key boolean on the column node. NOT GLOBAL MEANING.",
-  ELEVATES: "Defined as: Binary gate — weight=1 includes this table or column in the candidate set for its Concept; weight=0 deactivates it. The AI selects among weight=1 ground truths; it never generates SQL. NOT GLOBAL MEANING.",
+  RESOLVES_TO: "Defined as: Binary gate — weight=1 includes this table or column in the candidate set for its Concept; weight=0 deactivates it. The AI selects among weight=1 ground truths; it never generates SQL. NOT GLOBAL MEANING.",
   MAPS_TO_CONCEPT: "Defined as: ERP table is bridged to a semantic Concept node. MAPS_TO_CONCEPT bridge. NOT GLOBAL MEANING.",
   OPERATES_WITHIN: "Defined as: Intent is scoped to a Perspective domain (e.g. Quality, Payables). Perspective is an edge property, not a node. NOT GLOBAL MEANING.",
   HAS_COLUMN: "Defined as: Structural containment — a table node owns its column nodes. Physical layer only, no business meaning. edge_type 'has_column' stored on the structural edge collection.",
@@ -111,7 +111,7 @@ function searchEntities(
 const STRUCTURAL_PREDICATES = ["HAS_COLUMN", "references"];
 
 const SEMANTIC_PREDICATES = [
-  "ELEVATES",
+  "RESOLVES_TO",
   "MAPS_TO_CONCEPT",
   "OPERATES_WITHIN",
   "BOUND_TO",
@@ -498,7 +498,7 @@ export function DefineRelationship() {
     setFormMode(newMode);
     setSelectedSource(firstEntity);
     setSelectedTarget(firstEntity);
-    setSelectedPredicate(newMode === "structural" ? "HAS_COLUMN" : "ELEVATES");
+    setSelectedPredicate(newMode === "structural" ? "HAS_COLUMN" : "RESOLVES_TO");
     setSelectedIntent(intents[0] ?? "");
     setSelectedConcept(concepts[0] ?? "");
     setActiveCategory("ALL");
@@ -1075,7 +1075,7 @@ export function DefineRelationship() {
                       list="semantic-predicates-datalist"
                       value={selectedPredicate}
                       onChange={(e) => setSelectedPredicate(e.target.value.toUpperCase())}
-                      placeholder="e.g. ELEVATES"
+                      placeholder="e.g. RESOLVES_TO"
                       className="w-full bg-slate-700/50 border border-slate-600 rounded text-[11px] text-slate-300 px-2 py-1 focus:outline-none focus:border-violet-500 placeholder-slate-600"
                     />
                     <datalist id="semantic-predicates-datalist">
@@ -1430,7 +1430,7 @@ export function DefineRelationship() {
                       category: <span className={activeCategory === "ALL" ? "text-slate-500 italic" : "text-emerald-300"}>{activeCategory}</span>
                     </span>
                     <span className="border border-slate-600 rounded bg-slate-700/50 px-1.5 py-0.5 text-[10px] text-slate-400">
-                      weight: <span className="text-slate-200">{selectedPredicate === "ELEVATES" ? "1" : "null"}</span>
+                      weight: <span className="text-slate-200">{selectedPredicate === "RESOLVES_TO" ? "1" : "null"}</span>
                     </span>
                   </>
                 )}

@@ -95,14 +95,14 @@ def _sample_graph():
             "references_column": "ID",
         },
         {
-            "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME",
-            "_key": "ele_CUSTOMER_NAME",
+            "_id": f"{ex.EDGE_COLLECTION}/res_CUSTOMER_NAME",
+            "_key": "res_CUSTOMER_NAME",
             "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
             "_to": ex.concept_id("CustomerNameSales"),
             "edge_family": ex.FAMILY_SEMANTIC,
             "edge_type": ex.EDGE_PREDICATE_ELEVATES,
             "perspective": "Sales",
-            "unique_id": "SAL_ELE_CUS_NAM_1A2B3C4D",
+            "unique_id": "SAL_RES_CUS_NAM_1A2B3C4D",
             "weight": 1,
             "priority_weight": 3,
             "field_component": 1,
@@ -159,20 +159,20 @@ class RoundTrip(unittest.TestCase):
         )
 
     def test_field_component_round_trips_for_multiple_definitions(self):
-        """A field with N definitions yields N elevates edges numbered 1..N, and
+        """A field with N definitions yields N resolves_to edges numbered 1..N, and
         ``field_component`` survives the materialize → read-back round trip."""
         table_nodes, column_nodes, edges = _sample_graph()
         # Give CUSTOMER.NAME a second meaning (component 2) under another
         # perspective — same source column, distinct definition.
         edges.append({
-            "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME_2",
-            "_key": "ele_CUSTOMER_NAME_2",
+            "_id": f"{ex.EDGE_COLLECTION}/res_CUSTOMER_NAME_2",
+            "_key": "res_CUSTOMER_NAME_2",
             "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
             "_to": ex.concept_id("CustomerNameMarketing"),
             "edge_family": ex.FAMILY_SEMANTIC,
             "edge_type": ex.EDGE_PREDICATE_ELEVATES,
             "perspective": "Marketing",
-            "unique_id": "MAR_ELE_CUS_NAM_5E6F7A8B",
+            "unique_id": "MAR_RES_CUS_NAM_5E6F7A8B",
             "weight": 1,
             "priority_weight": 3,
             "field_component": 2,
@@ -181,15 +181,15 @@ class RoundTrip(unittest.TestCase):
         loaded_edges = ex._load_edges_from_sqlite(self.conn)
         self.assertEqual(loaded_edges, edges)
 
-        elevates = [e for e in loaded_edges
+        resolves = [e for e in loaded_edges
                     if e["edge_type"] == ex.EDGE_PREDICATE_ELEVATES]
         self.assertEqual(
-            sorted(e["field_component"] for e in elevates), [1, 2],
+            sorted(e["field_component"] for e in resolves), [1, 2],
             "two definitions of one field must carry field_component 1 and 2",
         )
 
     def test_non_elevates_edges_omit_field_component(self):
-        """field_component is an elevates-only attribute; structural edges never
+        """field_component is a resolves_to-only attribute; structural edges never
         carry it (its column is NULL for them and absent from their dict)."""
         table_nodes, column_nodes, edges = _sample_graph()
         ex._materialize_to_sqlite(self.conn, table_nodes, column_nodes, edges)
@@ -359,7 +359,7 @@ class LegacyDbMigration(unittest.TestCase):
 
 
 class ElevatesRepoint(unittest.TestCase):
-    """M2: an elevates edge runs column node -> concept node, carries a binary
+    """M2: a resolves_to edge runs column node -> concept node, carries a binary
     weight gate plus the raw priority_weight, drops the concept string, and gets
     a concept-stable uid that survives sibling churn."""
 
@@ -435,7 +435,7 @@ class ElevatesRepoint(unittest.TestCase):
         self.assertEqual(keep_before, one[0]["unique_id"])
 
 
-# The sql_graph_edges shape that predates the M2 elevates re-point: it carries the
+# The sql_graph_edges shape that predates the M2 resolves_to re-point: it carries the
 # now-removed `concept` string and lacks `priority_weight`. This is what an old
 # manufacturing.db (<= v13) carries before M2.
 _LEGACY_EDGES_DDL = """
@@ -499,7 +499,7 @@ class LegacyEdgesMigration(unittest.TestCase):
         cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
         self.assertNotIn("concept", cols)
         self.assertIn("priority_weight", cols)
-        # A re-pointed elevates row (priority_weight set, no concept, _to=concept)
+        # A re-pointed resolves_to row (priority_weight set, no concept, _to=concept)
         # must insert into the rebuilt table.
         conn.execute(
             f"INSERT INTO {ex.SQL_GRAPH_EDGES_TABLE} "
@@ -508,7 +508,7 @@ class LegacyEdgesMigration(unittest.TestCase):
             "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (1, "k", "i", ex.column_id("CUSTOMER", "NAME"),
              ex.concept_id("OrderState"), ex.FAMILY_SEMANTIC,
-             ex.EDGE_PREDICATE_ELEVATES, "Sales", "SAL_ELE_CUS_NAM_DEADBEEF",
+             ex.EDGE_PREDICATE_ELEVATES, "Sales", "SAL_RES_CUS_NAM_DEADBEEF",
              1, 7, 1),
         )
         conn.commit()

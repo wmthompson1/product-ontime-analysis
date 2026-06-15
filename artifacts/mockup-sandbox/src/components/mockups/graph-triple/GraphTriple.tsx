@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { ArrowRight, Check, X, RotateCcw, Search, Zap } from "lucide-react";
 
 type Predicate =
-  | "ELEVATES"
+  | "RESOLVES_TO"
   | "HAS_COLUMN"
   | "references"
   | "MAPS_TO_CONCEPT"
@@ -26,7 +26,7 @@ interface Triple {
 }
 
 const PREDICATE_META: Record<Predicate, { color: string; bg: string; desc: string; allowedSubject: EntityType[]; allowedObject: EntityType[] }> = {
-  ELEVATES:        { color: "text-amber-700",   bg: "bg-amber-50 border-amber-300",     desc: "Binary gate: weight=1 activates, weight=0 deactivates. Table or column → Concept. AI selects among weight=1 ground truths.", allowedSubject: ["table", "column"], allowedObject: ["concept"] },
+  RESOLVES_TO:     { color: "text-amber-700",   bg: "bg-amber-50 border-amber-300",     desc: "Binary gate: weight=1 activates, weight=0 deactivates. Table or column → Concept. AI selects among weight=1 ground truths.", allowedSubject: ["table", "column"], allowedObject: ["concept"] },
   HAS_COLUMN:      { color: "text-cyan-700",     bg: "bg-cyan-50 border-cyan-300",       desc: "Table owns this column node. Column name is the semantic claim.",                                                              allowedSubject: ["table"],           allowedObject: ["column"] },
   references:      { color: "text-indigo-700",   bg: "bg-indigo-50 border-indigo-300",   desc: "Structural references edge: child column → parent column (carries references_table/references_column). The FK flag itself is the foreign_key boolean on the column node.", allowedSubject: ["column"],          allowedObject: ["column"] },
   MAPS_TO_CONCEPT: { color: "text-emerald-700",  bg: "bg-emerald-50 border-emerald-300", desc: "ERP table bridges to a semantic concept.",                                                                                     allowedSubject: ["table"],           allowedObject: ["concept"] },

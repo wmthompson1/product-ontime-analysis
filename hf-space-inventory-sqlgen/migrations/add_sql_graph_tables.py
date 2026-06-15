@@ -11,7 +11,7 @@ of truth; the JSON is provably a dump of these rows.
 
 Tables created:
   - sql_graph_nodes           table + column + concept nodes (one column per JSON node field)
-  - sql_graph_edges           has_column + references + elevates edges
+  - sql_graph_edges           has_column + references + resolves_to edges
   - sql_graph_authored_edges  durable SME-authored edges (Define Relationship UI)
                               that the exporter merges into sql_graph_edges
 
@@ -63,7 +63,7 @@ DDL_STATEMENTS = [
         _from             TEXT    NOT NULL,
         _to               TEXT    NOT NULL,
         edge_family       TEXT    NOT NULL,
-        edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+        edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
         perspective       TEXT    NOT NULL,
         unique_id         TEXT    NOT NULL,
         references_table  TEXT,
@@ -76,7 +76,7 @@ DDL_STATEMENTS = [
     """
     CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
         authored_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-        edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+        edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
         from_table    TEXT    NOT NULL,
         from_column   TEXT    NOT NULL DEFAULT '',
         to_table      TEXT    NOT NULL,

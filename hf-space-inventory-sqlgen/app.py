@@ -270,7 +270,7 @@ def ensure_app_metadata_tables(conn) -> None:
             _from             TEXT    NOT NULL,
             _to               TEXT    NOT NULL,
             edge_family       TEXT    NOT NULL,
-            edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+            edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
             perspective       TEXT    NOT NULL,
             unique_id         TEXT    NOT NULL,
             references_table  TEXT,
@@ -282,7 +282,7 @@ def ensure_app_metadata_tables(conn) -> None:
 
         CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
             authored_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-            edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+            edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
             from_table    TEXT    NOT NULL,
             from_column   TEXT    NOT NULL DEFAULT '',
             to_table      TEXT    NOT NULL,
@@ -315,14 +315,47 @@ def ensure_app_metadata_tables(conn) -> None:
         if column in {row[1] for row in cur.fetchall()}:
             cur.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
 
+    def _migrate_edge_type_check(table: str) -> None:
+        """Rebuild a graph edge table whose edge_type CHECK predates the v16 rename.
+
+        SQLite fixes a CHECK at CREATE time, so a table created before the
+        canonical column->concept predicate was renamed to ``resolves_to`` still
+        admits only the legacy token — a ``resolves_to`` insert then fails its
+        CHECK, and CREATE TABLE IF NOT EXISTS cannot repair it. Rebuild the table
+        from its own (token-swapped) DDL, carrying rows over and translating any
+        legacy edge_type value so SME-authored relationships are preserved.
+        """
+        cur.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,))
+        row = cur.fetchone()
+        if not row or not row[0]:
+            return
+        ddl = row[0]
+        if "'resolves_to'" in ddl or "'elevates'" not in ddl:
+            return
+        new_ddl = ddl.replace("'elevates'", "'resolves_to'")
+        cols = [r[1] for r in cur.execute(f"PRAGMA table_info({table})").fetchall()]
+        col_list = ", ".join(f'"{c}"' for c in cols)
+        select_list = ", ".join(
+            ("CASE WHEN edge_type='elevates' THEN 'resolves_to' ELSE edge_type END"
+             if c == "edge_type" else f'"{c}"')
+            for c in cols
+        )
+        tmp = f"{table}__pre_v16"
+        cur.execute(f"DROP TABLE IF EXISTS {tmp}")
+        cur.execute(f"ALTER TABLE {table} RENAME TO {tmp}")
+        cur.execute(new_ddl)
+        cur.execute(f"INSERT INTO {table} ({col_list}) SELECT {select_list} FROM {tmp}")
+        cur.execute(f"DROP TABLE {tmp}")
+
     # Field-definition number on each field's elevation (1 = primary; 2,3.. = further meanings).
     _add_column_if_missing(
         "schema_concept_fields", "component_index",
         "component_index INTEGER NOT NULL DEFAULT 1",
     )
-    # field_component on elevates edges mirrors schema_concept_fields.component_index.
+    # field_component on resolves_to edges mirrors schema_concept_fields.component_index.
     _add_column_if_missing("sql_graph_edges", "field_component", "field_component INTEGER")
-    # priority_weight on elevates edges — non-gating SME priority kept beside the binary weight (M2).
+    # priority_weight on resolves_to edges — non-gating SME priority kept beside the binary weight (M2).
     _add_column_if_missing("sql_graph_edges", "priority_weight", "priority_weight INTEGER")
     # concept_name on concept nodes (node_type='concept'); NULL for table/column rows.
     _add_column_if_missing("sql_graph_nodes", "concept_name", "concept_name TEXT")
@@ -336,10 +369,18 @@ def ensure_app_metadata_tables(conn) -> None:
     # exporter can surface the richer concept payload from older databases too.
     _add_column_if_missing("schema_concepts", "synonyms", "synonyms TEXT")
     _add_column_if_missing("schema_concepts", "tags", "tags TEXT")
-    # M2: the elevates edge no longer stores a concept string — identity lives on
+    # M2: the resolves_to edge no longer stores a concept string — identity lives on
     # the _to concept node — so drop the legacy column from older edges tables. No
     # compatibility window, so the app's shape matches the exporter's rebuilt one.
     _drop_column_if_present("sql_graph_edges", "concept")
+
+    # v16: rebuild edge tables whose edge_type CHECK predates the resolves_to
+    # rename so authored/derived ``resolves_to`` rows pass the constraint.
+    try:
+        _migrate_edge_type_check("sql_graph_edges")
+        _migrate_edge_type_check("sql_graph_authored_edges")
+    except Exception as _mig_err:
+        print(f"[ensure_app_metadata_tables] edge_type CHECK migration skipped: {_mig_err}")
 
     conn.commit()
 
@@ -2577,14 +2618,14 @@ def _resolve_arango_handle(label: str, db, graph_name: str) -> str:
     )
 
 
-# ── Canonical SQLite-first authoring (HAS_COLUMN / FOREIGN_KEY / ELEVATES) ────
+# ── Canonical SQLite-first authoring (HAS_COLUMN / FOREIGN_KEY / RESOLVES_TO) ─
 # These predicates have a canonical edge type in the SQLite source of truth, so
 # the Define Relationship UI writes them to sql_graph_authored_edges first; the
 # exporter merges them into sql_graph_edges and the existing sync pipeline
 # carries them to the live ArangoDB graph. ArangoDB is updated best-effort only.
 SQL_GRAPH_NODES_TABLE = "sql_graph_nodes"
 AUTHORED_EDGES_TABLE = "sql_graph_authored_edges"
-CANONICAL_SQLITE_PREDICATES = frozenset({"HAS_COLUMN", "FOREIGN_KEY", "ELEVATES"})
+CANONICAL_SQLITE_PREDICATES = frozenset({"HAS_COLUMN", "FOREIGN_KEY", "RESOLVES_TO"})
 
 
 def _resolve_sql_graph_endpoint(conn, label: str, expect: str) -> dict:
@@ -2652,8 +2693,16 @@ def _best_effort_arango_canonical_sync(predicate: str, req) -> str:
         return "; ArangoDB sync skipped (offline or endpoint unresolved)"
 
     try:
-        if predicate == "ELEVATES":
+        if predicate == "RESOLVES_TO":
             weight = 1
+            # The live legacy named-graph edge collection is literally named
+            # ``elevates`` (defined in graph_sync.EDGE_COLLECTIONS). The v16 rename
+            # changed the canonical edge_type TOKEN (``resolves_to``, stored in SQLite
+            # and the flat ``manufacturing_graph_edge`` collection) — it intentionally
+            # does NOT rename this legacy live collection. This best-effort mirror keeps
+            # writing into ``elevates`` so live behaviour is unchanged. See this
+            # function's docstring and load_canonical_to_arango.py (which is the real
+            # canonical live load, targeting manufacturing_graph_edge).
             aql = """
             UPSERT { _from: @source, _to: @target }
             INSERT { _from: @source, _to: @target, weight: @weight,
@@ -2735,18 +2784,18 @@ def _commit_canonical_edge_sqlite_first(predicate: str, req) -> dict:
             fields = dict(from_table=src["table"], from_column=(req.from_column or ""),
                           to_table=tgt["table"], to_column=(req.to_column or ""),
                           perspective="system", weight=None, concept=None)
-        elif predicate == "ELEVATES":
+        elif predicate == "RESOLVES_TO":
             persp = (req.perspective or "").strip()
             if not persp or persp.lower() == "system":
                 raise HTTPException(status_code=422,
-                    detail="ELEVATES requires a business perspective "
+                    detail="RESOLVES_TO requires a business perspective "
                            "(choose a category other than ALL)")
             try:
                 tgt = _resolve_sql_graph_endpoint(conn, req.target_id, "column")
             except ValueError as ve:
                 raise HTTPException(status_code=422,
-                    detail=f"ELEVATES target must be a canonical column node: {ve}")
-            edge_type = "elevates"
+                    detail=f"RESOLVES_TO target must be a canonical column node: {ve}")
+            edge_type = "resolves_to"
             fields = dict(from_table=tgt["table"], from_column=tgt["column"],
                           to_table=tgt["table"], to_column=tgt["column"],
                           perspective=persp,
@@ -2805,7 +2854,9 @@ async def commit_edge(req: CommitEdgeRequest):
     """Write a new edge (or bridge document) using predicate-based routing.
 
     Predicate routing:
-      ELEVATES               → ArangoDB elevates edge collection (weight 1)
+      RESOLVES_TO            → ArangoDB legacy ``elevates`` edge collection (weight 1;
+                               collection name unchanged by v16 — only the canonical
+                               edge_type token became ``resolves_to``)
       BOUND_TO               → ArangoDB bound_to edge collection
       HAS_COLUMN             → ArangoDB HAS_COLUMN edge collection
       FOREIGN_KEY            → ArangoDB FOREIGN_KEY edge collection
@@ -3055,7 +3106,7 @@ async def commit_edge(req: CommitEdgeRequest):
         else:
             raise HTTPException(status_code=400,
                 detail=f"Unknown predicate: {req.predicate!r}. "
-                "Supported: ELEVATES, HAS_COLUMN, FOREIGN_KEY "
+                "Supported: RESOLVES_TO, HAS_COLUMN, FOREIGN_KEY "
                 "(SQLite-first), BOUND_TO, MAPS_TO_CONCEPT, OPERATES_WITHIN, "
                 "USES_DEFINITION")
 
@@ -4499,7 +4550,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     with gr.Column():
                         dr_predicate = gr.Dropdown(
                             choices=[
-                                "ELEVATES",
+                                "RESOLVES_TO",
                                 "OPERATES_WITHIN",
                                 "USES_DEFINITION",
                                 "BOUND_TO",

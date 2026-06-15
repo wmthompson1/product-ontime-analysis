@@ -25,17 +25,17 @@ SYS_HAS_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3
 * **Uniquifier (3):** `001`
 
 # semantic layer (family)
-"_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
-"_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+"_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
+"_key": "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
 
 ### semantic unique edge key
 
-PAY_ELE_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
+PAY_RES_PAY_INV_001 = perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
 
-**The Semantic ID Generation (`PAY_ELE_PAY_INV_001`)**
+**The Semantic ID Generation (`PAY_RES_PAY_INV_001`)**
 
 * **Perspective (3):** `PAY` (Payables)
-* **Edge Type (3):** `ELE` (elevates)
+* **Edge Type (3):** `RES` (resolves_to)
 * **Table (3):** `PAY` (PAYABLE)
 * **Column/Entity (3):** `INV` (INVOICE_ID)
 * **Uniquifier (3):** `001`
@@ -79,14 +79,14 @@ replit_integrations\graph_metadata_canonical_example.json
     },
     {
       "//": "--- SEMANTIC SELF-JOIN EDGE ---",
-      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
-      "_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
+      "_key": "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
       "_from": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
       "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
       "edge_family": "semantic",
-      "edge_type": "elevates",
+      "edge_type": "resolves_to",
       "perspective": "Payables",
-      "unique_id": "PAY_ELE_PAY_INV_001",
+      "unique_id": "PAY_RES_PAY_INV_001",
       "field_component": 1
     },
     {

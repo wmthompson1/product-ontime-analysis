@@ -1,7 +1,7 @@
-"""Format-lock tests for the semantic ``elevates`` scaffolding in the exporter.
+"""Format-lock tests for the semantic ``resolves_to`` scaffolding in the exporter.
 
 These guard the locked semantic-edge grammar and the node-guard behaviour that
-keeps the scaffolding at zero content until an SME elevates a real ERP column.
+keeps the scaffolding at zero content until an SME resolves a real ERP column to a concept.
 They do NOT touch ArangoDB or assert on live row counts.
 """
 import os
@@ -15,7 +15,7 @@ import export_graph_metadata as ex  # noqa: E402
 
 class SemanticEdgeGrammar(unittest.TestCase):
     def test_key_has_six_locked_slots(self):
-        key = ex.semantic_edge_key("PAYABLE", "INVOICE_ID", "Payables", "PAY_ELE_PAY_INV_001")
+        key = ex.semantic_edge_key("PAYABLE", "INVOICE_ID", "Payables", "PAY_RES_PAY_INV_001")
         slots = key.split(ex.KEY_DELIMITER)
         self.assertEqual(len(slots), 6)
         self.assertEqual(slots[0], "PAYABLE")
@@ -23,11 +23,11 @@ class SemanticEdgeGrammar(unittest.TestCase):
         self.assertEqual(slots[2], ex.FAMILY_SEMANTIC)
         self.assertEqual(slots[3], "Payables")
         self.assertEqual(slots[4], ex.EDGE_PREDICATE_ELEVATES)
-        self.assertEqual(slots[5], "PAY_ELE_PAY_INV_001")
+        self.assertEqual(slots[5], "PAY_RES_PAY_INV_001")
 
     def test_id_is_key_in_edge_collection(self):
-        eid = ex.semantic_edge_id("PAYABLE", "INVOICE_ID", "Payables", "PAY_ELE_PAY_INV_001")
-        key = ex.semantic_edge_key("PAYABLE", "INVOICE_ID", "Payables", "PAY_ELE_PAY_INV_001")
+        eid = ex.semantic_edge_id("PAYABLE", "INVOICE_ID", "Payables", "PAY_RES_PAY_INV_001")
+        key = ex.semantic_edge_key("PAYABLE", "INVOICE_ID", "Payables", "PAY_RES_PAY_INV_001")
         self.assertEqual(eid, f"{ex.EDGE_COLLECTION}/{key}")
 
     def test_perspective_system_is_reserved(self):
@@ -40,7 +40,7 @@ class SemanticEdgeGrammar(unittest.TestCase):
 
 
 class ElevatesBuilder(unittest.TestCase):
-    """M2: ``elevates`` runs column -> concept node (no self-loop, no concept
+    """M2: ``resolves_to`` runs column -> concept node (no self-loop, no concept
     string on the edge); the uid is concept-aware and derived (not counted)."""
 
     def _integrity(self):

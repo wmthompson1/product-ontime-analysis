@@ -1,9 +1,23 @@
 ---
-name: Semantic elevates scaffolding
-description: How the canonical exporter wires the semantic elevates layer so plumbing is live but content stays empty until SME curation.
+name: Semantic resolves_to (formerly elevates) scaffolding
+description: How the canonical exporter wires the semantic column→concept layer (predicate resolves_to, formerly elevates); plumbing live, content SME-curated.
 ---
 
-The exporter builds semantic `elevates` edges from SQLite (the source of truth).
+**v16 rename — READ FIRST.** The canonical column→concept semantic predicate was
+renamed `elevates` → `resolves_to` (display `ELEVATES`→`RESOLVES_TO`, uid abbrev
+`ELE`→`RES`). Pure rename, counts unchanged (289 nodes / 282 edges / 20 semantic).
+Everything below that says `elevates` describes the SAME predicate under its pre-v16
+name — read it as `resolves_to`. **Two-model duality (critical):** the token
+`elevates` ALSO names a separate **Model A** = legacy intent→concept ArangoDB
+collection (`intents`→`elevates`→`concepts`), deliberately **left intact**. So
+finding `elevates` in code is NOT automatically stale — check the model: Model B
+(canonical `manufacturing_graph_edge.edge_type`, the 20 semantic edges) =
+`resolves_to`; Model A (legacy Arango collection) = still `elevates`. The Model-B
+grep gate (`check_legacy_elevates_refs.py`, wired into `scripts/post-merge.sh`)
+scopes its "no `elevates`" assertion to Model-B files + `edge_type=='elevates'`,
+allow-listing Model-A/legacy/historical surfaces.
+
+The exporter builds semantic `resolves_to` edges from SQLite (the source of truth).
 The plumbing landed first as scaffolding (zero content); the **first SME batch of
 3 elevations is now seeded** (see "First batch" below).
 

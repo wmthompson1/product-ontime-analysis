@@ -28,14 +28,14 @@
       "unique_id": "SYS_HAS_PAY_INV_001"
     },
     {
-      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
-      "_key": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001",
+      "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
+      "_key": "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
       "_from": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
       "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
       "edge_family": "semantic",
-      "edge_type": "elevates",
+      "edge_type": "resolves_to",
       "perspective": "Payables",
-      "unique_id": "PAY_ELE_PAY_INV_001",
+      "unique_id": "PAY_RES_PAY_INV_001",
       "field_component": 1
     },
     {

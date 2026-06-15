@@ -68,14 +68,14 @@ def _sample_graph():
         "edge_family": ex.FAMILY_STRUCTURAL, "edge_type": ex.EDGE_PREDICATE_HAS_COLUMN,
         "perspective": ex.PERSPECTIVE_SYSTEM, "unique_id": "CUS_HAS_ID_001",
     }, {
-        # M2: a re-pointed elevates edge (column -> concept node, no concept string,
+        # M2: a re-pointed resolves_to edge (column -> concept node, no concept string,
         # binary weight + raw priority_weight) must round-trip field-for-field
         # through the live-AQL parity flattener too.
-        "_id": f"{ex.EDGE_COLLECTION}/ele_CUSTOMER_NAME", "_key": "ele_CUSTOMER_NAME",
+        "_id": f"{ex.EDGE_COLLECTION}/res_CUSTOMER_NAME", "_key": "res_CUSTOMER_NAME",
         "_from": f"{ex.NODE_COLLECTION}/column::CUSTOMER.NAME",
         "_to": ex.concept_id("CustomerNameSales"),
         "edge_family": ex.FAMILY_SEMANTIC, "edge_type": ex.EDGE_PREDICATE_ELEVATES,
-        "perspective": "Sales", "unique_id": "SAL_ELE_CUS_NAM_1A2B3C4D",
+        "perspective": "Sales", "unique_id": "SAL_RES_CUS_NAM_1A2B3C4D",
         "weight": 1, "priority_weight": 3, "field_component": 1,
     }]
     return table_nodes, column_nodes, concept_nodes, edges

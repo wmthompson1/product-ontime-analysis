@@ -797,7 +797,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     _from             TEXT    NOT NULL,
     _to               TEXT    NOT NULL,
     edge_family       TEXT    NOT NULL,
-    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
     perspective       TEXT    NOT NULL,
     unique_id         TEXT    NOT NULL,
     references_table  TEXT,
@@ -814,7 +814,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
 -- stored as '' (not NULL) so the UNIQUE constraint dedupes correctly.
 CREATE TABLE IF NOT EXISTS sql_graph_authored_edges (
     authored_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    edge_type     TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
     from_table    TEXT    NOT NULL,
     from_column   TEXT    NOT NULL DEFAULT '',
     to_table      TEXT    NOT NULL,

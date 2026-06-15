@@ -6,8 +6,9 @@ description: Core architectural rules for the manufacturing semantic layer graph
 ## Graph node types
 Exactly two: **tables** and **columns**. Perspectives, intents, concepts, bindings, and categories are NOT nodes — they are edge properties or separate semantic collections (not in the structural containment graph).
 
-## ELEVATES is the universal semantic predicate
-MEASURES, SIGNALS, GROUPS_BY, CONTRIBUTES_TO, INSPECTS — all of these collapse into ELEVATES. The binary weight (1/0) and the `perspective` edge property do the differentiation. Do not add new semantic predicates for nuance; use edge properties instead.
+## RESOLVES_TO (formerly ELEVATES) is the universal semantic predicate
+**v16 rename:** the canonical (Model-B) column→concept predicate is now `resolves_to` (display `RESOLVES_TO`, uid `RES`) — read every `ELEVATES` in this file as `RESOLVES_TO`. A SEPARATE legacy **Model-A** `elevates` ArangoDB collection (intent→concept) keeps the old name and was left intact, so `elevates` in the code is not necessarily stale — check the model.
+MEASURES, SIGNALS, GROUPS_BY, CONTRIBUTES_TO, INSPECTS — all of these collapse into RESOLVES_TO. The binary weight (1/0) and the `perspective` edge property do the differentiation. Do not add new semantic predicates for nuance; use edge properties instead.
 
 ## ELEVATES weight semantics
 Weight is a **binary gate**, not a score:

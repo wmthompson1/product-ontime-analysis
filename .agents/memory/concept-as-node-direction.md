@@ -5,6 +5,10 @@ description: Active design decision to add Concept as a 3rd graph node, departin
 
 # Concept-as-node direction (Option C)
 
+**v16 rename:** the canonical column→concept predicate `elevates`/`ELEVATES` was
+renamed `resolves_to`/`RESOLVES_TO` (uid `ELE`→`RES`); references below use the
+pre-v16 name. (The legacy Model-A `elevates` Arango collection is untouched.)
+
 The semantic layer is moving to add **Concept as a first-class graph node** (a
 third node type alongside tables + columns). This is a *deliberate, ratified
 departure* from the long-standing "graph has only table + column nodes"

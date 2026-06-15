@@ -1,8 +1,8 @@
 """Seed the SME-approved semantic elevations into SQLite (authoritative manifest).
 
-This is the *content* that lights up the node-guarded ``elevates`` scaffolding in
+This is the *content* that lights up the node-guarded ``resolves_to`` scaffolding in
 ``export_graph_metadata.py``. SQLite is the source of truth; running this then
-re-running the exporter + loader produces the corresponding ``elevates`` edges.
+re-running the exporter + loader produces the corresponding ``resolves_to`` edges.
 
 Idempotent: every table carries a UNIQUE natural key
 (schema_concepts.concept_name; schema_perspective_concepts(perspective_id,
@@ -18,12 +18,12 @@ id, date, free-text label, or continuous measure. M3 adds two further kinds:
     continuous, but the elevation maps the column to ONE canonical measure
     concept, so the categorical-discriminator rule does not apply.
   * glossary-only concept NODES — business vocabulary seeded as perspective-
-    agnostic concept nodes with NO elevates edge yet, because no physical column
+    agnostic concept nodes with NO resolves_to edge yet, because no physical column
     anchors them (the ontology can hold a term before the ETL pipeline catches
     up). They become elevations later when a column is mapped.
 
 Concept identity is perspective-agnostic: the perspective is stamped ONLY on the
-elevates edge, never on the concept node (the dual-namespace rule).
+resolves_to edge, never on the concept node (the dual-namespace rule).
 """
 import json
 import os
@@ -104,12 +104,12 @@ NEW_CONCEPTS = {
 
 # M3 — MRP / inventory-planning vocabulary, seeded as perspective-AGNOSTIC
 # concept NODES enriched with synonyms + tags. Only the 3 terms with a real
-# physical column get an elevates edge (see batch 6 below); the other 7 are
+# physical column get a resolves_to edge (see batch 6 below); the other 7 are
 # intentional glossary-only nodes — the ontology can securely hold a business
 # term before a column / ETL pipeline maps it.
 # concept_name -> (concept_type, domain, description, synonyms, tags)
 MRP_CONCEPTS = {
-    # --- the 3 column-anchored measures (get an elevates edge in batch 6) ---
+    # --- the 3 column-anchored measures (get a resolves_to edge in batch 6) ---
     "ReorderPoint": (
         "metric", "operations",
         "Inventory level at which a replenishment order is triggered "
@@ -385,7 +385,7 @@ def main() -> int:
 
     print(f"seeded {len(NEW_CONCEPTS) + len(MRP_CONCEPTS)} concept(s), "
           f"{len(ELEVATIONS)} elevation(s) (idempotent). "
-          f"Re-run export_graph_metadata.py to emit elevates edges.")
+          f"Re-run export_graph_metadata.py to emit resolves_to edges.")
     return 0
 
 

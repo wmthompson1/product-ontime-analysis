@@ -45,11 +45,11 @@ no edge, so it does not trip them.
   slot 1 = `entity` placeholder (a concept, like a table, has no column), slot 2 =
   `semantic` family (a concept is a meaning-layer node, **not** structural), slot 3
   = `canonical` (a concept is perspective-agnostic — a perspective attaches later
-  on the `elevates` edge, not on the concept), slots 4–5 = `none`. **Classifier
+  on the `resolves_to` edge, not on the concept), slots 4–5 = `none`. **Classifier
   (node-first, then family):** a key is a NODE iff `slot[4:6]==['none','none']`; a
   node is a *concept* iff `slot[2]=='semantic'`, else a *table* iff
   `slot[1]=='entity'`, else a *column* (tables and columns are both `structural`).
-  This is unambiguous because a semantic *edge* (`elevates`) always carries a
+  This is unambiguous because a semantic *edge* (`resolves_to`) always carries a
   predicate **and** a business perspective, so `semantic` + node can only be a
   concept. The `node_type` enum (`table`/`column`/`concept`), reserved tokens (a
   concept name may not equal any grammar token — `entity`, `none`, `system`,
@@ -77,7 +77,7 @@ no edge, so it does not trip them.
   `schema_perspective_concepts.priority_weight` is not the binary gate. **Rule:**
   `weight = 1 if (priority_weight or 0) > 0 else 0` — `weight` stays the binary
   candidate-set gate (1 = selectable, 0 = suppressed). **`priority_weight`
-  survives** as a separate non-gating metadata field on the `elevates` edge (new
+  survives** as a separate non-gating metadata field on the `resolves_to` edge (new
   `sql_graph_edges.priority_weight` column), so the SME's raw priority is preserved
   for later ranking without overloading the gate.
 
@@ -111,9 +111,9 @@ each concept's metadata, synonyms, and tags.
 | `concepts` **(new)** | `schema_concepts` | concept_name, domain (family), definition, synonyms, **tags** |
 
 ### 2.2 Edge types (target)
-- **`ELEVATES` becomes `column → concept`.** The concept identity moves from a
+- **`RESOLVES_TO` becomes `column → concept`.** The concept identity moves from a
   string property onto the *target node*. The edge still carries `perspective`
-  and `weight` (binary gate). A column with N meanings has N `ELEVATES` edges to
+  and `weight` (binary gate). A column with N meanings has N `RESOLVES_TO` edges to
   N concept nodes (this is how `component_index` multi-meaning is expressed).
 - **`has_column`** (table → column) — unchanged structural containment.
 - **`references`** (child column → parent column) — unchanged structural FK.
@@ -123,14 +123,14 @@ Tags are a **lightweight filter only** — coarse role/type labels
 (`date`, `monetary`, `quantity`, `status`, `identifier`, `polymorphic-selector`).
 They carry no meaning and never gate selection. With Concept as a node, tags live
 on the concept vertex (and optionally on column nodes) as a queryable array used
-as an AQL prefilter before the `ELEVATES` traversal.
+as an AQL prefilter before the `RESOLVES_TO` traversal.
 
 ## 3. Source-of-truth → graph mapping (construction recipe)
 
 | SQLite | Builds | Notes |
 |---|---|---|
 | `schema_concepts` | `concepts` nodes | one node per concept_name |
-| `schema_concept_fields` | `ELEVATES` edges (column → concept) | carries `context_hint`, `component_index`, `is_primary_meaning` |
+| `schema_concept_fields` | `RESOLVES_TO` edges (column → concept) | carries `context_hint`, `component_index`, `is_primary_meaning` |
 | `schema_perspective_concepts` | `perspective` + `weight` on the edge | `priority_weight` is normalized to the binary `weight` gate (see B3); perspective scoping |
 | `schema_intent_concepts` | intent-level overrides | resolution-time, see Open Questions |
 
@@ -197,7 +197,7 @@ built in **shadow collections** (B2) and accepted only when its checks pass.
 
 The columnar parity artifacts (`graph_metadata_*.csv` from JSON,
 `arango_graph_*.csv` from the live graph) and the SQL↔file / SQL↔AQL parity gates
-must learn: (a) the new `concepts` node rows, (b) the re-pointed `ELEVATES`
+must learn: (a) the new `concepts` node rows, (b) the re-pointed `RESOLVES_TO`
 endpoints. Their freshness-by-presence convention is unchanged. A milestone is
 "done" only when both parity pairs are byte-identical for the new shape.
 
@@ -207,7 +207,7 @@ endpoints. Their freshness-by-presence convention is unchanged. A milestone is
 -- Forward: what does ONE column mean? (active, perspective-scoped)
 LET col = DOCUMENT('manufacturing_graph_node/<column key>')
 FOR concept, e IN 1..1 OUTBOUND col._id manufacturing_graph_edge
-  FILTER e.edge_type == 'elevates' AND e.weight == 1
+  FILTER e.edge_type == 'resolves_to' AND e.weight == 1
   RETURN { perspective: e.perspective, concept: concept.concept_name,
            domain: concept.domain, tags: concept.tags }
 
@@ -215,14 +215,14 @@ FOR concept, e IN 1..1 OUTBOUND col._id manufacturing_graph_edge
 FOR concept IN manufacturing_graph_node
   FILTER concept.node_type == 'concept' AND concept.concept_name == @concept
   FOR col, e IN 1..1 INBOUND concept._id manufacturing_graph_edge
-    FILTER e.edge_type == 'elevates' AND e.weight == 1 AND e.perspective == @perspective
+    FILTER e.edge_type == 'resolves_to' AND e.weight == 1 AND e.perspective == @perspective
     RETURN { table: col.table_name, column: col.column_name }
 
 -- Tag prefilter (lightweight narrowing before traversal)
 FOR n IN manufacturing_graph_node
   FILTER n.node_type == 'column' AND @tag IN n.tags
   FOR concept, e IN 1..1 OUTBOUND n._id manufacturing_graph_edge
-    FILTER e.edge_type == 'elevates' AND e.weight == 1
+    FILTER e.edge_type == 'resolves_to' AND e.weight == 1
     RETURN { table: n.table_name, column: n.column_name, concept: concept.concept_name }
 ```
 
@@ -252,7 +252,7 @@ body + Decision Log. (Former Q1 "concept key format" and Q5 "live migration" wer
 promoted to the Pre-M1 blocking gates **B1** and **B2**.)
 
 1. **Perspective: edge property vs. its own node/edge. — RESOLVED (v15).**
-   Perspective stays an `elevates` **edge property** (dual-namespace): the concept
+   Perspective stays a `resolves_to` **edge property** (dual-namespace): the concept
    node is canonical and perspective-agnostic, and the perspective-specific reading
    of a column lives on the edge. Concept nodes are therefore never stamped with a
    perspective. (See Decision Log 0.7.)
@@ -273,6 +273,7 @@ promoted to the Pre-M1 blocking gates **B1** and **B2**.)
 | 0.5 | 2026-06-14 | **B2 + B3 resolved; M2 in progress (v14).** B2: no live consumer reads the canonical edges (the HF app uses the legacy named graph), so the shadow graph is waived — safety comes from the freeze-once `v{N}` snapshot, both parity gates, and a documented rollback to `v13`; the live load is truncate-then-import on the canonical collections only. B3: `weight = 1 if (priority_weight or 0) > 0 else 0`, with `priority_weight` kept as non-gating edge metadata (new `sql_graph_edges.priority_weight`). M2: re-pointed `ELEVATES` to `column → concept`; **dropped the `concept` string now (no compatibility window — user decision)** from both the JSON edge and the `sql_graph_edges.concept` column; made the elevates uid concept-aware/deterministic via `semantic_uid_stable(perspective,table,column,concept,field_component)` so sibling churn no longer renumbers edges; guarded both endpoints. Froze `SCHEMA_VERSION = 14` (`elevates_repointed_to_concepts`); counts unchanged 279/279 (17 elevates re-pointed). |
 | 0.6 | 2026-06-14 | **M2 complete (v14).** Loaded the re-pointed canonical into live ArangoDB — 279 nodes / 279 edges, all endpoints resolve, 17 `elevates` now `column → concept`; both parity pairs byte-identical (SQL↔file, SQL↔live-AQL). Realigned the two remaining format-lock suites to the M2 shape: `test_semantic_scaffolding.py` (column→concept, no `concept` string on the edge, binary `weight` derived from `priority_weight`, concept-aware/stable uid, both-endpoint guard) and `test_authored_edges_merge.py` (authored SME weight folds into the elevation feed as `priority_weight` + `field_component`). `bash scripts/post-merge.sh` EXIT=0; both apps boot unaffected (HF Space :8080 Gradio serving, Flask :5000). |
 | 0.7 | 2026-06-14 | **M3 complete (v15).** Concept nodes gained `concept_type`, `domain`, `synonyms[]`, `tags[]` (description = definition; perspective stays off the node). **Resolved Open Question 1:** perspective is an `elevates` **edge property** (dual-namespace) — concept nodes are canonical and perspective-agnostic, never perspective-stamped. Seeded the full 10-term MRP/inventory vocabulary as concept nodes: 3 column-anchored (`ReorderPoint`→`part.reorder_point`, `LeadTime`→`part.lead_time_days`, `OnHandQuantity`→`part.on_hand_qty`, perspective `Inventory_Transactions`) + 7 **orphan glossary nodes** (`SafetyStock`, `LeadTimeDemand`, `MinimumStockQuantity`, `MaximumStockQuantity`, `EconomicOrderQuantity`, `AvailableToPromise`, `AllocatedQuantity`) that stay edgeless until ETL onboards a column — the ontology may hold a term before the warehouse has the column. Froze `SCHEMA_VERSION = 15` (`concept_metadata_mrp_seed`); counts 279 → 289 nodes / 282 edges (concepts 33→43, elevates 17→20); both parity pairs byte-identical; live ArangoDB loaded (289/282, endpoints resolve); both apps boot (HF Space :8080 Gradio, Flask :5000). |
+| 0.8 | 2026-06-15 | **v16 — canonical predicate renamed `elevates` → `resolves_to`.** Pure rename of the canonical column→concept semantic predicate: stored `edge_type` `elevates`→`resolves_to`, display/predicate `ELEVATES`→`RESOLVES_TO`, uid abbreviation `ELE`→`RES`. Counts unchanged (289 nodes / 282 edges / 20 semantic). The §2–§6 target/reference sections now use the new name; the §1 baseline, the §4 milestone narrative, the §7 deprecation ledger, and rows 0.1–0.7 above retain the historical name `elevates`/`ELEVATES` as the dated record of v13–v15. The legacy **Model-A** intent→concept `elevates` collection is untouched. Froze `SCHEMA_VERSION = 16` (`resolves_to_predicate_rename`); both parity pairs byte-identical; live ArangoDB `manufacturing_graph_edge` carries 20 `resolves_to` edges. |
 
 ---
 

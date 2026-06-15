@@ -114,7 +114,7 @@ print("=" * 60)
 #     table node       table:entity:structural:system:none:none
 #     column node      table:column:structural:system:none:none
 #     structural edge  table:column:structural:system:has_column:UNIQUE_ID
-#     semantic edge    table:column:semantic:<view>:elevates:UNIQUE_ID   (DEFERRED v2)
+#     semantic edge    table:column:semantic:<view>:resolves_to:UNIQUE_ID   (DEFERRED v2)
 #
 # NODE iff slot[4]=='none' and slot[5]=='none' (table node if slot[1]=='entity',
 # else column node); otherwise EDGE, whose family is slot[2]. Reserved tokens:
@@ -129,7 +129,7 @@ SAMPLE_BUSINESS_VIEW = "Payables"
 SAMPLE_PREDICATE = "has_column"
 # Canonical examples — kept in lockstep with the key_scheme block embedded in
 # graph_metadata.json / graph_metadata_canonical_example.json.
-SAMPLE_SEMANTIC_KEY = "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001"
+SAMPLE_SEMANTIC_KEY = "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001"
 
 KIND_TABLE = "table_node"
 KIND_COLUMN = "column_node"

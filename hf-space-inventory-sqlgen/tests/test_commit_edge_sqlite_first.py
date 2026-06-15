@@ -1,6 +1,6 @@
 """Tests for SQLite-first canonical edge authoring in POST /mcp/tools/commit_edge.
 
-The canonical predicates (HAS_COLUMN, FOREIGN_KEY, ELEVATES) are
+The canonical predicates (HAS_COLUMN, FOREIGN_KEY, RESOLVES_TO) are
 written to ``sql_graph_authored_edges`` (SQLite source of truth) first; ArangoDB
 is updated best-effort only. These tests run against a temporary SQLite database
 seeded with sql_graph_nodes + the authoring table, with the best-effort ArangoDB
@@ -10,7 +10,7 @@ Covered:
   * create -> duplicate idempotency (created true then false) per predicate
   * endpoints resolve against sql_graph_nodes (verified source)
   * unknown endpoint -> 422 (no dangling edge)
-  * ELEVATES without a perspective -> 422
+  * RESOLVES_TO without a perspective -> 422
   * undo via DELETE removes the row; second DELETE -> 404
 """
 from __future__ import annotations
@@ -38,7 +38,7 @@ def _seed_db(path: str) -> None:
         );
         CREATE TABLE sql_graph_authored_edges (
             authored_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            edge_type TEXT NOT NULL CHECK(edge_type IN ('has_column','references','elevates')),
+            edge_type TEXT NOT NULL CHECK(edge_type IN ('has_column','references','resolves_to')),
             from_table TEXT NOT NULL, from_column TEXT NOT NULL DEFAULT '',
             to_table TEXT NOT NULL, to_column TEXT NOT NULL DEFAULT '',
             perspective TEXT NOT NULL DEFAULT 'system',
@@ -135,19 +135,19 @@ def test_elevates_create_then_duplicate():
     client, _, db_path = _client_with_temp_db()
     if client is None:
         return
-    payload = dict(predicate="ELEVATES", source_id="part", target_id="part.part_id",
+    payload = dict(predicate="RESOLVES_TO", source_id="part", target_id="part.part_id",
                    perspective="quality", concept_anchor="defects")
     s1, b1 = _post(client, **payload)
-    assert s1 == 200 and b1.get("created") is True, f"first ELEVATES: {s1} {b1}"
+    assert s1 == 200 and b1.get("created") is True, f"first RESOLVES_TO: {s1} {b1}"
     s2, b2 = _post(client, **payload)
-    assert s2 == 200 and b2.get("created") is False, f"dup ELEVATES: {s2} {b2}"
+    assert s2 == 200 and b2.get("created") is False, f"dup RESOLVES_TO: {s2} {b2}"
     assert _count(db_path) == 1
-    # weight gate: ELEVATES -> 1
+    # weight gate: RESOLVES_TO -> 1
     conn = sqlite3.connect(db_path)
-    w = conn.execute("SELECT weight FROM sql_graph_authored_edges WHERE edge_type='elevates'").fetchone()[0]
+    w = conn.execute("SELECT weight FROM sql_graph_authored_edges WHERE edge_type='resolves_to'").fetchone()[0]
     conn.close()
-    assert w == 1, f"ELEVATES weight must be 1, got {w}"
-    print("PASS [ELEVATES]: create then duplicate is idempotent, weight=1")
+    assert w == 1, f"RESOLVES_TO weight must be 1, got {w}"
+    print("PASS [RESOLVES_TO]: create then duplicate is idempotent, weight=1")
 
 
 def test_unknown_endpoint_is_422():
@@ -163,9 +163,9 @@ def test_elevates_without_perspective_is_422():
     client, _, _ = _client_with_temp_db()
     if client is None:
         return
-    s, b = _post(client, predicate="ELEVATES", source_id="part", target_id="part.part_id")
-    assert s == 422, f"ELEVATES without perspective must be 422, got {s}: {b}"
-    print("PASS [422]: ELEVATES requires a perspective")
+    s, b = _post(client, predicate="RESOLVES_TO", source_id="part", target_id="part.part_id")
+    assert s == 422, f"RESOLVES_TO without perspective must be 422, got {s}: {b}"
+    print("PASS [422]: RESOLVES_TO requires a perspective")
 
 
 def test_undo_deletes_then_404():

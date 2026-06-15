@@ -9,8 +9,8 @@ These guard the merge contract directly (no live ArangoDB required):
 
   * references authored rows with both columns fold into the FK feed
   * column-less references rows are skipped (cannot form a column->column edge)
-  * elevates authored rows with a column fold into the elevation feed
-  * column-less elevates rows are skipped
+  * resolves_to authored rows with a column fold into the elevation feed
+  * column-less resolves_to rows are skipped
   * has_column authored rows are a no-op (derived backbone already covers them)
   * de-duplication against rows the derived feeds already contain
   * _fetch_authored_edges tolerates an older DB that lacks the table
@@ -69,7 +69,7 @@ class TestMergeReferences(unittest.TestCase):
 
 class TestMergeElevates(unittest.TestCase):
     def test_elevates_with_column_folds_into_elevation_feed(self):
-        authored = [_authored("elevates", "part", "part",
+        authored = [_authored("resolves_to", "part", "part",
                               from_column="part_id", to_column="part_id",
                               perspective="quality", weight=1, concept="defects")]
         fks, elevs = ex._merge_authored_into_sources(authored, [], [])
@@ -87,7 +87,7 @@ class TestMergeElevates(unittest.TestCase):
         self.assertEqual(elevs[0]["concept"], "defects")
 
     def test_column_less_elevates_skipped(self):
-        authored = [_authored("elevates", "part", "part", perspective="quality")]
+        authored = [_authored("resolves_to", "part", "part", perspective="quality")]
         _, elevs = ex._merge_authored_into_sources(authored, [], [])
         self.assertEqual(elevs, [])
 
@@ -96,7 +96,7 @@ class TestMergeElevates(unittest.TestCase):
             "table_name": "part", "column_name": "part_id",
             "perspective": "quality", "weight": 1, "concept": "defects",
         }]
-        authored = [_authored("elevates", "part", "part",
+        authored = [_authored("resolves_to", "part", "part",
                               from_column="part_id", to_column="part_id",
                               perspective="quality", weight=0, concept="defects")]
         _, elevs = ex._merge_authored_into_sources(authored, [], existing)

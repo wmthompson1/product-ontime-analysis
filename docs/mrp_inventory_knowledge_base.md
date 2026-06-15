@@ -11,9 +11,9 @@
 >    *recognizes from doing the work* (the words used on the job), **not an
 >    abstract category**. If a materials manager wouldn't say it on the floor,
 >    it isn't a concept.
-> 2. **Column-anchored only for an `elevates` edge** — a recognized term becomes a
+> 2. **Column-anchored only for an `resolves_to` edge** — a recognized term becomes a
 >    graph **concept node** right away, *whether or not* a column exists yet. It
->    only gains an `elevates` edge once it points to a real ERP column an SME can
+>    only gains an `resolves_to` edge once it points to a real ERP column an SME can
 >    put their finger on. A recognized term with no column is an **orphan glossary
 >    node** (see §8) — it is kept, not dropped.
 >
@@ -22,12 +22,12 @@
 > concept node records that a term *exists*, not how it is *computed*. SQL is never
 > machine-generated (Solder Pattern).
 
-> **Resolved (§8) — measures vs. categories.** The `elevates` curation rule, which
+> **Resolved (§8) — measures vs. categories.** The `resolves_to` curation rule, which
 > once admitted only **bounded categorical discriminators** (status / type / class /
 > location), was extended at v15 to also admit *canonical named measures*
 > (`concept_type = metric`, e.g. reorder point, lead time, on-hand). Pure formulas
 > (EOQ, ATP, lead-time demand) still stay in SME-approved SQL — they keep a concept
-> node as vocabulary but get no `elevates` edge.
+> node as vocabulary but get no `resolves_to` edge.
 
 This document does two things:
 1. **Records the topology as built** at `SCHEMA_VERSION = 15` (§1, §8).
@@ -51,19 +51,19 @@ below needs to be invented:
 |---|---|---|
 | `has_column` | 223 | table → its columns (structural) |
 | `references` | 39 | column → column foreign key (structural) |
-| `elevates` | 20 | **column → concept** (semantic) — *this is the important one* |
+| `resolves_to` | 20 | **column → concept** (semantic) — *this is the important one* |
 
 **Edges already carry meaning.** Each edge has an `edge_type` and an
 `edge_family`. (The `predicate: none` you saw is a *node* field, not the edge's
 meaning.)
 
-**The `elevates` edge is already the "column maps to concept" triple.** A real
+**The `resolves_to` edge is already the "column maps to concept" triple.** A real
 one in the graph today:
 
 ```
-part:on_hand_qty  --elevates { perspective: "Inventory_Transactions", weight: 1 }-->  OnHandQuantity (concept)
+part:on_hand_qty  --resolves_to { perspective: "Inventory_Transactions", weight: 1 }-->  OnHandQuantity (concept)
 ```
-(shape, verified live: `customer_order_line:order_qty --elevates {perspective:"Engineering"}--> QuantityBasisEngineering`)
+(shape, verified live: `customer_order_line:order_qty --resolves_to {perspective:"Engineering"}--> QuantityBasisEngineering`)
 
 So the perspective **already lives on the edge**, not on the concept. That is on
 purpose: the *same* concept can be elevated from several perspectives.
@@ -81,12 +81,12 @@ Your proposed topology:
 Revised to fit the graph as built (v15) — three small changes, same spirit:
 
 ```
-part.reorder_point --[elevates {perspective:"Inventory_Transactions", weight:1}]--> ReorderPoint
+part.reorder_point --[resolves_to {perspective:"Inventory_Transactions", weight:1}]--> ReorderPoint
 ```
 
 | Your wording | Revised | Why |
 |---|---|---|
-| `MAPS_TO` | **`elevates`** (keep `MAPS_TO` as a plain-English alias) | `elevates` already exists and means exactly this. A second predicate would duplicate everything (exporter, DDL, parity, tests, live load). |
+| `MAPS_TO` | **`resolves_to`** (keep `MAPS_TO` as a plain-English alias) | `resolves_to` already exists and means exactly this. A second predicate would duplicate everything (exporter, DDL, parity, tests, live load). |
 | `perspective: "Inventory"` | **`perspective: "Inventory_Transactions"`** for now | That is the perspective's real name today. Renaming it to `Inventory` is a good idea but is a **future schema step** (see §5), not a doc edit. |
 | `Concept/SafetyStock` | `ReorderPoint` (real column) — keep `SafetyStock` for when a safety-stock column exists | `part.reorder_point` is a real column an SME can point to. There is no `safety_stock` / `MIN_STOCK_QTY` column in this schema yet (it exists in the private repo). |
 | "concepts are subsets of perspectives" | concepts get a **`category`** (and stay reusable) | See §3 — this keeps a concept usable from more than one perspective. |
@@ -101,7 +101,7 @@ concept node, because a concept like `LeadTime` is used by *Inventory*,
 *Procurement*, and *Manufacturing* at once.
 
 Revised model:
-- The **routing perspective stays on the `elevates` edge** (unchanged).
+- The **routing perspective stays on the `resolves_to` edge** (unchanged).
 - Each **concept gets a `category`** (e.g. `Inventory`, `Procurement`,
   `Quality`) — a label for grouping and filtering only. This is the planned
   **M3 concept metadata** step (category / definition / synonyms), and it does
@@ -120,7 +120,7 @@ benefit, no loss of reuse.
 
 Every concept below passes **both** hard rules: it is anchored to a **real,
 verified column** *and* it is a term an SME would recognize on the job. An SME
-can author each one as a single `elevates` triple.
+can author each one as a single `resolves_to` triple.
 
 **SME litmus test for any new concept:**
 1. Can you point to the exact column it comes from? *(no → it's a derived metric, not a concept)*
@@ -129,7 +129,7 @@ can author each one as a single `elevates` triple.
 > **⚠ Provisional.** The measure-based cards below (`OnHandQuantity`,
 > `ReorderPoint`, `LeadTime`, `ReceivedQuantity`, `OrderedQuantity`, …) are
 > column-anchored and recognizable, but they map to **numeric measure** columns,
-> which today's categorical-only `elevates` rule excludes. They become buildable
+> which today's categorical-only `resolves_to` rule excludes. They become buildable
 > only after the "measures vs. categories" decision (§8 — **now recommended:
 > admit canonical named measures**, so these become buildable). `StandardQuantity`
 > / `ActualQuantity` are the exception: they already exist as the *categorical
@@ -141,7 +141,7 @@ can author each one as a single `elevates` triple.
 - **Category** — Inventory / Procurement / etc.
 - **Perspective(s)** — which perspective the elevation is authored under
 - **Source column(s)** — `table.column` that *already exists*
-- **The triple** — `table.column --elevates {perspective}--> Concept`
+- **The triple** — `table.column --resolves_to {perspective}--> Concept`
 - **SME notes / questions**
 
 ### Buildable inventory concepts
@@ -158,9 +158,9 @@ can author each one as a single `elevates` triple.
 
 Example the SME authors:
 ```
-part.on_hand_qty   --elevates {perspective:"Inventory_Transactions"}--> OnHandQuantity
-part.reorder_point --elevates {perspective:"Inventory_Transactions"}--> ReorderPoint
-part.lead_time_days--elevates {perspective:"Inventory_Transactions"}--> LeadTime
+part.on_hand_qty   --resolves_to {perspective:"Inventory_Transactions"}--> OnHandQuantity
+part.reorder_point --resolves_to {perspective:"Inventory_Transactions"}--> ReorderPoint
+part.lead_time_days--resolves_to {perspective:"Inventory_Transactions"}--> LeadTime
 ```
 
 These join the inventory concepts the graph **already** has:
@@ -196,10 +196,10 @@ SME-approved SQL snippets. They are listed here so everyone shares the words.
 | Item | Status |
 |---|---|
 | This knowledge base / concept cards | **Doc only** — safe now |
-| Authoring `elevates` triples for the §4 concepts | SME data entry (no schema change) |
+| Authoring `resolves_to` triples for the §4 concepts | SME data entry (no schema change) |
 | `category` / definition / synonyms on concepts | **M3** — a future schema-version bump |
 | Rename `Inventory_Transactions` → `Inventory` | **Future (v15)** — touches seeds, generated JSON, stable keys, live load; do as one approved migration |
-| New `MAPS_TO` predicate | **Not recommended** — reuse `elevates` |
+| New `MAPS_TO` predicate | **Not recommended** — reuse `resolves_to` |
 
 ---
 
@@ -224,25 +224,25 @@ SME-approved SQL snippets. They are listed here so everyone shares the words.
 ### 8.1 Decision — concepts are perspective-agnostic glossary nodes
 Two rules were settled and built for this milestone:
 
-1. **The `elevates` curation rule is extended** from "bounded categorical
+1. **The `resolves_to` curation rule is extended** from "bounded categorical
    discriminator only" to also admit a *canonical named measure* — a real, stored
    business quantity (reorder point, lead time, on-hand) with
-   `concept_type = 'metric'`. `elevates` already means "column → business concept"
+   `concept_type = 'metric'`. `resolves_to` already means "column → business concept"
    and the existing `QuantityBasisEngineering` / `…Manufacturing` metric concepts
    already elevate from a quantity column, so a stored measure needs no new
    predicate. **Formulas stay out:** EOQ, available-to-promise, lead-time-demand,
    and safety-stock math remain *derived metrics* in SME-approved SQL (§5) — only a
-   *stored* column elevates.
+   *stored* column resolves to a concept.
 
 2. **The whole SME vocabulary is seeded as concept nodes — even terms with no
    column yet (user decision).** A concept node is the ontology's record that a term
    *exists and is recognized*; it does not require a source column. So all 10
    MRP/inventory terms become concept nodes now. The 3 that map to a real column
-   also get an `elevates` edge; the other 7 are **orphan glossary nodes** —
+   also get an `resolves_to` edge; the other 7 are **orphan glossary nodes** —
    intentionally edgeless until their column is onboarded by ETL. This lets the
    ontology lead the warehouse instead of trailing it.
 
-**Perspective is dual-namespace.** Perspective is stamped **only on the `elevates`
+**Perspective is dual-namespace.** Perspective is stamped **only on the `resolves_to`
 edge**, never on the concept node. `ReorderPoint` is one canonical,
 perspective-agnostic thing; the *reading* of a column through a lens — that
 `Inventory_Transactions` sees `part.reorder_point` as `ReorderPoint` — lives on the
@@ -253,11 +253,11 @@ node.)
 The SME proposed 10 MRP terms. **All 10 are seeded as concept nodes**
 (`concept_type = 'metric'`, `domain = 'operations'`, each carrying synonyms + tags).
 Each was then run past **rule 1 (does a real column exist in *this* schema?)** using
-the live `manufacturing.db` to decide whether it *also* gets an `elevates` edge.
+the live `manufacturing.db` to decide whether it *also* gets an `resolves_to` edge.
 Perspectives use the real name `Inventory_Transactions` (there is no `Inventory` /
 `Procurement` / `Planning` perspective).
 
-**Column-anchored — concept node + `elevates` edge (perspective `Inventory_Transactions`):**
+**Column-anchored — concept node + `resolves_to` edge (perspective `Inventory_Transactions`):**
 
 | Concept | Source column | Synonyms | Tags |
 |---|---|---|---|
@@ -265,7 +265,7 @@ Perspectives use the real name `Inventory_Transactions` (there is no `Inventory`
 | `LeadTime` | `part.lead_time_days` | replenishment lead time, procurement lead time, supplier lead time | mrp, inventory, planning |
 | `OnHandQuantity` | `part.on_hand_qty` | on hand, QOH, quantity on hand, stock on hand | mrp, inventory, stock |
 
-**Orphan glossary nodes — concept node now, no `elevates` edge until a column is onboarded:**
+**Orphan glossary nodes — concept node now, no `resolves_to` edge until a column is onboarded:**
 
 | Concept | Why no edge yet | Synonyms | Tags |
 |---|---|---|---|
@@ -305,6 +305,6 @@ Example elevation triple authored in `seed_elevations.py` (batch 6):
 5. **Live load** — dry-ran, then truncate-then-imported the canonical into live
    ArangoDB (289 / 282, all endpoints resolve); both apps boot unaffected.
 
-**Counts (content milestone):** +10 concept nodes, +3 `elevates` edges → concepts
-33 → **43**, `elevates` 17 → **20**, totals 279 → **289** nodes / **282** edges.
+**Counts (content milestone):** +10 concept nodes, +3 `resolves_to` edges → concepts
+33 → **43**, `resolves_to` 17 → **20**, totals 279 → **289** nodes / **282** edges.
 Recorded in the v15 snapshot + the spec Decision Log (rev 0.7).

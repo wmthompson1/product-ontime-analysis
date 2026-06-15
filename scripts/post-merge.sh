@@ -73,6 +73,13 @@ if [ -f hf-space-inventory-sqlgen/scripts/check_legacy_perspective_refs.py ]; th
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/scripts/check_legacy_elevates_refs.py ]; then
+  python hf-space-inventory-sqlgen/scripts/check_legacy_elevates_refs.py || {
+    echo "post-merge: legacy elevates (v16 resolves_to rename) grep gate failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py ]; then
   python hf-space-inventory-sqlgen/tests/test_sync_db_to_dab_config.py || {
     echo "post-merge: DAB sync tests failed"

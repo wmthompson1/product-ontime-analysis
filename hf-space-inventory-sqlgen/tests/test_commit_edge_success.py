@@ -44,9 +44,9 @@ class TestCommitEdgeSuccessPath(unittest.TestCase):
         return self.client.post("/mcp/tools/commit_edge", json=payload)
 
     def test_commit_elevates_returns_ok_true(self):
-        """ELEVATES commit must return ok=True."""
+        """RESOLVES_TO commit must return ok=True."""
         resp = self._commit(
-            "ELEVATES",
+            "RESOLVES_TO",
             "intents/quality_intent",
             "concepts/defect_cost_concept",
             intent="Quality",
@@ -62,7 +62,7 @@ class TestCommitEdgeSuccessPath(unittest.TestCase):
     def test_commit_returns_edge_id(self):
         """Successful commit must return a non-empty edge_id."""
         resp = self._commit(
-            "ELEVATES",
+            "RESOLVES_TO",
             "intents/quality_intent",
             "concepts/defect_cost_concept",
             intent="Quality",
@@ -79,7 +79,7 @@ class TestCommitEdgeSuccessPath(unittest.TestCase):
     def test_commit_ok_field_is_boolean(self):
         """ok field must be a boolean, not a string or int."""
         resp = self._commit(
-            "ELEVATES",
+            "RESOLVES_TO",
             "intents/quality_intent",
             "concepts/defect_cost_concept",
             intent="Quality",
@@ -95,7 +95,7 @@ class TestCommitEdgeSuccessPath(unittest.TestCase):
     def test_duplicate_commit_is_idempotent(self):
         """Submitting the same edge twice must return ok=True, created=False."""
         payload = dict(
-            predicate="ELEVATES",
+            predicate="RESOLVES_TO",
             source="intents/quality_intent",
             target="concepts/defect_cost_concept",
             intent="Quality",

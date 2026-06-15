@@ -18,7 +18,7 @@ Live mode (gated on ARANGO_DB env var):
 
 Covered predicates: BOUND_TO, CAN_MEAN (the ArangoDB-routed predicates).
 
-The canonical predicates (HAS_COLUMN, FOREIGN_KEY, ELEVATES) are now
+The canonical predicates (HAS_COLUMN, FOREIGN_KEY, RESOLVES_TO) are now
 SQLite-first — their idempotency/undo behaviour is covered by
 test_commit_edge_sqlite_first.py, not here.
 

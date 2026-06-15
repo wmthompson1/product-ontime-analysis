@@ -27,14 +27,14 @@ Parse by fixed position — no prefix tag needed:
     table node       PAYABLE:entity:structural:system:none:none
     column node      PAYABLE:INVOICE_ID:structural:system:none:none
     structural edge  PAYABLE:INVOICE_ID:structural:system:has_column:SYS_HAS_PAY_INV_001
-    semantic edge    PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_001  [SCAFFOLDED]
+    semantic edge    PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001  [SCAFFOLDED]
 
 **Unified abbreviated unique_id** (slot 5) — BOTH layers share one grammar::
 
     perspective(3) _ edge_type(3) _ table(3) _ column|entity(3) _ uniqifier(3, default 001)
 
     structural  SYS_HAS_PAY_INV_001   (system / has_column / PAYABLE / INVOICE_ID / 001)
-    semantic    PAY_ELE_PAY_INV_001   (Payables / elevates  / PAYABLE / INVOICE_ID / 001)
+    semantic    PAY_RES_PAY_INV_001   (Payables / resolves_to / PAYABLE / INVOICE_ID / 001)
 
 Each part is the first 3 alphanumeric characters of its source token, uppercased.
 Abbreviation collisions are EXPECTED (e.g. INVOICE_ID and INVENTORY both -> INV)
@@ -45,7 +45,7 @@ deterministic sorted order so the same DB always yields the same uids.
 Milestone scope (this export): the **structural footprint** — table nodes,
 column nodes, the has_column backbone edge (table -> column), and the references
 edge (child column -> parent column) built from declared foreign keys. The
-semantic ``elevates`` layer is format-locked AND wired as node-guarded
+semantic ``resolves_to`` layer is format-locked AND wired as node-guarded
 scaffolding: it reads SME-curated elevations from SQLite and emits self-loop
 edges only for columns that are exported canonical nodes, so it stays at zero
 content until an SME maps a real ERP column.
@@ -76,8 +76,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 15
-MILESTONE_NAME = "concept_metadata_mrp_seed"
+SCHEMA_VERSION = 16
+MILESTONE_NAME = "resolves_to_predicate_rename"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -86,7 +86,7 @@ EDGE_COLLECTION = "manufacturing_graph_edge"
 
 # Fixed 6-slot composite-key vocabulary.
 FAMILY_STRUCTURAL = "structural"
-FAMILY_SEMANTIC = "semantic"        # slot 2 family: the meaning layer (concept nodes + elevates edges)
+FAMILY_SEMANTIC = "semantic"        # slot 2 family: the meaning layer (concept nodes + resolves_to edges)
 PERSPECTIVE_SYSTEM = "system"       # slot 3, structural-layer scope (tables, columns, FK edges)
 PERSPECTIVE_CANONICAL = "canonical" # slot 3, perspective-agnostic scope for concept nodes
 PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table or concept node
@@ -94,7 +94,9 @@ NONE_SLOT = "none"              # slots 4-5, mark a node
 KEY_DELIMITER = ":"
 EDGE_PREDICATE_HAS_COLUMN = "has_column"
 EDGE_PREDICATE_REFERENCES = "references"
-EDGE_PREDICATE_ELEVATES = "elevates"
+# Canonical column->concept predicate. The symbol name is kept stable across the
+# v16 rename; only the stored token changed to ``resolves_to`` (uid abbrev RES).
+EDGE_PREDICATE_ELEVATES = "resolves_to"
 
 # SQLite graph source tables. These persist the exact node/edge rows that the
 # graph JSON is serialized FROM, so SQLite is the inspectable source of truth and
@@ -143,7 +145,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     _from             TEXT    NOT NULL,
     _to               TEXT    NOT NULL,
     edge_family       TEXT    NOT NULL,
-    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'elevates')),
+    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
     perspective       TEXT    NOT NULL,
     unique_id         TEXT    NOT NULL,
     references_table  TEXT,
@@ -240,10 +242,10 @@ def _edge_uid_prefix(perspective: str, edge_type: str, table: str, column: str) 
 
 def semantic_uid_stable(perspective: str, table: str, column: str,
                         concept: str, field_component) -> str:
-    """Concept-stable slot-5 uid for an ``elevates`` edge.
+    """Concept-stable slot-5 uid for a ``resolves_to`` edge.
 
     Unlike the structural uid (``unified_unique_id``), which counts up per
-    (perspective, edge_type, table, column) prefix, the elevates uid is DERIVED
+    (perspective, edge_type, table, column) prefix, the resolves_to uid is DERIVED
     from the elevation's natural key — perspective, table, column, concept, and
     field_component — via a short content hash. A column may carry several
     meanings under one perspective; deriving (not counting) the uid guarantees
@@ -324,7 +326,7 @@ def concept_key(concept_name: str) -> str:
     concept, like a table, is an entity with no column). A concept lives in the
     ``semantic`` family (slot 2) — it is a meaning-layer node, not structural.
     Slot 3 is ``canonical``: a concept is perspective-agnostic (a perspective
-    only attaches later, on the ``elevates`` edge), and ``canonical`` keeps the
+    only attaches later, on the ``resolves_to`` edge), and ``canonical`` keeps the
     structural ``system`` scope distinct from the perspective-spanning concept.
     Because slots 4-5 are ``none`` it is a node, and ``semantic`` + node can only
     mean a concept (a semantic *edge* always carries a predicate + perspective).
@@ -376,7 +378,7 @@ def references_edge_id(child_table: str, child_column: str, unique_id: str) -> s
 
 
 def semantic_edge_key(table: str, column: str, perspective: str, unique_id: str) -> str:
-    """Semantic edge: ``table:column:semantic:{perspective}:elevates:uid`` (6 slots).
+    """Semantic edge: ``table:column:semantic:{perspective}:resolves_to:uid`` (6 slots).
 
     A real business perspective may never be a reserved perspective token —
     ``system`` (owned by the structural layer) or ``canonical`` (owned by
@@ -532,7 +534,7 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
     ``description`` (which serves as the definition) and, from M3 on, richer
     glossary metadata: ``concept_type``, ``domain``, and authored JSON-array
     ``synonyms`` / ``tags``. The perspective stays OFF the node — it attaches on
-    the elevates edge (the dual-namespace rule). Emitted in a deterministic order
+    the resolves_to edge (the dual-namespace rule). Emitted in a deterministic order
     (by concept_name) so the export stays diff-stable. A database without the
     schema_concepts table yields no concept nodes; databases predating the M3
     columns default them ("" for type/domain, [] for synonyms/tags), so the
@@ -689,7 +691,7 @@ def _build_references_edges(fk_rows: list[dict], node_index: set,
 def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
     """Read SME-approved column elevations from the SQLite semantic tables.
 
-    An ``elevates`` edge marks a column as semantically meaningful under a
+    A ``resolves_to`` edge marks a column as semantically meaningful under a
     business perspective (the Solder Pattern: meaning is SME-curated, never
     generated). The source of truth is the join:
 
@@ -727,7 +729,7 @@ def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
 
 def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
                           concept_index: set, integrity: dict) -> list[dict]:
-    """One ``elevates`` edge per curated elevation: column node -> concept node.
+    """One ``resolves_to`` edge per curated elevation: column node -> concept node.
 
     M2 re-point: ``_from`` is the elevated column, ``_to`` is the CONCEPT NODE
     the column expresses (it was a self-loop on the column in M1, carrying the
@@ -823,7 +825,7 @@ def _merge_authored_into_sources(
 
     Mapping:
       references → fk row   {child_table, child_column, parent_table, parent_column}
-      elevates   → elevation row {table_name, column_name, perspective,
+      resolves_to → elevation row {table_name, column_name, perspective,
                                   priority_weight, concept, relationship,
                                   field_component} — the authored SME weight maps
                                   to the raw non-gating ``priority_weight``; the
@@ -878,7 +880,7 @@ def _merge_authored_into_sources(
                     "perspective": a["perspective"],
                     "priority_weight": a["weight"],
                     "concept": a["concept"],
-                    "relationship": "ELEVATES",
+                    "relationship": "RESOLVES_TO",
                     "field_component": 1,
                 }
             )
@@ -910,7 +912,7 @@ def _key_scheme_spec() -> dict:
             PLACEHOLDER_ENTITY: "slot 2 (index 1): placeholder marking a TABLE or CONCEPT node (the entity itself — no column)",
             NONE_SLOT: "slots 5-6 (index 4-5): placeholder marking a NODE (no predicate / no unique_id)",
             PERSPECTIVE_SYSTEM: "slot 4 (index 3): reserved structural-layer scope (tables, columns, FK edges)",
-            PERSPECTIVE_CANONICAL: "slot 4 (index 3): reserved perspective-agnostic scope for CONCEPT nodes (a concept spans all perspectives; the perspective attaches on the elevates edge, not the concept)",
+            PERSPECTIVE_CANONICAL: "slot 4 (index 3): reserved perspective-agnostic scope for CONCEPT nodes (a concept spans all perspectives; the perspective attaches on the resolves_to edge, not the concept)",
         },
         "name_constraints": (
             "A real column may never be named 'entity' or 'none'; a real table "
@@ -951,8 +953,8 @@ def _key_scheme_spec() -> dict:
                 "payload": (
                     "M3: concept_type, domain, description (the definition), and "
                     "authored JSON-array synonyms / tags. The perspective stays "
-                    "OFF the node (it attaches on the elevates edge — dual-namespace). "
-                    "A concept may be a glossary-only node with no elevates edge yet."
+                    "OFF the node (it attaches on the resolves_to edge — dual-namespace). "
+                    "A concept may be a glossary-only node with no resolves_to edge yet."
                 ),
                 "status": "active",
             },
@@ -973,8 +975,8 @@ def _key_scheme_spec() -> dict:
                 "kind": "semantic_edge",
                 "slots": 6,
                 "marker": "slot[2]=='semantic' and slot[4]!='none'",
-                "form": "table:column:semantic:perspective:elevates:unique_id  (_from=column node, _to=concept node)",
-                "example": "PAYABLE:INVOICE_ID:semantic:Payables:elevates:PAY_ELE_PAY_INV_1A2B3C4D",
+                "form": "table:column:semantic:perspective:resolves_to:unique_id  (_from=column node, _to=concept node)",
+                "example": "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_1A2B3C4D",
                 "status": "active (node-guarded; column -> concept node, M2 re-point; uid is concept-stable)",
             },
         ],
@@ -986,8 +988,8 @@ def _key_scheme_spec() -> dict:
             "edge_type_key_scope": "one edge_type key per perspective — the 3-char edge_type abbreviation is namespaced within its perspective, not global",
             "structural_example": "SYS_HAS_PAY_INV_001 (system / has_column / PAYABLE / INVOICE_ID / 001)",
             "structural_references_example": "SYS_REF_SCH_PAR_001 (system / references / schema_concepts / parent_concept_id / 001)",
-            "elevates_uid": "elevates uid is concept-STABLE and DERIVED (not counted): <perspective>_ELE_<table>_<column>_<8-hex SHA1 of perspective|table|column|concept|field_component>; deriving it from the elevation's natural key means adding/removing one meaning never renumbers a column's other elevations (M2 invariant)",
-            "semantic_example": "PAY_ELE_PAY_INV_1A2B3C4D (Payables / elevates / PAYABLE / INVOICE_ID / concept-hash)",
+            "resolves_to_uid": "the resolves_to uid is concept-STABLE and DERIVED (not counted): <perspective>_RES_<table>_<column>_<8-hex SHA1 of perspective|table|column|concept|field_component>; deriving it from the edge's natural key means adding/removing one meaning never renumbers a column's other resolves_to edges (M2 invariant)",
+            "semantic_example": "PAY_RES_PAY_INV_1A2B3C4D (Payables / resolves_to / PAYABLE / INVOICE_ID / concept-hash)",
         },
     }
 
@@ -1048,21 +1050,32 @@ def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
 
 
 def _sql_graph_edges_is_stale(conn: sqlite3.Connection) -> bool:
-    """True if sql_graph_edges predates the M2 elevates re-point and must rebuild.
+    """True if sql_graph_edges predates the current shape and must rebuild.
 
-    M2 drops the edge ``concept`` string (the concept identity now lives on the
-    ``_to`` concept node) and adds ``priority_weight`` as non-gating metadata.
-    Dropping a column is not an in-place SQLite ALTER, and app.py's additive boot
-    guard can add ``priority_weight`` while leaving the old ``concept`` column
-    behind — so the table is rebuilt when EITHER the legacy ``concept`` column is
-    still present OR ``priority_weight`` is missing. The table is fully
-    regenerated from schema_* on every export, so the drop is safe. An absent
-    table is not stale (CREATE handles it).
+    Two shape changes SQLite cannot ALTER in place are detected here:
+      * M2 dropped the edge ``concept`` string (the concept identity now lives on
+        the ``_to`` concept node) and added ``priority_weight`` as non-gating
+        metadata. Dropping a column is not an in-place SQLite ALTER, and app.py's
+        additive boot guard can add ``priority_weight`` while leaving the old
+        ``concept`` column behind — so rebuild when EITHER the legacy ``concept``
+        column is still present OR ``priority_weight`` is missing.
+      * v16 renamed the canonical column->concept predicate to ``resolves_to``.
+        The ``edge_type`` CHECK is fixed at CREATE time, so a table created before
+        the rename still admits only the old token and a ``resolves_to`` insert
+        would fail its CHECK — rebuild when the live DDL lacks the current token.
+    The table is fully regenerated from schema_* on every export, so the drop is
+    safe. An absent table is not stale (CREATE handles it).
     """
     cols = {row[1] for row in conn.execute("PRAGMA table_info(sql_graph_edges)")}
     if not cols:
         return False
-    return "concept" in cols or "priority_weight" not in cols
+    if "concept" in cols or "priority_weight" not in cols:
+        return True
+    ddl_row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='sql_graph_edges'"
+    ).fetchone()
+    ddl = (ddl_row[0] if ddl_row else "") or ""
+    return "'resolves_to'" not in ddl
 
 
 def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
@@ -1073,9 +1086,10 @@ def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
     fully regenerated from schema_* on every export, so the drops are safe):
       * sql_graph_nodes — rebuilt when it predates the concept node type (see
         ``_sql_graph_nodes_is_stale``).
-      * sql_graph_edges — rebuilt when it predates the M2 elevates re-point (see
-        ``_sql_graph_edges_is_stale``): the legacy ``concept`` column is dropped
-        and ``priority_weight`` is added.
+      * sql_graph_edges — rebuilt when it predates the current shape (see
+        ``_sql_graph_edges_is_stale``): the legacy ``concept`` column is dropped,
+        ``priority_weight`` is added, and the edge_type CHECK is refreshed for the
+        v16 ``resolves_to`` rename.
     """
     conn.executescript(SQL_GRAPH_DDL)
     if _sql_graph_nodes_is_stale(conn):
@@ -1094,7 +1108,7 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
     The tables are emptied and re-filled in a single transaction so the result
     is idempotent (re-running on an unchanged schema yields identical rows). An
     ``ordinal`` column records the exact emission order — table nodes, then
-    column nodes, then concept nodes, then has_column / references / elevates
+    column nodes, then concept nodes, then has_column / references / resolves_to
     edges — so the JSON read back from these tables preserves byte-for-byte
     ordering.
     """
@@ -1256,7 +1270,7 @@ def _build_graph_document(
             "column) built from declared foreign keys, all with unified "
             "abbreviated unique_ids. Covers the business ERP tables "
             "(schema_* metadata tables excluded — the graph models the domain, "
-            "not its own bookkeeping); the semantic ``elevates`` layer is active "
+            "not its own bookkeeping); the semantic ``resolves_to`` layer is active "
             "and node-guarded — each SME-curated elevation is an edge from a "
             "column node to the CONCEPT node it expresses under a business "
             "perspective (M2 re-point), carrying the binary weight gate and the "
@@ -1264,7 +1278,7 @@ def _build_graph_document(
             "the M3 payload (concept_type, domain, description as the definition, "
             "and the synonyms/tags arrays, emitted from schema_concepts); "
             "perspective is never stored on the node — it lives only on the "
-            "elevates edge. A concept may exist without an elevates edge (an orphan "
+            "resolves_to edge. A concept may exist without a resolves_to edge (an orphan "
             "glossary term) until a real ERP column is onboarded."
         ),
         "key_scheme": _key_scheme_spec(),
