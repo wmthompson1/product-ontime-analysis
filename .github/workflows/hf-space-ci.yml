@@ -32,9 +32,14 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install sqlalchemy fastapi httpx
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
           if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
             pip install -r hf-space-inventory-sqlgen/requirements.txt
+          fi
+          if [ -f mcp_server/requirements.txt ]; then
+            pip install -r mcp_server/requirements.txt
           fi
 
       - name: Set up Node (TypeScript check)
