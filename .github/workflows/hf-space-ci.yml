@@ -70,6 +70,10 @@ jobs:
       - name: Resolution message tests
         run: python hf-space-inventory-sqlgen/tests/test_resolution_messages.py
 
+      - name: DB init self-heal tests (older-schema databases)
+        run: python hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py
+        if: hashFiles('hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py') != ''
+
       - name: Sync trigger tests
         run: python hf-space-inventory-sqlgen/tests/test_sync_triggers.py
 

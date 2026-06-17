@@ -396,6 +396,23 @@ def ensure_app_metadata_tables(conn) -> None:
     conn.commit()
 
 
+def _widen_table_columns(conn, table: str, columns: dict) -> None:
+    """Additively add any missing columns to an existing table.
+
+    No-op when the table does not exist yet or the column is already present.
+    SQLite cannot ALTER ADD a NOT NULL column without a default, so callers
+    pass nullable column declarations; the idempotent seed then supplies values.
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+    if not cur.fetchone():
+        return
+    existing = {row[1] for row in cur.execute(f"PRAGMA table_info({table})").fetchall()}
+    for column, decl in columns.items():
+        if column not in existing:
+            cur.execute(f"ALTER TABLE {table} ADD COLUMN {decl}")
+
+
 def init_sqlite_db():
     """Initialize SQLite database from schema file.
     
@@ -418,6 +435,28 @@ def init_sqlite_db():
     # Use sqlite3 directly for executescript (handles multi-line statements)
     conn = sqlite3.connect(SQLITE_DB_PATH)
     try:
+        # Self-heal older databases BEFORE seeding. CREATE TABLE IF NOT EXISTS
+        # never widens a table that already exists, so a database created by an
+        # older schema (e.g. schema_concepts without concept_type) makes the seed
+        # INSERT fail. executescript aborts on that first error, so every table
+        # defined after schema_concepts is never created and the resolve
+        # endpoints then raise 500 ("no such table"). Widen the columns the seed
+        # references first so the idempotent seed runs to completion. No-op on a
+        # fresh DB: the table does not exist yet and is created in full below.
+        try:
+            _widen_table_columns(
+                conn,
+                "schema_concepts",
+                {
+                    "concept_type": "concept_type TEXT",
+                    "description": "description TEXT",
+                    "domain": "domain TEXT",
+                },
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Database migration warning: {e}")
+
         conn.executescript(schema_sql)
         conn.commit()
         ensure_app_metadata_tables(conn)

@@ -49,6 +49,7 @@ All tests run via `scripts/post-merge.sh` (all passing):
 | `tests/test_field_description_pipeline.py` | Drafts (plain-language, no SQL jargon), KB-context selection, CSV round-trip, graph coverage (223/223), overlay-only guardrail (14 tests) |
 | `tests/test_perspective_deprecation.py` | Graph constants, bridge lookups, legacy collection absence (8 tests) |
 | `tests/test_resolution_messages.py` | Bridge-row resolution explanation strings (5 tests) |
+| `tests/test_db_init_self_heal.py` | Older-schema DB self-heal: `init_sqlite_db` widens `schema_concepts` (`concept_type`/`domain`) before seeding so the seed runs to completion; resolve endpoint returns 200 (not 500) on a stale DB (2 tests) |
 | `tests/test_sync_triggers.py` | SQLite trigger install/verify/remove, queue firing (21 tests) |
 | `tests/test_mcp_config.py` | /mcp/config ERP name + API key reflection (5 tests) |
 | `tests/test_delete_commit_edge_404.py` | Double-undo, missing edge 404 paths (5 tests) |
