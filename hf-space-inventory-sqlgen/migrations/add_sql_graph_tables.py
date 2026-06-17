@@ -45,6 +45,7 @@ DDL_STATEMENTS = [
         domain        TEXT,
         synonyms      TEXT,
         tags          TEXT,
+        computation_template TEXT,
         predicate     TEXT    NOT NULL,
         unique_id     TEXT    NOT NULL,
         description   TEXT,
@@ -70,7 +71,8 @@ DDL_STATEMENTS = [
         references_column TEXT,
         weight            INTEGER,
         priority_weight   INTEGER,
-        field_component   INTEGER
+        field_component   INTEGER,
+        variable_name     TEXT
     )
     """,
     """

@@ -73,6 +73,34 @@ class SolderResult:
     warnings: List[str] = field(default_factory=list)
 
 
+class MetricAssemblyError(ValueError):
+    """Raised when a metric cannot be assembled into SQL under the fail-closed
+    guardrail: a missing computation_template, a missing/extra variable binding,
+    a conflicting binding (one variable resolving to two different physical
+    columns), or an unresolvable join between the tables a metric spans."""
+
+
+@dataclass
+class MetricBinding:
+    variable_name: str
+    table_name: str
+    column_name: str
+
+
+@dataclass
+class MetricResult:
+    metric: str
+    template: str            # dialect-agnostic template with {variable} placeholders
+    expression: str          # template with {vars} -> real table.column (SQLite form)
+    sql: str                 # full runnable SELECT in the target dialect
+    dialect: str
+    bindings: List[MetricBinding] = field(default_factory=list)
+    tables: List[str] = field(default_factory=list)
+    join_path: List[str] = field(default_factory=list)
+    perspectives: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+
+
 class SolderEngine:
 
     def __init__(self, db_path: str = None, manifest_path: str = None):
@@ -642,6 +670,256 @@ class SolderEngine:
             return dict(row) if row else {}
         except sqlite3.Error:
             return {}
+        finally:
+            conn.close()
+
+    # ── Metrics: dialect-agnostic computation templates ───────────────────────
+    #
+    # A metric is an existing concept node (concept_type='metric') that carries a
+    # dialect-agnostic computation_template with named {variable} placeholders —
+    # NEVER static SQL. Each variable binds to a physical column via a
+    # schema_concept_fields row carrying variable_name (the SQLite source of the
+    # graph's resolves_to edges). assemble_metric_sql() substitutes the variables
+    # with real table-qualified columns and transpiles, so a metric is DEFINED
+    # ONCE and yields identical SQL no matter which perspective surfaced it.
+    #
+    # Bindings are resolved at CONCEPT scope and deduplicated by
+    # variable_name -> table.column. The same metric is intentionally visible
+    # under several existing perspectives, so the resolves_to edges fan out; the
+    # deduplication collapses that fan-out to one binding per variable. The
+    # assembler FAILS CLOSED (raises MetricAssemblyError) on a missing template,
+    # a missing/extra binding, a conflicting binding (one variable -> two
+    # different columns), or an unresolvable join — never fabricated SQL.
+
+    _PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
+
+    @staticmethod
+    def _metric_alias(metric_name: str) -> str:
+        """CamelCase concept name -> snake_case column alias for the SELECT."""
+        s1 = re.sub(r"(.)([A-Z][a-z]+)", r"\1_\2", metric_name)
+        return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
+
+    def _metric_template(self, conn, metric: str) -> Optional[str]:
+        row = conn.execute(
+            "SELECT computation_template FROM schema_concepts "
+            "WHERE concept_name = ? AND concept_type = 'metric'",
+            (metric,),
+        ).fetchone()
+        return row["computation_template"] if row else None
+
+    def _metric_bindings(self, conn, metric: str) -> Dict[str, Tuple[str, str]]:
+        """Concept-scoped variable -> (table, column), deduplicated.
+
+        The resolves_to edges fan out across every perspective the metric is
+        visible under, so the same (variable -> column) row appears multiple
+        times. Identical duplicates collapse silently; a variable that resolves
+        to two *different* columns is a hard conflict and fails closed.
+        """
+        rows = conn.execute(
+            "SELECT cf.variable_name, cf.table_name, cf.field_name "
+            "FROM schema_concept_fields cf "
+            "JOIN schema_concepts c ON c.concept_id = cf.concept_id "
+            "WHERE c.concept_name = ? AND cf.variable_name IS NOT NULL "
+            "  AND cf.variable_name <> ''",
+            (metric,),
+        ).fetchall()
+        resolved: Dict[str, Tuple[str, str]] = {}
+        for r in rows:
+            var = r["variable_name"]
+            pair = (r["table_name"], r["field_name"])
+            if var in resolved and resolved[var] != pair:
+                a = ".".join(resolved[var])
+                b = ".".join(pair)
+                raise MetricAssemblyError(
+                    f"Conflicting binding for metric '{metric}' variable "
+                    f"'{{{var}}}': resolves to both {a} and {b}. A variable must "
+                    f"map to exactly one physical column."
+                )
+            resolved[var] = pair
+        return resolved
+
+    def _table_foreign_keys(self, conn, table: str):
+        """[(local_col, referenced_table, referenced_col)] from the live schema."""
+        rows = conn.execute(f'PRAGMA foreign_key_list("{table}")').fetchall()
+        return [(r["from"], r["table"], r["to"]) for r in rows]
+
+    def _resolve_from_join(self, conn, tables: List[str]) -> Tuple[str, List[str]]:
+        """Build a FROM/JOIN clause from declared foreign keys only.
+
+        Single table -> ``FROM t``. Two tables -> a JOIN on the declared FK in
+        either direction. No declared FK (or >2 tables) fails closed rather than
+        fabricating an unsupported join.
+        """
+        tables = sorted(set(tables))
+        if not tables:
+            raise MetricAssemblyError("Metric resolves to no physical table.")
+        if len(tables) == 1:
+            return tables[0], []
+        if len(tables) == 2:
+            a, b = tables
+            for child, parent in ((a, b), (b, a)):
+                for frm, reftbl, refcol in self._table_foreign_keys(conn, child):
+                    if reftbl == parent:
+                        clause = (f"{child}\n  JOIN {parent} "
+                                  f"ON {child}.{frm} = {parent}.{refcol}")
+                        return clause, [f"{child}.{frm} = {parent}.{refcol}"]
+            raise MetricAssemblyError(
+                f"No declared foreign key links '{a}' and '{b}'; refusing to "
+                f"fabricate a join (fail closed)."
+            )
+        raise MetricAssemblyError(
+            f"Metric spans {len(tables)} tables ({', '.join(tables)}); multi-hop "
+            f"join resolution is not supported (fail closed)."
+        )
+
+    def _metric_perspectives(self, conn, metric: str) -> List[str]:
+        rows = conn.execute(
+            "SELECT p.perspective_name FROM schema_perspective_concepts pc "
+            "JOIN schema_perspectives p ON p.perspective_id = pc.perspective_id "
+            "JOIN schema_concepts c ON c.concept_id = pc.concept_id "
+            "WHERE c.concept_name = ? ORDER BY p.perspective_name",
+            (metric,),
+        ).fetchall()
+        return [r["perspective_name"] for r in rows]
+
+    def list_metrics(self) -> List[Dict[str, Any]]:
+        """Concept rows that are defined metrics (have a computation_template)."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "SELECT concept_name, description, domain, computation_template "
+                "FROM schema_concepts "
+                "WHERE concept_type = 'metric' "
+                "  AND computation_template IS NOT NULL "
+                "  AND computation_template <> '' "
+                "ORDER BY concept_name"
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_metric_template(self, metric: str) -> Optional[str]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            return self._metric_template(conn, metric)
+        finally:
+            conn.close()
+
+    def get_metric_bindings(self, metric: str) -> List[MetricBinding]:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            resolved = self._metric_bindings(conn, metric)
+            return [MetricBinding(v, t, c)
+                    for v, (t, c) in sorted(resolved.items())]
+        finally:
+            conn.close()
+
+    def assemble_metric_sql(self, metric: str,
+                            target_dialect: str = "sqlite") -> MetricResult:
+        """Substitute a metric's template variables with real table-qualified
+        columns and return a runnable SELECT in ``target_dialect``.
+
+        Fails closed (MetricAssemblyError) on a missing/empty template, a static
+        (variable-free) template, a missing or extra binding, a conflicting
+        binding, or an unresolvable join.
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            template = self._metric_template(conn, metric)
+            if not template or not template.strip():
+                raise MetricAssemblyError(
+                    f"Metric '{metric}' has no computation_template "
+                    f"(not a defined metric concept)."
+                )
+            placeholders: List[str] = []
+            for m in self._PLACEHOLDER_RE.finditer(template):
+                if m.group(1) not in placeholders:
+                    placeholders.append(m.group(1))
+            if not placeholders:
+                raise MetricAssemblyError(
+                    f"Metric '{metric}' template has no {{variable}} "
+                    f"placeholders; a metric template must never be static SQL."
+                )
+            resolved = self._metric_bindings(conn, metric)
+            missing = [p for p in placeholders if p not in resolved]
+            if missing:
+                raise MetricAssemblyError(
+                    f"Metric '{metric}' is missing variable bindings for "
+                    f"{missing}; cannot assemble SQL (fail closed)."
+                )
+            extra = sorted(set(resolved) - set(placeholders))
+            if extra:
+                raise MetricAssemblyError(
+                    f"Metric '{metric}' has bindings {extra} with no matching "
+                    f"template placeholder (fail closed)."
+                )
+            expression = template
+            for var in placeholders:
+                tbl, col = resolved[var]
+                expression = expression.replace("{" + var + "}", f"{tbl}.{col}")
+            tables = sorted({resolved[v][0] for v in placeholders})
+            from_clause, join_path = self._resolve_from_join(conn, tables)
+            alias = self._metric_alias(metric)
+            sqlite_sql = f"SELECT {expression} AS {alias}\nFROM {from_clause}"
+            warnings: List[str] = []
+            out_sql = sqlite_sql
+            if target_dialect and target_dialect != "sqlite":
+                transpiled = self.transpile(sqlite_sql, "sqlite", target_dialect)
+                if transpiled == sqlite_sql:
+                    warnings.append(
+                        f"Transpilation to {target_dialect} returned the SQLite "
+                        f"form unchanged."
+                    )
+                out_sql = transpiled
+            bindings = [MetricBinding(v, resolved[v][0], resolved[v][1])
+                        for v in placeholders]
+            return MetricResult(
+                metric=metric,
+                template=template,
+                expression=expression,
+                sql=out_sql,
+                dialect=target_dialect or "sqlite",
+                bindings=bindings,
+                tables=tables,
+                join_path=join_path,
+                perspectives=self._metric_perspectives(conn, metric),
+                warnings=warnings,
+            )
+        finally:
+            conn.close()
+
+    def get_metric_lineage(self, metric: str) -> Dict[str, Any]:
+        """Human-facing lineage: each variable -> physical column (with its SME
+        meaning), the tables involved, and the perspectives the metric serves."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            template = self._metric_template(conn, metric)
+            if template is None:
+                return {}
+            resolved = self._metric_bindings(conn, metric)
+            variables = []
+            for v, (t, c) in sorted(resolved.items()):
+                fd = self._get_field_description(t, c)
+                variables.append({
+                    "variable": v,
+                    "table": t,
+                    "column": c,
+                    "display_name": fd.get("display_name") or "",
+                    "meaning": fd.get("description") or "",
+                })
+            tables = sorted({t for (t, _c) in resolved.values()})
+            return {
+                "metric": metric,
+                "template": template,
+                "variables": variables,
+                "tables": tables,
+                "perspectives": self._metric_perspectives(conn, metric),
+            }
         finally:
             conn.close()
 

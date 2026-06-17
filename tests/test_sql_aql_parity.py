@@ -58,6 +58,9 @@ def _sample_graph():
         # round-trip field-for-field through the live-AQL parity flattener too.
         "concept_type": "classification", "domain": "customer",
         "synonyms": ["account name", "client name"], "tags": ["sales", "crm"],
+        # M4: a non-metric concept stores no computation_template; it must still
+        # round-trip field-for-field (as None) through the live-AQL flattener.
+        "computation_template": None,
         "predicate": "none", "unique_id": "none",
         "description": "Customer name under the Sales lens",
     }]
@@ -77,6 +80,9 @@ def _sample_graph():
         "edge_family": ex.FAMILY_SEMANTIC, "edge_type": ex.EDGE_PREDICATE_ELEVATES,
         "perspective": "Sales", "unique_id": "SAL_RES_CUS_NAM_1A2B3C4D",
         "weight": 1, "priority_weight": 3, "field_component": 1,
+        # M4: a categorical elevation names no template {variable}; it must still
+        # round-trip field-for-field (as None) through the live-AQL flattener.
+        "variable_name": None,
     }]
     return table_nodes, column_nodes, concept_nodes, edges
 

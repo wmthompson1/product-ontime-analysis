@@ -44,7 +44,7 @@ from pydantic import BaseModel, Field
 import gradio as gr
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.exc import SQLAlchemyError
-from solder_engine import SolderEngine
+from solder_engine import SolderEngine, MetricAssemblyError
 from production_dispatcher import ProductionDispatcher
 from field_description_pipeline import draft_field_description, compute_field_coverage
 import masking_matrix as mmx
@@ -165,6 +165,17 @@ def ensure_app_metadata_tables(conn) -> None:
             example_value   TEXT,
             updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (source_database, schema_name, table_name, column_name)
+        );
+
+        CREATE TABLE IF NOT EXISTS api_table_descriptions (
+            source_database TEXT    NOT NULL,
+            schema_name     TEXT    NOT NULL,
+            table_name      TEXT    NOT NULL,
+            display_name    TEXT,
+            description     TEXT,
+            ai_context      TEXT,
+            updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (source_database, schema_name, table_name)
         );
 
         CREATE TABLE IF NOT EXISTS schema_topology_metadata (
@@ -462,6 +473,25 @@ def init_sqlite_db():
                 print(f"field_descriptions sync warning: {_fd.get('error')}")
     except Exception as e:
         print(f"field_descriptions sync warning: {e}")
+
+    # Same pattern for the table-level meta-context (table_descriptions.csv at the
+    # repo root <-> SQLite api_table_descriptions overlay). This is the AI
+    # meta-context about the showcase tables a metric draws from. OVERLAY ONLY:
+    # it is never written onto the canonical-graph table/column nodes, so
+    # graph_metadata.json stays byte-identical. Idempotent upsert; never blocks boot.
+    try:
+        from table_description_pipeline import (
+            load_descriptions_from_csv as _load_tbl_csv,
+            DEFAULT_CSV_PATH as _TD_CSV,
+        )
+        if os.path.exists(_TD_CSV):
+            _td = _load_tbl_csv(csv_path=_TD_CSV, db_path=SQLITE_DB_PATH)
+            if _td.get("ok"):
+                print(f"table_descriptions: synced {_td.get('loaded', 0)} row(s) from CSV.")
+            else:
+                print(f"table_descriptions sync warning: {_td.get('error')}")
+    except Exception as e:
+        print(f"table_descriptions sync warning: {e}")
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
@@ -5393,6 +5423,154 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[assembled_sql_output, assembled_report]
             )
         
+        with gr.Tab("📐 Metrics"):
+            gr.Markdown("""
+            ### Metrics — Define-Once, Generate-Anywhere
+
+            A **metric** is a semantic *concept* node (`concept_type = 'metric'`) that
+            stores a **dialect-agnostic computation template** with named `{variable}`
+            placeholders — **never** static SQL. Each variable binds to a real physical
+            column through a `resolves_to` edge. The **SolderEngine** substitutes the
+            variables with table-qualified columns and transpiles, so the metric is
+            *defined once* and generates identical SQL everywhere.
+
+            Pick a metric below to see its template, its variable→column lineage, the
+            AI meta-context for the tables it draws from, and the generated SQL in any
+            dialect.
+            """)
+
+            try:
+                _metric_list = solder.list_metrics()
+            except Exception as _e:
+                _metric_list = []
+            _metric_choices = [(m["concept_name"], m["concept_name"]) for m in _metric_list]
+
+            with gr.Row():
+                with gr.Column(scale=1):
+                    gr.Markdown("#### 1. Select Metric")
+                    metric_dropdown = gr.Dropdown(
+                        choices=_metric_choices,
+                        label="Metric (concept node)",
+                        info="Concepts with a computation_template",
+                        interactive=True,
+                        value=_metric_choices[0][1] if _metric_choices else None,
+                    )
+
+                    gr.Markdown("#### 2. Output Dialect")
+                    metric_dialect = gr.Dropdown(
+                        choices=[
+                            ("SQLite", "sqlite"),
+                            ("T-SQL (SQL Server)", "tsql"),
+                            ("PostgreSQL", "postgres"),
+                            ("MySQL", "mysql"),
+                            ("BigQuery", "bigquery"),
+                        ],
+                        value="sqlite",
+                        label="Target SQL Dialect",
+                        interactive=True,
+                    )
+
+                    metric_btn = gr.Button("Generate Metric SQL", variant="primary", size="lg")
+
+                with gr.Column(scale=2):
+                    gr.Markdown("#### Generated SQL")
+                    metric_sql_output = gr.Code(label="Metric SQL", language="sql", lines=8)
+                    metric_info = gr.Markdown(label="Metric Details")
+
+            def render_metric(metric, dialect):
+                if not metric:
+                    return "-- Select a metric above", "Select a metric to view its template and lineage."
+
+                lineage = solder.get_metric_lineage(metric)
+                if not lineage:
+                    return f"-- '{metric}' is not a defined metric", f"**{metric}** has no computation template."
+
+                # Build the human-facing detail panel.
+                meta = lineage.get("metric", metric)
+                info = f"## {meta}\n\n"
+
+                # description (from the concept row)
+                desc = ""
+                for m in _metric_list:
+                    if m["concept_name"] == metric:
+                        desc = m.get("description") or ""
+                        break
+                if desc:
+                    info += f"{desc}\n\n"
+
+                info += "### Computation Template (dialect-agnostic)\n"
+                info += f"```\n{lineage.get('template', '')}\n```\n\n"
+
+                info += "### Lineage — variable → physical column\n"
+                info += "| Variable | Physical column | SME meaning |\n"
+                info += "|---|---|---|\n"
+                for v in lineage.get("variables", []):
+                    meaning = v.get("meaning") or v.get("display_name") or ""
+                    info += f"| `{{{v['variable']}}}` | `{v['table']}.{v['column']}` | {meaning} |\n"
+                info += "\n"
+
+                tables = lineage.get("tables", [])
+                perspectives = lineage.get("perspectives", [])
+                info += f"**Tables:** {', '.join(f'`{t}`' for t in tables) or '—'}\n\n"
+                info += f"**Perspectives served:** {', '.join(perspectives) or '—'}\n\n"
+
+                # Table meta-context (AI overlay — never on physical column nodes).
+                try:
+                    from table_description_pipeline import get_table_description
+                    ctx_blocks = []
+                    for t in tables:
+                        td = get_table_description(t)
+                        if td:
+                            label = td.get("display_name") or t
+                            block = f"**`{t}`** — {label}\n\n"
+                            if td.get("description"):
+                                block += f"{td['description']}\n\n"
+                            if td.get("ai_context"):
+                                block += f"*AI context:* {td['ai_context']}\n"
+                            ctx_blocks.append(block)
+                    if ctx_blocks:
+                        info += "### Table meta-context (AI overlay)\n"
+                        info += "\n".join(ctx_blocks)
+                        info += "\n"
+                except Exception:
+                    pass
+
+                # Assemble the SQL (fail closed).
+                try:
+                    result = solder.assemble_metric_sql(metric, target_dialect=dialect or "sqlite")
+                except MetricAssemblyError as exc:
+                    return f"-- Assembly failed (fail closed):\n-- {exc}", info
+                except Exception as exc:
+                    return f"-- Unexpected error: {exc}", info
+
+                if result.join_path:
+                    info += "### Join path (FK-derived)\n"
+                    for jp in result.join_path:
+                        info += f"- {jp}\n"
+                    info += "\n"
+                if result.warnings:
+                    info += "### Warnings\n"
+                    for w in result.warnings:
+                        info += f"- {w}\n"
+
+                return result.sql, info
+
+            metric_btn.click(
+                fn=render_metric,
+                inputs=[metric_dropdown, metric_dialect],
+                outputs=[metric_sql_output, metric_info],
+            )
+            metric_dropdown.change(
+                fn=render_metric,
+                inputs=[metric_dropdown, metric_dialect],
+                outputs=[metric_sql_output, metric_info],
+            )
+            metric_dialect.change(
+                fn=render_metric,
+                inputs=[metric_dropdown, metric_dialect],
+                outputs=[metric_sql_output, metric_info],
+            )
+
         with gr.Tab("🔄 Graph Sync"):
             gr.Markdown("""
             ### ArangoDB Graph Sync

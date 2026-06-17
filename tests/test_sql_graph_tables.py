@@ -106,6 +106,8 @@ def _sample_graph():
             "weight": 1,
             "priority_weight": 3,
             "field_component": 1,
+            # M4: categorical elevation, not a metric binding -> no template var.
+            "variable_name": None,
         },
     ]
     return table_nodes, column_nodes, edges
@@ -176,6 +178,7 @@ class RoundTrip(unittest.TestCase):
             "weight": 1,
             "priority_weight": 3,
             "field_component": 2,
+            "variable_name": None,
         })
         ex._materialize_to_sqlite(self.conn, table_nodes, column_nodes, edges)
         loaded_edges = ex._load_edges_from_sqlite(self.conn)
@@ -232,7 +235,7 @@ class ConceptPayloadRoundTrip(unittest.TestCase):
     def tearDown(self):
         self.conn.close()
 
-    def _concept(self, name, ctype, domain, synonyms, tags, desc):
+    def _concept(self, name, ctype, domain, synonyms, tags, desc, template=None):
         return {
             "_id": ex.concept_id(name),
             "_key": ex.concept_key(name),
@@ -244,6 +247,8 @@ class ConceptPayloadRoundTrip(unittest.TestCase):
             "domain": domain,
             "synonyms": synonyms,
             "tags": tags,
+            # M4: metric concepts carry a computation_template; others round-trip None.
+            "computation_template": template,
             "predicate": "none",
             "unique_id": "none",
             "description": desc,
@@ -254,6 +259,7 @@ class ConceptPayloadRoundTrip(unittest.TestCase):
             "ReorderPoint", "metric", "operations",
             ["ROP", "reorder level"], ["mrp", "inventory"],
             "Inventory level that triggers replenishment",
+            template="{avg_daily_demand} * {lead_time_days} + {safety_stock}",
         )
         ex._materialize_to_sqlite(self.conn, [], [], [], [concept])
         self.assertEqual(ex._load_nodes_from_sqlite(self.conn), [concept])

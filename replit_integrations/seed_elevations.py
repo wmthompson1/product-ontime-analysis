@@ -261,6 +261,79 @@ ELEVATIONS = [
      "Part on-hand stock quantity"),
 ]
 
+# --- M4: METRIC computation templates -------------------------------------
+# A metric concept carries a single dialect-AGNOSTIC ``computation_template``:
+# a scalar expression whose named ``{variable}`` placeholders are bound to
+# physical columns by the resolves_to edges in METRIC_ELEVATIONS below. The
+# SolderEngine substitutes each {variable} with its real ``table.column`` and
+# transpiles the result per dialect — so the metric is DEFINED ONCE here and
+# every caller gets identical SQL. Templates are faithful derivations of the
+# SME-APPROVED ground-truth snippets (the snippets' own ``WHEN ... > 0`` guards
+# become NULLIF; the per-row on-time CASE becomes an AVG on-time rate); we never
+# author free SQL. concept_name -> computation_template.
+METRIC_TEMPLATES = {
+    # OEE Operational — availability/performance proxy: actual vs scheduled run
+    # hours (from operations_oeeoperational_*.sql performance_ratio column).
+    "OEEOperational":
+        "SUM({act_run_hrs}) / NULLIF(SUM({run_hrs}), 0)",
+    # OEE Strategic — cost-per-actual-run-hour (from operations_oeestrategic_*.sql
+    # cost_per_actual_hr column): (labour + burden actual cost) / actual run hrs.
+    "OEEStrategic":
+        "SUM({act_atl_lab_cost} + {act_atl_bur_cost}) / NULLIF(SUM({act_run_hrs}), 0)",
+    # Delivery on-time rate — the share of receipts that landed on/before the PO
+    # required date (derived from operations_deliveryperformanceops_*.sql on-time
+    # CASE). ONE approved on-time definition, reused across the three delivery
+    # perspectives (operational / supplier / finance) — the perspective lives on
+    # the resolves_to edge, never in the formula.
+    "DeliveryPerformanceOps":
+        "AVG(CASE WHEN {receipt_date} IS NOT NULL AND {receipt_date} <= {required_date} "
+        "THEN 1.0 WHEN {receipt_date} IS NOT NULL AND {receipt_date} > {required_date} "
+        "THEN 0.0 ELSE NULL END)",
+    "DeliveryPerformanceSupplier":
+        "AVG(CASE WHEN {receipt_date} IS NOT NULL AND {receipt_date} <= {required_date} "
+        "THEN 1.0 WHEN {receipt_date} IS NOT NULL AND {receipt_date} > {required_date} "
+        "THEN 0.0 ELSE NULL END)",
+    "DeliveryPerformanceFinance":
+        "AVG(CASE WHEN {receipt_date} IS NOT NULL AND {receipt_date} <= {required_date} "
+        "THEN 1.0 WHEN {receipt_date} IS NOT NULL AND {receipt_date} > {required_date} "
+        "THEN 0.0 ELSE NULL END)",
+}
+
+# (perspective_name, concept_name, table, column, variable_name, weight, hint)
+# Each row binds ONE template {variable} to a physical column via a resolves_to
+# edge that additionally carries ``variable_name``. Every variable referenced by
+# a METRIC_TEMPLATES entry must have exactly one binding here (the engine fails
+# closed otherwise). Perspectives are EXISTING ones only (no new perspective):
+# delivery is shown through Manufacturing / Quality / Finance lenses over the
+# same two columns; OEE through Manufacturing (shift) and Finance (capital).
+METRIC_ELEVATIONS = [
+    # --- OEE Operational (Manufacturing lens) ---
+    ("Manufacturing", "OEEOperational", "operation", "act_run_hrs", "act_run_hrs", 3,
+     "Actual run hours logged against the operation (numerator)"),
+    ("Manufacturing", "OEEOperational", "operation", "run_hrs", "run_hrs", 3,
+     "Scheduled/standard run hours for the operation (denominator)"),
+    # --- OEE Strategic (Finance lens) ---
+    ("Finance", "OEEStrategic", "operation", "act_atl_lab_cost", "act_atl_lab_cost", 3,
+     "Actual at-the-operation labour cost (numerator term)"),
+    ("Finance", "OEEStrategic", "operation", "act_atl_bur_cost", "act_atl_bur_cost", 3,
+     "Actual at-the-operation burden/overhead cost (numerator term)"),
+    ("Finance", "OEEStrategic", "operation", "act_run_hrs", "act_run_hrs", 3,
+     "Actual run hours (denominator — cost per actual hour)"),
+    # --- Delivery on-time, three perspective lenses over the same two columns ---
+    ("Manufacturing", "DeliveryPerformanceOps", "receiving", "receipt_date", "receipt_date", 3,
+     "Actual goods receipt date (on-time comparison, operational lens)"),
+    ("Manufacturing", "DeliveryPerformanceOps", "purchase_order", "required_date", "required_date", 3,
+     "PO required-by date (on-time comparison, operational lens)"),
+    ("Quality", "DeliveryPerformanceSupplier", "receiving", "receipt_date", "receipt_date", 3,
+     "Actual goods receipt date (supplier scorecard lens)"),
+    ("Quality", "DeliveryPerformanceSupplier", "purchase_order", "required_date", "required_date", 3,
+     "PO required-by date (supplier scorecard lens)"),
+    ("Finance", "DeliveryPerformanceFinance", "receiving", "receipt_date", "receipt_date", 3,
+     "Actual goods receipt date (cost/penalty lens)"),
+    ("Finance", "DeliveryPerformanceFinance", "purchase_order", "required_date", "required_date", 3,
+     "PO required-by date (cost/penalty lens)"),
+]
+
 
 def _concept_id(cur, name: str) -> int:
     row = cur.execute(
@@ -289,11 +362,18 @@ def main() -> int:
     try:
         # Additive guard: older databases predate ``component_index``. Add it in
         # place so this manifest stays self-contained (idempotent).
-        cur.execute("PRAGMA table_info(schema_concept_fields)")
-        if "component_index" not in {row[1] for row in cur.fetchall()}:
+        scf_cols = {row[1] for row in cur.execute("PRAGMA table_info(schema_concept_fields)")}
+        if "component_index" not in scf_cols:
             cur.execute(
                 "ALTER TABLE schema_concept_fields "
                 "ADD COLUMN component_index INTEGER NOT NULL DEFAULT 1"
+            )
+        # M4 additive guard: a metric resolves_to edge names which template
+        # {variable} the bound column fills. Categorical/measure elevations leave
+        # it NULL.
+        if "variable_name" not in scf_cols:
+            cur.execute(
+                "ALTER TABLE schema_concept_fields ADD COLUMN variable_name TEXT"
             )
 
         for name, (ctype, domain, desc) in NEW_CONCEPTS.items():
@@ -320,6 +400,10 @@ def main() -> int:
             cur.execute("ALTER TABLE schema_concepts ADD COLUMN synonyms TEXT")
         if "tags" not in concept_cols:
             cur.execute("ALTER TABLE schema_concepts ADD COLUMN tags TEXT")
+        # M4 additive guard: a metric concept node carries its dialect-agnostic
+        # computation_template. Non-metric concepts leave it NULL.
+        if "computation_template" not in concept_cols:
+            cur.execute("ALTER TABLE schema_concepts ADD COLUMN computation_template TEXT")
 
         # M3 MRP vocabulary — concept nodes carry synonyms + tags (canonical JSON
         # arrays) on top of concept_type / domain / description.
@@ -357,6 +441,43 @@ def main() -> int:
             )
             print(f"  elevation: {persp:24} {table}.{column} -> {concept}")
 
+        # M4: stamp each showcase metric's dialect-agnostic computation_template
+        # onto its (already-shipped) concept node. Unconditional UPDATE keyed by
+        # name, so it is idempotent and never recreates the concept.
+        for concept, template in METRIC_TEMPLATES.items():
+            _concept_id(cur, concept)  # fail loudly if a metric concept is missing
+            cur.execute(
+                "UPDATE schema_concepts SET computation_template = ? "
+                "WHERE concept_name = ?",
+                (template, concept),
+            )
+
+        # M4: metric resolves_to edges. Same shape as ELEVATIONS but each row also
+        # carries the template variable_name the bound column fills.
+        for persp, concept, table, column, variable_name, weight, hint in METRIC_ELEVATIONS:
+            pid = _perspective_id(cur, persp)
+            cid = _concept_id(cur, concept)
+            cur.execute(
+                "INSERT OR IGNORE INTO schema_perspective_concepts "
+                "(perspective_id, concept_id, relationship_type, priority_weight) "
+                "VALUES (?,?, 'USES_DEFINITION', ?)",
+                (pid, cid, weight),
+            )
+            cur.execute(
+                "INSERT OR IGNORE INTO schema_concept_fields "
+                "(table_name, field_name, concept_id, is_primary_meaning, "
+                "context_hint, variable_name) VALUES (?,?,?,1,?,?)",
+                (table, column, cid, hint, variable_name),
+            )
+            # variable_name is set on insert; repair it on a pre-existing row too
+            # (idempotent — always writes the same authored value).
+            cur.execute(
+                "UPDATE schema_concept_fields SET variable_name = ? "
+                "WHERE table_name = ? AND field_name = ? AND concept_id = ?",
+                (variable_name, table, column, cid),
+            )
+            print(f"  metric var: {persp:20} {table}.{column} -> {concept} {{{variable_name}}}")
+
         # Number each field's definitions deterministically: per (table, field)
         # the primary meaning is 1 and each further definition increments. This
         # is the authoritative ``component_index`` the exporter carries into the
@@ -384,7 +505,9 @@ def main() -> int:
         conn.close()
 
     print(f"seeded {len(NEW_CONCEPTS) + len(MRP_CONCEPTS)} concept(s), "
-          f"{len(ELEVATIONS)} elevation(s) (idempotent). "
+          f"{len(ELEVATIONS)} elevation(s), "
+          f"{len(METRIC_TEMPLATES)} metric template(s) + {len(METRIC_ELEVATIONS)} "
+          f"metric var binding(s) (idempotent). "
           f"Re-run export_graph_metadata.py to emit resolves_to edges.")
     return 0
 

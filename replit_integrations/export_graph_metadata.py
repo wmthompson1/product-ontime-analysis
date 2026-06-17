@@ -76,8 +76,8 @@ TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 16
-MILESTONE_NAME = "resolves_to_predicate_rename"
+SCHEMA_VERSION = 17
+MILESTONE_NAME = "metric_computation_templates"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_nodes (
     domain        TEXT,
     synonyms      TEXT,
     tags          TEXT,
+    computation_template TEXT,
     predicate     TEXT    NOT NULL,
     unique_id     TEXT    NOT NULL,
     description   TEXT,
@@ -152,7 +153,8 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     references_column TEXT,
     weight            INTEGER,
     priority_weight   INTEGER,
-    field_component   INTEGER
+    field_component   INTEGER,
+    variable_name     TEXT
 );
 """
 
@@ -551,6 +553,7 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
     has_domain = "domain" in present
     has_syn = "synonyms" in present
     has_tags = "tags" in present
+    has_comp = "computation_template" in present
     cols = ["concept_name", "description"]
     if has_type:
         cols.append("concept_type")
@@ -560,6 +563,8 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
         cols.append("synonyms")
     if has_tags:
         cols.append("tags")
+    if has_comp:
+        cols.append("computation_template")
     rows = conn.execute(
         f"SELECT {', '.join(cols)} FROM schema_concepts ORDER BY concept_name"
     ).fetchall()
@@ -579,6 +584,11 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
                 "domain": (r["domain"] if has_domain else None) or "",
                 "synonyms": _parse_json_list(r["synonyms"]) if has_syn else [],
                 "tags": _parse_json_list(r["tags"]) if has_tags else [],
+                # M4: a metric concept carries its dialect-agnostic
+                # computation_template; non-metric concepts stay null.
+                "computation_template": (
+                    (r["computation_template"] if has_comp else None) or None
+                ),
                 "predicate": NONE_SLOT,
                 "unique_id": NONE_SLOT,
                 "description": r["description"] or "",
@@ -706,16 +716,26 @@ def _fetch_semantic_elevations(conn: sqlite3.Connection) -> list[dict]:
     business graph, so zero edges are produced until an SME maps a real ERP
     column — the format is locked and the plumbing is live, the content is not.
     """
+    # M4: ``variable_name`` names which metric template {variable} this column
+    # fills (NULL for categorical/measure elevations). It only exists on databases
+    # seeded at M4+, so select it conditionally — an older DB simply omits it and
+    # every edge gets variable_name=None downstream.
+    try:
+        scf_cols = {row[1] for row in conn.execute("PRAGMA table_info(schema_concept_fields)")}
+    except sqlite3.Error:
+        return []
+    var_select = "cf.variable_name AS variable_name" if "variable_name" in scf_cols else "NULL AS variable_name"
     try:
         rows = conn.execute(
-            """
+            f"""
             SELECT cf.table_name              AS table_name,
                    cf.field_name              AS column_name,
                    p.perspective_name         AS perspective,
                    pc.priority_weight         AS priority_weight,
                    c.concept_name             AS concept,
                    pc.relationship_type       AS relationship,
-                   cf.component_index         AS field_component
+                   cf.component_index         AS field_component,
+                   {var_select}
             FROM schema_concept_fields cf
             JOIN schema_perspective_concepts pc ON pc.concept_id = cf.concept_id
             JOIN schema_perspectives p          ON p.perspective_id = pc.perspective_id
@@ -782,6 +802,9 @@ def _build_elevates_edges(elevation_rows: list[dict], node_index: set,
                 "weight": weight,
                 "priority_weight": priority_weight,
                 "field_component": field_component,
+                # M4: only metric bindings name a template variable; categorical /
+                # measure elevations stay null.
+                "variable_name": r.get("variable_name"),
             }
         )
     return edges
@@ -882,6 +905,8 @@ def _merge_authored_into_sources(
                     "concept": a["concept"],
                     "relationship": "RESOLVES_TO",
                     "field_component": 1,
+                    # M4: authored edges never bind a metric template variable.
+                    "variable_name": None,
                 }
             )
         # has_column authored rows: intentionally ignored (no-op).
@@ -952,8 +977,11 @@ def _key_scheme_spec() -> dict:
                 "example": "OrderLifecycleState:entity:semantic:canonical:none:none",
                 "payload": (
                     "M3: concept_type, domain, description (the definition), and "
-                    "authored JSON-array synonyms / tags. The perspective stays "
-                    "OFF the node (it attaches on the resolves_to edge — dual-namespace). "
+                    "authored JSON-array synonyms / tags. M4: a metric concept "
+                    "(concept_type=='metric') also carries a dialect-agnostic "
+                    "computation_template with named {variable} placeholders (NULL "
+                    "for non-metric concepts). The perspective stays OFF the node "
+                    "(it attaches on the resolves_to edge — dual-namespace). "
                     "A concept may be a glossary-only node with no resolves_to edge yet."
                 ),
                 "status": "active",
@@ -978,6 +1006,11 @@ def _key_scheme_spec() -> dict:
                 "form": "table:column:semantic:perspective:resolves_to:unique_id  (_from=column node, _to=concept node)",
                 "example": "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_1A2B3C4D",
                 "status": "active (node-guarded; column -> concept node, M2 re-point; uid is concept-stable)",
+                "payload": (
+                    "M4: an edge that binds a column to a metric concept also carries "
+                    "variable_name — the template {variable} this column fills (NULL "
+                    "for categorical / measure elevations)."
+                ),
             },
         ],
         "unique_id_grammar": {
@@ -1035,6 +1068,10 @@ def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
     # round-trip; the app boot guard can bolt some on, so rebuild if any is absent.
     if any(c not in info for c in ("concept_type", "domain", "synonyms", "tags")):
         return True
+    # M4 added the metric ``computation_template`` node column. Rebuild when absent
+    # so the concept round-trip carries it.
+    if "computation_template" not in info:
+        return True
     table_name_col = info.get("table_name")
     if table_name_col is not None and table_name_col[3]:  # PRAGMA "notnull" flag
         return True
@@ -1070,6 +1107,10 @@ def _sql_graph_edges_is_stale(conn: sqlite3.Connection) -> bool:
     if not cols:
         return False
     if "concept" in cols or "priority_weight" not in cols:
+        return True
+    # M4 added the metric ``variable_name`` edge column. Rebuild when absent so the
+    # resolves_to round-trip carries it.
+    if "variable_name" not in cols:
         return True
     ddl_row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='sql_graph_edges'"
@@ -1122,17 +1163,17 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                 f"INSERT INTO {SQL_GRAPH_NODES_TABLE} "
                 "(ordinal, _key, _id, node_type, node_family, perspective, "
                 "table_name, column_name, column_slot, concept_name, concept_type, "
-                "domain, synonyms, tags, predicate, "
+                "domain, synonyms, tags, computation_template, predicate, "
                 "unique_id, description, column_type, \"notnull\", default_value, "
                 "primary_key, foreign_key) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, n["_key"], n["_id"], n["node_type"], n["node_family"],
                     n["perspective"], n.get("table_name"),
                     n.get("column_name"), n.get("column_slot"),
                     n.get("concept_name"), n.get("concept_type"),
                     n.get("domain"), _json_or_none(n.get("synonyms")),
-                    _json_or_none(n.get("tags")),
+                    _json_or_none(n.get("tags")), n.get("computation_template"),
                     n["predicate"], n["unique_id"], n.get("description"),
                     n.get("column_type"), _bool_to_int(n.get("notnull")),
                     n.get("default_value"), _bool_to_int(n.get("primary_key")),
@@ -1144,13 +1185,15 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                 f"INSERT INTO {SQL_GRAPH_EDGES_TABLE} "
                 "(ordinal, _key, _id, _from, _to, edge_family, edge_type, "
                 "perspective, unique_id, references_table, references_column, "
-                "weight, priority_weight, field_component) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "weight, priority_weight, field_component, variable_name) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, e["_key"], e["_id"], e["_from"], e["_to"],
                     e["edge_family"], e["edge_type"], e["perspective"],
                     e["unique_id"], e.get("references_table"),
                     e.get("references_column"), e.get("weight"),
                     e.get("priority_weight"), e.get("field_component"),
+                    e.get("variable_name"),
                 ),
             )
 
@@ -1182,6 +1225,9 @@ def _node_dict_from_row(row: sqlite3.Row) -> dict:
             "domain": row["domain"] if row["domain"] is not None else "",
             "synonyms": _parse_json_list(row["synonyms"]),
             "tags": _parse_json_list(row["tags"]),
+            # M4: metric concepts carry a computation_template; non-metric concepts
+            # store NULL and round-trip as None.
+            "computation_template": row["computation_template"],
             "predicate": row["predicate"],
             "unique_id": row["unique_id"],
             "description": row["description"] if row["description"] is not None else "",
@@ -1224,6 +1270,8 @@ def _edge_dict_from_row(row: sqlite3.Row) -> dict:
         doc["weight"] = row["weight"]
         doc["priority_weight"] = row["priority_weight"]
         doc["field_component"] = row["field_component"]
+        # M4: metric bindings name a template variable; others round-trip as None.
+        doc["variable_name"] = row["variable_name"]
     return doc
 
 
@@ -1278,7 +1326,10 @@ def _build_graph_document(
             "the M3 payload (concept_type, domain, description as the definition, "
             "and the synonyms/tags arrays, emitted from schema_concepts); "
             "perspective is never stored on the node — it lives only on the "
-            "resolves_to edge. A concept may exist without a resolves_to edge (an orphan "
+            "resolves_to edge. M4 adds metrics: a metric concept carries a "
+            "dialect-agnostic computation_template, and the resolves_to edges that "
+            "bind its template {variable} placeholders to physical columns carry "
+            "variable_name. A concept may exist without a resolves_to edge (an orphan "
             "glossary term) until a real ERP column is onboarded."
         ),
         "key_scheme": _key_scheme_spec(),

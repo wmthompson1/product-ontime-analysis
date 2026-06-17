@@ -1,5 +1,5 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-06-17T03:26:38+00:00
+generated: 2026-06-17T04:51:12+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
@@ -7,6 +7,6 @@ arango_edge_collection: manufacturing_graph_edge
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
 nodes                289         289       OK
-edges                282         282       OK
+edges                299         299       OK
 
-[sql_aql_parity] OK — 289 nodes and 282 edges match between SQLite (SQL) and ArangoDB (AQL)
+[sql_aql_parity] OK — 289 nodes and 299 edges match between SQLite (SQL) and ArangoDB (AQL)

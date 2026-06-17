@@ -94,6 +94,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_field_description_pipeline.py ]; th
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_metric_assembly.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_metric_assembly.py || {
+    echo "post-merge: metric assembly tests failed"
+    exit 1
+  }
+fi
+
 if [ -f replit_integrations/field_description_coverage_check.py ]; then
   python replit_integrations/field_description_coverage_check.py || {
     echo "post-merge: field description graph coverage check failed"

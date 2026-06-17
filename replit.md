@@ -35,14 +35,15 @@ Task management: Do NOT auto-create or propose follow-up tasks. Never use propos
 - **ArangoDB graph**: single named graph `manufacturing_graph`, 80 vertices, 41 edges; legacy `semantic_graph` retired
 - **Perspective Bridge Model**: Perspective lives as a property on bridge rows (`Perspective_Intents`, `Perspective_Concepts`) — not as a vertex collection
 - **Define Relationship UI** (mockup panel): live entity search, Add to Graph wired to real endpoints, duplicate-edge protection (AQL UPSERT), undo history (last 5), edge-count badge with per-collection tooltip
-- **Gradio tabs**: Schema browser, Ground Truth SQL browser, Semantic Graph + disambiguation, Bridge Health, Graph Sync, Query Palette, Ask a Question, Masking Matrix — all showing live ERP source label
+- **Gradio tabs**: Schema browser, Ground Truth SQL browser, Semantic Graph + disambiguation, Bridge Health, Graph Sync, Query Palette, Ask a Question, Masking Matrix, Metrics — all showing live ERP source label
+- **Metric computation templates (M4)**: a metric is an existing concept node (`concept_type='metric'`) that stores a dialect-agnostic `computation_template` with named `{variable}` placeholders — **never static SQL**. Each placeholder binds to a physical column via a `resolves_to` edge carrying `variable_name` (SQLite source: `schema_concept_fields.variable_name`). SolderEngine substitutes variables → table-qualified columns and transpiles, so a define-once template yields identical SQL across the perspectives that share it. Showcase 5: `DeliveryPerformanceOps`/`Supplier`/`Finance` (one shared on-time definition, differing only by perspective + meta-context), `OEEOperational`, `OEEStrategic`. **No new perspectives and no new nodes** were created; the 5 templates added 17 `resolves_to` binding edges (canonical: 289 nodes, 299 edges — 223 has_column, 39 references, 37 resolves_to; SCHEMA_VERSION 17).
 - **Masking Matrix tab**: editable grids for the `masking_matrix` DAG and the `masking_type` reference lookup; Save full-replaces SQLite **and** mirrors the SME-facing root CSVs (`masking_matrix.csv`, `masking_type.csv`). Shows salt status (never the value) and a mask preview. The receiving certificate imports only matrix rows whose `status` is `active`.
 - **Sync automation**: SQLite triggers → queue table → polling watcher (`sync_watcher.py`) → ArangoDB sync; GitHub Actions nightly cron
 - **Drift alerts**: 6-hour GitHub Actions drift check with Slack Block Kit alerts (gated on `GRAPH_SYNC_ALERT_WEBHOOK` secret)
 - **CI**: Consolidated `hf-space-ci.yml` runs all 7 test files; ArangoDB smoke test in `arango-legacy-smoke.yml` (nightly + on push)
 
 ### Test suite
-All tests run via `scripts/post-merge.sh` (8/8 passing):
+All tests run via `scripts/post-merge.sh` (all passing):
 | File | What it covers |
 |---|---|
 | `tests/test_field_description_pipeline.py` | Drafts (plain-language, no SQL jargon), KB-context selection, CSV round-trip, graph coverage (223/223), overlay-only guardrail (14 tests) |
@@ -53,8 +54,9 @@ All tests run via `scripts/post-merge.sh` (8/8 passing):
 | `tests/test_delete_commit_edge_404.py` | Double-undo, missing edge 404 paths (5 tests) |
 | `tests/test_commit_edge_duplicate.py` | AQL UPSERT idempotency for all 5 predicates (11 tests) |
 | `tests/test_bridge_collection_health.py` | ArangoDB ↔ SQLite count parity (skips if offline) |
-| `tests/test_sql_graph_tables.py` | `sql_graph_nodes`/`sql_graph_edges` round-trip, ordering, doc-from-tables parity (5 tests) |
+| `tests/test_sql_graph_tables.py` | `sql_graph_nodes`/`sql_graph_edges` round-trip (incl. M4 `computation_template` node + `variable_name` edge columns), ordering, doc-from-tables parity, legacy-DB rebuild (23 tests) |
 | `tests/test_sql_aql_parity.py` | SQL (SQLite tables) vs AQL (live graph) parity via injected fake Arango (8 tests) |
+| `hf-space-inventory-sqlgen/tests/test_metric_assembly.py` | Metric template storage, variable→column binding/lineage, define-once identical SQL, perspective fan-out yields identical SQL, conflicting/missing/static templates fail closed, cross-dialect transpile, table-description overlay round-trip, overlay-never-on-graph-nodes (12 tests) |
 
 ### Graph parity gates (run by post-merge.sh)
 - **SQL vs file**: `replit_integrations/sql_graph_parity_check.py` — proves `graph_metadata.json` is field-for-field identical to the `sql_graph_*` tables (emission order asserted).
@@ -73,18 +75,23 @@ All tests run via `scripts/post-merge.sh` (8/8 passing):
 - **Framework**: FastAPI (ASGI, uvicorn) + Gradio mounted at `/gradio`
 - **Database**: SQLite (`manufacturing.db`, WAL mode) — source of truth for schema metadata and bridge tables
 - **Graph**: ArangoDB — `manufacturing_graph` database, `manufacturing_graph` named graph; populated by `graph_sync.py`
-- **Semantic Layer**: SolderEngine (`solder_engine.py`) — SQLGlot-based assembly of approved SQL snippets; multi-dialect (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery)
+- **Semantic Layer**: SolderEngine (`solder_engine.py`) — SQLGlot-based assembly of approved SQL snippets; multi-dialect (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery). Also assembles **metric SQL** from a concept's `computation_template` + its `resolves_to` variable bindings: resolves at concept scope, dedups `variable_name`→`table.column`, and fails closed on missing / extra / conflicting / static / unresolvable-join bindings (one distinct binding per placeholder) — guaranteeing define-once → identical SQL.
 - **Dispatcher**: Production Dispatcher — closed-vocabulary router using HuggingFace Inference API (Mistral-7B-Instruct) as classifier only, routes to SolderEngine
 - **Sync**: `sync_watcher.py` daemon polls `graph_sync_queue` SQLite table (populated by triggers); `scripts/install_sync_triggers.py` installs 9 triggers on 3 bridge tables
 
 ### Frontend (Gradio)
-Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix
+Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix · Metrics
+
+The **Metrics** tab lets you pick a metric concept and shows its plain-language description, the dialect-agnostic `computation_template`, the variable→column→table lineage, the table-level meta-context, and the SolderEngine-assembled SQL for a chosen dialect.
 
 ### Masking approval copies (repo root)
 `masking_matrix.csv` and `masking_type.csv` live at the repo root as the SME-facing approval copies (CSV ↔ SQLite, upsert on boot). `masking_matrix.py` / `masking_type.py` manage them; `certificate_for_receiving/generate_certificate.py` reads the root `masking_matrix.csv` and imports only `status == active` rows.
 
 ### Field-description approval copy (repo root)
 `field_descriptions.csv` lives at the repo root as the SME-editable approval copy of plain-language descriptions for every graph column node (223 rows, one per canonical-graph `table,column`). On boot, `app.py` upserts it into the `api_field_descriptions` overlay table (idempotent, never blocks boot) so descriptions survive a DB rebuild — mirroring the masking pattern. **Overlay-only by design: descriptions are NEVER written onto graph column nodes**, so `graph_metadata.json` stays byte-identical. `field_description_pipeline.py` manages the CSV (read/write/load + coverage helpers); `replit_integrations/seed_field_descriptions.py --build-graph-csv` regenerates it (priority: existing CSV row > curated `FIELD_DESCRIPTIONS` > fresh draft). Drafts are plain-language with no SQL jargon; AI drafting (gpt-4o-mini + KB context) is available via `--ai`, with a deterministic pattern-based fallback used when no working OpenAI key is present.
+
+### Table-description / meta-context approval copy (repo root)
+`table_descriptions.csv` lives at the repo root as the SME-editable approval copy of table-level meta-context (showcase tables: `operation`, `purchase_order`, `receiving`). On boot, `app.py` upserts it into the `api_table_descriptions` overlay table (PK `source_database` + `schema_name` + `table_name`; columns `display_name`, `description`, `ai_context`) — idempotent, never blocks boot — mirroring the field-description and masking patterns. **Overlay-only by design: this AI meta-context is NEVER written onto physical graph column nodes**, so `graph_metadata.json` stays byte-identical. `table_description_pipeline.py` manages the CSV (read/write/load helpers).
 
 ### Define Relationship mockup (React/Vite)
 Location: `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`
