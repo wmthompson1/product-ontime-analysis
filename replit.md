@@ -57,6 +57,7 @@ All tests run via `scripts/post-merge.sh` (all passing):
 | `tests/test_sql_graph_tables.py` | `sql_graph_nodes`/`sql_graph_edges` round-trip (incl. M4 `computation_template` node + `variable_name` edge columns), ordering, doc-from-tables parity, legacy-DB rebuild (23 tests) |
 | `tests/test_sql_aql_parity.py` | SQL (SQLite tables) vs AQL (live graph) parity via injected fake Arango (8 tests) |
 | `hf-space-inventory-sqlgen/tests/test_metric_assembly.py` | Metric template storage, variable→column binding/lineage, define-once identical SQL, perspective fan-out yields identical SQL, conflicting/missing/static templates fail closed, cross-dialect transpile, table-description overlay round-trip, overlay-never-on-graph-nodes (12 tests) |
+| `hf-space-inventory-sqlgen/tests/test_get_resolves_to.py` | `GET /mcp/tools/get_resolves_to` payload shape (6 cross-repo keys), all 11 M4 bindings present, OEEOperational + DeliveryPerformanceOps bindings + canonical `field_key`, unknown concept → empty (5 tests) |
 
 ### Graph parity gates (run by post-merge.sh)
 - **SQL vs file**: `replit_integrations/sql_graph_parity_check.py` — proves `graph_metadata.json` is field-for-field identical to the `sql_graph_*` tables (emission order asserted).
@@ -76,6 +77,7 @@ All tests run via `scripts/post-merge.sh` (all passing):
 - **Database**: SQLite (`manufacturing.db`, WAL mode) — source of truth for schema metadata and bridge tables
 - **Graph**: ArangoDB — `manufacturing_graph` database, `manufacturing_graph` named graph; populated by `graph_sync.py`
 - **Semantic Layer**: SolderEngine (`solder_engine.py`) — SQLGlot-based assembly of approved SQL snippets; multi-dialect (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery). Also assembles **metric SQL** from a concept's `computation_template` + its `resolves_to` variable bindings: resolves at concept scope, dedups `variable_name`→`table.column`, and fails closed on missing / extra / conflicting / static / unresolvable-join bindings (one distinct binding per placeholder) — guaranteeing define-once → identical SQL.
+- **`GET /mcp/tools/get_resolves_to`**: read-only adapter exposing the M4 metric/template variable bindings for cross-repo (public-fleet) interface parity. Reads binding rows from the SQLite source of truth (`schema_concept_fields` where `variable_name IS NOT NULL`, joined to `schema_concepts`) and enriches each with `field_key` from the live ArangoDB `resolves_to` edges (canonical column-node key, with a deterministic fallback when ArangoDB is offline). Optional `concept_name` filter; each item carries `concept, variable_name, table_name, field_name, field_key, context_hint`. **No `schema_resolves_to` table is introduced** — the existing M4 model is the single source of truth.
 - **Dispatcher**: Production Dispatcher — closed-vocabulary router using HuggingFace Inference API (Mistral-7B-Instruct) as classifier only, routes to SolderEngine
 - **Sync**: `sync_watcher.py` daemon polls `graph_sync_queue` SQLite table (populated by triggers); `scripts/install_sync_triggers.py` installs 9 triggers on 3 bridge tables
 

@@ -2206,6 +2206,91 @@ async def get_field_concepts(table_name: Optional[str] = None, field_name: Optio
         return {"error": str(e), "field_concepts": [], "count": 0}
 
 
+@app.get("/mcp/tools/get_resolves_to")
+async def get_resolves_to(concept_name: Optional[str] = None):
+    """Get M4 metric/template variable bindings (resolves_to) for metric concepts.
+
+    Reads the binding rows from the SQLite source of truth
+    (`schema_concept_fields` where `variable_name IS NOT NULL`, joined to
+    `schema_concepts`) and enriches each with `field_key` taken from the live
+    ArangoDB `resolves_to` edges (the canonical column-node key on the edge's
+    `_from`). When ArangoDB is unreachable, `field_key` falls back to the
+    deterministic canonical column-node key, so the endpoint never hard-fails.
+
+    No new table is introduced — this is a read adapter over the existing M4
+    model. Each item carries the cross-repo payload structure expected by the
+    public fleet: `concept`, `variable_name`, `table_name`, `field_name`,
+    `field_key`, `context_hint`.
+
+    Args:
+        concept_name: Optional metric concept name filter (e.g. ``OEEOperational``).
+    """
+    engine = get_db_engine()
+
+    arango_field_keys: dict = {}
+    arango_available = False
+    try:
+        import importlib
+        gs = importlib.import_module("graph_sync")
+        client = gs.get_arango_client()
+        db = gs.get_arango_db(client)
+        cursor = db.aql.execute(
+            "FOR e IN manufacturing_graph_edge "
+            "FILTER e.edge_type == @et AND e.variable_name != null "
+            "RETURN {f: e._from, t: e._to, v: e.variable_name}",
+            bind_vars={"et": "resolves_to"},
+        )
+        for row in cursor:
+            to_key = str(row.get("t", "")).split("/")[-1]
+            from_key = str(row.get("f", "")).split("/")[-1]
+            edge_concept = to_key.split(":")[0] if to_key else ""
+            var = row.get("v")
+            if edge_concept and var:
+                arango_field_keys[(edge_concept, var)] = from_key
+        arango_available = True
+    except Exception:
+        arango_available = False
+
+    try:
+        with engine.connect() as conn:
+            query = """
+                SELECT c.concept_name, cf.variable_name, cf.table_name,
+                       cf.field_name, cf.context_hint
+                FROM schema_concept_fields cf
+                JOIN schema_concepts c ON cf.concept_id = c.concept_id
+                WHERE cf.variable_name IS NOT NULL
+            """
+            params = {}
+            if concept_name:
+                query += " AND c.concept_name = :concept_name"
+                params["concept_name"] = concept_name
+            query += " ORDER BY c.concept_name, cf.variable_name"
+
+            result = conn.execute(text(query), params)
+            bindings = []
+            for r in result.fetchall():
+                concept, variable_name, table_name, field_name, context_hint = r
+                canonical_field_key = f"{table_name}:{field_name}:structural:system:none:none"
+                arango_field_key = arango_field_keys.get((concept, variable_name))
+                field_key = arango_field_key if arango_field_key == canonical_field_key else canonical_field_key
+                bindings.append({
+                    "concept": concept,
+                    "variable_name": variable_name,
+                    "table_name": table_name,
+                    "field_name": field_name,
+                    "field_key": field_key,
+                    "context_hint": context_hint,
+                })
+            return {
+                "resolves_to": bindings,
+                "count": len(bindings),
+                "arango_available": arango_available,
+                "field_key_source": "arango" if arango_available else "derived",
+            }
+    except Exception as e:
+        return {"error": str(e), "resolves_to": [], "count": 0}
+
+
 @app.get("/mcp/tools/get_ambiguous_fields")
 async def get_ambiguous_fields():
     """Get list of fields that have multiple concept interpretations.
