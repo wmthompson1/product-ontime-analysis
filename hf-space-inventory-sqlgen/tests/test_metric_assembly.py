@@ -1,7 +1,8 @@
 """Tests for metric computation templates and SolderEngine metric assembly.
 
-A metric is an existing *concept* node (concept_type='metric') that stores a
-dialect-agnostic ``computation_template`` with named ``{variable}`` placeholders
+A metric is an existing *concept* node identified by DUCK TYPING — it carries a
+non-empty ``computation_template`` (there is no concept_type column) with named
+``{variable}`` placeholders
 — never static SQL. Each variable binds to a physical column via a
 ``schema_concept_fields`` row carrying ``variable_name`` (the SQLite source of
 the graph's ``resolves_to`` edges). ``SolderEngine.assemble_metric_sql`` swaps
@@ -53,7 +54,6 @@ def _build_fixture_db(path: str) -> None:
         CREATE TABLE schema_concepts (
             concept_id           INTEGER PRIMARY KEY,
             concept_name         TEXT,
-            concept_type         TEXT,
             description          TEXT,
             domain               TEXT,
             computation_template TEXT
@@ -101,19 +101,20 @@ def _build_fixture_db(path: str) -> None:
     """)
 
     concepts = [
-        # id, name, type, description, domain, template
-        (1, "DelFanout", "metric", "Delivery metric with perspective fan-out.", "Delivery", DELIVERY_TEMPLATE),
-        (2, "DelSingle", "metric", "Same delivery metric, single perspective.", "Delivery", DELIVERY_TEMPLATE),
-        (3, "OEEish", "metric", "Single-table efficiency ratio.", "Manufacturing", OEE_TEMPLATE),
-        (4, "StaticMetric", "metric", "Illegal static template.", "Bad", "SUM(1)"),
-        (5, "MissingBind", "metric", "Template var with no binding.", "Bad", "SUM({orphan})"),
-        (6, "ConflictMetric", "metric", "Var bound to two columns.", "Bad", "SUM({x})"),
-        (7, "NotAMetric", "dimension", "A non-metric concept.", "Other", None),
+        # id, name, description, domain, template (NO concept_type — duck typing).
+        # NotAMetric has a NULL template, so it must never be treated as a metric.
+        (1, "DelFanout", "Delivery metric with perspective fan-out.", "Delivery", DELIVERY_TEMPLATE),
+        (2, "DelSingle", "Same delivery metric, single perspective.", "Delivery", DELIVERY_TEMPLATE),
+        (3, "OEEish", "Single-table efficiency ratio.", "Manufacturing", OEE_TEMPLATE),
+        (4, "StaticMetric", "Illegal static template.", "Bad", "SUM(1)"),
+        (5, "MissingBind", "Template var with no binding.", "Bad", "SUM({orphan})"),
+        (6, "ConflictMetric", "Var bound to two columns.", "Bad", "SUM({x})"),
+        (7, "NotAMetric", "A non-metric concept.", "Other", None),
     ]
     conn.executemany(
         "INSERT INTO schema_concepts "
-        "(concept_id, concept_name, concept_type, description, domain, computation_template) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "(concept_id, concept_name, description, domain, computation_template) "
+        "VALUES (?, ?, ?, ?, ?)",
         concepts,
     )
 

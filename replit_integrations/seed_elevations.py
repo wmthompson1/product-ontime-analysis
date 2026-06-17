@@ -376,12 +376,28 @@ def main() -> int:
                 "ALTER TABLE schema_concept_fields ADD COLUMN variable_name TEXT"
             )
 
+        # concept_type was DEPRECATED & REMOVED from the semantic-layer schema
+        # (metrics are duck-typed via computation_template). Still-live databases
+        # may physically retain the legacy column, and the frozen graph artifacts
+        # source their concept_type label from it. Write it ONLY when the column is
+        # physically present — mirroring export_graph_metadata's has_type guard — so
+        # this seed neither re-adds the purged column nor crashes ("no column named
+        # concept_type") on a fresh database built from the new schema.
+        _concept_cols = {row[1] for row in cur.execute("PRAGMA table_info(schema_concepts)")}
+        _has_concept_type = "concept_type" in _concept_cols
         for name, (ctype, domain, desc) in NEW_CONCEPTS.items():
-            cur.execute(
-                "INSERT OR IGNORE INTO schema_concepts "
-                "(concept_name, concept_type, description, domain) VALUES (?,?,?,?)",
-                (name, ctype, desc, domain),
-            )
+            if _has_concept_type:
+                cur.execute(
+                    "INSERT OR IGNORE INTO schema_concepts "
+                    "(concept_name, concept_type, description, domain) VALUES (?,?,?,?)",
+                    (name, ctype, desc, domain),
+                )
+            else:
+                cur.execute(
+                    "INSERT OR IGNORE INTO schema_concepts "
+                    "(concept_name, description, domain) VALUES (?,?,?)",
+                    (name, desc, domain),
+                )
             # Repair: an earlier revision of this manifest inserted description /
             # domain in swapped column order. Re-set them from the authoritative
             # manifest values so existing rows are corrected too (INSERT OR IGNORE
@@ -408,12 +424,20 @@ def main() -> int:
         # M3 MRP vocabulary — concept nodes carry synonyms + tags (canonical JSON
         # arrays) on top of concept_type / domain / description.
         for name, (ctype, domain, desc, synonyms, tags) in MRP_CONCEPTS.items():
-            cur.execute(
-                "INSERT OR IGNORE INTO schema_concepts "
-                "(concept_name, concept_type, description, domain, synonyms, tags) "
-                "VALUES (?,?,?,?,?,?)",
-                (name, ctype, desc, domain, json.dumps(synonyms), json.dumps(tags)),
-            )
+            if _has_concept_type:
+                cur.execute(
+                    "INSERT OR IGNORE INTO schema_concepts "
+                    "(concept_name, concept_type, description, domain, synonyms, tags) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (name, ctype, desc, domain, json.dumps(synonyms), json.dumps(tags)),
+                )
+            else:
+                cur.execute(
+                    "INSERT OR IGNORE INTO schema_concepts "
+                    "(concept_name, description, domain, synonyms, tags) "
+                    "VALUES (?,?,?,?,?)",
+                    (name, desc, domain, json.dumps(synonyms), json.dumps(tags)),
+                )
             # Set the full M3 payload from the authoritative manifest values. This
             # is unconditional (not just a NULL backfill) so it both upgrades a
             # pre-M3 row and repairs the historical description/domain swap; it is

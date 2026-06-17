@@ -284,8 +284,14 @@ def load_sqlite_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any]:
         FROM schema_perspectives ORDER BY perspective_name
     """).fetchall()]
 
+    # concept_type was DEPRECATED & REMOVED from schema_concepts. Derive the
+    # label for the live graph's concepts vertex by DUCK TYPING the metric
+    # template, so the document shape stays stable without the physical column.
     concepts = [dict(r) for r in conn.execute("""
-        SELECT concept_id, concept_name, concept_type, description, domain
+        SELECT concept_id, concept_name,
+               CASE WHEN computation_template IS NOT NULL AND computation_template <> ''
+                    THEN 'metric' ELSE NULL END AS concept_type,
+               description, domain
         FROM schema_concepts ORDER BY concept_name
     """).fetchall()]
 
@@ -589,7 +595,7 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
         key = concept["concept_name"]
         doc = {
             "concept_name": concept["concept_name"],
-            "concept_type": concept.get("concept_type", ""),
+            "concept_type": concept.get("concept_type") or "",
             "description": concept.get("description", ""),
             "domain": concept.get("domain", ""),
             "synced_at": report.timestamp,

@@ -26,3 +26,22 @@ non-empty.
 - Before trusting the main file standalone (or finishing a DB task), checkpoint:
   `PRAGMA wal_checkpoint(TRUNCATE);` then `PRAGMA integrity_check;`. Do it when no
   workflow holds the DB open (stop the HF Space workflow first if needed).
+
+## Dropping a column hides breakage until a FRESH DB is built
+
+**Why:** the gitignored WAL dev DB persists in place and is never rebuilt by boot
+or post-merge, so when you remove a column from `schema_sqlite.sql` the dev DB
+**still physically has the old column** — every `SELECT col …` keeps working
+locally and the whole gate can pass green. The break only surfaces on a *fresh*
+DB created from the (now-purged) schema, e.g. a CI clone or a deleted-then-
+recreated DB. This is the inverse of the original "stale DB missing a new column"
+500, and it cost two extra discovery rounds (alternate sync utility + a read-only
+query-template library were both missed by a casual scan).
+
+**How to apply:** when removing/renaming a physical column, do NOT trust the live
+DB. (1) `rg` the WHOLE repo for every read/write of that column name — include
+query-template libraries, alternate `refresh_*`/sync scripts, and demos, not just
+the obvious app readers; (2) validate by building a throwaway DB straight from
+`schema_sqlite.sql` and executing each touched query against it (empty tables are
+enough to catch `no such column`); (3) prefer a derived alias that preserves the
+old output column shape so callers/tuple-indices are untouched.

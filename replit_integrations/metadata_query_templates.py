@@ -84,7 +84,7 @@ def perspective_concept_map() -> str:
 SELECT
     sp.perspective_name,
     sc.concept_name,
-    sc.concept_type,
+    CASE WHEN sc.computation_template IS NOT NULL AND sc.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type,
     sc.domain,
     spc.relationship_type,
     spc.priority_weight
@@ -136,13 +136,13 @@ def concept_hierarchy() -> str:
 SELECT
     c.concept_id,
     c.concept_name,
-    c.concept_type,
+    CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type,
     c.domain,
     c.parent_concept_id,
     p.concept_name AS parent_concept_name
 FROM schema_concepts c
 LEFT JOIN schema_concepts p ON p.concept_id = c.parent_concept_id
-ORDER BY c.domain, c.concept_type, c.concept_name
+ORDER BY c.domain, concept_type, c.concept_name
 """.strip()
 
 
@@ -159,7 +159,7 @@ SELECT
     scf.table_name,
     scf.field_name,
     sc.concept_name,
-    sc.concept_type,
+    CASE WHEN sc.computation_template IS NOT NULL AND sc.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type,
     sc.domain,
     scf.is_primary_meaning,
     scf.context_hint
@@ -192,7 +192,7 @@ SELECT
     scf.table_name,
     scf.field_name,
     sc.concept_name,
-    sc.concept_type,
+    CASE WHEN sc.computation_template IS NOT NULL AND sc.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type,
     sc.domain,
     scf.is_primary_meaning,
     scf.context_hint
@@ -228,7 +228,7 @@ SELECT
     si.intent_name,
     si.intent_category,
     sc.concept_name,
-    sc.concept_type,
+    CASE WHEN sc.computation_template IS NOT NULL AND sc.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type,
     sc.domain,
     sic.intent_factor_weight,
     sic.explanation

@@ -437,20 +437,24 @@ def init_sqlite_db():
     try:
         # Self-heal older databases BEFORE seeding. CREATE TABLE IF NOT EXISTS
         # never widens a table that already exists, so a database created by an
-        # older schema (e.g. schema_concepts without concept_type) makes the seed
-        # INSERT fail. executescript aborts on that first error, so every table
+        # older schema (e.g. schema_concepts missing domain or
+        # computation_template) makes the seed INSERT or the metric duck-typing
+        # queries fail. executescript aborts on that first error, so every table
         # defined after schema_concepts is never created and the resolve
         # endpoints then raise 500 ("no such table"). Widen the columns the seed
-        # references first so the idempotent seed runs to completion. No-op on a
-        # fresh DB: the table does not exist yet and is created in full below.
+        # and the metric queries reference first so the idempotent seed runs to
+        # completion. concept_type is intentionally NOT re-added: it was
+        # DEPRECATED & REMOVED from the semantic layer (metric-ness is duck typed
+        # on computation_template). No-op on a fresh DB: the table does not exist
+        # yet and is created in full below.
         try:
             _widen_table_columns(
                 conn,
                 "schema_concepts",
                 {
-                    "concept_type": "concept_type TEXT",
                     "description": "description TEXT",
                     "domain": "domain TEXT",
+                    "computation_template": "computation_template TEXT",
                 },
             )
             conn.commit()
@@ -2182,14 +2186,24 @@ async def get_concepts(domain: Optional[str] = None, concept_type: Optional[str]
     engine = get_db_engine()
     try:
         with engine.connect() as conn:
-            query = "SELECT concept_id, concept_name, concept_type, description, domain FROM schema_concepts WHERE 1=1"
+            query = (
+                "SELECT concept_id, concept_name, "
+                "CASE WHEN computation_template IS NOT NULL AND computation_template <> '' "
+                "THEN 'metric' ELSE NULL END AS concept_type, "
+                "description, domain FROM schema_concepts WHERE 1=1"
+            )
             params = {}
             if domain:
                 query += " AND domain = :domain"
                 params["domain"] = domain
             if concept_type:
-                query += " AND concept_type = :concept_type"
-                params["concept_type"] = concept_type
+                # concept_type is DEPRECATED: metric-ness is duck typed on
+                # computation_template. 'metric' filters to templated concepts;
+                # any other value filters to the non-metric remainder.
+                if concept_type == "metric":
+                    query += " AND computation_template IS NOT NULL AND computation_template <> ''"
+                else:
+                    query += " AND (computation_template IS NULL OR computation_template = '')"
             query += " ORDER BY domain, concept_name"
             
             result = conn.execute(text(query), params)
@@ -2214,7 +2228,7 @@ async def get_field_concepts(table_name: Optional[str] = None, field_name: Optio
         with engine.connect() as conn:
             query = """
                 SELECT cf.table_name, cf.field_name, cf.is_primary_meaning, cf.context_hint,
-                       c.concept_id, c.concept_name, c.concept_type, c.description, c.domain
+                       c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description, c.domain
                 FROM schema_concept_fields cf
                 JOIN schema_concepts c ON cf.concept_id = c.concept_id
                 WHERE 1=1
@@ -2407,7 +2421,7 @@ async def get_perspective_concepts(perspective_name: Optional[str] = None):
             query = """
                 SELECT p.perspective_name, p.description, p.stakeholder_role,
                        pc.relationship_type, pc.priority_weight,
-                       c.concept_id, c.concept_name, c.concept_type, c.description as concept_desc, c.domain
+                       c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description as concept_desc, c.domain
                 FROM schema_perspectives p
                 JOIN schema_perspective_concepts pc ON p.perspective_id = pc.perspective_id
                 JOIN schema_concepts c ON pc.concept_id = c.concept_id
@@ -2448,7 +2462,7 @@ async def resolve_field_for_perspective(table_name: str, field_name: str, perspe
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                SELECT c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description, c.domain,
                        cf.context_hint, pc.priority_weight
                 FROM schema_concept_fields cf
                 JOIN schema_concepts c ON cf.concept_id = c.concept_id
@@ -2535,7 +2549,7 @@ async def get_intent_weights(intent_name: str):
             result = conn.execute(text("""
                 SELECT i.intent_name, i.description, i.typical_question,
                        ic.intent_factor_weight, ic.explanation,
-                       c.concept_id, c.concept_name, c.concept_type, c.description as concept_desc, c.domain
+                       c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description as concept_desc, c.domain
                 FROM schema_intents i
                 JOIN schema_intent_concepts ic ON i.intent_id = ic.intent_id
                 JOIN schema_concepts c ON ic.concept_id = c.concept_id
@@ -2621,7 +2635,7 @@ async def resolve_field_for_intent(table_name: str, field_name: str, intent_name
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                SELECT c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description, c.domain,
                        cf.context_hint, ic.intent_factor_weight, ic.explanation,
                        i.typical_question
                 FROM schema_concept_fields cf
@@ -3695,7 +3709,7 @@ async def resolve_semantic_path(table_name: str, field_name: str, intent_name: s
                     -- Perspective info (via OPERATES_WITHIN)
                     p.perspective_name, p.stakeholder_role,
                     -- Concept info (via USES_DEFINITION and CAN_MEAN)
-                    c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                    c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description, c.domain,
                     -- Edge weights
                     ip.intent_factor_weight as operates_within_weight,
                     pc.priority_weight as uses_definition_weight,
@@ -4080,7 +4094,7 @@ def create_gradio_interface():
                     SELECT 
                         i.intent_name, i.intent_category, i.typical_question,
                         p.perspective_name, p.stakeholder_role,
-                        c.concept_id, c.concept_name, c.concept_type, c.description, c.domain,
+                        c.concept_id, c.concept_name, CASE WHEN c.computation_template IS NOT NULL AND c.computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, c.description, c.domain,
                         ip.intent_factor_weight, pc.priority_weight, cf.context_hint,
                         ic.intent_factor_weight, ic.explanation
                     FROM schema_concept_fields cf
@@ -5551,8 +5565,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown("""
             ### Metrics — Define-Once, Generate-Anywhere
 
-            A **metric** is a semantic *concept* node (`concept_type = 'metric'`) that
-            stores a **dialect-agnostic computation template** with named `{variable}`
+            A **metric** is a semantic *concept* node identified by **duck typing**
+            — it carries a non-empty `computation_template` (there is no `concept_type`
+            flag) — and stores a **dialect-agnostic computation template** with named `{variable}`
             placeholders — **never** static SQL. Each variable binds to a real physical
             column through a `resolves_to` edge. The **SolderEngine** substitutes the
             variables with table-qualified columns and transpiles, so the metric is

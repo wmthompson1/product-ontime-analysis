@@ -82,7 +82,7 @@ def load_from_sqlite(db_path: str) -> Tuple[List[Dict[str, Any]], List[Dict[str,
         })
 
     print("  Loading concepts...")
-    for row in conn.execute("SELECT concept_id, concept_name, concept_type, description, domain FROM schema_concepts"):
+    for row in conn.execute("SELECT concept_id, concept_name, CASE WHEN computation_template IS NOT NULL AND computation_template <> '' THEN 'metric' ELSE NULL END AS concept_type, description, domain FROM schema_concepts"):
         nodes.append({
             "id": f"concept_{row['concept_name']}",
             "table": VERTEX_COLLECTION,

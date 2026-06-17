@@ -18,7 +18,9 @@ cur = conn.cursor()
 
 # Create tables if missing (minimal definitions)
 cur.execute("CREATE TABLE IF NOT EXISTS schema_intents (intent_id INTEGER PRIMARY KEY AUTOINCREMENT, intent_name TEXT UNIQUE, description TEXT, typical_question TEXT, primary_binding_key TEXT)")
-cur.execute("CREATE TABLE IF NOT EXISTS schema_concepts (concept_id INTEGER PRIMARY KEY AUTOINCREMENT, concept_name TEXT UNIQUE, description TEXT)")
+# schema_concepts has NO concept_type: metric-ness is duck typed on
+# computation_template (kept here so metric queries work against a dev DB).
+cur.execute("CREATE TABLE IF NOT EXISTS schema_concepts (concept_id INTEGER PRIMARY KEY AUTOINCREMENT, concept_name TEXT UNIQUE, description TEXT, computation_template TEXT)")
 cur.execute("CREATE TABLE IF NOT EXISTS schema_intent_concepts (intent_concept_id INTEGER PRIMARY KEY AUTOINCREMENT, intent_id INTEGER, concept_id INTEGER, intent_factor_weight REAL)")
 cur.execute("CREATE TABLE IF NOT EXISTS schema_perspectives (perspective_id INTEGER PRIMARY KEY AUTOINCREMENT, perspective_name TEXT)")
 cur.execute("CREATE TABLE IF NOT EXISTS schema_intent_perspectives (id INTEGER PRIMARY KEY AUTOINCREMENT, intent_id INTEGER, perspective_id INTEGER, intent_factor_weight REAL)")
@@ -27,6 +29,7 @@ cur.execute("CREATE TABLE IF NOT EXISTS schema_concept_fields (id INTEGER PRIMAR
 # Ensure expected columns exist (adds if missing)
 ensure_column(conn, 'schema_intents', 'intent_category', 'TEXT')
 ensure_column(conn, 'schema_intent_concepts', 'explanation', 'TEXT')
+ensure_column(conn, 'schema_concepts', 'computation_template', 'TEXT')
 
 # Insert intent and concepts
 cur.execute("INSERT OR IGNORE INTO schema_intents (intent_name, description) VALUES (?,?)", ("defect_cost_analysis","Detect cost-related defects"))

@@ -1,20 +1,26 @@
 """Regression tests for self-healing SQLite init on databases created by an
 older schema.
 
-Background: a database created before ``schema_concepts`` gained the
-``concept_type`` (and ``domain``) columns cannot be widened by
-``CREATE TABLE IF NOT EXISTS``. The seed ``INSERT INTO schema_concepts
-(concept_name, concept_type, description, domain)`` then fails, and because the
-seed runs via ``executescript`` the *whole* script aborts on that first error —
-so every table defined after ``schema_concepts`` is never created and the
-resolve endpoints raise 500 ("no such table"). This was observed in CI as:
+Background: ``concept_type`` was DEPRECATED & REMOVED from ``schema_concepts`` —
+a concept is now a metric STRICTLY by DUCK TYPING (``computation_template IS NOT
+NULL AND computation_template <> ''``). The seed therefore inserts only
+``(concept_name, description, domain)`` and never references ``concept_type``.
+
+A database created by an even older schema can still be missing the ``domain``
+(and ``computation_template``) columns. ``CREATE TABLE IF NOT EXISTS`` cannot
+widen an existing table, so the seed ``INSERT`` / metric queries would fail, and
+because the seed runs via ``executescript`` the *whole* script aborts on that
+first error — so every table defined after ``schema_concepts`` is never created
+and the resolve endpoints raise 500 ("no such table"). The original CI symptom:
 
     Database init warning: table schema_concepts has no column named concept_type
     FAIL: test_gradio_resolve_endpoint_surfaces_explanation: Expected 200, got 500
 
-``init_sqlite_db`` now widens the seed columns BEFORE running the seed, so the
-idempotent seed runs to completion on an older database. These tests build that
-exact stale shape in a temp DB and prove the self-heal.
+``init_sqlite_db`` now widens ``description``/``domain``/``computation_template``
+BEFORE running the seed and NEVER re-adds ``concept_type``, so the idempotent
+seed runs to completion on an older database. These tests build that stale shape
+in a temp DB and prove the self-heal — including that ``concept_type`` stays
+purged.
 
 Run: python hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py
 """
@@ -32,9 +38,10 @@ sys.path.insert(0, HF_DIR)
 
 
 def _make_stale_db(path: str) -> None:
-    """Create a database whose schema_concepts predates the concept_type/domain
-    columns and which contains no other tables — reproducing the older shape that
-    aborts the seed."""
+    """Create a database whose schema_concepts predates the domain/
+    computation_template columns and which contains no other tables —
+    reproducing the older shape that aborts the seed. (It also lacks
+    concept_type, which is correct: concept_type is purged for good.)"""
     conn = sqlite3.connect(path)
     try:
         conn.execute(
@@ -77,7 +84,8 @@ def _count(path: str, table: str) -> int:
 
 
 def test_init_self_heals_stale_schema_concepts():
-    """init_sqlite_db must add the missing columns and let the full seed run."""
+    """init_sqlite_db must widen the missing columns and let the full seed run,
+    WITHOUT ever re-introducing the deprecated concept_type column."""
     try:
         import app as fastapi_app
     except Exception as exc:  # pragma: no cover - import guard
@@ -88,8 +96,11 @@ def test_init_self_heals_stale_schema_concepts():
     stale_db = os.path.join(tmpdir, "manufacturing.db")
     _make_stale_db(stale_db)
 
-    assert "concept_type" not in _columns(stale_db, "schema_concepts"), (
-        "precondition: stale DB must NOT have concept_type"
+    pre = _columns(stale_db, "schema_concepts")
+    assert "concept_type" not in pre, "precondition: stale DB must NOT have concept_type"
+    assert "domain" not in pre, "precondition: stale DB must be missing domain"
+    assert "computation_template" not in pre, (
+        "precondition: stale DB must be missing computation_template"
     )
 
     orig_path = fastapi_app.SQLITE_DB_PATH
@@ -100,11 +111,16 @@ def test_init_self_heals_stale_schema_concepts():
         fastapi_app.init_sqlite_db()
 
         cols = _columns(stale_db, "schema_concepts")
-        assert "concept_type" in cols, (
-            f"concept_type was not added by self-heal. Columns: {sorted(cols)}"
+        # concept_type is DEPRECATED & REMOVED — self-heal must NOT re-add it.
+        assert "concept_type" not in cols, (
+            f"concept_type must stay purged, but it was re-added. Columns: {sorted(cols)}"
         )
+        # The seed/metric columns must be widened in.
         assert "domain" in cols, (
             f"domain was not added by self-heal. Columns: {sorted(cols)}"
+        )
+        assert "computation_template" in cols, (
+            f"computation_template was not added by self-heal. Columns: {sorted(cols)}"
         )
 
         # The seed must have run to completion: tables defined after
@@ -115,22 +131,13 @@ def test_init_self_heals_stale_schema_concepts():
         assert _count(stale_db, "schema_concepts") > 0, (
             "schema_concepts has no seeded rows after self-heal"
         )
-
-        conn = sqlite3.connect(stale_db)
-        try:
-            non_null = conn.execute(
-                "SELECT COUNT(*) FROM schema_concepts WHERE concept_type IS NOT NULL"
-            ).fetchone()[0]
-        finally:
-            conn.close()
-        assert non_null > 0, "no concept rows carry a concept_type after self-heal"
     finally:
         fastapi_app.SQLITE_DB_PATH = orig_path
         fastapi_app.db_engine = orig_engine
 
     print(
         "PASS: init_sqlite_db self-heals stale schema_concepts "
-        "(concept_type/domain added, full seed loaded)"
+        "(domain/computation_template added, concept_type stays purged, full seed loaded)"
     )
 
 

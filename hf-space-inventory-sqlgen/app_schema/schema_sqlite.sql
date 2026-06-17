@@ -367,13 +367,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_gt_usage
 CREATE TABLE IF NOT EXISTS schema_concepts (
     concept_id INTEGER PRIMARY KEY AUTOINCREMENT,
     concept_name TEXT NOT NULL UNIQUE,
-    concept_type TEXT NOT NULL,  -- 'state', 'metric', 'classification', 'outcome'
+    -- concept_type was DEPRECATED & REMOVED from the semantic layer. A concept
+    -- is a metric STRICTLY by DUCK TYPING: computation_template IS NOT NULL AND
+    -- computation_template <> ''. (The graph layer's sql_graph_nodes keeps its
+    -- own type label for structural rendering — that is separate and untouched.)
     description TEXT,
     domain TEXT,  -- 'quality', 'finance', 'operations', 'compliance', 'customer'
     synonyms TEXT,  -- M3: canonical JSON array of synonym strings (e.g. '["ROP","reorder level"]'); NULL/absent => []
     tags TEXT,      -- M3: canonical JSON array of curated filter tags (e.g. '["mrp","inventory"]'); NULL/absent => []
     parent_concept_id INTEGER,  -- for REFINES relationship
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    computation_template TEXT,  -- M4: dialect-agnostic metric template with {variable} placeholders; its presence is what makes a concept a metric (duck typing). Also added by seed_elevations.py via guarded ALTER.
     FOREIGN KEY (parent_concept_id) REFERENCES schema_concepts(concept_id)
 );
 
@@ -392,39 +396,42 @@ CREATE TABLE IF NOT EXISTS schema_concept_fields (
 );
 
 -- Seed data: Manufacturing domain concepts
-INSERT INTO schema_concepts (concept_name, concept_type, description, domain) VALUES
+-- NOTE: concept_type was DEPRECATED & REMOVED. A concept becomes a metric only
+-- by carrying a computation_template (duck typing), which seed_elevations.py
+-- attaches to the showcase metrics — never seeded as a static type label here.
+INSERT INTO schema_concepts (concept_name, description, domain) VALUES
 -- Quality domain concepts
-('DefectSeverityQuality', 'classification', 'Defect severity from quality control perspective - focuses on product conformance', 'quality'),
-('DefectSeverityCost', 'classification', 'Defect severity from cost impact perspective - focuses on financial exposure', 'finance'),
-('DefectSeverityCustomer', 'classification', 'Defect severity from customer visibility perspective - focuses on brand risk', 'customer'),
+('DefectSeverityQuality', 'Defect severity from quality control perspective - focuses on product conformance', 'quality'),
+('DefectSeverityCost', 'Defect severity from cost impact perspective - focuses on financial exposure', 'finance'),
+('DefectSeverityCustomer', 'Defect severity from customer visibility perspective - focuses on brand risk', 'customer'),
 
 -- Status concepts (multi-meaning)
-('OrderLifecycleState', 'state', 'Order status representing lifecycle stage in fulfillment', 'operations'),
-('OrderAccountingState', 'state', 'Order status from revenue recognition perspective', 'finance'),
-('OrderCustomerState', 'state', 'Order status as visible to customer', 'customer'),
+('OrderLifecycleState', 'Order status representing lifecycle stage in fulfillment', 'operations'),
+('OrderAccountingState', 'Order status from revenue recognition perspective', 'finance'),
+('OrderCustomerState', 'Order status as visible to customer', 'customer'),
 
 -- Delivery concepts
-('DeliveryPerformanceOps', 'metric', 'Delivery metrics for operational planning', 'operations'),
-('DeliveryPerformanceSupplier', 'metric', 'Delivery metrics for supplier scorecard', 'quality'),
-('DeliveryPerformanceFinance', 'metric', 'Delivery metrics for cost/penalty calculation', 'finance'),
+('DeliveryPerformanceOps', 'Delivery metrics for operational planning', 'operations'),
+('DeliveryPerformanceSupplier', 'Delivery metrics for supplier scorecard', 'quality'),
+('DeliveryPerformanceFinance', 'Delivery metrics for cost/penalty calculation', 'finance'),
 
 -- Equipment concepts
-('EquipmentStateProduction', 'state', 'Equipment status for production scheduling', 'operations'),
-('EquipmentStateMaintenance', 'state', 'Equipment status for maintenance planning', 'operations'),
-('EquipmentStateCompliance', 'state', 'Equipment status for regulatory compliance', 'compliance'),
+('EquipmentStateProduction', 'Equipment status for production scheduling', 'operations'),
+('EquipmentStateMaintenance', 'Equipment status for maintenance planning', 'operations'),
+('EquipmentStateCompliance', 'Equipment status for regulatory compliance', 'compliance'),
 
 -- Failure concepts
-('FailureSeverityProduction', 'classification', 'Failure severity based on production impact', 'operations'),
-('FailureSeveritySafety', 'classification', 'Failure severity based on safety implications', 'compliance'),
-('FailureSeverityCost', 'classification', 'Failure severity based on repair/replacement cost', 'finance'),
+('FailureSeverityProduction', 'Failure severity based on production impact', 'operations'),
+('FailureSeveritySafety', 'Failure severity based on safety implications', 'compliance'),
+('FailureSeverityCost', 'Failure severity based on repair/replacement cost', 'finance'),
 
 -- NCM concepts
-('NCMDispositionQuality', 'outcome', 'NCM disposition from quality standpoint', 'quality'),
-('NCMDispositionFinance', 'outcome', 'NCM disposition from cost recovery standpoint', 'finance'),
+('NCMDispositionQuality', 'NCM disposition from quality standpoint', 'quality'),
+('NCMDispositionFinance', 'NCM disposition from cost recovery standpoint', 'finance'),
 
 -- OEE concepts
-('OEEOperational', 'metric', 'OEE for shift/line performance tracking', 'operations'),
-('OEEStrategic', 'metric', 'OEE for capital investment decisions', 'finance');
+('OEEOperational', 'OEE for shift/line performance tracking', 'operations'),
+('OEEStrategic', 'OEE for capital investment decisions', 'finance');
 
 -- Seed data: Link ambiguous fields to concepts
 -- NOTE: All concept_field rows referencing empty PoC tables were removed in
