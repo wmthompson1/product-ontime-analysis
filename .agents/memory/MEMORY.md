@@ -17,3 +17,4 @@
 - [mockup-sandbox build vs dev typecheck](mockup-sandbox-build.md) — Vite dev server doesn't type-check; only CI `tsc` does, so a green preview ≠ passing build. Entry files must import mockup components as named exports.
 - [Parity report & columnar CSV artifacts](parity-report-artifacts.md) — parity checkers emit .txt reports + columnar CSVs (--csv-dir); CSVs cleared up front so presence⟺fresh run; committed (not gitignored) for private-repo diffing.
 - [SQLMesh project gotchas](sqlmesh-python-model-serialization.md) — @model helper globals must serialize (no Path/regex); empty models must be generators; bump sqlmesh ⇒ migrate; models.py shadow.
+- [OpenAI key auth fallback](openai-key-auth-fallback.md) — repl's OPENAI_API_KEY fails auth; default to deterministic drafting (also user's cost pref), re-verify key before any live AI call.

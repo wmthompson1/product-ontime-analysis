@@ -45,6 +45,7 @@ Task management: Do NOT auto-create or propose follow-up tasks. Never use propos
 All tests run via `scripts/post-merge.sh` (8/8 passing):
 | File | What it covers |
 |---|---|
+| `tests/test_field_description_pipeline.py` | Drafts (plain-language, no SQL jargon), KB-context selection, CSV round-trip, graph coverage (223/223), overlay-only guardrail (14 tests) |
 | `tests/test_perspective_deprecation.py` | Graph constants, bridge lookups, legacy collection absence (8 tests) |
 | `tests/test_resolution_messages.py` | Bridge-row resolution explanation strings (5 tests) |
 | `tests/test_sync_triggers.py` | SQLite trigger install/verify/remove, queue firing (21 tests) |
@@ -58,6 +59,9 @@ All tests run via `scripts/post-merge.sh` (8/8 passing):
 ### Graph parity gates (run by post-merge.sh)
 - **SQL vs file**: `replit_integrations/sql_graph_parity_check.py` — proves `graph_metadata.json` is field-for-field identical to the `sql_graph_*` tables (emission order asserted).
 - **SQL vs AQL**: `replit_integrations/sql_aql_parity_check.py --skip-on-missing` — flattens the live ArangoDB graph (drops server `_rev`) and proves it matches the `sql_graph_*` tables field-for-field (order not asserted; unreachable graph = skip, real drift = fail).
+
+### Field-description coverage gate (run by post-merge.sh)
+- `replit_integrations/field_description_coverage_check.py` — proves `field_descriptions.csv` covers every graph column node in `graph_metadata.json` exactly (223/223), every description non-empty, and no extra rows. File-vs-file (no DB/network needed).
 
 ### Grep gates (run by post-merge.sh)
 - No retired perspective graph surfaces (`scripts/check_legacy_perspective_refs.py`)
@@ -78,6 +82,9 @@ Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic 
 
 ### Masking approval copies (repo root)
 `masking_matrix.csv` and `masking_type.csv` live at the repo root as the SME-facing approval copies (CSV ↔ SQLite, upsert on boot). `masking_matrix.py` / `masking_type.py` manage them; `certificate_for_receiving/generate_certificate.py` reads the root `masking_matrix.csv` and imports only `status == active` rows.
+
+### Field-description approval copy (repo root)
+`field_descriptions.csv` lives at the repo root as the SME-editable approval copy of plain-language descriptions for every graph column node (223 rows, one per canonical-graph `table,column`). On boot, `app.py` upserts it into the `api_field_descriptions` overlay table (idempotent, never blocks boot) so descriptions survive a DB rebuild — mirroring the masking pattern. **Overlay-only by design: descriptions are NEVER written onto graph column nodes**, so `graph_metadata.json` stays byte-identical. `field_description_pipeline.py` manages the CSV (read/write/load + coverage helpers); `replit_integrations/seed_field_descriptions.py --build-graph-csv` regenerates it (priority: existing CSV row > curated `FIELD_DESCRIPTIONS` > fresh draft). Drafts are plain-language with no SQL jargon; AI drafting (gpt-4o-mini + KB context) is available via `--ai`, with a deterministic pattern-based fallback used when no working OpenAI key is present.
 
 ### Define Relationship mockup (React/Vite)
 Location: `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`

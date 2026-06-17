@@ -445,6 +445,24 @@ def init_sqlite_db():
     except Exception as e:
         print(f"masking_type sync warning: {e}")
 
+    # Same pattern for the field descriptions (field_descriptions.csv at the repo
+    # root <-> SQLite api_field_descriptions overlay). This committed, SME-editable
+    # CSV covers every canonical-graph column node; loading it on boot keeps the
+    # plain-language descriptions alive across a gitignored-DB rebuild. Idempotent
+    # upsert; never blocks boot.
+    try:
+        from field_description_pipeline import (
+            load_descriptions_from_csv, DEFAULT_CSV_PATH as _FD_CSV,
+        )
+        if os.path.exists(_FD_CSV):
+            _fd = load_descriptions_from_csv(csv_path=_FD_CSV, db_path=SQLITE_DB_PATH)
+            if _fd.get("ok"):
+                print(f"field_descriptions: synced {_fd.get('loaded', 0)} row(s) from CSV.")
+            else:
+                print(f"field_descriptions sync warning: {_fd.get('error')}")
+    except Exception as e:
+        print(f"field_descriptions sync warning: {e}")
+
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
     engine = get_db_engine()

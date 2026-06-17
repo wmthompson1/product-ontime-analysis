@@ -94,6 +94,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_field_description_pipeline.py ]; th
   }
 fi
 
+if [ -f replit_integrations/field_description_coverage_check.py ]; then
+  python replit_integrations/field_description_coverage_check.py || {
+    echo "post-merge: field description graph coverage check failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py ]; then
   python hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py || {
     echo "post-merge: masking policy pipeline tests failed"

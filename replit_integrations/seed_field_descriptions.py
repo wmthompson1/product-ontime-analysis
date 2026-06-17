@@ -125,6 +125,94 @@ def _seed_curated() -> int:
     return len(FIELD_DESCRIPTIONS)
 
 
+def _curated_lookup() -> dict:
+    """{(table, column): (display, description, example)} from FIELD_DESCRIPTIONS."""
+    return {
+        (t, c): (display, desc, example)
+        for (t, c, display, desc, example) in FIELD_DESCRIPTIONS
+    }
+
+
+def _build_graph_csv(use_ai: bool, verbose: bool = True) -> dict:
+    """Author/refresh the committed field_descriptions.csv for graph columns.
+
+    The CSV is the SME-editable, version-controlled source of truth that boots
+    into ``api_field_descriptions``. Per column, the description is chosen by a
+    strict priority so re-running never clobbers human edits:
+
+        1. an existing non-empty row in field_descriptions.csv  (SME edits win)
+        2. the SME-curated FIELD_DESCRIPTIONS entry             (verbatim)
+        3. a fresh draft — AI+KB when --ai is set, else the deterministic,
+           no-cost draft.
+
+    Returns counts by source. AI spend (when --ai) happens here, once.
+    """
+    from field_description_pipeline import (
+        DEFAULT_CSV_PATH,
+        draft_field_description,
+        graph_column_keys,
+        read_descriptions_csv,
+        write_descriptions_csv,
+    )
+
+    graph_keys = graph_column_keys()
+    curated = _curated_lookup()
+    existing = {
+        (r["table_name"], r["column_name"]): r for r in read_descriptions_csv()
+    }
+
+    rows = []
+    counts = {"existing": 0, "curated": 0, "drafted": 0}
+    # Checkpoint to the CSV every N AI drafts so a long, interrupted run is
+    # resumable: a re-run treats already-written rows as "existing" (priority 1)
+    # and only drafts the remainder.
+    checkpoint_every = 15
+    since_checkpoint = 0
+    for table, column in graph_keys:
+        prior = existing.get((table, column))
+        if prior and prior.get("description"):
+            rows.append(prior)
+            counts["existing"] += 1
+            continue
+
+        if (table, column) in curated:
+            display, desc, example = curated[(table, column)]
+            rows.append({
+                "table_name": table, "column_name": column,
+                "display_name": display, "description": desc,
+                "example_value": example,
+            })
+            counts["curated"] += 1
+            continue
+
+        draft = draft_field_description(
+            table, column, use_ai=use_ai, db_path=DB_PATH, use_kb=use_ai,
+        )
+        rows.append({
+            "table_name": table, "column_name": column,
+            "display_name": draft.get("display_name", ""),
+            "description": draft.get("description", ""),
+            "example_value": draft.get("example_value", ""),
+        })
+        counts["drafted"] += 1
+        since_checkpoint += 1
+        if verbose:
+            src = draft.get("_source", "?")
+            kb = " +kb" if draft.get("_kb_used") else ""
+            print(f"  drafted [{src}{kb}]: {table}.{column} -> "
+                  f"{draft.get('display_name')}", flush=True)
+        if use_ai and since_checkpoint >= checkpoint_every:
+            write_descriptions_csv(rows)
+            since_checkpoint = 0
+            print(f"  ... checkpoint: {len(rows)} rows written", flush=True)
+
+    written = write_descriptions_csv(rows)
+    print(f"wrote {written} rows to {DEFAULT_CSV_PATH} "
+          f"(existing={counts['existing']}, curated={counts['curated']}, "
+          f"drafted={counts['drafted']}).")
+    return counts
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Seed SME-curated field descriptions; optionally draft the rest.",
@@ -136,11 +224,26 @@ def main(argv=None) -> int:
              "rows are preserved).",
     )
     parser.add_argument(
+        "--build-graph-csv", action="store_true",
+        help="Author/refresh the committed field_descriptions.csv covering every "
+             "canonical-graph column node (existing CSV rows and curated entries "
+             "are preserved; only missing columns are drafted). Does NOT require "
+             "the DB unless drafting deterministically from data samples.",
+    )
+    parser.add_argument(
         "--ai", action="store_true",
-        help="When combined with --fill-missing, use the OpenAI draft path "
-             "(requires OPENAI_API_KEY). Default is the deterministic, no-cost draft.",
+        help="Use the OpenAI draft path (requires OPENAI_API_KEY) for "
+             "--fill-missing / --build-graph-csv. Default is the deterministic, "
+             "no-cost draft. With --build-graph-csv the AI prompt also consults "
+             "the KB/guide selectively.",
     )
     args = parser.parse_args(argv)
+
+    if args.build_graph_csv:
+        mode = "AI+KB" if args.ai else "deterministic"
+        print(f"building graph field_descriptions.csv ({mode} drafts)...")
+        _build_graph_csv(use_ai=args.ai, verbose=True)
+        return 0
 
     if not os.path.exists(DB_PATH):
         raise SystemExit(f"ERROR: manufacturing.db not found at {DB_PATH}")

@@ -1,0 +1,224 @@
+table_name,column_name,display_name,description,example_value
+certification,cert_id,Certification ID,Unique identifier for each certification record.,1
+certification,cert_type,Certification Type,"The kind of supplier / material certification on file — e.g. Certificate of Conformance, First Article Inspection, PPAP, FAA 8130-3, or Material Test Report.",CoC
+certification,created_at,Created At,Timestamp for when the certification record was created.,2026-06-01 00:48:21
+certification,expiry_date,Expiry Date,The expiry date for the certification.,2027-01-17
+certification,issued_date,Issued Date,The issued date for the certification.,2026-01-17
+certification,part_id,Part ID,Links each certification to its related part.,PN-10060
+certification,receipt_id,Receipt ID,Links each certification to its related receipt.,1
+certification,status,Certification Status,"Whether a certification is currently valid: active, expired, revoked, or pending renewal.",ACTIVE
+certification,supplier_id,Supplier ID,Links each certification to its related supplier.,S-006
+customer_order,created_at,Created At,Timestamp for when the customer order record was created.,2026-06-06 05:16:25
+customer_order,customer_name,Customer Name,Human-readable name of the customer.,Northrop Grumman
+customer_order,order_date,Order Date,The order date for the customer order.,2025-11-27
+customer_order,order_id,Order ID,Unique identifier for each customer order record.,CO-00001
+customer_order,site_id,Site ID,Links each customer order to its related site.,SITE-2
+customer_order,status,Order Status,"Where a customer order sits in its lifecycle: entered, released, in process, shipped, invoiced, or closed. At 'shipped' the order is recognized as revenue.",SHIPPED
+customer_order_line,created_at,Created At,Timestamp for when the customer order line record was created.,2026-06-06 05:16:25
+customer_order_line,line_no,Line No.,Numeric line no. recorded for each customer order line.,1
+customer_order_line,order_id,Order ID,Links each customer order line to its related order.,CO-00001
+customer_order_line,order_line_id,Order Line ID,Unique identifier for each customer order line record.,1
+customer_order_line,order_qty,Order Quantity,How many units the customer ordered on this line. Drives the production batch size; the per-unit engineering standard is multiplied by this quantity.,25
+customer_order_line,part_id,Part ID,Links each customer order line to its related part.,P-10036
+customer_order_line,site_id,Site ID,Links each customer order line to its related site.,SITE-2
+customer_order_line,unit_price,Unit Price,Numeric unit price recorded for each customer order line.,3391.02
+inv_trans_dist,created_at,Created At,Timestamp for when the inv trans dist record was created.,2026-06-06 05:16:25
+inv_trans_dist,dist_id,Dist ID,Unique identifier for each inv trans dist record.,1
+inv_trans_dist,dist_qty,Dist Quantity,Numeric dist quantity recorded for each inv trans dist.,2.3
+inv_trans_dist,in_trans_id,In Trans ID,Links each inv trans dist to its related in trans.,469
+inv_trans_dist,out_trans_id,Out Trans ID,Links each inv trans dist to its related out trans.,262
+inventory_transaction,class,Class,"The class of each inventory transaction; one of a small set of values such as: R, I, A.",R
+inventory_transaction,created_at,Created At,Timestamp for when the inventory transaction record was created.,2026-06-06 05:16:25
+inventory_transaction,part_id,Part ID,Links each inventory transaction to its related part.,PN-10060
+inventory_transaction,po_id,PO ID,Links each inventory transaction to its related po.,PO-M240005
+inventory_transaction,quantity,Quantity,Numeric quantity recorded for each inventory transaction.,4.0
+inventory_transaction,site_id,Warehouse / Site,"The stockroom or plant site where this inventory move happened. Inventory is traced at the move, so this is where the material physically went.",PLANT-1
+inventory_transaction,trans_date,Trans Date,The trans date for the inventory transaction.,2026-01-17
+inventory_transaction,transaction_id,Transaction ID,Unique identifier for each inventory transaction record.,1
+inventory_transaction,type,Transaction Type,Direction of the stock movement: a receipt into stock (in) versus an issue out to a work order or shipment (out).,ISSUE
+inventory_transaction,wo_id,Wo ID,Links each inventory transaction to its related wo.,WO-240003
+invoice_header,amount_dollars,Amount Dollars,Numeric amount dollars recorded for each invoice header.,22502.95
+invoice_header,created_at,Created At,Timestamp for when the invoice header record was created.,2026-06-01 00:48:21
+invoice_header,due_date,Due Date,The due date for the invoice header.,2026-04-02
+invoice_header,invoice_date,Invoice Date,The invoice date for the invoice header.,2026-02-01
+invoice_header,invoice_id,Invoice ID,Unique identifier for each invoice header record.,70
+invoice_header,invoice_number,Invoice Number,The invoice number for each invoice header record.,INV-000070
+invoice_header,payment_date,Payment Date,The payment date for the invoice header.,2026-05-14
+invoice_header,po_id,PO ID,Links each invoice header to its related po.,PO-M240005
+invoice_header,status,Status,"The status of each invoice header; one of a small set of values such as: Disputed, Approved, Paid, Open.",Disputed
+invoice_header,supplier_id,Supplier ID,Links each invoice header to its related supplier.,S-006
+invoice_header,three_way_match_status,Three-Way Match Status,"Result of matching a supplier invoice against its purchase order and receiving record before it can be paid: matched, on hold for price / quantity variance, or unmatched.",MATCHED
+labor_ticket,burden_cost,Burden Cost,Numeric burden cost recorded for each labor ticket.,107.52
+labor_ticket,clock_in,Clock In,The clock in for each labor ticket record.,2026-03-09T12:00:00
+labor_ticket,clock_out,Clock Out,The clock out for each labor ticket record.,2026-03-09T14:33:36
+labor_ticket,created_at,Created At,Timestamp for when the labor ticket record was created.,2026-06-01 00:48:21
+labor_ticket,employee_id,Employee ID,Links each labor ticket to its related employee.,EMP-010
+labor_ticket,labor_cost,Labor Cost,Numeric labor cost recorded for each labor ticket.,243.2
+labor_ticket,resource_id,Resource ID,Links each labor ticket to its related resource.,CNC-MILL-1
+labor_ticket,sequence_no,Sequence No.,Numeric sequence no. recorded for each labor ticket.,30
+labor_ticket,ticket_id,Ticket ID,Unique identifier for each labor ticket record.,1
+labor_ticket,total_hours,Total Hours,Numeric total hours recorded for each labor ticket.,2.56
+labor_ticket,wo_id,Wo ID,Links each labor ticket to its related wo.,WO-240003
+material_issue,created_at,Created At,Timestamp for when the material issue record was created.,2026-06-01 00:48:21
+material_issue,issue_date,Issue Date,The issue date for the material issue.,2026-04-04
+material_issue,issue_id,Issue ID,Unique identifier for each material issue record.,1
+material_issue,issued_by,Issued By,"The issued by of each material issue; one of a small set of values such as: EMP-009, EMP-014, EMP-003, EMP-004, EMP-013, EMP-010.",EMP-009
+material_issue,part_description,Part Description,Free-text part description for the material issue.,"Phenolic Insulation Block, MIL-I-24768, 2"" thick"
+material_issue,part_id,Part ID,Links each material issue to its related part.,PN-10200
+material_issue,quantity,Quantity,Numeric quantity recorded for each material issue.,15.8
+material_issue,total_cost,Total Cost,Numeric total cost recorded for each material issue.,832.66
+material_issue,unit_cost,Unit Cost,Numeric unit cost recorded for each material issue.,52.7
+material_issue,wo_id,Wo ID,Links each material issue to its related wo.,WO-240003
+operation,act_atl_bur_cost,Act Atl Bur Cost,Numeric act atl bur cost recorded for each operation.,0.0
+operation,act_atl_lab_cost,Act Atl Lab Cost,Numeric act atl lab cost recorded for each operation.,0.0
+operation,act_atl_ser_cost,Act Atl Ser Cost,Numeric act atl ser cost recorded for each operation.,0.0
+operation,act_run_hrs,Act Run Hrs,Numeric act run hrs recorded for each operation.,0.0
+operation,act_setup_hrs,Act Setup Hrs,Numeric act setup hrs recorded for each operation.,0.0
+operation,close_date,Close Date,The close date for the operation.,2026-03-14
+operation,est_atl_bur_cost,Est Atl Bur Cost,Numeric est atl bur cost recorded for each operation.,1520.0
+operation,est_atl_lab_cost,Est Atl Lab Cost,Numeric est atl lab cost recorded for each operation.,3800.0
+operation,est_atl_ser_cost,Est Atl Ser Cost,Numeric est atl ser cost recorded for each operation.,0.0
+operation,last_disp_date,Last Disp Date,The last disp date for the operation.,
+operation,last_recv_date,Last Recv Date,The last recv date for the operation.,
+operation,operation_type_id,Operation Type ID,Links each operation to its related operation type.,ASSY
+operation,resource_id,Resource ID,Links each operation to its related resource.,ASSEM-LINE-2
+operation,rowid_pk,Rowid Pk,Unique identifier for each operation record.,216
+operation,run_hrs,Run Hrs,Numeric run hrs recorded for each operation.,4.0
+operation,run_type,Run Type,The run type of each operation; one of a small set of values such as: HR.,HR
+operation,sched_finish_date,Sched Finish Date,The sched finish date for the operation.,2026-03-11
+operation,sched_start_date,Sched Start Date,The sched start date for the operation.,2026-03-06
+operation,sequence_no,Sequence No.,Numeric sequence no. recorded for each operation.,20
+operation,service_begin_date,Service Begin Date,The service begin date for the operation.,
+operation,service_id,Service ID,Links each operation to its related service.,NDT-UT
+operation,setup_hrs,Setup Hrs,Numeric setup hrs recorded for each operation.,1.0
+operation,status,Operation Status,"Execution state of a routing step on the shop floor: queued, started / running, or complete.",COMPLETE
+operation,vendor_id,Vendor ID,Links each operation to its related vendor.,S-010
+operation,wo_id,Wo ID,Links each operation to its related wo.,WO-00051
+operation,workorder_type,Workorder Type,"The workorder type of each operation; one of a small set of values such as: M, W.",M
+part,active,Active,Yes/no flag indicating whether the part active.,1
+part,cage_code,Cage Code,"The cage code of each part; one of a small set of values such as: 59012, 1HHH9, K0579, 32499, F3234, CAGE1.",59012
+part,created_at,Created At,Timestamp for when the part record was created.,2026-06-03 16:34:08
+part,drawing_number,Drawing Number,"The drawing number of each part; one of a small set of values such as: DWG-10010-A, DWG-10011-A, DWG-10012-A, DWG-10013-A, DWG-10014-A, DWG-10024-A.",DWG-10010-A
+part,lead_time_days,Lead Time Days,Numeric lead time days recorded for each part.,45
+part,material_spec,Material Spec,"The material spec of each part; one of a small set of values such as: AMS 4928, AMS 2770, ASTM A240, BMS 8-276, AMS 5663, MS35337.",AMS 4928
+part,on_hand_qty,On Hand Quantity,Numeric on hand quantity recorded for each part.,61.0
+part,part_class,Part Class (Make / Buy),"How a part is sourced: manufactured in-house, purchased, raw material, hardware, or outside service. Reflects engineering's make-vs-buy intent.",MAKE
+part,part_description,Part Description,Free-text part description for the part.,Titanium Bulkhead Frame 6Al-4V
+part,part_id,Part ID,Unique identifier for each part record.,P-10010
+part,reorder_point,Reorder Point,Numeric reorder point recorded for each part.,4467.18
+part,revision,Revision,The revision of each part; one of a small set of values such as: A.,A
+part,unit_cost,Unit Cost,Numeric unit cost recorded for each part.,4250.0
+part,unit_of_measure,Unit Of Measure,"The unit of measure of each part; one of a small set of values such as: EA, FT, LB.",EA
+payable_line,amount,Amount,Numeric amount recorded for each payable line.,731.04
+payable_line,created_at,Created At,Timestamp for when the payable line record was created.,2026-06-06 05:16:25
+payable_line,invoice_id,Invoice ID,Links each payable line to its related invoice.,1
+payable_line,line_no,Line No.,Numeric line no. recorded for each payable line.,1
+payable_line,part_id,Part ID,Links each payable line to its related part.,PN-10060
+payable_line,payable_line_id,Payable Line ID,Unique identifier for each payable line record.,1
+payable_line,po_id,PO ID,Links each payable line to its related po.,PO-M240005
+payable_line,qty,Quantity,Numeric quantity recorded for each payable line.,4.0
+po_line,created_at,Created At,Timestamp for when the po line record was created.,2026-06-01 00:48:21
+po_line,line_id,Line ID,Unique identifier for each po line record.,1
+po_line,line_total,Line Total,Numeric line total recorded for each po line.,331.9
+po_line,part_description,Part Description,Free-text part description for the po line.,"Hydraulic Actuator Seal Kit, Parker A2K"
+po_line,part_id,Part ID,Links each po line to its related part.,PN-10070
+po_line,po_id,PO ID,Links each po line to its related po.,PO-M240001
+po_line,quantity,Quantity,Numeric quantity recorded for each po line.,5.0
+po_line,unit_cost,Unit Cost,Numeric unit cost recorded for each po line.,66.38
+purchase_order,buyer_id,Buyer ID,Links each purchase order to its related buyer.,BUYER-1
+purchase_order,created_at,Created At,Timestamp for when the purchase order record was created.,2026-06-01 00:48:21
+purchase_order,po_date,PO Date,The po date for the purchase order.,2026-03-04
+purchase_order,po_id,PO ID,Unique identifier for each purchase order record.,PO-000117
+purchase_order,po_type,PO Type,"The po type of each purchase order; one of a small set of values such as: material, outside_service.",material
+purchase_order,required_date,Required Date,The required date for the purchase order.,2026-03-28
+purchase_order,service_id,Service ID,Links each purchase order to its related service.,NDT-UT
+purchase_order,site_id,Site ID,Links each purchase order to its related site.,SITE-1
+purchase_order,status,PO Status,"Lifecycle stage of a purchase order: open, approved, partially or fully received, or closed.",RECEIVED
+purchase_order,supplier_id,Supplier ID,Links each purchase order to its related supplier.,S-002
+purchase_order,total_cost,Total Cost,Numeric total cost recorded for each purchase order.,8180.62
+purchase_order,wo_id,Wo ID,Links each purchase order to its related wo.,WO-240001
+receiving,cert_required,Certification Required,Yes/no flag indicating whether the receiving certification required.,0
+receiving,created_at,Created At,Timestamp for when the receiving record was created.,2026-06-01 00:48:21
+receiving,inspection_status,Receiving Inspection Status,"Quality disposition of a received shipment: pending inspection, passed, or failed / rejected.",PASS
+receiving,part_id,Part ID,Links each receiving to its related part.,PN-10060
+receiving,po_id,PO ID,Links each receiving to its related po.,PO-M240005
+receiving,quantity_ordered,Quantity Ordered,Numeric quantity ordered recorded for each receiving.,4.0
+receiving,quantity_received,Quantity Received,Numeric quantity received recorded for each receiving.,4.0
+receiving,receipt_date,Receipt Date,The receipt date for the receiving.,2026-01-17
+receiving,receipt_id,Receipt ID,Unique identifier for each receiving record.,1
+receiving,supplier_id,Supplier ID,Links each receiving to its related supplier.,S-006
+requirement,actual_qty,Actual Quantity,Numeric actual quantity recorded for each requirement.,22.1
+requirement,component_id,Component ID,Links each requirement to its related component.,WO-00051
+requirement,component_type,Requirement Component Type,"Whether a resource requirement belongs to a PART (the as-designed routing standard — engineering, costed per unit) or a WORK_ORDER (as-built actuals — manufacturing, costed per batch). This is the engineering-vs-manufacturing differentiator.",PART
+requirement,created_at,Created At,Timestamp for when the requirement record was created.,2026-06-12 04:42:36
+requirement,extended_cost,Extended Cost,Numeric extended cost recorded for each requirement.,408.85
+requirement,material_part_id,Material Part ID,Links each requirement to its related material part.,P-10015
+requirement,operation_rowid,Operation Rowid,Numeric operation rowid recorded for each requirement.,216
+requirement,operation_seq,Operation Seq,Numeric operation seq recorded for each requirement.,20
+requirement,requirement_id,Requirement ID,Unique identifier for each requirement record.,REQ-WO-00051-20
+requirement,requirement_level,Requirement Level,The requirement level of each requirement; one of a small set of values such as: WORK_ORDER.,WORK_ORDER
+requirement,requirement_type,Requirement Type,The requirement type of each requirement; one of a small set of values such as: MATERIAL.,MATERIAL
+requirement,std_qty,Std Quantity,Numeric std quantity recorded for each requirement.,2.21
+requirement,unit_cost,Unit Cost,Numeric unit cost recorded for each requirement.,18.5
+service,base_charge,Base Charge,Numeric base charge recorded for each service.,85.0
+service,created_at,Created At,Timestamp for when the service record was created.,2026-06-01 00:48:21
+service,default_vendor,Default Vendor,"The default vendor of each service; one of a small set of values such as: S-008, S-009, S-010, S-011.",S-008
+service,description,Description,Free-text description for the service.,"Anodize Type III Hard Coat, MIL-A-8625"
+service,service_id,Service ID,Unique identifier for each service record.,ANODIZE-II
+shop_resource,active,Active,Yes/no flag indicating whether the shop resource active.,1
+shop_resource,bur_per_hr_run,Bur Per Hr Run,Numeric bur per hr run recorded for each shop resource.,42.0
+shop_resource,created_at,Created At,Timestamp for when the shop resource record was created.,2026-06-01 00:48:21
+shop_resource,description,Description,Free-text description for the shop resource.,"CNC Milling Cell #1, Haas VF-4"
+shop_resource,resource_id,Resource ID,Unique identifier for each shop resource record.,ASSEM-LINE-1
+shop_resource,resource_type,Resource Type,"The resource type of each shop resource; one of a small set of values such as: M, L, S.",M
+shop_resource,run_cost_per_hr,Run Cost Per Hr,Numeric run cost per hr recorded for each shop resource.,95.0
+site,created_at,Created At,Timestamp for when the site record was created.,2026-06-06 05:16:25
+site,region,Region,"The region of each site; one of a small set of values such as: US-Central, US-Southwest, US-Northwest.",US-Central
+site,site_id,Site ID,Unique identifier for each site record.,SITE-1
+site,site_name,Site Name,Human-readable name of the site.,Main Assembly Plant — Wichita KS
+suppliers,active,Active,Yes/no flag indicating whether the suppliers active.,1
+suppliers,address,Address,The address for each suppliers record.,
+suppliers,category,Category,"The category of each suppliers; one of a small set of values such as: Raw Material, Sub-Assembly, MRO, Outside Service, material, hardware.",Raw Material
+suppliers,certification_level,Certification Level,"The certification level of each suppliers; one of a small set of values such as: AS9100D, NADCAP, ISO9001, NADCAP/HT, NADCAP/CHEM, NADCAP/NDT.",AS9100D
+suppliers,contact_email,Contact Email,The contact email for each suppliers record.,
+suppliers,created_date,Created Date,Timestamp for when the suppliers record was created.,2026-06-01 00:48:21
+suppliers,lead_time_days,Lead Time Days,Numeric lead time days recorded for each suppliers.,14
+suppliers,outside_service,Outside Service,Yes/no flag indicating whether the suppliers outside service.,0
+suppliers,payment_terms,Payment Terms,"The payment terms of each suppliers; one of a small set of values such as: Net 45, Net 30, Net 60, Net 15, Net30, Net45.",Net 45
+suppliers,performance_rating,Performance Rating,Numeric performance rating recorded for each suppliers.,4.46
+suppliers,phone,Phone,The phone for each suppliers record.,
+suppliers,supplier_id,Supplier ID,Unique identifier for each suppliers record.,S-001
+suppliers,supplier_name,Supplier Name,Human-readable name of the supplier.,Precision Aerospace Corp
+trace,created_at,Created At,Timestamp for when the trace record was created.,2026-06-06 05:16:25
+trace,expiration_date,Expiration Date,The expiration date for the trace.,2028-04-15
+trace,in_qty,In Quantity,Numeric in quantity recorded for each trace.,18.0
+trace,lot_id,Lot ID,Links each trace to its related lot.,LOT-WO-240003
+trace,out_qty,Out Quantity,Numeric out quantity recorded for each trace.,0.0
+trace,part_id,Part ID,Links each trace to its related part.,PN-10200
+trace,production_date,Production Date,The production date for the trace.,2026-04-16
+trace,serial_id,Serial ID,Links each trace to its related serial.,SN-WO-240003-469
+trace,site_id,Site ID,Links each trace to its related site.,SITE-1
+trace,trace_id,Trace ID,Unique identifier for each trace record.,1
+trace_inventory_trace,created_at,Created At,Timestamp for when the trace inventory trace record was created.,2026-06-06 05:16:25
+trace_inventory_trace,part_id,Part ID,Links each trace inventory trace to its related part.,PN-10200
+trace_inventory_trace,qty,Quantity,Numeric quantity recorded for each trace inventory trace.,18.0
+trace_inventory_trace,trace_id,Trace ID,Links each trace inventory trace to its related trace.,1
+trace_inventory_trace,trace_inv_id,Trace Inv ID,Unique identifier for each trace inventory trace record.,1
+trace_inventory_trace,transaction_id,Transaction ID,Links each trace inventory trace to its related transaction.,469
+work_order,act_bur_cost,Act Bur Cost,Numeric act bur cost recorded for each work order.,0.0
+work_order,act_lab_cost,Act Lab Cost,Numeric act lab cost recorded for each work order.,0.0
+work_order,act_mat_cost,Act Mat Cost,Numeric act mat cost recorded for each work order.,0.0
+work_order,act_ser_cost,Act Ser Cost,Numeric act ser cost recorded for each work order.,0.0
+work_order,close_date,Close Date,The close date for the work order.,2026-04-16
+work_order,created_at,Created At,Timestamp for when the work order record was created.,2026-06-01 00:48:21
+work_order,open_date,Open Date,The open date for the work order.,2026-03-05
+work_order,outside_service,Outside Service,Yes/no flag indicating whether the work order outside service.,1
+work_order,part_description,Part Description,Free-text part description for the work order.,"Titanium Hex Bolt AN3-10A, 3/8-24 UNF"
+work_order,part_id,Part ID,Links each work order to its related part.,PN-10010
+work_order,quantity,Build Quantity,Number of units the work order releases to the floor (the lot / batch size). One unit reflects the engineering per-unit standard; greater than one is a manufacturing batch.,50
+work_order,required_date,Required Date,The required date for the work order.,2026-03-27
+work_order,routing_template,Routing Template,"The routing template of each work order; one of a small set of values such as: COMPOSITE, BRACKET, AIRFRAME, FASTENER, WELDMENT, MACHINED.",COMPOSITE
+work_order,site_id,Site ID,Links each work order to its related site.,SITE-1
+work_order,status,Work Order Status,"Shop-floor lifecycle stage of the work order: open, released, in process, complete, or closed.",IN PROCESS
+work_order,wo_id,Wo ID,Unique identifier for each work order record.,WO-00051
+work_order,workorder_type,Workorder Type,"The workorder type of each work order; one of a small set of values such as: M, W.",M
