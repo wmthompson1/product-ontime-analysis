@@ -675,9 +675,10 @@ class SolderEngine:
 
     # ── Metrics: dialect-agnostic computation templates ───────────────────────
     #
-    # A metric is an existing concept node (concept_type='metric') that carries a
-    # dialect-agnostic computation_template with named {variable} placeholders —
-    # NEVER static SQL. Each variable binds to a physical column via a
+    # A metric is identified by DUCK TYPING: a concept is a metric iff it carries
+    # a non-empty computation_template (concept_type is deprecated and never
+    # consulted). The template is dialect-agnostic with named {variable}
+    # placeholders — NEVER static SQL. Each variable binds to a physical column via a
     # schema_concept_fields row carrying variable_name (the SQLite source of the
     # graph's resolves_to edges). assemble_metric_sql() substitutes the variables
     # with real table-qualified columns and transpiles, so a metric is DEFINED
@@ -700,9 +701,13 @@ class SolderEngine:
         return re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
     def _metric_template(self, conn, metric: str) -> Optional[str]:
+        # Duck typing: a concept is a metric iff it carries a non-empty
+        # computation_template. concept_type is deprecated and never consulted.
         row = conn.execute(
             "SELECT computation_template FROM schema_concepts "
-            "WHERE concept_name = ? AND concept_type = 'metric'",
+            "WHERE concept_name = ? "
+            "  AND computation_template IS NOT NULL "
+            "  AND computation_template <> ''",
             (metric,),
         ).fetchone()
         return row["computation_template"] if row else None
@@ -790,8 +795,7 @@ class SolderEngine:
             rows = conn.execute(
                 "SELECT concept_name, description, domain, computation_template "
                 "FROM schema_concepts "
-                "WHERE concept_type = 'metric' "
-                "  AND computation_template IS NOT NULL "
+                "WHERE computation_template IS NOT NULL "
                 "  AND computation_template <> '' "
                 "ORDER BY concept_name"
             ).fetchall()
