@@ -6,6 +6,7 @@
 - [Seed re-insertion & bridge drift](seed-reseed-behavior.md) — app re-seeds schema_sqlite.sql via INSERT OR IGNORE every startup; deleting seeded rows from live DB only is futile — fix the seed file too. Bridge prune is ungated.
 - [resolves_to scaffolding](semantic-elevates-scaffolding.md) — column→concept predicate renamed elevates→resolves_to (v16, uid RES); 20 edges; legacy Model-A elevates Arango collection kept intact.
 - [FK canonical model](fk-canonical-model.md) — FK = `foreign_key` bool on column node + `references` structural edge (child→parent); no FOREIGN_KEY edge type / is_foreign_key edge prop. Live graph still on old model, so canonical fixtures fail until migration (out of scope).
+- [Pruning two-endpoint edges](graph-sync-prune-two-endpoint-edges.md) — FK/references edges span 2 tables; prune/count them ONCE over all stale names, not in the per-table loop, or dry-run double-counts.
 - [dab_config.json generation](dab-config-generation.md) — generated from dab_field_definitions (certified=1) by sync; publish auto-creates entity blocks for manufacturing tables absent from config; never hand-edit.
 - [SQL graph source tables](sql-graph-source-tables.md) — graph_metadata.json is serialized FROM sql_graph_nodes/sql_graph_edges (materialize→read-back); parity gated in post-merge; SQLite `notnull` is reserved, must be quoted.
 - [Masking matrix](masking-matrix.md) — CSV↔SQLite upsert-only mirror; rows target the private SQL Server schema; mask width = per-row `field_length`; salt=GEMIN_SALT env.

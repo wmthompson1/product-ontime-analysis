@@ -52,12 +52,21 @@ from typing import Any, Dict
 TABLES_COLLECTION: str = "tables"
 COLUMNS_COLLECTION: str = "columns"
 CONTAINS_EDGE_COLLECTION: str = "contains"
+REFERENCES_EDGE_COLLECTION: str = "references"
 
 # ── Edge definition for the named graph ─────────────────────────────────────
 
 CONTAINS_EDGE_DEFINITION: Dict[str, Any] = {
     "edge_collection": CONTAINS_EDGE_COLLECTION,
     "from_vertex_collections": [TABLES_COLLECTION],
+    "to_vertex_collections": [COLUMNS_COLLECTION],
+}
+
+# Foreign-key layer: column → column (child → parent). Both endpoints live in
+# the same ``columns`` vertex collection, so from/to are both COLUMNS_COLLECTION.
+REFERENCES_EDGE_DEFINITION: Dict[str, Any] = {
+    "edge_collection": REFERENCES_EDGE_COLLECTION,
+    "from_vertex_collections": [COLUMNS_COLLECTION],
     "to_vertex_collections": [COLUMNS_COLLECTION],
 }
 
@@ -98,6 +107,32 @@ def contains_edge_key(table_name: str, column_name: str) -> str:
     edge key.
     """
     return column_key(table_name, column_name)
+
+
+def references_edge_key(
+    child_table: str,
+    child_column: str,
+    parent_table: str,
+    parent_column: str,
+) -> str:
+    """Return the ArangoDB ``_key`` for a foreign-key (references) edge.
+
+    A child column can declare more than one foreign key, so — unlike the
+    contains edge — the column key alone is not unique. The key encodes BOTH
+    endpoints so re-sync is a deterministic, idempotent upsert.
+
+    Format: ``fk::{CHILD_TABLE}.{CHILD_COL}->{PARENT_TABLE}.{PARENT_COL}``
+    (all uppercase).
+
+    Example::
+
+        references_edge_key("receiving", "po_id", "purchase_order", "po_id")
+        # → "fk::RECEIVING.PO_ID->PURCHASE_ORDER.PO_ID"
+    """
+    return (
+        f"fk::{child_table.strip().upper()}.{child_column.strip().upper()}"
+        f"->{parent_table.strip().upper()}.{parent_column.strip().upper()}"
+    )
 
 
 # ── Document builders ────────────────────────────────────────────────────────
@@ -174,5 +209,40 @@ def contains_edge(
         "edge_type": "CONTAINS",
         "table_name": table_name.strip().upper(),
         "column_name": column_name.strip().upper(),
+        "synced_at": synced_at,
+    }
+
+
+def references_edge(
+    child_table: str,
+    child_column: str,
+    parent_table: str,
+    parent_column: str,
+    synced_at: str = "",
+) -> Dict[str, Any]:
+    """Build a ``references`` (foreign-key) edge document for ArangoDB.
+
+    Direction is child column → parent column, matching the canonical exporter's
+    ``references`` edges. Both endpoints are ``columns`` vertices that the
+    containment sync already created, so this must run AFTER that pass.
+
+      edge_type         : "REFERENCES"  (uppercase, matching the live "CONTAINS")
+      table_name        : child table   (uppercase)
+      column_name       : child column  (uppercase)
+      references_table  : parent table  (uppercase)
+      references_column : parent column (uppercase)
+      _from             : columns/{child column_key}
+      _to               : columns/{parent column_key}
+    """
+    key = references_edge_key(child_table, child_column, parent_table, parent_column)
+    return {
+        "_key": key,
+        "_from": f"{COLUMNS_COLLECTION}/{column_key(child_table, child_column)}",
+        "_to": f"{COLUMNS_COLLECTION}/{column_key(parent_table, parent_column)}",
+        "edge_type": "REFERENCES",
+        "table_name": child_table.strip().upper(),
+        "column_name": child_column.strip().upper(),
+        "references_table": parent_table.strip().upper(),
+        "references_column": parent_column.strip().upper(),
         "synced_at": synced_at,
     }

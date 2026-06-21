@@ -46,7 +46,7 @@ MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "ground_tr
 GRAPH_NAME = os.environ.get("ARANGO_DB", "manufacturing_graph")
 
 VERTEX_COLLECTIONS = ["intents", "concepts", "bindings", "tables", "columns"]
-EDGE_COLLECTIONS = ["elevates", "bound_to", "contains"]
+EDGE_COLLECTIONS = ["elevates", "bound_to", "contains", "references"]
 BRIDGE_COLLECTIONS = ["Perspective_Intents", "Perspective_Concepts"]
 
 LEGACY_VERTEX_COLLECTIONS = ["perspectives"]
@@ -66,6 +66,11 @@ EDGE_DEFINITIONS = [
     {
         "edge_collection": "contains",
         "from_vertex_collections": ["tables"],
+        "to_vertex_collections": ["columns"],
+    },
+    {
+        "edge_collection": "references",
+        "from_vertex_collections": ["columns"],
         "to_vertex_collections": ["columns"],
     },
 ]
@@ -268,6 +273,62 @@ def load_schema_containment_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any
     return {"tables": tables, "columns": columns}
 
 
+def load_schema_foreign_keys(db_path: str = SQLITE_DB_PATH) -> List[Dict[str, Any]]:
+    """Read declared foreign keys (PRAGMA foreign_key_list) for every ERP table
+    listed in ``schema_nodes``.
+
+    Mirrors the canonical exporter's FK semantics: direction is child → parent,
+    and a NULL target column (an FK to the parent's implicit primary key) is
+    resolved to the parent's single primary-key column. Ambiguous cases (no PK
+    or a composite PK) stay ``None`` so the caller skips them rather than writing
+    a dangling references edge. FK *enforcement* is intentionally off in this DB,
+    so these are declared-only relationships.
+
+    Returns dicts of {child_table, child_column, parent_table, parent_column}.
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+
+    table_rows = conn.execute(
+        "SELECT table_name FROM schema_nodes "
+        "WHERE table_type = 'Table' ORDER BY table_name"
+    ).fetchall()
+    table_names = [r["table_name"] for r in table_rows]
+
+    # parent_table -> [primary-key columns], for NULL-target resolution.
+    pk_map: Dict[str, List[str]] = {}
+    for tname in table_names:
+        quoted = '"' + tname.replace('"', '""') + '"'
+        try:
+            cols = conn.execute(f"PRAGMA table_info({quoted})").fetchall()
+            pk_map[tname] = [c["name"] for c in cols if c["pk"]]
+        except sqlite3.Error:
+            pk_map[tname] = []
+
+    fks: List[Dict[str, Any]] = []
+    for tname in table_names:
+        quoted = '"' + tname.replace('"', '""') + '"'
+        try:
+            rows = conn.execute(f"PRAGMA foreign_key_list({quoted})").fetchall()
+        except sqlite3.Error:
+            rows = []
+        for r in rows:
+            parent_table = r["table"]
+            parent_col = r["to"]
+            if parent_col is None:
+                pks = pk_map.get(parent_table, [])
+                parent_col = pks[0] if len(pks) == 1 else None
+            fks.append({
+                "child_table": tname,
+                "child_column": r["from"],
+                "parent_table": parent_table,
+                "parent_column": parent_col,
+            })
+
+    conn.close()
+    return fks
+
+
 def load_sqlite_data(db_path: str = SQLITE_DB_PATH) -> Dict[str, Any]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -371,19 +432,22 @@ def prune_stale_containment(
     explicitly requests a purge (``--purge-stale`` / ``GRAPH_PRUNE_STALE=1``).
 
     Returns a dict with keys:
-        tables_pruned  : int   — table vertices removed (or would remove in dry-run)
-        columns_pruned : int   — column vertices removed
-        edges_pruned   : int   — contains edges removed
+        tables_pruned     : int   — table vertices removed (or would remove in dry-run)
+        columns_pruned    : int   — column vertices removed
+        edges_pruned      : int   — contains edges removed
+        references_pruned : int   — foreign-key (references) edges removed
         stale_table_names : List[str]  — names of the stale tables detected
     """
     from arangodb_helpers.manufacturing_graph_version_0_0_1 import (
         table_key, TABLES_COLLECTION, COLUMNS_COLLECTION, CONTAINS_EDGE_COLLECTION,
+        REFERENCES_EDGE_COLLECTION,
     )
 
     result: Dict[str, Any] = {
         "tables_pruned": 0,
         "columns_pruned": 0,
         "edges_pruned": 0,
+        "references_pruned": 0,
         "stale_table_names": [],
     }
 
@@ -463,7 +527,40 @@ def prune_stale_containment(
             action = "would prune" if dry_run else "pruned"
             report.warnings.append(
                 f"Stale table {action}: {stale_name!r} "
-                f"({cols_deleted} columns, {edges_deleted} edges)"
+                f"({cols_deleted} columns, {edges_deleted} contains edges)"
+            )
+
+    # Foreign-key edges dangle when EITHER endpoint table is pruned — the child
+    # (table_name) or the parent (references_table). A single edge can connect
+    # two stale tables, so this is handled ONCE over all stale names (not inside
+    # the per-table loop) to avoid double-counting in the dry-run accounting.
+    stale_names = result["stale_table_names"]
+    if stale_names:
+        if not dry_run:
+            ref_cursor = db.aql.execute(
+                f"FOR e IN {REFERENCES_EDGE_COLLECTION} "
+                f"FILTER e.table_name IN @names OR e.references_table IN @names "
+                f"REMOVE e IN {REFERENCES_EDGE_COLLECTION} "
+                f"RETURN 1",
+                bind_vars={"names": stale_names},
+                batch_size=500,
+            )
+        else:
+            ref_cursor = db.aql.execute(
+                f"FOR e IN {REFERENCES_EDGE_COLLECTION} "
+                f"FILTER e.table_name IN @names OR e.references_table IN @names "
+                f"RETURN 1",
+                bind_vars={"names": stale_names},
+                batch_size=500,
+            )
+        refs_deleted = sum(1 for _ in ref_cursor)
+        result["references_pruned"] += refs_deleted
+
+        if report is not None and refs_deleted:
+            action = "would prune" if dry_run else "pruned"
+            report.warnings.append(
+                f"Stale references {action}: {refs_deleted} edges "
+                f"touching {len(stale_names)} stale table(s)"
             )
 
     return result
@@ -765,8 +862,9 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
     # These collections are intentionally separate from the semantic layer.
     try:
         from arangodb_helpers.manufacturing_graph_version_0_0_1 import (
-            table_key, table_vertex, column_vertex, contains_edge,
+            table_key, table_vertex, column_vertex, contains_edge, references_edge,
             TABLES_COLLECTION, COLUMNS_COLLECTION, CONTAINS_EDGE_COLLECTION,
+            REFERENCES_EDGE_COLLECTION,
         )
 
         containment_data = load_schema_containment_data(db_path)
@@ -824,6 +922,42 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
             except Exception as ex:
                 report.warnings.append(f"contains '{edge_key}': {ex}")
 
+        # ── Structural Foreign-Key Layer ──────────────────────────────────────
+        # columns (vertex) → references (edge) → columns (vertex)
+        # Source: PRAGMA foreign_key_list per ERP table (declared FKs only —
+        # enforcement is intentionally off). Same child→parent direction and
+        # NULL-target resolution as the canonical exporter. Runs AFTER the column
+        # upserts above so both endpoint vertices already exist.
+        references_coll = graph.edge_collection(REFERENCES_EDGE_COLLECTION)
+        node_index = {(c["table_name"], c["column_name"])
+                      for c in containment_data["columns"]}
+        sc_e_synced[REFERENCES_EDGE_COLLECTION] = 0
+        sc_e_new[REFERENCES_EDGE_COLLECTION] = 0
+        sc_e_updated[REFERENCES_EDGE_COLLECTION] = 0
+
+        for fk in load_schema_foreign_keys(db_path):
+            ct, cc = fk["child_table"], fk["child_column"]
+            pt, pc = fk["parent_table"], fk["parent_column"]
+            # Skip dangling/ambiguous FKs rather than write an edge whose
+            # endpoint column vertex does not exist (mirrors the exporter).
+            if pc is None or (ct, cc) not in node_index or (pt, pc) not in node_index:
+                report.warnings.append(
+                    f"references skipped (dangling): {ct}.{cc} -> {pt}.{pc}"
+                )
+                continue
+            ref_doc = references_edge(ct, cc, pt, pc, synced_at=report.timestamp)
+            ref_key = ref_doc["_key"]
+            try:
+                from_id = ref_doc["_from"]
+                to_id = ref_doc["_to"]
+                clean_doc = {k: v for k, v in ref_doc.items()
+                             if k not in ("_key", "_from", "_to")}
+                is_new = _upsert_edge(references_coll, from_id, to_id, ref_key, clean_doc)
+                sc_e_synced[REFERENCES_EDGE_COLLECTION] += 1
+                (sc_e_new if is_new else sc_e_updated)[REFERENCES_EDGE_COLLECTION] += 1
+            except Exception as ex:
+                report.warnings.append(f"references '{ref_key}': {ex}")
+
         report.vertices_synced.update(sc_v_synced)
         report.vertices_new.update(sc_v_new)
         report.vertices_updated.update(sc_v_updated)
@@ -840,6 +974,7 @@ def sync_graph(db_path: str = SQLITE_DB_PATH,
                     report.vertices_pruned[TABLES_COLLECTION] = prune_result["tables_pruned"]
                     report.vertices_pruned[COLUMNS_COLLECTION] = prune_result["columns_pruned"]
                     report.edges_pruned[CONTAINS_EDGE_COLLECTION] = prune_result["edges_pruned"]
+                    report.edges_pruned[REFERENCES_EDGE_COLLECTION] = prune_result["references_pruned"]
                     report.stale_tables = list(prune_result["stale_table_names"])
             except Exception as ex:
                 report.warnings.append(f"Stale containment prune failed: {ex}")
