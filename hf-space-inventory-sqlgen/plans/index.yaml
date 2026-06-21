@@ -1,0 +1,68 @@
+# Plan registry — a folder-agnostic catalog of every plan, keyed by plan_id.
+#
+# Plans live in more than one folder and more than one format (YAML task boards
+# here in plans/, plus standalone markdown design docs under replit_integrations/).
+# Activity in replit_integrations/plan_activity/ correlates to the IDs below — the
+# logical `wave` / plan_id / task_id keys — never to file paths, so a plan may be
+# moved between folders without breaking the link.
+#
+# The `wave` numbers form a single global spine that crosses plans and folders.
+# Activity tracking started at WAVE 4 (see activity_start: true).
+registry_version: 1
+generated: "2026-06-17"
+
+waves:
+  - wave: 1
+    theme: "Persistence Storage Layer & Adapters"
+    plan_ids: [plan-008-consumer-delivery-persistence]
+  - wave: 2
+    theme: "Graph Conversion & Traversal"
+    plan_ids: [plan-008-consumer-delivery-persistence]
+  - wave: 3
+    theme: "Replit Graph Metadata Integration"
+    plan_ids: [plan-008-consumer-delivery-persistence]
+  - wave: 4
+    theme: "Final Schema Lock & Synthetic ERP Expansion"
+    plan_ids:
+      - plan-008-consumer-delivery-persistence
+      - plan-8-wave-4-synthetic-erp-expansion
+    activity_start: true
+  - wave: 5
+    theme: "FK Hierarchy & Ground Truth Approval"
+    plan_ids: [plan-011-fk-hierarchy-approval]
+  - wave: 6
+    theme: "Structural vs. Semantic Layer Delineation"
+    plan_ids: [plan-012-dual-layer-delineation]
+
+plans:
+  - plan_id: plan-008-consumer-delivery-persistence
+    title: "Plan-008: Local Graph Metadata Parity Smoke-Test"
+    status: Completed
+    format: yaml
+    spec: hf-space-inventory-sqlgen/plans/plan-008-consumer-delivery-persistence.yaml
+    tasks: hf-space-inventory-sqlgen/plans/plan-008-tasks.yaml
+    waves: [1, 2, 3, 4]
+
+  - plan_id: plan-8-wave-4-synthetic-erp-expansion
+    title: "Plan 8 · Wave 4 — Synthetic ERP Expansion (Traceability Spine)"
+    status: Approved-in-principle
+    format: markdown
+    spec: replit_integrations/plan-8-wave-4-synthetic-erp-expansion.md
+    tasks: null
+    waves: [4]
+
+  - plan_id: plan-011-fk-hierarchy-approval
+    title: "Plan-011: Foreign Key Hierarchy & Ground Truth Approval"
+    status: Pending
+    format: yaml
+    spec: hf-space-inventory-sqlgen/plans/plan-011-fk-hierarchy-approval.yaml
+    tasks: hf-space-inventory-sqlgen/plans/plan-011-tasks.yaml
+    waves: [5]
+
+  - plan_id: plan-012-dual-layer-delineation
+    title: "Plan-012: Structural vs. Semantic Layer Delineation"
+    status: Pending
+    format: yaml
+    spec: hf-space-inventory-sqlgen/plans/plan-012-dual-layer-delineation.yaml
+    tasks: hf-space-inventory-sqlgen/plans/plan-012-tasks.yaml
+    waves: [6]
