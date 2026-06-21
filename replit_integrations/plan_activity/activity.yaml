@@ -88,3 +88,30 @@ events:
       graph_metadata_canonical_example.md edge-grammar reference, the frozen
       graph_metadata.v14.json snapshot, export_graph_metadata.py + seed_elevations.py,
       specified in docs/canonical_graph_construction_concept_as_node.md (M2 section).
+
+  - ts: "2026-06-14T00:00:02Z"
+    milestone: M3
+    version: 15
+    event: canonical_artifacts_mapped
+    actor: User
+    artifact:
+      - replit_integrations/graph_metadata_canonical_example.md
+      - replit_integrations/graph_metadata.v15.json
+      - replit_integrations/export_graph_metadata.py
+      - replit_integrations/seed_elevations.py
+      - docs/canonical_graph_construction_concept_as_node.md
+    note: >
+      M3 = concept_metadata_mrp_seed (schema v15). The concept payload is WIDENED
+      (concept_type, domain, synonyms[], tags[] added to the identity-only
+      name+description from M1) and the MRP / inventory vocabulary is seeded: 10
+      terms added as concept nodes (concepts 33 -> 43) — AllocatedQuantity,
+      AvailableToPromise, EconomicOrderQuantity, LeadTime, LeadTimeDemand,
+      MaximumStockQuantity, MinimumStockQuantity, OnHandQuantity, ReorderPoint,
+      SafetyStock. Of these, 3 resolve to a real physical column via a column ->
+      concept edge (elevates 17 -> 20) and the other 7 are intentional orphan
+      glossary nodes with no edge. Counts: nodes 279 -> 289 (+10), edges 279 ->
+      282 (+3) — an ADD milestone (unlike the M2 repoint). Predicate is still
+      `elevates` at v15 (the resolves_to rename is M16/v16). Same canonical anchors
+      as M1/M2: the graph_metadata_canonical_example.md format reference, the frozen
+      graph_metadata.v15.json snapshot, export_graph_metadata.py + seed_elevations.py,
+      specified in docs/canonical_graph_construction_concept_as_node.md (M3 section).
