@@ -63,6 +63,12 @@ replit_integrations\graph_metadata_canonical_example.json
       "_key": "PAYABLE:INVOICE_ID:structural:system:none:none",
       "node_type": "column",
       "column_name": "INVOICE_ID"
+    },
+    {
+      "_id": "manufacturing_graph_node/InvoiceIdentifier:entity:semantic:canonical:none:none",
+      "_key": "InvoiceIdentifier:entity:semantic:canonical:none:none",
+      "node_type": "concept",
+      "concept_name": "InvoiceIdentifier"
     }
   ],
   "edges": [
@@ -78,11 +84,11 @@ replit_integrations\graph_metadata_canonical_example.json
       "unique_id": "SYS_HAS_PAY_INV_001"
     },
     {
-      "//": "--- SEMANTIC SELF-JOIN EDGE ---",
+      "//": "--- SEMANTIC resolves_to EDGE (column -> concept node, M2/v14) ---",
       "_id": "manufacturing_graph_edge/PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
       "_key": "PAYABLE:INVOICE_ID:semantic:Payables:resolves_to:PAY_RES_PAY_INV_001",
       "_from": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
-      "_to": "manufacturing_graph_node/PAYABLE:INVOICE_ID:structural:system:none:none",
+      "_to": "manufacturing_graph_node/InvoiceIdentifier:entity:semantic:canonical:none:none",
       "edge_family": "semantic",
       "edge_type": "resolves_to",
       "perspective": "Payables",

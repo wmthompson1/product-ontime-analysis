@@ -34,6 +34,12 @@ class SemanticEdgeGrammar(unittest.TestCase):
         with self.assertRaises(ValueError):
             ex.semantic_edge_key("PAYABLE", "INVOICE_ID", ex.PERSPECTIVE_SYSTEM, "X")
 
+    def test_perspective_canonical_is_reserved(self):
+        # 'canonical' is owned by concept nodes (slot 3), so a real business
+        # perspective may never equal it — same hard-fail as 'system'.
+        with self.assertRaises(ValueError):
+            ex.semantic_edge_key("PAYABLE", "INVOICE_ID", ex.PERSPECTIVE_CANONICAL, "X")
+
     def test_delimiter_in_component_is_rejected(self):
         with self.assertRaises(ValueError):
             ex.semantic_edge_key("PAYABLE", "INVOICE_ID", "Pay:ables", "X")
