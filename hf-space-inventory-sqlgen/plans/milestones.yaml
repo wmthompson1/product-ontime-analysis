@@ -1,0 +1,114 @@
+# Milestone benchmark catalog — the canonical graph's frozen schema-version
+# milestones, recorded so the planning here stays in parity with the private repo.
+#
+# Each milestone is a SCHEMA_VERSION bump in
+# replit_integrations/export_graph_metadata.py, which freezes a create-once
+# snapshot graph_metadata.v{N}.json (the benchmark artifact; the frozen .vN.json
+# files live in the private repo, not this public mirror). Milestones are a spine
+# that is INDEPENDENT of the wave / plan spine in index.yaml: waves track planned
+# work, milestones benchmark what the canonical graph actually delivered.
+#
+# Scope of this catalog: milestones 11-17 (the latest seven). Versions 1-10 exist
+# (v1 slot grammar, v2-v4 structural FKs / wave-4 traceability, v5-v9 semantic
+# elevation batches, v10 requirement table) but are out of scope per request.
+#
+# current_schema_version MUST equal SCHEMA_VERSION in export_graph_metadata.py;
+# replit_integrations/plan_activity verifies this (planning-vs-code parity).
+catalog_version: 1
+generated: "2026-06-17"
+benchmarks: "11-17"
+current_schema_version: 17
+snapshot_dir: replit_integrations
+
+milestones:
+  - version: 11
+    milestone_name: requirement_perspective_wiring
+    series: null
+    date: "2026-06-08"
+    commit: 88f2e70
+    snapshot: replit_integrations/graph_metadata.v11.json
+    scope: >
+      Add a requirement table that differentiates engineering vs. manufacturing
+      requirements and wire component type to those two perspectives.
+    node_count: null
+    edge_count: null
+
+  - version: 12
+    milestone_name: field_component_definitions
+    series: null
+    date: "2026-06-14"
+    commit: 7d32ba9
+    snapshot: replit_integrations/graph_metadata.v12.json
+    scope: >
+      Add field_component to the graph — number each field's definitions so a
+      single physical column can carry multiple ordered meanings.
+    node_count: null
+    edge_count: null
+
+  - version: 13
+    milestone_name: concept_nodes_introduced
+    series: M1
+    date: "2026-06-14"
+    commit: 93b3120
+    snapshot: replit_integrations/graph_metadata.v13.json
+    scope: >
+      Introduce concept nodes as a third node type (identity only: name +
+      description; type/domain/tags deferred to M3). App resolvers filter
+      node_type in (table, column) so concept rows stay inert in the HF app.
+    node_count: null
+    edge_count: null
+
+  - version: 14
+    milestone_name: elevates_repointed_to_concepts
+    series: M2
+    date: "2026-06-14"
+    commit: 779ecac
+    snapshot: replit_integrations/graph_metadata.v14.json
+    scope: >
+      Re-point the elevates edges to column -> concept node; drop the edge
+      `concept` string and the sql_graph_edges.concept column; add priority_weight
+      (binary weight derived); make the elevates uid concept-aware and derived.
+      Counts unchanged from v13.
+    node_count: 279
+    edge_count: null
+
+  - version: 15
+    milestone_name: concept_metadata_mrp_seed
+    series: M3
+    date: "2026-06-14"
+    commit: 3839802
+    snapshot: replit_integrations/graph_metadata.v15.json
+    scope: >
+      Widen the concept payload (concept_type, domain, synonyms[], tags[]) and
+      seed the MRP / inventory vocabulary. 10 MRP terms seeded as concept nodes;
+      the 7 without a real column are intentional orphan glossary nodes.
+    node_count: null
+    edge_count: null
+
+  - version: 16
+    milestone_name: resolves_to_predicate_rename
+    series: null
+    date: "2026-06-15"
+    commit: 3e38447
+    snapshot: replit_integrations/graph_metadata.v16.json
+    scope: >
+      Rename the canonical Model-B column->concept predicate elevates ->
+      resolves_to (display RESOLVES_TO, uid abbrev RES). The separate legacy
+      Model-A `elevates` ArangoDB collection is left intact.
+    node_count: null
+    edge_count: null
+
+  - version: 17
+    milestone_name: metric_computation_templates
+    series: M4
+    date: "2026-06-17"
+    commit: 7589e26
+    snapshot: replit_integrations/graph_metadata.v17.json
+    scope: >
+      Metric concepts carry a dialect-agnostic computation_template; each
+      {variable} binds to a physical column via a resolves_to edge carrying
+      variable_name. Define-once template yields identical SQL across the
+      perspectives that share it. Added 17 resolves_to binding edges (no new
+      nodes / no new perspectives).
+    node_count: 289
+    edge_count: 299

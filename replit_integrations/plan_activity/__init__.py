@@ -13,6 +13,7 @@ Run ``python -m replit_integrations.plan_activity`` for a wave-anchored report.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -21,6 +22,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_PATH = REPO_ROOT / "hf-space-inventory-sqlgen" / "plans" / "index.yaml"
+MILESTONES_PATH = REPO_ROOT / "hf-space-inventory-sqlgen" / "plans" / "milestones.yaml"
+EXPORTER_PATH = REPO_ROOT / "replit_integrations" / "export_graph_metadata.py"
 LEDGER_PATH = Path(__file__).resolve().parent / "activity.yaml"
 
 
@@ -31,9 +34,36 @@ def _load_yaml(path: Path) -> dict[str, Any]:
         return yaml.safe_load(handle) or {}
 
 
+def _live_schema_version() -> Optional[int]:
+    """Read SCHEMA_VERSION from the exporter without importing the heavy module."""
+    if not EXPORTER_PATH.exists():
+        return None
+    for line in EXPORTER_PATH.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"\s*SCHEMA_VERSION\s*=\s*(\d+)", line)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _live_milestone_name() -> Optional[str]:
+    """Read MILESTONE_NAME from the exporter without importing the heavy module."""
+    if not EXPORTER_PATH.exists():
+        return None
+    for line in EXPORTER_PATH.read_text(encoding="utf-8").splitlines():
+        match = re.match(r'\s*MILESTONE_NAME\s*=\s*["\']([^"\']+)["\']', line)
+        if match:
+            return match.group(1)
+    return None
+
+
 def load_registry() -> dict[str, Any]:
     """Return the parsed plan registry (index.yaml)."""
     return _load_yaml(REGISTRY_PATH)
+
+
+def load_milestones() -> dict[str, Any]:
+    """Return the parsed milestone benchmark catalog (milestones.yaml)."""
+    return _load_yaml(MILESTONES_PATH)
 
 
 def load_ledger() -> dict[str, Any]:
@@ -112,6 +142,60 @@ def correlate() -> list[str]:
             known = task_ids_for(plan_id, registry)
             if known and task_id not in known:
                 problems.append(f"event[{idx}]: task_id '{task_id}' not found in plan '{plan_id}'")
+
+    catalog = load_milestones()
+    milestones = catalog.get("milestones", [])
+    if milestones:
+        versions = [m.get("version") for m in milestones]
+        int_versions = [v for v in versions if isinstance(v, int)]
+        if len(int_versions) != len(set(int_versions)):
+            problems.append("milestones: duplicate version numbers")
+        declared = catalog.get("current_schema_version")
+        newest = max(int_versions) if int_versions else None
+        if declared is not None and newest is not None and declared != newest:
+            problems.append(
+                f"milestones: current_schema_version {declared} != newest catalog milestone {newest}"
+            )
+        live_version = _live_schema_version()
+        if live_version is not None and declared is not None and live_version != declared:
+            problems.append(
+                f"milestones: current_schema_version {declared} != live SCHEMA_VERSION {live_version} (planning drifted from code)"
+            )
+        # The newest catalog milestone NAME must match the live exporter constant,
+        # so a same-version rename can't silently pass the number-only check.
+        live_name = _live_milestone_name()
+        if live_name is not None and newest is not None:
+            newest_named = next(
+                (m.get("milestone_name") for m in milestones if m.get("version") == newest), None
+            )
+            if newest_named is not None and newest_named != live_name:
+                problems.append(
+                    f"milestones: newest catalog milestone_name '{newest_named}' != live MILESTONE_NAME '{live_name}'"
+                )
+        # The declared benchmarks span (e.g. "11-17") must be present once each,
+        # with no gaps and nothing outside the range.
+        span = str(catalog.get("benchmarks", "")).strip()
+        span_match = re.fullmatch(r"(\d+)-(\d+)", span)
+        if span_match:
+            low, high = int(span_match.group(1)), int(span_match.group(2))
+            expected = set(range(low, high + 1))
+            present = set(int_versions)
+            missing = sorted(expected - present)
+            extra = sorted(present - expected)
+            if missing:
+                problems.append(f"milestones: benchmarks span {span} missing version(s) {missing}")
+            if extra:
+                problems.append(f"milestones: version(s) {extra} outside declared benchmarks span {span}")
+        for milestone in milestones:
+            version = milestone.get("version")
+            for field in ("version", "milestone_name", "snapshot"):
+                if not milestone.get(field):
+                    problems.append(f"milestone v{version}: missing required field '{field}'")
+            snapshot = milestone.get("snapshot") or ""
+            if isinstance(version, int) and not snapshot.endswith(f"graph_metadata.v{version}.json"):
+                problems.append(
+                    f"milestone v{version}: snapshot filename does not match version ({snapshot})"
+                )
     return problems
 
 
@@ -138,6 +222,21 @@ def main() -> int:
             print(f"  - {plan_id}  [{folder}]  status={plan.get('status') if plan else 'UNKNOWN'}")
         for event in events:
             print(f"    * {event.get('ts')} {event.get('event')} ({event.get('task_id') or 'plan-level'})")
+        print()
+
+    catalog = load_milestones()
+    milestones = catalog.get("milestones", [])
+    if milestones:
+        print(
+            f"Milestone benchmarks ({catalog.get('benchmarks', '?')}) — "
+            f"live SCHEMA_VERSION={_live_schema_version()}"
+        )
+        for milestone in milestones:
+            series = f" [{milestone['series']}]" if milestone.get("series") else ""
+            print(
+                f"  v{milestone.get('version')} {milestone.get('milestone_name')}{series}"
+                f"  ({milestone.get('date')})"
+            )
         print()
 
     problems = correlate()
