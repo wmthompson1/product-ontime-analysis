@@ -64,3 +64,27 @@ events:
       type/domain/synonyms/tags deferred to M3). Produced by
       export_graph_metadata.py + seed_elevations.py; specified in
       docs/canonical_graph_construction_concept_as_node.md.
+
+  - ts: "2026-06-14T00:00:01Z"
+    milestone: M2
+    version: 14
+    event: canonical_artifacts_mapped
+    actor: User
+    artifact:
+      - replit_integrations/graph_metadata_canonical_example.md
+      - replit_integrations/graph_metadata.v14.json
+      - replit_integrations/export_graph_metadata.py
+      - replit_integrations/seed_elevations.py
+      - docs/canonical_graph_construction_concept_as_node.md
+    note: >
+      M2 = elevates_repointed_to_concepts (schema v14). The 17 elevates edges are
+      re-pointed so each edge `_to` becomes the concept node (`_from` stays the
+      physical column); concept identity now lives on the node, so the per-edge
+      `concept` string (and the sql_graph_edges.concept column) is DROPPED, and
+      priority_weight is added (binary gate derived: weight = 1 if priority_weight
+      > 0 else 0). The elevates uid is made concept-aware and derived. Counts are
+      UNCHANGED from v13 (nodes 279 -> 279, edges 279 -> 279) — this is a
+      repoint/repayload milestone, not an add. Same canonical anchors as M1: the
+      graph_metadata_canonical_example.md edge-grammar reference, the frozen
+      graph_metadata.v14.json snapshot, export_graph_metadata.py + seed_elevations.py,
+      specified in docs/canonical_graph_construction_concept_as_node.md (M2 section).
