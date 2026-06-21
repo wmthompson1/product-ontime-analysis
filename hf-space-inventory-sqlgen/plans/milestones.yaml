@@ -3,10 +3,12 @@
 #
 # Each milestone is a SCHEMA_VERSION bump in
 # replit_integrations/export_graph_metadata.py, which freezes a create-once
-# snapshot graph_metadata.v{N}.json (the benchmark artifact; the frozen .vN.json
-# files live in the private repo, not this public mirror). Milestones are a spine
-# that is INDEPENDENT of the wave / plan spine in index.yaml: waves track planned
-# work, milestones benchmark what the canonical graph actually delivered.
+# snapshot graph_metadata.v{N}.json (the benchmark artifact, committed here under
+# replit_integrations/). Milestones are a spine that is INDEPENDENT of the wave /
+# plan spine in index.yaml: waves track planned work, milestones benchmark what
+# the canonical graph actually delivered. node_count / edge_count below are read
+# straight from each frozen snapshot and verified against it by
+# replit_integrations.plan_activity (snapshot count parity).
 #
 # Scope of this catalog: milestones 11-17 (the latest seven). Versions 1-10 exist
 # (v1 slot grammar, v2-v4 structural FKs / wave-4 traceability, v5-v9 semantic
@@ -30,8 +32,8 @@ milestones:
     scope: >
       Add a requirement table that differentiates engineering vs. manufacturing
       requirements and wire component type to those two perspectives.
-    node_count: null
-    edge_count: null
+    node_count: 245
+    edge_count: 278
 
   - version: 12
     milestone_name: field_component_definitions
@@ -42,8 +44,8 @@ milestones:
     scope: >
       Add field_component to the graph — number each field's definitions so a
       single physical column can carry multiple ordered meanings.
-    node_count: null
-    edge_count: null
+    node_count: 246
+    edge_count: 279
 
   - version: 13
     milestone_name: concept_nodes_introduced
@@ -55,8 +57,8 @@ milestones:
       Introduce concept nodes as a third node type (identity only: name +
       description; type/domain/tags deferred to M3). App resolvers filter
       node_type in (table, column) so concept rows stay inert in the HF app.
-    node_count: null
-    edge_count: null
+    node_count: 279
+    edge_count: 279
 
   - version: 14
     milestone_name: elevates_repointed_to_concepts
@@ -70,7 +72,7 @@ milestones:
       (binary weight derived); make the elevates uid concept-aware and derived.
       Counts unchanged from v13.
     node_count: 279
-    edge_count: null
+    edge_count: 279
 
   - version: 15
     milestone_name: concept_metadata_mrp_seed
@@ -82,8 +84,8 @@ milestones:
       Widen the concept payload (concept_type, domain, synonyms[], tags[]) and
       seed the MRP / inventory vocabulary. 10 MRP terms seeded as concept nodes;
       the 7 without a real column are intentional orphan glossary nodes.
-    node_count: null
-    edge_count: null
+    node_count: 289
+    edge_count: 282
 
   - version: 16
     milestone_name: resolves_to_predicate_rename
@@ -95,8 +97,8 @@ milestones:
       Rename the canonical Model-B column->concept predicate elevates ->
       resolves_to (display RESOLVES_TO, uid abbrev RES). The separate legacy
       Model-A `elevates` ArangoDB collection is left intact.
-    node_count: null
-    edge_count: null
+    node_count: 289
+    edge_count: 282
 
   - version: 17
     milestone_name: metric_computation_templates

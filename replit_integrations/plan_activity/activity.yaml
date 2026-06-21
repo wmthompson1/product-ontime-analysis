@@ -1,11 +1,16 @@
 # Folder-agnostic plan activity ledger (append-only).
 #
-# Each event correlates to a plan by logical key — wave / plan_id / task_id — and
-# never by file path, so the link survives a plan being moved between folders.
-# Resolve any plan_id/task_id to its file through the registry at
-# hf-space-inventory-sqlgen/plans/index.yaml.
+# Every event correlates by a logical key, never by file path, so the link
+# survives a plan or snapshot being moved between folders. An event keys on ONE
+# of two spines:
+#   * plan spine      — wave / plan_id / task_id; resolve via
+#                       hf-space-inventory-sqlgen/plans/index.yaml
+#   * milestone spine — version (schema version) and/or milestone (M-series);
+#                       resolve via hf-space-inventory-sqlgen/plans/milestones.yaml
 #
-# Tracking started at WAVE 4. Earlier waves (1-3) are intentionally not backfilled.
+# Plan tracking started at WAVE 4; earlier waves (1-3) are intentionally not
+# backfilled. Milestone artifact mappings are a SEPARATE spine and may predate
+# wave 4 — the canonical-graph milestones were frozen before tracking began.
 ledger_version: 1
 activity_start_wave: 4
 
@@ -38,3 +43,24 @@ events:
       Wave 4's second strand: synthetic ERP expansion (traceability spine). It
       lives in a different folder than plan-008 yet shares wave 4 — proof that the
       correlation is by wave, not by folder.
+
+  - ts: "2026-06-14T00:00:00Z"
+    milestone: M1
+    version: 13
+    event: canonical_artifacts_mapped
+    actor: User
+    artifact:
+      - replit_integrations/graph_metadata_canonical_example.md
+      - replit_integrations/graph_metadata.v13.json
+      - replit_integrations/export_graph_metadata.py
+      - replit_integrations/seed_elevations.py
+      - docs/canonical_graph_construction_concept_as_node.md
+    note: >
+      M1 = concept_nodes_introduced (schema v13). Canonical artifacts: the
+      graph_metadata_canonical_example.md format reference (structural / semantic /
+      concept-node key grammar) and the frozen graph_metadata.v13.json snapshot —
+      33 identity-only concept nodes (concept_name + description, perspective
+      "canonical") added with ZERO new edges (nodes 246 -> 279, edges 279 -> 279;
+      type/domain/synonyms/tags deferred to M3). Produced by
+      export_graph_metadata.py + seed_elevations.py; specified in
+      docs/canonical_graph_construction_concept_as_node.md.

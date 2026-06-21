@@ -13,6 +13,7 @@ Run ``python -m replit_integrations.plan_activity`` for a wave-anchored report.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -105,19 +106,164 @@ def activity_for(
 
 
 def record_event(event: dict[str, Any]) -> None:
-    """Append one event to the ledger (folder-agnostic; keyed by wave/plan_id/task_id)."""
-    if "plan_id" not in event or "wave" not in event:
-        raise ValueError("an activity event must carry at least 'wave' and 'plan_id'")
+    """Append one event to the ledger (folder-agnostic).
+
+    An event keys on ONE of two logical spines: a plan (``wave`` + ``plan_id``)
+    or a milestone (``version`` and/or ``milestone`` M-series). Neither spine
+    refers to a file path, so the link survives a plan or snapshot being moved.
+    """
+    has_plan_field = event.get("plan_id") is not None or event.get("wave") is not None
+    has_milestone_field = event.get("version") is not None or event.get("milestone") is not None
+    plan_keyed = event.get("plan_id") is not None and event.get("wave") is not None
+    milestone_keyed = event.get("version") is not None  # 'milestone' series is optional metadata
+    if has_plan_field and has_milestone_field:
+        raise ValueError(
+            "an activity event must use a single spine — plan ('wave' + 'plan_id') "
+            "OR milestone ('version'), not both"
+        )
+    if not (plan_keyed or milestone_keyed):
+        raise ValueError(
+            "an activity event must key on either ('wave' + 'plan_id') "
+            "or a milestone ('version', with optional 'milestone' series)"
+        )
     ledger = load_ledger() or {"ledger_version": 1, "events": []}
     ledger.setdefault("events", []).append(event)
     with LEDGER_PATH.open("w", encoding="utf-8") as handle:
         yaml.safe_dump(ledger, handle, sort_keys=False, default_flow_style=False)
 
 
+def _correlate_milestone_event(
+    idx: int, event: dict[str, Any], by_version: dict[Any, dict[str, Any]]
+) -> list[str]:
+    """Validate one milestone-keyed event against the milestone catalog.
+
+    A milestone event maps canonical artifacts to a frozen schema version. It must
+    name a real catalog version, agree with that version's M-series, list only
+    artifacts that exist on disk, and include the milestone's own snapshot.
+    """
+    problems: list[str] = []
+    version = event.get("version")
+    series = event.get("milestone")
+    if version is None:
+        problems.append(
+            f"event[{idx}]: milestone event missing required 'version' (series={series!r})"
+        )
+        return problems
+    entry = by_version.get(version)
+    if entry is None:
+        problems.append(f"event[{idx}]: milestone version {version} not found in milestones.yaml")
+        return problems
+    if series is not None and entry.get("series") != series:
+        problems.append(
+            f"event[{idx}]: milestone '{series}' != catalog series '{entry.get('series')}' for v{version}"
+        )
+    artifacts = event.get("artifact") or []
+    for art in artifacts:
+        if not (REPO_ROOT / art).exists():
+            problems.append(f"event[{idx}]: artifact '{art}' does not exist")
+    snapshot = entry.get("snapshot")
+    if snapshot and snapshot not in artifacts:
+        problems.append(
+            f"event[{idx}]: milestone v{version} snapshot '{snapshot}' not among mapped artifacts"
+        )
+    return problems
+
+
+def _correlate_snapshot_counts(milestone: dict[str, Any], snapshot: str) -> list[str]:
+    """Prove a milestone's declared node/edge counts match its frozen snapshot.
+
+    Skips silently when the snapshot is absent (e.g. a private mirror that does
+    not ship the .vN.json files) so the check degrades instead of failing closed.
+    """
+    problems: list[str] = []
+    version = milestone.get("version")
+    declared_n = milestone.get("node_count")
+    declared_e = milestone.get("edge_count")
+    if (declared_n is None and declared_e is None) or not snapshot:
+        return problems
+    snap_path = REPO_ROOT / snapshot
+    if not snap_path.exists():
+        return problems
+    try:
+        data = json.loads(snap_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        problems.append(f"milestone v{version}: cannot read snapshot counts ({exc})")
+        return problems
+    actual_n = len(data.get("nodes", []))
+    actual_e = len(data.get("edges", []))
+    if declared_n is not None and declared_n != actual_n:
+        problems.append(f"milestone v{version}: node_count {declared_n} != snapshot {actual_n}")
+    if declared_e is not None and declared_e != actual_e:
+        problems.append(f"milestone v{version}: edge_count {declared_e} != snapshot {actual_e}")
+    return problems
+
+
+def _correlate_milestone_catalog(
+    catalog: dict[str, Any], milestones: list[dict[str, Any]]
+) -> list[str]:
+    """Validate the milestone catalog itself (versions, parity with live code, counts)."""
+    problems: list[str] = []
+    versions = [m.get("version") for m in milestones]
+    int_versions = [v for v in versions if isinstance(v, int)]
+    if len(int_versions) != len(set(int_versions)):
+        problems.append("milestones: duplicate version numbers")
+    declared = catalog.get("current_schema_version")
+    newest = max(int_versions) if int_versions else None
+    if declared is not None and newest is not None and declared != newest:
+        problems.append(
+            f"milestones: current_schema_version {declared} != newest catalog milestone {newest}"
+        )
+    live_version = _live_schema_version()
+    if live_version is not None and declared is not None and live_version != declared:
+        problems.append(
+            f"milestones: current_schema_version {declared} != live SCHEMA_VERSION {live_version} (planning drifted from code)"
+        )
+    # The newest catalog milestone NAME must match the live exporter constant,
+    # so a same-version rename can't silently pass the number-only check.
+    live_name = _live_milestone_name()
+    if live_name is not None and newest is not None:
+        newest_named = next(
+            (m.get("milestone_name") for m in milestones if m.get("version") == newest), None
+        )
+        if newest_named is not None and newest_named != live_name:
+            problems.append(
+                f"milestones: newest catalog milestone_name '{newest_named}' != live MILESTONE_NAME '{live_name}'"
+            )
+    # The declared benchmarks span (e.g. "11-17") must be present once each,
+    # with no gaps and nothing outside the range.
+    span = str(catalog.get("benchmarks", "")).strip()
+    span_match = re.fullmatch(r"(\d+)-(\d+)", span)
+    if span_match:
+        low, high = int(span_match.group(1)), int(span_match.group(2))
+        expected = set(range(low, high + 1))
+        present = set(int_versions)
+        missing = sorted(expected - present)
+        extra = sorted(present - expected)
+        if missing:
+            problems.append(f"milestones: benchmarks span {span} missing version(s) {missing}")
+        if extra:
+            problems.append(f"milestones: version(s) {extra} outside declared benchmarks span {span}")
+    for milestone in milestones:
+        version = milestone.get("version")
+        for field in ("version", "milestone_name", "snapshot"):
+            if not milestone.get(field):
+                problems.append(f"milestone v{version}: missing required field '{field}'")
+        snapshot = milestone.get("snapshot") or ""
+        if isinstance(version, int) and not snapshot.endswith(f"graph_metadata.v{version}.json"):
+            problems.append(
+                f"milestone v{version}: snapshot filename does not match version ({snapshot})"
+            )
+        problems.extend(_correlate_snapshot_counts(milestone, snapshot))
+    return problems
+
+
 def correlate() -> list[str]:
-    """Verify every activity event maps to a real plan/task/wave. Returns problems."""
+    """Verify every activity event maps to a real plan/task/wave or milestone. Returns problems."""
     registry = load_registry()
     ledger = load_ledger()
+    catalog = load_milestones()
+    milestones = catalog.get("milestones", [])
+    by_version = {m.get("version"): m for m in milestones}
     problems: list[str] = []
 
     for plan in registry.get("plans", []):
@@ -127,6 +273,17 @@ def correlate() -> list[str]:
                 problems.append(f"registry plan {plan.get('plan_id')}: missing {key} file {rel}")
 
     for idx, event in enumerate(ledger.get("events", [])):
+        has_milestone = event.get("version") is not None or event.get("milestone") is not None
+        has_plan = event.get("plan_id") is not None or event.get("wave") is not None
+        if has_milestone and has_plan:
+            problems.append(
+                f"event[{idx}]: mixes plan (wave/plan_id) and milestone (version/milestone) "
+                "spines — an event must use exactly one"
+            )
+            continue
+        if has_milestone:
+            problems.extend(_correlate_milestone_event(idx, event, by_version))
+            continue
         plan_id = event.get("plan_id")
         plan = resolve_plan(plan_id, registry)
         if plan is None:
@@ -143,59 +300,8 @@ def correlate() -> list[str]:
             if known and task_id not in known:
                 problems.append(f"event[{idx}]: task_id '{task_id}' not found in plan '{plan_id}'")
 
-    catalog = load_milestones()
-    milestones = catalog.get("milestones", [])
     if milestones:
-        versions = [m.get("version") for m in milestones]
-        int_versions = [v for v in versions if isinstance(v, int)]
-        if len(int_versions) != len(set(int_versions)):
-            problems.append("milestones: duplicate version numbers")
-        declared = catalog.get("current_schema_version")
-        newest = max(int_versions) if int_versions else None
-        if declared is not None and newest is not None and declared != newest:
-            problems.append(
-                f"milestones: current_schema_version {declared} != newest catalog milestone {newest}"
-            )
-        live_version = _live_schema_version()
-        if live_version is not None and declared is not None and live_version != declared:
-            problems.append(
-                f"milestones: current_schema_version {declared} != live SCHEMA_VERSION {live_version} (planning drifted from code)"
-            )
-        # The newest catalog milestone NAME must match the live exporter constant,
-        # so a same-version rename can't silently pass the number-only check.
-        live_name = _live_milestone_name()
-        if live_name is not None and newest is not None:
-            newest_named = next(
-                (m.get("milestone_name") for m in milestones if m.get("version") == newest), None
-            )
-            if newest_named is not None and newest_named != live_name:
-                problems.append(
-                    f"milestones: newest catalog milestone_name '{newest_named}' != live MILESTONE_NAME '{live_name}'"
-                )
-        # The declared benchmarks span (e.g. "11-17") must be present once each,
-        # with no gaps and nothing outside the range.
-        span = str(catalog.get("benchmarks", "")).strip()
-        span_match = re.fullmatch(r"(\d+)-(\d+)", span)
-        if span_match:
-            low, high = int(span_match.group(1)), int(span_match.group(2))
-            expected = set(range(low, high + 1))
-            present = set(int_versions)
-            missing = sorted(expected - present)
-            extra = sorted(present - expected)
-            if missing:
-                problems.append(f"milestones: benchmarks span {span} missing version(s) {missing}")
-            if extra:
-                problems.append(f"milestones: version(s) {extra} outside declared benchmarks span {span}")
-        for milestone in milestones:
-            version = milestone.get("version")
-            for field in ("version", "milestone_name", "snapshot"):
-                if not milestone.get(field):
-                    problems.append(f"milestone v{version}: missing required field '{field}'")
-            snapshot = milestone.get("snapshot") or ""
-            if isinstance(version, int) and not snapshot.endswith(f"graph_metadata.v{version}.json"):
-                problems.append(
-                    f"milestone v{version}: snapshot filename does not match version ({snapshot})"
-                )
+        problems.extend(_correlate_milestone_catalog(catalog, milestones))
     return problems
 
 
@@ -239,13 +345,25 @@ def main() -> int:
             )
         print()
 
+    mapped = [
+        e for e in ledger.get("events", [])
+        if e.get("version") is not None or e.get("milestone") is not None
+    ]
+    if mapped:
+        print("Canonical artifact mappings:")
+        for event in mapped:
+            label = event.get("milestone") or f"v{event.get('version')}"
+            count = len(event.get("artifact") or [])
+            print(f"  {label} ({event.get('event')}): {count} artifact(s)")
+        print()
+
     problems = correlate()
     if problems:
         print(f"CORRELATION FAILED ({len(problems)} problem(s)):")
         for problem in problems:
             print(f"  ! {problem}")
         return 1
-    print("CORRELATION OK — every event maps to a real plan / task / wave.")
+    print("CORRELATION OK — every event maps to a real plan / task / wave or milestone.")
     return 0
 
 
