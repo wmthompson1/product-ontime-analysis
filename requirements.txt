@@ -43,3 +43,6 @@ psycopg2-binary
 sqlglot
 python-arango
 arango
+
+# Knowledge loop (MCP librarian + ingestion runner) — .docx reading
+python-docx
