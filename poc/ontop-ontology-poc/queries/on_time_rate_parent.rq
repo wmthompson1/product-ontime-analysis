@@ -1,0 +1,11 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# On-time delivery rate via the SHARED PARENT property.
+# Thanks to rdfs:subPropertyOf entailment, asking for :onTimeScore
+# transparently includes the Operations, Supplier and Finance perspectives.
+# Because all three bind to the same governed SQL definition, they carry
+# identical values, so this rolled-up rate equals the per-perspective rate.
+SELECT (AVG(?score) AS ?onTimeRate)
+WHERE {
+  ?delivery :onTimeScore ?score .
+}

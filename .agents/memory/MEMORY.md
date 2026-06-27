@@ -20,3 +20,4 @@
 - [SQLMesh project gotchas](sqlmesh-python-model-serialization.md) — @model helper globals must serialize (no Path/regex); empty models must be generators; bump sqlmesh ⇒ migrate; models.py shadow.
 - [ARANGO_DB points at the certified graph](arango-db-shared-name.md) — external scripts defaulting a scratch/research Arango DB to ARANGO_DB will write into manufacturing_graph; give non-canonical graphs their own env var.
 - [OpenAI key auth fallback](openai-key-auth-fallback.md) — repl's OPENAI_API_KEY fails auth; default to deterministic drafting (also user's cost pref), re-verify key before any live AI call.
+- [Ontop interoperability POC](ontop-interoperability-poc.md) — SQL layer republished as a virtual OWL/SPARQL graph via Ontop; parity proven over a read-only WAL snapshot.

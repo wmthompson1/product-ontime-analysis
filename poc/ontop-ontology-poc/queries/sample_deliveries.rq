@@ -1,0 +1,13 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# A few per-delivery rows to show the virtual graph is real triples, not just
+# an aggregate: each delivery, its purchase order, the two dates, and the score.
+SELECT ?delivery ?po ?receiptDate ?requiredDate ?score
+WHERE {
+  ?delivery :fulfillsPurchaseOrder ?po ;
+            :receiptDate ?receiptDate ;
+            :opsOnTimeScore ?score .
+  ?po :requiredDate ?requiredDate .
+}
+ORDER BY ?delivery
+LIMIT 10

@@ -1,0 +1,9 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# On-time delivery rate via the Operations perspective sub-property.
+# Averaging the per-delivery on-time scores yields the on-time rate.
+# This is the number compared against SolderEngine's assembled SQL.
+SELECT (AVG(?score) AS ?onTimeRate) (COUNT(?score) AS ?deliveries)
+WHERE {
+  ?delivery :opsOnTimeScore ?score .
+}

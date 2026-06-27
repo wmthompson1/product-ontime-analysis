@@ -1,0 +1,30 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/ontime#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-delivery
+target          :delivery/{receipt_id} a :Delivery ; :receiptDate {receipt_date}^^xsd:date ; :fulfillsPurchaseOrder :po/{po_id} .
+source          SELECT receipt_id, receipt_date, po_id FROM receiving
+
+mappingId       map-purchase-order
+target          :po/{po_id} a :PurchaseOrder ; :requiredDate {required_date}^^xsd:date .
+source          SELECT po_id, required_date FROM purchase_order WHERE required_date IS NOT NULL
+
+mappingId       map-ontime-ops
+target          :delivery/{receipt_id} :opsOnTimeScore {on_time_score}^^xsd:double .
+source          SELECT r.receipt_id AS receipt_id, CASE WHEN r.receipt_date IS NOT NULL AND r.receipt_date <= p.required_date THEN 1.0 WHEN r.receipt_date IS NOT NULL AND r.receipt_date > p.required_date THEN 0.0 ELSE NULL END AS on_time_score FROM receiving r JOIN purchase_order p ON r.po_id = p.po_id
+
+mappingId       map-ontime-supplier
+target          :delivery/{receipt_id} :supplierOnTimeScore {on_time_score}^^xsd:double .
+source          SELECT r.receipt_id AS receipt_id, CASE WHEN r.receipt_date IS NOT NULL AND r.receipt_date <= p.required_date THEN 1.0 WHEN r.receipt_date IS NOT NULL AND r.receipt_date > p.required_date THEN 0.0 ELSE NULL END AS on_time_score FROM receiving r JOIN purchase_order p ON r.po_id = p.po_id
+
+mappingId       map-ontime-finance
+target          :delivery/{receipt_id} :financeOnTimeScore {on_time_score}^^xsd:double .
+source          SELECT r.receipt_id AS receipt_id, CASE WHEN r.receipt_date IS NOT NULL AND r.receipt_date <= p.required_date THEN 1.0 WHEN r.receipt_date IS NOT NULL AND r.receipt_date > p.required_date THEN 0.0 ELSE NULL END AS on_time_score FROM receiving r JOIN purchase_order p ON r.po_id = p.po_id
+
+]]

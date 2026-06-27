@@ -1,0 +1,114 @@
+@prefix :     <http://example.org/manufacturing/ontime#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# On-Time Delivery — minimal OWL ontology (OWL 2 QL profile)
+# =========================================================
+# This is the standards-based VOCABULARY for the "on-time delivery" showcase.
+# It is published on top of the governed SQL semantic layer; it does not
+# replace it. The actual numbers still come from SQL over the existing
+# manufacturing.db (see ../mapping/on_time_delivery.obda).
+#
+# It captures exactly one showcase: the shared on-time delivery definition
+# that the SQL semantic layer surfaces under three business perspectives
+# (Operations, Supplier, Finance). The three perspectives are modelled as
+# sub-properties of one shared parent property, so a consumer can either ask
+# for a specific perspective OR ask the shared parent and get the same answer.
+#
+
+<http://example.org/manufacturing/ontime>
+    a owl:Ontology ;
+    rdfs:label "On-Time Delivery Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the shared on-time delivery metric, published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:Delivery
+    a owl:Class ;
+    rdfs:label "Delivery" ;
+    rdfs:comment "A goods receipt against a purchase order (one row of the receiving table)." .
+
+:PurchaseOrder
+    a owl:Class ;
+    rdfs:label "Purchase Order" ;
+    rdfs:comment "A purchase order header (one row of the purchase_order table)." .
+
+# ── Object property: how a delivery relates to its purchase order ───────────
+
+:fulfillsPurchaseOrder
+    a owl:ObjectProperty ;
+    rdfs:label "fulfills purchase order" ;
+    rdfs:comment "Links a delivery to the purchase order it was received against." ;
+    rdfs:domain :Delivery ;
+    rdfs:range  :PurchaseOrder .
+
+# ── Plain data properties on each entity ───────────────────────────────────
+
+:receiptDate
+    a owl:DatatypeProperty ;
+    rdfs:label "receipt date" ;
+    rdfs:comment "The date the goods were received." ;
+    rdfs:domain :Delivery ;
+    rdfs:range  xsd:date .
+
+:requiredDate
+    a owl:DatatypeProperty ;
+    rdfs:label "required date" ;
+    rdfs:comment "The date the purchase order required the goods by." ;
+    rdfs:domain :PurchaseOrder ;
+    rdfs:range  xsd:date .
+
+# ── The shared on-time definition (the parent metric property) ──────────────
+#
+# onTimeScore is the SINGLE governed definition: 1.0 if the delivery arrived on
+# or before its required date, 0.0 if it arrived late, and undefined (no triple)
+# if there is no required date to compare against. This mirrors the SQL
+# computation template:
+#   AVG(CASE WHEN {receipt_date} IS NOT NULL AND {receipt_date} <= {required_date} THEN 1.0
+#            WHEN {receipt_date} IS NOT NULL AND {receipt_date} >  {required_date} THEN 0.0
+#            ELSE NULL END)
+# averaging the per-delivery scores gives the on-time delivery rate.
+
+:onTimeScore
+    a owl:DatatypeProperty ;
+    rdfs:label "on-time score" ;
+    rdfs:comment "Per-delivery on-time score (1.0 on/before required date, 0.0 late). The shared, perspective-agnostic parent definition; averaging it yields the on-time delivery rate." ;
+    rdfs:domain :Delivery ;
+    rdfs:range  xsd:double .
+
+# ── ONE HIERARCHY: the three perspectives as sub-properties of the parent ───
+#
+# This is the standards-based hierarchy the POC demonstrates. Operations,
+# Supplier and Finance each get their own property, but every one of them is
+# rdfs:subPropertyOf the shared :onTimeScore. Because they all bind to the same
+# SQL definition (see the .obda mapping), they carry identical values — the
+# "define once, surface under many perspectives" property of the SQL semantic
+# layer, restated in OWL. Sub-property entailment means a query on the parent
+# :onTimeScore transparently includes all three perspectives.
+
+:opsOnTimeScore
+    a owl:DatatypeProperty ;
+    rdfs:label "on-time score (Operations perspective)" ;
+    rdfs:comment "Operations view of the shared on-time score." ;
+    rdfs:subPropertyOf :onTimeScore ;
+    rdfs:domain :Delivery ;
+    rdfs:range  xsd:double .
+
+:supplierOnTimeScore
+    a owl:DatatypeProperty ;
+    rdfs:label "on-time score (Supplier perspective)" ;
+    rdfs:comment "Supplier view of the shared on-time score." ;
+    rdfs:subPropertyOf :onTimeScore ;
+    rdfs:domain :Delivery ;
+    rdfs:range  xsd:double .
+
+:financeOnTimeScore
+    a owl:DatatypeProperty ;
+    rdfs:label "on-time score (Finance perspective)" ;
+    rdfs:comment "Finance view of the shared on-time score." ;
+    rdfs:subPropertyOf :onTimeScore ;
+    rdfs:domain :Delivery ;
+    rdfs:range  xsd:double .

@@ -1,0 +1,3 @@
+# Downloaded toolchain binaries (re-fetch with ./setup.sh) and run artifacts.
+tools/
+results/
