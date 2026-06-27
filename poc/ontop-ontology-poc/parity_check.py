@@ -117,7 +117,8 @@ def solder_value(snap):
 def main():
     if not os.path.exists(ONTOP):
         raise SystemExit(
-            "Ontop CLI not found. Run ./setup.sh first to download the toolchain."
+            "Ontop CLI not found. Run: python3 replit_integrations/ontop_poc_setup.py "
+            "first to download the toolchain."
         )
     if not os.path.exists(LIVE_DB):
         raise SystemExit(f"Live database not found at {LIVE_DB}")

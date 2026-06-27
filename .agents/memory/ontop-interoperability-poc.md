@@ -40,6 +40,10 @@ should snapshot first, not query the live WAL file twice.
 
 ## Toolchain
 Java module `java-graalvm22.3` (JDK 19). Ontop CLI + sqlite-jdbc are downloaded
-by `setup.sh` into `tools/` and **gitignored** (versions pinned in `setup.sh`).
-Run `./run_demo.sh` (or `python3 parity_check.py`). Nothing is wired into the
+into `tools/` and **gitignored** (versions + SHA-256 pinned in the setup script).
+The setup/run entry points are Python and live in `replit_integrations/`
+(`ontop_poc_setup.py`, `ontop_poc_run_demo.py`) so they can be shared alongside
+the other integration tools; both resolve the POC dir relative to the repo root.
+Run `python3 replit_integrations/ontop_poc_run_demo.py` (or, after setup,
+`python3 poc/ontop-ontology-poc/parity_check.py`). Nothing is wired into the
 Flask/HF Space app, Gradio, ArangoDB, or SolderEngine.

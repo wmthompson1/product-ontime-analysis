@@ -71,8 +71,8 @@ triple, exactly as SQL `AVG` ignores `NULL`.
 | `queries/on_time_rate_parent.rq` | On-time rate via the shared parent (hierarchy roll-up). |
 | `queries/sample_deliveries.rq` | A few per-delivery rows, to show real triples. |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot and compares. |
-| `run_demo.sh` | One command: set up the toolchain (if needed) and run the parity check. |
-| `setup.sh` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
+| `../../replit_integrations/ontop_poc_run_demo.py` | One command: set up the toolchain (if needed) and run the parity check. |
+| `../../replit_integrations/ontop_poc_setup.py` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
 
 `tools/` (downloaded binaries) and `results/` (run output) are gitignored.
 
@@ -80,22 +80,22 @@ triple, exactly as SQL `AVG` ignores `NULL`.
 
 ## How to run
 
-From this directory:
+From the repository root:
 
 ```bash
-./run_demo.sh
+python3 replit_integrations/ontop_poc_run_demo.py
 ```
 
 That will (idempotently) download the toolchain on first run, then print the
 parity table above. To re-run just the check after setup:
 
 ```bash
-python3 parity_check.py
+python3 poc/ontop-ontology-poc/parity_check.py
 ```
 
 ### Run a SPARQL query manually
 
-After `./setup.sh`, from the **repository root** (so the relative DB path in
+After `python3 replit_integrations/ontop_poc_setup.py`, from the **repository root** (so the relative DB path in
 `mapping/on_time_delivery.properties` resolves):
 
 ```bash
@@ -124,7 +124,7 @@ All free / open-source:
 | SQLite JDBC driver | 3.49.1.0 (org.xerial) | Maven Central (gitignored under `tools/`) | ~14 MB jar |
 
 Nothing is added to the app's Python requirements. The Ontop binaries are not
-committed; `setup.sh` re-fetches the pinned versions.
+committed; `replit_integrations/ontop_poc_setup.py` re-fetches the pinned versions.
 
 ---
 
