@@ -56,3 +56,6 @@ drift_report.txt
 
 # Knowledge loop ingestion runner output (versioned run artifacts)
 mrp_ingest_artifacts/
+
+# Terminology stager output (versioned proposal artifacts, dry-run + commit)
+mrp_research_staging/

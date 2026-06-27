@@ -46,6 +46,7 @@ logger = logging.getLogger("librarian_server")
 SERVER_NAME = "mrp-librarian"
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+_SCRIPTS_DIR = Path(__file__).resolve().parent
 
 
 def _discover_default_doc_root() -> Path:
@@ -83,7 +84,68 @@ GRAPH_COMMIT_ENABLED = os.getenv("MRP_ENABLE_GRAPH_COMMIT", "false").strip().low
     "on",
 }
 
+# Certified graph identities that research writes must NEVER target.
+CERTIFIED_DB_NAMES = {"manufacturing_graph", "semantic_graph"}
+# Research collections live under this namespace so they can never collide with
+# certified vertex/edge/bridge collections.
+RESEARCH_COLLECTION_PREFIX = "ai_research"
+
 mcp = FastMCP(SERVER_NAME)
+
+
+def _normalize_arango_host(raw_host: Optional[str]) -> str:
+    raw = (raw_host or "http://127.0.0.1:8529").strip()
+    if "arangodb.cloud" in raw and ":" not in raw.split("//", 1)[-1]:
+        raw = f"{raw}:8529"
+    return raw
+
+
+def _graph_commit_enabled() -> bool:
+    return os.getenv("MRP_ENABLE_GRAPH_COMMIT", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _research_targets() -> Dict[str, str]:
+    """Resolve and hard-guard the research write target.
+
+    This is the single isolation chokepoint: it refuses any database that resolves
+    to the certified graph and any collection outside the research namespace, so no
+    caller (or stray env override) can contaminate the SME-approved layer.
+    """
+    db_name = os.getenv(
+        "MRP_RESEARCH_ARANGO_DB", os.getenv("ARANGO_RESEARCH_DB", "mrp_research")
+    ).strip()
+    certified_db = (os.getenv("ARANGO_DB") or "").strip()
+    forbidden = {name for name in (certified_db, *CERTIFIED_DB_NAMES) if name}
+    if db_name in forbidden:
+        raise RuntimeError(
+            f"Refusing to commit: research database '{db_name}' resolves to a "
+            f"certified database ({sorted(forbidden)}). Research writes must target a "
+            "separate database (default 'mrp_research')."
+        )
+
+    node_collection = os.getenv("ARANGO_NODE_COLLECTION", "ai_research_node").strip()
+    edge_collection = os.getenv("ARANGO_EDGE_COLLECTION", "ai_research_edge").strip()
+    for collection in (node_collection, edge_collection):
+        if not collection.startswith(RESEARCH_COLLECTION_PREFIX):
+            raise RuntimeError(
+                f"Refusing to commit: research collection '{collection}' must be "
+                f"namespaced under '{RESEARCH_COLLECTION_PREFIX}' to stay isolated "
+                "from certified collections."
+            )
+
+    return {
+        "host": _normalize_arango_host(os.getenv("ARANGO_HOST", ARANGO_HOST)),
+        "database": db_name,
+        "user": os.getenv("ARANGO_USER", ARANGO_USER),
+        "password": os.getenv("ARANGO_PASSWORD", os.getenv("ARANGO_ROOT_PASSWORD", "")),
+        "node_collection": node_collection,
+        "edge_collection": edge_collection,
+    }
 
 
 def _is_within_root(candidate: Path, root: Path) -> bool:
@@ -173,10 +235,17 @@ def _extract_view_dependencies(view_name: str, raw_ddl: str) -> List[Dict[str, A
     return lineage_edges
 
 
-def _normalize_handle(value: str) -> str:
+def _normalize_handle(value: str, node_collection: str) -> str:
     if "/" in value:
+        collection = value.split("/", 1)[0]
+        if collection != node_collection:
+            raise ValueError(
+                f"Edge handle '{value}' references collection '{collection}', which is "
+                f"not the guarded research node collection '{node_collection}'. Refusing "
+                "to build an edge that could point outside the research graph."
+            )
         return value
-    return f"{NODE_COLLECTION}/{value}"
+    return f"{node_collection}/{value}"
 
 
 def _coerce_payload(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
@@ -241,6 +310,7 @@ def _build_node_docs(nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def _build_edge_docs(
     edges: List[Dict[str, Any]],
     nodes_by_key: Dict[str, Dict[str, Any]],
+    node_collection: str,
 ) -> List[Dict[str, Any]]:
     docs: List[Dict[str, Any]] = []
     for edge in edges:
@@ -252,8 +322,8 @@ def _build_edge_docs(
         if not raw_from or not raw_to:
             raise ValueError("Each edge must include source and target handles")
 
-        source_handle = _normalize_handle(str(raw_from))
-        target_handle = _normalize_handle(str(raw_to))
+        source_handle = _normalize_handle(str(raw_from), node_collection)
+        target_handle = _normalize_handle(str(raw_to), node_collection)
         source_key = source_handle.split("/", 1)[-1]
         target_key = target_handle.split("/", 1)[-1]
 
@@ -319,12 +389,18 @@ def read_document(filepath: str) -> str:
 
 @mcp.tool()
 def commit_to_arangodb(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """Upsert research nodes and edges into ArangoDB."""
+    """Upsert research nodes and edges into the isolated mrp_research ArangoDB graph."""
     try:
-        if not GRAPH_COMMIT_ENABLED:
+        if not _graph_commit_enabled():
             raise RuntimeError(
                 "Graph commit is disabled. Set MRP_ENABLE_GRAPH_COMMIT=true to enable commit_to_arangodb."
             )
+
+        # Resolve + hard-guard the target so this can never touch the certified graph.
+        targets = _research_targets()
+        database = targets["database"]
+        node_collection = targets["node_collection"]
+        edge_collection = targets["edge_collection"]
 
         body = _coerce_payload(payload)
         nodes = body.get("nodes", [])
@@ -335,7 +411,7 @@ def commit_to_arangodb(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
 
         node_docs = _build_node_docs(nodes)
         nodes_by_key = {doc["_key"]: doc for doc in node_docs}
-        edge_docs = _build_edge_docs(edges, nodes_by_key)
+        edge_docs = _build_edge_docs(edges, nodes_by_key, node_collection)
 
         try:
             from arango import ArangoClient  # type: ignore
@@ -344,24 +420,24 @@ def commit_to_arangodb(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
                 "The 'python-arango' package is required to commit to ArangoDB."
             ) from exc
 
-        client = ArangoClient(hosts=ARANGO_HOST)
-        system_db = client.db("_system", username=ARANGO_USER, password=ARANGO_PASSWORD)
-        if not system_db.has_database(ARANGO_DATABASE):
-            logger.info("Creating ArangoDB database %s", ARANGO_DATABASE)
-            system_db.create_database(ARANGO_DATABASE)
+        client = ArangoClient(hosts=targets["host"])
+        system_db = client.db("_system", username=targets["user"], password=targets["password"])
+        if not system_db.has_database(database):
+            logger.info("Creating ArangoDB database %s", database)
+            system_db.create_database(database)
 
-        db = client.db(ARANGO_DATABASE, username=ARANGO_USER, password=ARANGO_PASSWORD)
-        if not db.has_collection(NODE_COLLECTION):
-            db.create_collection(NODE_COLLECTION)
-        if not db.has_collection(EDGE_COLLECTION):
-            db.create_collection(EDGE_COLLECTION, edge=True)
+        db = client.db(database, username=targets["user"], password=targets["password"])
+        if not db.has_collection(node_collection):
+            db.create_collection(node_collection)
+        if not db.has_collection(edge_collection):
+            db.create_collection(edge_collection, edge=True)
 
         node_upsert_query = f"""
         FOR node IN @nodes
           UPSERT {{ _key: node._key }}
           INSERT node
           UPDATE MERGE(OLD, node)
-          IN {NODE_COLLECTION}
+          IN {node_collection}
           OPTIONS {{ keepNull: false }}
           RETURN NEW
         """
@@ -371,7 +447,7 @@ def commit_to_arangodb(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
           UPSERT {{ _from: edge._from, _to: edge._to, predicate: edge.predicate }}
           INSERT edge
           UPDATE MERGE(OLD, edge)
-          IN {EDGE_COLLECTION}
+          IN {edge_collection}
           OPTIONS {{ keepNull: false }}
           RETURN NEW
         """
@@ -383,12 +459,12 @@ def commit_to_arangodb(payload: Union[str, Dict[str, Any]]) -> Dict[str, Any]:
             "Upserted %d node(s) and %d edge(s) into ArangoDB database %s",
             len(node_result),
             len(edge_result),
-            ARANGO_DATABASE,
+            database,
         )
         return {
-            "database": ARANGO_DATABASE,
-            "node_collection": NODE_COLLECTION,
-            "edge_collection": EDGE_COLLECTION,
+            "database": database,
+            "node_collection": node_collection,
+            "edge_collection": edge_collection,
             "nodes_upserted": len(node_result),
             "edges_upserted": len(edge_result),
         }
@@ -425,6 +501,41 @@ def parse_ddl_csv(csv_filepath: str) -> str:
         return json.dumps(payload, indent=2)
     except Exception:
         logger.exception("Failed to parse DDL CSV")
+        raise
+
+
+@mcp.tool()
+def stage_terminology(filepath: Optional[str] = None, commit: bool = False) -> Dict[str, Any]:
+    """Read a manufacturing terminology .docx and stage PROPOSED terms into mrp_research.
+
+    Deterministic glossary extraction anchors each proposed term to the existing
+    SME-approved perspectives/categories. The result is staged as PROPOSALS into the
+    SEPARATE `mrp_research` graph only — the certified `manufacturing_graph` is never
+    touched. By default this is a dry run that writes a reviewable JSON+CSV artifact;
+    set commit=True to also upsert the proposals into the research graph.
+
+    Args:
+        filepath: Optional terminology document path (relative to the librarian
+            document root). Defaults to the bundled terminology document.
+        commit: When True, stage the proposals into the mrp_research graph via the
+            gated, hard-guarded commit path. When False (default), dry run only.
+    """
+    try:
+        if str(_SCRIPTS_DIR) not in sys.path:
+            sys.path.insert(0, str(_SCRIPTS_DIR))
+        import mrp_terminology_stager as stager
+
+        doc_path = _resolve_path(filepath) if filepath else stager.DEFAULT_DOC
+        logger.info("Staging terminology from %s (commit=%s)", doc_path, commit)
+
+        return stager.run(
+            doc_path=Path(doc_path),
+            db_path=stager.DEFAULT_SQLITE,
+            staging_root=stager.DEFAULT_STAGING_ROOT,
+            commit=commit,
+        )
+    except Exception:
+        logger.exception("Failed to stage terminology")
         raise
 
 
