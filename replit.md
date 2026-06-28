@@ -13,6 +13,7 @@ Learning path: Advanced Python for business applications, preparing to work with
 Capstone project: Semantic layer using LangChain for Berkeley Haas AI strategy class — natural language to SQL conversion for manufacturing industry.
 Development approach: Learning-first methodology. Systematic `123[n..]_Entry_Point_Topic.py` naming convention for Frank Kane Advanced RAG study sequence.
 API management: Cost-conscious, prefers demo modes before live API usage.
+Synthetic sources: Always target SQLite (the local `manufacturing.db` dialect) for any synthetic SQL/DDL or synthetic data source. Real-source ground-truth files (e.g. SQL Server `Live.dbo.*` T-SQL) are faithful reference benchmarks only — never the synthetic target dialect.
 Task management: Do NOT auto-create or propose follow-up tasks. Never use proposeFollowUpTasks or create project tasks unless explicitly asked.
 
 ## Current System State (May 2026)
