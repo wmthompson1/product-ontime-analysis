@@ -1,0 +1,19 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# Per-supplier inspection quality = AVG of the per-delivery quality score
+# (1.0 for Passed/Waived, 0.0 for Failed, NO triple while Pending), so the
+# average is (Passed+Waived)/(Passed+Waived+Failed) — the My MRP quality
+# acceptance rate. A supplier with no graded receipts has no quality triples
+# (AVG -> NULL); the rating computation then applies the neutral 0.75 default.
+#
+# This is a multi-triple OPTIONAL + GROUP BY like supplier_otd_avg.rq, but BOTH
+# inputs (:hasDelivery and :qualityScore) resolve to the SAME `receiving` table,
+# so Ontop emits a flat, SQLite-compatible join and no lift is needed here. (OTD
+# is the case that spans two tables and requires the SQLGlot lift.) It still runs
+# through the same capture+lift pipeline in rating_parity_check.py, where the
+# lift is a safe no-op.
+SELECT ?supplier (AVG(?q) AS ?quality) WHERE {
+  ?supplier a :Supplier .
+  OPTIONAL { ?supplier :hasDelivery ?d . ?d :qualityScore ?q . }
+}
+GROUP BY ?supplier

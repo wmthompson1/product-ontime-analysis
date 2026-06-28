@@ -62,10 +62,28 @@ in hand-coded migration SQL.
   THROWAWAY snapshot only (never the live DB) and assert it stays published +
   unlinked + carries its default; compare exact SPARQL-IRI-tail vs SQL id SETS,
   not just counts.
-- The single-triple-OPTIONAL limit is ergonomics, NOT correctness — the safe
-  default already comes from the deterministic My MRP rule. A SQLGlot pass over
-  Ontop's emitted SQL (currently Ontop talks to SQLite directly via sqlite-jdbc;
-  we don't intercept the SQL) could lift it, but that is **tabled** by decision.
+- The multi-triple-OPTIONAL + GROUP BY limit is ergonomics, NOT correctness, and
+  is now **LIFTED** (`rating_parity_check.py` + `sql_lift.py`): run Ontop with
+  `ONTOP_LOG_LEVEL=DEBUG`, scrape the LAST "Resulting native query" SQL from the
+  log, and re-transpile with SQLGlot — wrap any join whose `this` carries nested
+  joins in a Subquery so the stacked-`ON` nested LEFT JOIN parses on SQLite. KEY
+  nuance: the lift is needed ONLY when the OPTIONAL's triples span >1 physical
+  table (OTD = receiving + purchase_order). A multi-triple OPTIONAL whose triples
+  resolve to the SAME table (quality = both from receiving) and a single-triple
+  OPTIONAL are already SQLite-compatible, so the same pipeline is a safe no-op.
+
+## Full My MRP rating republished through the graph
+`rating_parity_check.py` recomputes the ENTIRE deterministic rating
+(`clamp(5*(0.55*OTD + 0.45*quality),1,5)`, 2dp) per supplier purely from graph
+aggregates — `AVG(:opsOnTimeScore)`, `AVG(:qualityScore)`, `COUNT(:hasDelivery)`
+— and proves it equals the stored `suppliers.performance_rating`.
+**How to apply:** mirror the backfill migration's constants EXACTLY (W_OTD .55 /
+W_QUALITY .45 / neutral-quality .75 when there are graded-receipts-but-none /
+no-receipts rating 3.0); the quality input is a single-table `:qualityScore`
+mapped from `receiving.inspection_status` (1.0 Passed/Waived, 0.0 Failed, no
+triple for Pending — same NULL pattern as on-time). Identify the supplier-id
+column in the lifted aggregate by "values ⊆ known supplier ids" (robust to
+Ontop's column aliasing), not by name/position.
 
 ## Toolchain
 Java module `java-graalvm22.3` (JDK 19). Ontop CLI + sqlite-jdbc are downloaded
@@ -74,5 +92,7 @@ The setup/run entry points are Python and live in `replit_integrations/`
 (`ontop_poc_setup.py`, `ontop_poc_run_demo.py`) so they can be shared alongside
 the other integration tools; both resolve the POC dir relative to the repo root.
 Run `python3 replit_integrations/ontop_poc_run_demo.py` (or, after setup,
-`python3 poc/ontop-ontology-poc/parity_check.py`). Nothing is wired into the
-Flask/HF Space app, Gradio, ArangoDB, or SolderEngine.
+`python3 poc/ontop-ontology-poc/parity_check.py` for Showcases 1–2, or
+`python3 poc/ontop-ontology-poc/rating_parity_check.py` for Showcase 3 +
+the SQLGlot lift). Nothing is wired into the Flask/HF Space app, Gradio,
+ArangoDB, or SolderEngine.

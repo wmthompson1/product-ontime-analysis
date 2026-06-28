@@ -113,6 +113,24 @@
     rdfs:domain :Delivery ;
     rdfs:range  xsd:double .
 
+# ── The per-delivery inspection quality score ───────────────────────────────
+#
+# qualityScore is the governed quality definition, the second input (alongside
+# on-time delivery) to the My MRP supplier performance rating. It is 1.0 if the
+# receipt passed inspection (Passed or Waived), 0.0 if it Failed, and undefined
+# (no triple) while it is still Pending (not yet graded). Averaging it per
+# supplier yields the quality-acceptance rate
+#   (Passed + Waived) / (Passed + Waived + Failed)
+# mirroring the migration's SUM/SUM. A supplier with no graded receipts has no
+# quality triples, so the rating computation applies the neutral 0.75 default.
+
+:qualityScore
+    a owl:DatatypeProperty ;
+    rdfs:label "inspection quality score" ;
+    rdfs:comment "Per-delivery inspection quality score (1.0 Passed/Waived, 0.0 Failed; no triple while Pending). Averaging it per supplier yields the quality-acceptance rate that feeds the My MRP performance rating." ;
+    rdfs:domain :Delivery ;
+    rdfs:range  xsd:double .
+
 # ── Supplier dimension: the supplier→receiving join + governed optionality ───
 #
 # This promotes the supplier→receiving relationship out of hand-coded migration

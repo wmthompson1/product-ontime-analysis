@@ -1,0 +1,12 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# Per-supplier receipt count (recs) = COUNT of the supplier's deliveries.
+# A supplier with no receipts counts 0, so the rating computation assigns the
+# neutral no-history rating (3.0). This is a single-triple OPTIONAL + GROUP BY;
+# it is captured and run through the same lift pipeline (the lift is a no-op when
+# SQLite already accepts the SQL).
+SELECT ?supplier (COUNT(?d) AS ?recs) WHERE {
+  ?supplier a :Supplier .
+  OPTIONAL { ?supplier :hasDelivery ?d . }
+}
+GROUP BY ?supplier

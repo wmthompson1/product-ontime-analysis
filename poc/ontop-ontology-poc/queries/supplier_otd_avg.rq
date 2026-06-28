@@ -1,0 +1,15 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# Per-supplier on-time delivery (OTD) = AVG of the per-delivery on-time score
+# over the supplier's deliveries. Uses :opsOnTimeScore (one mapping, and == the
+# shared on-time definition) to avoid the 3x sub-property union of the parent.
+#
+# This is the SQLite-INCOMPATIBLE shape: a MULTI-triple OPTIONAL (a nested LEFT
+# JOIN) combined with GROUP BY + AVG. Ontop serializes it with stacked ON clauses
+# that the SQLite parser rejects ("near ON"). rating_parity_check.py captures that
+# SQL from Ontop's DEBUG log and re-transpiles it with SQLGlot (see sql_lift.py).
+SELECT ?supplier (AVG(?ot) AS ?otd) WHERE {
+  ?supplier a :Supplier .
+  OPTIONAL { ?supplier :hasDelivery ?d . ?d :opsOnTimeScore ?ot . }
+}
+GROUP BY ?supplier

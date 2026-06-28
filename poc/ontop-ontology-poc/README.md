@@ -101,19 +101,81 @@ Injected a no-receipt supplier into the throwaway snapshot:
 RESULT: OPTIONALITY GOVERNED
 ```
 
-> **SQLite backend note.** Ontop treats SQLite as a limited dialect. A single
-> triple is kept inside `OPTIONAL` because Ontop serializes a *multi-triple*
-> `OPTIONAL` (a nested LEFT JOIN) — and `OPTIONAL` combined with `GROUP BY` — as
-> SQL the SQLite parser rejects (`near "ON"` / `near "UNION"`). A single-triple
-> `OPTIONAL` yields a clean LEFT JOIN. The optionality is governed by the
-> *mapping design* (entity from the full population table, link from receipts),
-> so it holds regardless of how a consumer phrases the query.
+> **SQLite backend note.** Ontop treats SQLite as a limited dialect. The simple
+> showcase queries above keep a single triple inside `OPTIONAL` because Ontop
+> serializes a *multi-triple* `OPTIONAL` whose triples span more than one table
+> (a nested LEFT JOIN) — and that shape combined with `GROUP BY` — as SQL the
+> SQLite parser rejects (`near "ON"` / `near "UNION"`). A single-triple
+> `OPTIONAL` (or a multi-triple one whose triples resolve to the same table)
+> yields a clean LEFT JOIN. The optionality is governed by the *mapping design*
+> (entity from the full population table, link from receipts), so it holds
+> regardless of how a consumer phrases the query.
 >
-> This is a query-ergonomics limit, **not** a correctness one: the safe
-> no-receipt default (neutral `3.0`) is already guaranteed deterministically by
-> the **My MRP** rule (the backfill migration), so governance is unaffected.
-> Lifting the limit by intercepting Ontop's emitted SQL and re-transpiling it
-> with SQLGlot is a possible later step — deliberately **tabled** here.
+> This was a query-ergonomics limit, **not** a correctness one — and **Showcase
+> 3 below now lifts it**: it captures the SQL Ontop generates and re-transpiles
+> the nested join group with SQLGlot, so the multi-triple `OPTIONAL` + `GROUP BY`
+> aggregates run on SQLite too.
+
+### Showcase 3 — the full supplier rating, recomputed through the graph
+
+Showcase 2 governs *optionality* (a no-receipt supplier keeps its neutral
+default). Showcase 3 goes further: it recomputes the **entire deterministic My
+MRP rating** for every supplier **purely from triples the virtual graph
+publishes**, and proves the result equals the migration's stored
+`suppliers.performance_rating` — supplier by supplier.
+
+The rating is `clamp(5 * (0.55*OTD + 0.45*quality), 1, 5)` rounded to 2dp, where:
+
+- **OTD** = `AVG(:opsOnTimeScore)` per supplier,
+- **quality** = `AVG(:qualityScore)` per supplier (neutral `0.75` when a supplier
+  has receipts but none are graded), and
+- **recs** = `COUNT(:hasDelivery)` per supplier (a supplier with no receipts at
+  all gets the neutral `3.0`, never a penalty).
+
+`:qualityScore` is a new datatype property mapped from
+`receiving.inspection_status` (`1.0` for Passed/Waived, `0.0` for Failed, no
+triple for Pending — mirroring the on-time `NULL` pattern). `rating_parity_check.py`
+reads these three aggregates through SPARQL, combines them with the exact My MRP
+formula, and compares to the stored value:
+
+```
+  supplier       OTD  quality  recs   graph  stored  ok
+  ----------------------------------------------------------------
+  S-001        1.000    0.786    16    4.52    4.52  ok
+  S-002        0.500    0.600    16    2.73    2.73  ok
+  ...
+  S-026        1.000    0.750     4    4.44    4.44  ok
+  ----------------------------------------------------------------
+  suppliers checked: 26   mismatches: 0
+RESULT: RATING PARITY CONFIRMED + SQLite OPTIONAL/GROUP BY LIFTED
+```
+
+#### Lifting the SQLite OPTIONAL + GROUP BY limit (SQLGlot)
+
+The OTD aggregate is a multi-triple `OPTIONAL` (`:hasDelivery` from `receiving`,
+`:opsOnTimeScore` from `receiving JOIN purchase_order`) combined with `GROUP BY` +
+`AVG`. Ontop serializes that as a **nested LEFT JOIN with stacked `ON` clauses**
+that the SQLite parser rejects (`near "ON"`). `rating_parity_check.py` lifts the
+limit instead of avoiding it:
+
+1. Run Ontop with `ONTOP_LOG_LEVEL=DEBUG` and scrape the **native SQL** it logs.
+2. Show SQLite rejects that SQL raw.
+3. Re-transpile it with **SQLGlot** (`sql_lift.lift_join_groups` wraps any join
+   whose left side carries its own nested joins in a parenthesized subquery), and
+   run the lifted SQL successfully on the same snapshot.
+
+```
+  Query: supplier_otd_avg.rq
+  Raw Ontop SQL rejected by SQLite : YES (near "ON": syntax error)
+  Nested join group(s) parenthesized by SQLGlot : 1
+  Lifted SQL ran on the snapshot   : YES (26 rows)
+```
+
+The lift is needed exactly when an `OPTIONAL`'s triples span **more than one
+table**. The quality aggregate is also a multi-triple `OPTIONAL` + `GROUP BY`, but
+both of its triples resolve to the same `receiving` table, so Ontop already emits
+SQLite-compatible SQL and the same pipeline is a safe no-op there — a useful check
+that the lift only kicks in when it must.
 
 ---
 
@@ -128,7 +190,12 @@ RESULT: OPTIONALITY GOVERNED
 | `queries/on_time_rate_parent.rq` | On-time rate via the shared parent (hierarchy roll-up). |
 | `queries/sample_deliveries.rq` | A few per-delivery rows, to show real triples. |
 | `queries/suppliers_optional_deliveries.rq` | Every supplier with its OPTIONAL (LEFT-JOIN) deliveries — the governed-optionality showcase. |
+| `queries/supplier_otd_avg.rq` | Per-supplier AVG on-time score (multi-triple OPTIONAL + GROUP BY — the shape that needs the lift). |
+| `queries/supplier_quality_avg.rq` | Per-supplier AVG quality acceptance rate (multi-triple OPTIONAL + GROUP BY). |
+| `queries/supplier_delivery_count.rq` | Per-supplier receipt count (drives the no-history neutral default). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
+| `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
+| `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
 | `mapping_drift_check.py` | Offline drift guard: proves the mapping's columns and the ontology vocabulary stay aligned with the governed `graph_metadata.json` (file vs file, no DB/network). |
 | `../../replit_integrations/ontop_poc_run_demo.py` | One command: set up the toolchain (if needed) and run the parity check. |
 | `../../replit_integrations/ontop_poc_setup.py` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
@@ -151,6 +218,16 @@ parity table above. To re-run just the check after setup:
 ```bash
 python3 poc/ontop-ontology-poc/parity_check.py
 ```
+
+To run the full supplier-rating proof + the SQLGlot lift (Showcase 3) after the
+toolchain is set up:
+
+```bash
+python3 poc/ontop-ontology-poc/rating_parity_check.py
+```
+
+It exits non-zero if any supplier's graph-recomputed rating differs from the
+stored value, or if the previously-failing aggregate SQL was not actually lifted.
 
 ### Run a SPARQL query manually
 
@@ -231,7 +308,3 @@ python3 poc/ontop-ontology-poc/mapping_drift_check.py
 - The full schema — only `purchase_order` and `receiving` for this showcase.
 - A live SPARQL HTTP endpoint, a materialized triplestore, or OWL reasoning
   beyond the lightweight profile Ontop uses for SQL rewriting.
-- Lifting the SQLite single-triple-`OPTIONAL` limit by intercepting Ontop's
-  generated SQL and re-transpiling it with SQLGlot (the stack already uses
-  SQLGlot). **Tabled** — the safe no-receipt default already comes from the
-  deterministic My MRP rule, so this is ergonomics, not correctness.

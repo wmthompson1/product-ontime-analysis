@@ -27,6 +27,10 @@ mappingId       map-ontime-finance
 target          :delivery/{receipt_id} :financeOnTimeScore {on_time_score}^^xsd:double .
 source          SELECT r.receipt_id AS receipt_id, CASE WHEN r.receipt_date IS NOT NULL AND r.receipt_date <= p.required_date THEN 1.0 WHEN r.receipt_date IS NOT NULL AND r.receipt_date > p.required_date THEN 0.0 ELSE NULL END AS on_time_score FROM receiving r JOIN purchase_order p ON r.po_id = p.po_id
 
+mappingId       map-quality
+target          :delivery/{receipt_id} :qualityScore {quality_score}^^xsd:double .
+source          SELECT receipt_id, CASE WHEN inspection_status IN ('Passed','Waived') THEN 1.0 WHEN inspection_status = 'Failed' THEN 0.0 ELSE NULL END AS quality_score FROM receiving
+
 mappingId       map-supplier
 target          :supplier/{supplier_id} a :Supplier ; :supplierName {supplier_name} ; :performanceRating {performance_rating}^^xsd:double .
 source          SELECT CAST(supplier_id AS TEXT) AS supplier_id, supplier_name, performance_rating FROM suppliers

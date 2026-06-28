@@ -51,15 +51,26 @@ script:
 - `parity_check.py` proves this: SPARQL and SQL agree on the published and linked
   supplier sets, and an injected no-receipt supplier (into a throwaway snapshot
   only) stays published, stays unlinked, and keeps its 3.0 default.
+- `rating_parity_check.py` goes further and republishes the **full** rating: it
+  recomputes `clamp(5*(0.55*OTD + 0.45*quality), 1, 5)` per supplier entirely from
+  graph triples — `AVG(:opsOnTimeScore)`, `AVG(:qualityScore)`,
+  `COUNT(:hasDelivery)` — and proves it equals the stored `performance_rating` for
+  every supplier (exit non-zero on any mismatch). `:qualityScore` is mapped from
+  `receiving.inspection_status` (1.0 Passed/Waived, 0.0 Failed, no triple for
+  Pending), so the same NULL-ignoring averaging that governs on-time also governs
+  quality.
 - The backfill migration is still **standalone SQLite** and never calls
   Ontop/SPARQL; the POC is a read-only *republishing* of the same governed rule, so
   the two now agree by construction.
 
-> SQLite-backend caveat: Ontop compiles a *multi-triple* `OPTIONAL` (and
-> `OPTIONAL` + `GROUP BY`) into SQL the SQLite parser rejects, so the showcase keeps
-> a **single triple** inside `OPTIONAL`. The optionality holds regardless, because
-> it is enforced by the mapping (entity from the full population table, link from
-> receipts), not by how the query is phrased.
+> SQLite-backend caveat: Ontop compiles a *multi-triple* `OPTIONAL` whose triples
+> span more than one table (and that shape + `GROUP BY`) into SQL the SQLite parser
+> rejects, so the simple optionality showcase keeps a **single triple** inside
+> `OPTIONAL`. For the rating aggregates `rating_parity_check.py` **lifts** that
+> limit by capturing Ontop's generated SQL and re-transpiling the nested join group
+> with SQLGlot. The optionality holds regardless, because it is enforced by the
+> mapping (entity from the full population table, link from receipts), not by how
+> the query is phrased.
 
 ## Traceability
 
