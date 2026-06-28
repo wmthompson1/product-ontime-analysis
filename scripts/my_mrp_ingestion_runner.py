@@ -7,7 +7,7 @@ versioned evaluation artifacts, and records human-auditable reasoning traces. It
 does not mutate SQL schema and does not write to ArangoDB directly.
 
 Adapted for the Replit/Linux repo from the private Windows prototype:
-  * Default watch root  -> <repo>/docs/my mrp kb        (env: MRP_DOCUMENTS_DIR)
+  * Default watch root  -> <repo>/docs/my-mrp-kb        (env: MRP_DOCUMENTS_DIR)
   * Default artifacts   -> <repo>/mrp_ingest_artifacts  (env: MRP_INGEST_ARTIFACT_ROOT)
 The artifact root is intentionally OUTSIDE the watch root so the runner never
 ingests its own output on a later cycle.
@@ -40,7 +40,7 @@ logger = logging.getLogger("my_mrp_ingestion_runner")
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULT_WATCH_ROOT = Path(
-    os.getenv("MRP_DOCUMENTS_DIR", str(_REPO_ROOT / "docs" / "my mrp kb"))
+    os.getenv("MRP_DOCUMENTS_DIR", str(_REPO_ROOT / "docs" / "my-mrp-kb"))
 ).expanduser()
 
 DEFAULT_ARTIFACT_ROOT = Path(
@@ -335,7 +335,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--watch-root",
         default=str(DEFAULT_WATCH_ROOT),
-        help="Folder to ingest (default: docs/my mrp kb)",
+        help="Folder to ingest (default: docs/my-mrp-kb)",
     )
     parser.add_argument(
         "--artifact-root",

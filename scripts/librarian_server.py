@@ -6,7 +6,7 @@ Exposes tools for listing local MRP documents, reading .docx content in-memory,
 and committing concept-to-schema research artifacts into ArangoDB.
 
 Adapted for the Replit/Linux repo from the private Windows prototype:
-  * Default document root -> <repo>/docs/my mrp kb                         (env: MRP_DOCUMENTS_DIR)
+  * Default document root -> <repo>/docs/my-mrp-kb                         (env: MRP_DOCUMENTS_DIR)
   * Default border root   -> <repo>/certificate_for_receiving/border_extracts (env: BORDER_EXTRACTS_DIR)
   * ArangoDB password falls back to ARANGO_ROOT_PASSWORD (this repo's secret name).
   * commit_to_arangodb stays GATED OFF (MRP_ENABLE_GRAPH_COMMIT, default false) and
@@ -54,7 +54,7 @@ def _discover_default_doc_root() -> Path:
     if configured:
         return Path(configured).expanduser()
 
-    return _REPO_ROOT / "docs" / "my mrp kb"
+    return _REPO_ROOT / "docs" / "my-mrp-kb"
 
 
 DEFAULT_DOC_ROOT = _discover_default_doc_root()

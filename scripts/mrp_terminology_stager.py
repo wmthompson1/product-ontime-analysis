@@ -55,7 +55,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 from my_mrp_ingestion_runner import _detect_pii, _sha256_bytes  # noqa: E402
 
 DEFAULT_DOC_ROOT = Path(
-    os.getenv("MRP_DOCUMENTS_DIR", str(_REPO_ROOT / "docs" / "my mrp kb"))
+    os.getenv("MRP_DOCUMENTS_DIR", str(_REPO_ROOT / "docs" / "my-mrp-kb"))
 ).expanduser()
 DEFAULT_DOC = DEFAULT_DOC_ROOT / "Manufacturing and MRP Terminology in Semantic Models.docx"
 DEFAULT_SQLITE = (
