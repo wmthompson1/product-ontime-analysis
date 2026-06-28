@@ -3,6 +3,9 @@
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix schema: <https://schema.org/> .
+@prefix org:    <http://www.w3.org/ns/org#> .
 
 #
 # On-Time Delivery — minimal OWL ontology (OWL 2 QL profile)
@@ -18,6 +21,18 @@
 # sub-properties of one shared parent property, so a consumer can either ask
 # for a specific perspective OR ask the shared parent and get the same answer.
 #
+# Annotation layers on each term (added without touching the .obda mapping or
+# the generator, so the virtual graph's data is unchanged):
+#   * Layer B — plain-language governed meaning via skos:definition /
+#     skos:scopeNote, on top of the existing rdfs:comment, so the vocabulary is
+#     self-describing for Text-to-SQL / GraphRAG consumers.
+#   * Layer C — citations and conservative cross-walks to public vocabularies
+#     (schema.org, W3C Org ontology) via rdfs:isDefinedBy plus rdfs:subClassOf /
+#     rdfs:subPropertyOf / skos:closeMatch. These align to standards WITHOUT
+#     over-claiming equivalence (e.g. a supplier is a KIND OF organization, not
+#     identical to one) and carry no mappings, so they are documentation-only
+#     and do not change Ontop's query rewriting over the governed data.
+#
 
 <http://example.org/manufacturing/ontime>
     a owl:Ontology ;
@@ -29,12 +44,19 @@
 :Delivery
     a owl:Class ;
     rdfs:label "Delivery" ;
-    rdfs:comment "A goods receipt against a purchase order (one row of the receiving table)." .
+    rdfs:comment "A goods receipt against a purchase order (one row of the receiving table)." ;
+    skos:definition "A single goods receipt recorded against a purchase order — one row of the receiving table. Deliveries are the unit the on-time and inspection-quality scores are measured on." ;
+    skos:scopeNote "A delivery counts toward the on-time average only when its purchase order carries a required date to compare against." ;
+    rdfs:isDefinedBy <https://schema.org/> ;
+    skos:closeMatch schema:DeliveryEvent .
 
 :PurchaseOrder
     a owl:Class ;
     rdfs:label "Purchase Order" ;
-    rdfs:comment "A purchase order header (one row of the purchase_order table)." .
+    rdfs:comment "A purchase order header (one row of the purchase_order table)." ;
+    skos:definition "A purchase order header that commits to buying goods by a required date — one row of the purchase_order table." ;
+    rdfs:isDefinedBy <https://schema.org/> ;
+    rdfs:subClassOf schema:Order .
 
 # ── Object property: how a delivery relates to its purchase order ───────────
 
@@ -43,7 +65,8 @@
     rdfs:label "fulfills purchase order" ;
     rdfs:comment "Links a delivery to the purchase order it was received against." ;
     rdfs:domain :Delivery ;
-    rdfs:range  :PurchaseOrder .
+    rdfs:range  :PurchaseOrder ;
+    skos:definition "Connects a goods receipt to the purchase order it satisfies, so the receipt date can be compared with the order's required date." .
 
 # ── Plain data properties on each entity ───────────────────────────────────
 
@@ -52,14 +75,17 @@
     rdfs:label "receipt date" ;
     rdfs:comment "The date the goods were received." ;
     rdfs:domain :Delivery ;
-    rdfs:range  xsd:date .
+    rdfs:range  xsd:date ;
+    skos:definition "The date goods were physically received against the purchase order." .
 
 :requiredDate
     a owl:DatatypeProperty ;
     rdfs:label "required date" ;
     rdfs:comment "The date the purchase order required the goods by." ;
     rdfs:domain :PurchaseOrder ;
-    rdfs:range  xsd:date .
+    rdfs:range  xsd:date ;
+    skos:definition "The date the purchase order needs the goods by." ;
+    skos:scopeNote "Deliveries whose purchase order has no required date are excluded from the on-time average." .
 
 # ── The shared on-time definition (the parent metric property) ──────────────
 #
@@ -77,7 +103,9 @@
     rdfs:label "on-time score" ;
     rdfs:comment "Per-delivery on-time score (1.0 on/before required date, 0.0 late). The shared, perspective-agnostic parent definition; averaging it yields the on-time delivery rate." ;
     rdfs:domain :Delivery ;
-    rdfs:range  xsd:double .
+    rdfs:range  xsd:double ;
+    skos:definition "Per-delivery on-time score: 1.0 when the goods arrive on or before the required date, 0.0 when they arrive late, and undefined when there is no required date to compare against." ;
+    skos:scopeNote "The single governed on-time definition. Averaging it gives the on-time delivery rate, and it is surfaced unchanged under the Operations, Supplier and Finance perspectives (its sub-properties) — defined once, reused everywhere." .
 
 # ── ONE HIERARCHY: the three perspectives as sub-properties of the parent ───
 #
@@ -95,7 +123,8 @@
     rdfs:comment "Operations view of the shared on-time score." ;
     rdfs:subPropertyOf :onTimeScore ;
     rdfs:domain :Delivery ;
-    rdfs:range  xsd:double .
+    rdfs:range  xsd:double ;
+    skos:definition "The Operations-perspective view of the shared on-time score; identical in value to :onTimeScore by construction." .
 
 :supplierOnTimeScore
     a owl:DatatypeProperty ;
@@ -103,7 +132,8 @@
     rdfs:comment "Supplier view of the shared on-time score." ;
     rdfs:subPropertyOf :onTimeScore ;
     rdfs:domain :Delivery ;
-    rdfs:range  xsd:double .
+    rdfs:range  xsd:double ;
+    skos:definition "The Supplier-perspective view of the shared on-time score; identical in value to :onTimeScore by construction." .
 
 :financeOnTimeScore
     a owl:DatatypeProperty ;
@@ -111,7 +141,8 @@
     rdfs:comment "Finance view of the shared on-time score." ;
     rdfs:subPropertyOf :onTimeScore ;
     rdfs:domain :Delivery ;
-    rdfs:range  xsd:double .
+    rdfs:range  xsd:double ;
+    skos:definition "The Finance-perspective view of the shared on-time score; identical in value to :onTimeScore by construction." .
 
 # ── The per-delivery inspection quality score ───────────────────────────────
 #
@@ -129,7 +160,9 @@
     rdfs:label "inspection quality score" ;
     rdfs:comment "Per-delivery inspection quality score (1.0 Passed/Waived, 0.0 Failed; no triple while Pending). Averaging it per supplier yields the quality-acceptance rate that feeds the My MRP performance rating." ;
     rdfs:domain :Delivery ;
-    rdfs:range  xsd:double .
+    rdfs:range  xsd:double ;
+    skos:definition "Per-delivery inspection quality score: 1.0 when the receipt passed inspection (Passed or Waived), 0.0 when it Failed, and undefined while the receipt is still Pending." ;
+    skos:scopeNote "Averaged per supplier it yields the quality-acceptance rate (Passed + Waived) divided by (Passed + Waived + Failed); a supplier with nothing graded yet falls back to the neutral 0.75 default." .
 
 # ── Supplier dimension: the supplier→receiving join + governed optionality ───
 #
@@ -153,24 +186,36 @@
 :Supplier
     a owl:Class ;
     rdfs:label "Supplier" ;
-    rdfs:comment "A vendor (one row of the suppliers table). Published whether or not it has any receipts." .
+    rdfs:comment "A vendor (one row of the suppliers table). Published whether or not it has any receipts." ;
+    skos:definition "A vendor that can provide goods — one row of the suppliers table. Every supplier is published whether or not it has any receipts." ;
+    skos:scopeNote "Having no receipts is the safe unlinked state, not poor performance: such a supplier keeps the neutral 3.0 performance-rating default." ;
+    rdfs:isDefinedBy <http://www.w3.org/ns/org#> ;
+    rdfs:subClassOf org:Organization ;
+    skos:closeMatch schema:Organization .
 
 :hasDelivery
     a owl:ObjectProperty ;
     rdfs:label "has delivery" ;
     rdfs:comment "Links a supplier to a delivery (goods receipt) it provided. OPTIONAL by construction: minted only from receiving rows, so a supplier with no receipts has none. (No rdfs:domain is declared on purpose: it would make Ontop infer :Supplier membership from receiving too, producing a second source that the SQLite backend serializes as invalid UNION/LEFT-JOIN SQL. Supplier identity comes solely from the suppliers table via map-supplier.)" ;
-    rdfs:range  :Delivery .
+    rdfs:range  :Delivery ;
+    skos:definition "Links a supplier to a delivery (goods receipt) it provided." ;
+    skos:scopeNote "Optional by construction: minted only from receiving rows, so a supplier with no receipts has no such link. Read it with OPTIONAL in SPARQL (Ontop compiles this to a SQL LEFT JOIN) to keep unlinked suppliers in the answer." .
 
 :supplierName
     a owl:DatatypeProperty ;
     rdfs:label "supplier name" ;
     rdfs:comment "The supplier's name." ;
     rdfs:domain :Supplier ;
-    rdfs:range  xsd:string .
+    rdfs:range  xsd:string ;
+    skos:definition "The supplier's name." ;
+    rdfs:isDefinedBy <https://schema.org/> ;
+    rdfs:subPropertyOf schema:name .
 
 :performanceRating
     a owl:DatatypeProperty ;
     rdfs:label "performance rating" ;
     rdfs:comment "Supplier performance rating (1-5), derived strictly from the receiving flow (on-time delivery + inspection quality). A supplier with no receipts carries the neutral 3.0 default — the safe value for the unlinked state." ;
     rdfs:domain :Supplier ;
-    rdfs:range  xsd:double .
+    rdfs:range  xsd:double ;
+    skos:definition "Supplier performance rating from 1 to 5, derived strictly from the receiving flow: clamp(5 × (0.55 × on-time + 0.45 × quality), 1, 5)." ;
+    skos:scopeNote "Computed only from actual receiving history — never random or model-generated. A supplier with no receipts carries the neutral 3.0 default." .

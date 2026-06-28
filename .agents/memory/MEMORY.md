@@ -23,3 +23,4 @@
 - [OpenAI key auth fallback](openai-key-auth-fallback.md) — repl's OPENAI_API_KEY fails auth; default to deterministic drafting (also user's cost pref), re-verify key before any live AI call.
 - [Ontop interoperability POC](ontop-interoperability-poc.md) — SQL layer republished as a virtual OWL/SPARQL graph via Ontop; parity proven over a read-only WAL snapshot.
 - [Synthetic ERP backfill grounding](synthetic-erp-backfill-grounding.md) — fill blank/zero ERP columns from the real PO→receiving→payable flow (supplier scorecard, WO job costing), deterministic, never random.
+- [Ontop ontology annotation layers](ontology-annotation-layers.md) — POC .ttl gates are regex-based & blind to annotations; safe to enrich existing terms; use subClassOf/skos:closeMatch not owl:equivalentClass; no new unmapped terms.
