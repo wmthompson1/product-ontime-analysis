@@ -50,6 +50,19 @@ DEFAULT_MAPPING = os.path.join(POC_DIR, "mapping", "on_time_delivery.obda")
 DEFAULT_ONTOLOGY = os.path.join(POC_DIR, "ontology", "on_time_delivery.ttl")
 DEFAULT_GRAPH = os.path.join(REPO_ROOT, "replit_integrations", "graph_metadata.json")
 
+# Every published showcase is guarded by default: each is a (label, mapping,
+# ontology) triple checked independently against the same governed schema. Adding
+# a new governed metric to the virtual graph means adding its pair here so the
+# single post-merge invocation covers it too.
+DEFAULT_SHOWCASES = [
+    ("on-time delivery", DEFAULT_MAPPING, DEFAULT_ONTOLOGY),
+    (
+        "operational OEE",
+        os.path.join(POC_DIR, "mapping", "operational_efficiency.obda"),
+        os.path.join(POC_DIR, "ontology", "operational_efficiency.ttl"),
+    ),
+]
+
 # Ontology vocabulary terms live in the empty-prefix (``:``) ontime namespace.
 # A vocabulary reference is ``:Name`` that is NOT an instance-IRI template (those
 # carry a path, e.g. ``:delivery/{receipt_id}``) and NOT a prefixed term such as
@@ -296,8 +309,8 @@ def check_drift(mapping_path: str, ontology_path: str, graph_path: str) -> int:
 
 def main(argv: List[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mapping", default=DEFAULT_MAPPING, help="Path to the .obda mapping (default: %(default)s)")
-    parser.add_argument("--ontology", default=DEFAULT_ONTOLOGY, help="Path to the .ttl ontology (default: %(default)s)")
+    parser.add_argument("--mapping", default=None, help="Path to a single .obda mapping to check (default: all showcases)")
+    parser.add_argument("--ontology", default=None, help="Path to a single .ttl ontology to check (default: all showcases)")
     parser.add_argument("--graph", default=DEFAULT_GRAPH, help="Path to graph_metadata.json (default: %(default)s)")
     parser.add_argument(
         "--skip-on-missing",
@@ -306,20 +319,47 @@ def main(argv: List[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    for label, path in (
-        ("mapping", args.mapping),
-        ("ontology", args.ontology),
-        ("graph metadata", args.graph),
-    ):
-        if not os.path.exists(path):
-            msg = f"{label} not found: {path}"
-            if args.skip_on_missing:
-                print(f"[ontop_drift] SKIP — {msg}")
-                return 0
-            print(f"[ontop_drift] ERROR — {msg}", file=sys.stderr)
-            return 2
+    # Default: guard EVERY published showcase. A single explicit --mapping/--ontology
+    # narrows to one pair (back-compat; the unspecified side falls back to the
+    # on-time-delivery default).
+    if args.mapping or args.ontology:
+        showcases = [(
+            "custom",
+            args.mapping or DEFAULT_MAPPING,
+            args.ontology or DEFAULT_ONTOLOGY,
+        )]
+    else:
+        showcases = DEFAULT_SHOWCASES
 
-    return check_drift(args.mapping, args.ontology, args.graph)
+    if not os.path.exists(args.graph):
+        msg = f"graph metadata not found: {args.graph}"
+        if args.skip_on_missing:
+            print(f"[ontop_drift] SKIP — {msg}")
+            return 0
+        print(f"[ontop_drift] ERROR — {msg}", file=sys.stderr)
+        return 2
+
+    rc = 0
+    for label, mapping, ontology in showcases:
+        missing = [
+            f"{kind} not found: {path}"
+            for kind, path in (("mapping", mapping), ("ontology", ontology))
+            if not os.path.exists(path)
+        ]
+        if missing:
+            for msg in missing:
+                if args.skip_on_missing:
+                    print(f"[ontop_drift] SKIP ({label}) — {msg}")
+                else:
+                    print(f"[ontop_drift] ERROR ({label}) — {msg}", file=sys.stderr)
+            if not args.skip_on_missing:
+                return 2
+            continue
+
+        print(f"--- showcase: {label} ---")
+        rc |= check_drift(mapping, ontology, args.graph)
+
+    return rc
 
 
 if __name__ == "__main__":

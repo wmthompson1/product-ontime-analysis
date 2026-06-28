@@ -1,0 +1,15 @@
+PREFIX : <http://example.org/manufacturing/oee#>
+
+# Operational OEE (run-hours efficiency) = SUM(actual run hours) / SUM(planned
+# run hours) across all operations. This restates the semantic layer's
+# computation template for OEEOperational:
+#   SUM({act_run_hrs}) / NULLIF(SUM({run_hrs}), 0)
+# with act_run_hrs -> operation.act_run_hrs and run_hrs -> operation.run_hrs.
+# Ontop exposes the per-operation hours; the consumer's SPARQL aggregation
+# assembles the ratio, exactly as the define-once template specifies. This is
+# the number compared against SolderEngine's assembled SQL.
+SELECT ((SUM(?act) / SUM(?run)) AS ?oee) (COUNT(?op) AS ?operations)
+WHERE {
+  ?op :actualRunHours ?act ;
+      :plannedRunHours ?run .
+}

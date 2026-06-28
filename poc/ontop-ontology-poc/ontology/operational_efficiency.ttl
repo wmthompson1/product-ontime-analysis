@@ -1,0 +1,77 @@
+@prefix :     <http://example.org/manufacturing/oee#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Operational OEE (run-hours efficiency) — minimal OWL ontology (OWL 2 QL profile)
+# ===============================================================================
+# This is the standards-based VOCABULARY for the SECOND governed showcase: the
+# semantic layer's `OEEOperational` metric, published over the existing governed
+# SQL layer via Ontop (virtual OBDA). It proves the interoperability layer scales
+# beyond the on-time-delivery story (purchase_order + receiving) to a different
+# metric over a different table — the `operation` routing table.
+#
+# Like the on-time showcase, the numbers still come from SQL over the existing
+# manufacturing.db (see ../mapping/operational_efficiency.obda). This file only
+# names the terms; it does not replace the governed layer.
+#
+# The metric restated here is the semantic layer's dialect-agnostic computation
+# template for OEEOperational:
+#   SUM({act_run_hrs}) / NULLIF(SUM({run_hrs}), 0)
+# with act_run_hrs -> operation.act_run_hrs and run_hrs -> operation.run_hrs.
+# The template is PURE AGGREGATION (no per-row transform), so the mapping exposes
+# the per-operation hours and the consumer's SPARQL aggregation assembles the
+# ratio — mirroring how the on-time showcase puts AVG in SPARQL.
+#
+
+<http://example.org/manufacturing/oee>
+    a owl:Ontology ;
+    rdfs:label "Operational OEE Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the OEEOperational (run-hours efficiency) metric, published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app. A second governed metric proving the virtual graph scales beyond the on-time-delivery showcase." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:Operation
+    a owl:Class ;
+    rdfs:label "Operation" ;
+    rdfs:comment "A work order routing step (one row of the operation table)." .
+
+:WorkOrder
+    a owl:Class ;
+    rdfs:label "Work Order" ;
+    rdfs:comment "A work order header (one row of the work_order table)." .
+
+# ── Object property: how an operation relates to its work order ─────────────
+
+:partOfWorkOrder
+    a owl:ObjectProperty ;
+    rdfs:label "part of work order" ;
+    rdfs:comment "Links a routing operation to the work order it belongs to." ;
+    rdfs:domain :Operation ;
+    rdfs:range  :WorkOrder .
+
+# ── The two governed inputs to the OEEOperational template ──────────────────
+#
+# OEEOperational = SUM(act_run_hrs) / NULLIF(SUM(run_hrs), 0). The template binds
+# two variables to physical columns:
+#   {act_run_hrs} -> operation.act_run_hrs   (actual machine run hours)
+#   {run_hrs}     -> operation.run_hrs       (planned / standard run hours)
+# Exposing them per operation lets a SPARQL consumer sum each and divide, which
+# is exactly what the define-once template specifies. There is no per-row "score"
+# property (unlike the on-time showcase) because the template is pure aggregation.
+
+:actualRunHours
+    a owl:DatatypeProperty ;
+    rdfs:label "actual run hours" ;
+    rdfs:comment "Actual machine run hours posted against this operation (operation.act_run_hrs); the numerator input to OEEOperational." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:double .
+
+:plannedRunHours
+    a owl:DatatypeProperty ;
+    rdfs:label "planned run hours" ;
+    rdfs:comment "Planned / standard run hours for this operation (operation.run_hrs); the denominator input to OEEOperational." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:double .

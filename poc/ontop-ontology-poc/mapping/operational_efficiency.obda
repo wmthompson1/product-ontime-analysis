@@ -1,0 +1,18 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/oee#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-operation
+target          :operation/{rowid_pk} a :Operation ; :actualRunHours {act_run_hrs}^^xsd:double ; :plannedRunHours {run_hrs}^^xsd:double ; :partOfWorkOrder :workorder/{wo_id} .
+source          SELECT rowid_pk, act_run_hrs, run_hrs, wo_id FROM operation WHERE act_run_hrs IS NOT NULL AND run_hrs IS NOT NULL
+
+mappingId       map-workorder
+target          :workorder/{wo_id} a :WorkOrder .
+source          SELECT DISTINCT wo_id FROM work_order
+
+]]

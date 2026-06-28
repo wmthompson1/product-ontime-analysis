@@ -240,6 +240,62 @@ python3 poc/ontop-ontology-poc/endpoint_smoke_test.py
 Like the parity checks (Java + a JVM boot), it is **standalone** — not wired
 into `scripts/post-merge.sh`.
 
+### Showcase 5 — a second governed metric (operational OEE)
+
+Showcases 1–4 all tell one story (on-time delivery + the supplier rating it
+feeds) over two tables, `purchase_order` and `receiving`. Showcase 5 proves the
+interoperability layer **scales beyond that single metric**: it publishes a
+*second* governed metric the semantic layer already defines —
+**`OEEOperational`** (run-hours efficiency) — over a **different table**
+(`operation`) and a **different computation shape** (a ratio of two `SUM`s rather
+than an averaged per-row score).
+
+It has its own small vocabulary (`ontology/operational_efficiency.ttl`) and
+mapping (`mapping/operational_efficiency.obda`), entirely separate from the
+on-time files:
+
+- `:Operation` (from the `operation` table) and `:WorkOrder` (from `work_order`),
+  linked by `:partOfWorkOrder`.
+- `:actualRunHours` → `operation.act_run_hrs` and `:plannedRunHours` →
+  `operation.run_hrs` — the two variables the metric's computation template binds.
+
+The metric restated by the mapping is exactly the semantic layer's computation
+template for `OEEOperational`:
+
+```
+SUM({act_run_hrs}) / NULLIF(SUM({run_hrs}), 0)
+```
+
+The template is **pure aggregation** (no per-row transform), so — mirroring how
+Showcase 1 puts `AVG` in SPARQL — the mapping exposes the per-operation hours and
+the consumer's SPARQL aggregation assembles the ratio:
+
+```sparql
+PREFIX : <http://example.org/manufacturing/oee#>
+SELECT ((SUM(?act) / SUM(?run)) AS ?oee) (COUNT(?op) AS ?operations)
+WHERE {
+  ?op :actualRunHours ?act ; :plannedRunHours ?run .
+}
+```
+
+`oee_parity_check.py` proves the number answered through SPARQL equals the one
+SolderEngine assembles from the same metric's template, on the same read-only
+snapshot (exits non-zero on drift):
+
+```
+SolderEngine assembled SQL : 0.30159062056605185
+SPARQL  (virtual graph)    : 0.301590620566052
+RESULT: PARITY CONFIRMED
+```
+
+```bash
+python3 poc/ontop-ontology-poc/oee_parity_check.py
+```
+
+Like the other parity checks (Java + a JVM boot), it is **standalone** — not
+wired into `scripts/post-merge.sh`. The offline **drift guard**, however, now
+covers *both* showcases automatically (see **Drift guard** below).
+
 ---
 
 ## Artifacts
@@ -256,6 +312,11 @@ into `scripts/post-merge.sh`.
 | `queries/supplier_otd_avg.rq` | Per-supplier AVG on-time score (multi-triple OPTIONAL + GROUP BY — the shape that needs the lift). |
 | `queries/supplier_quality_avg.rq` | Per-supplier AVG quality acceptance rate (multi-triple OPTIONAL + GROUP BY). |
 | `queries/supplier_delivery_count.rq` | Per-supplier receipt count (drives the no-history neutral default). |
+| `ontology/operational_efficiency.ttl` | The OWL ontology for Showcase 5 (the `OEEOperational` metric over the `operation` table). |
+| `mapping/operational_efficiency.obda` | The Ontop OBDA mapping for Showcase 5 (per-operation run hours ↔ ontology terms). |
+| `mapping/operational_efficiency.properties` | JDBC connection for **manual** OEE runs. |
+| `queries/oee_operational.rq` | Operational OEE = `SUM(actual run hours) / SUM(planned run hours)` (the Showcase 5 parity number). |
+| `oee_parity_check.py` | Runs the OEE SPARQL query + SolderEngine on the same snapshot and proves they return the same number (Showcase 5). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
@@ -381,12 +442,18 @@ the project's other coverage gates. It proves:
   parent `:onTimeScore` counts as backed via its mapped sub-properties, so it is
   not falsely flagged.
 
-It runs in `scripts/post-merge.sh`, so drift fails the build automatically. To
-run it on its own:
+It guards **every published showcase** in one run — both the on-time-delivery
+files and the Showcase 5 operational-OEE files
+(`mapping/operational_efficiency.obda` + `ontology/operational_efficiency.ttl`) —
+so adding a governed metric automatically extends the guard to its new columns
+and terms. It runs in `scripts/post-merge.sh`, so drift fails the build
+automatically. To run it on its own:
 
 ```bash
 python3 poc/ontop-ontology-poc/mapping_drift_check.py
 ```
+
+To narrow it to a single showcase, pass `--mapping`/`--ontology` explicitly.
 
 ---
 
@@ -436,7 +503,9 @@ python3 poc/ontop-ontology-poc/mapping_generation_check.py
 
 ## Out of scope (sensible later steps)
 
-- The full schema — only `purchase_order` and `receiving` for this showcase.
+- The full schema — the showcases cover `purchase_order`, `receiving`, and (as of
+  Showcase 5) `operation`/`work_order`. Two governed metrics now prove the layer
+  scales beyond a single one; publishing the remaining ~33 tables is a later step.
 - A materialized triplestore, or OWL reasoning beyond the lightweight profile
   Ontop uses for SQL rewriting. (A live, read-only SPARQL HTTP endpoint is now
   implemented — see **Showcase 4** above.)
