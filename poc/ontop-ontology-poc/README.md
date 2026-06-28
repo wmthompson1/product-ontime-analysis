@@ -129,6 +129,7 @@ RESULT: OPTIONALITY GOVERNED
 | `queries/sample_deliveries.rq` | A few per-delivery rows, to show real triples. |
 | `queries/suppliers_optional_deliveries.rq` | Every supplier with its OPTIONAL (LEFT-JOIN) deliveries — the governed-optionality showcase. |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
+| `mapping_drift_check.py` | Offline drift guard: proves the mapping's columns and the ontology vocabulary stay aligned with the governed `graph_metadata.json` (file vs file, no DB/network). |
 | `../../replit_integrations/ontop_poc_run_demo.py` | One command: set up the toolchain (if needed) and run the parity check. |
 | `../../replit_integrations/ontop_poc_setup.py` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
 
@@ -196,11 +197,37 @@ committed; `replit_integrations/ontop_poc_setup.py` re-fetches the pinned versio
 
 ---
 
+## Drift guard
+
+Because the mapping and ontology are hand-authored, a rename or drop in the
+governed schema could silently break them. `mapping_drift_check.py` guards
+against that — completely offline (file vs file, no database or network), like
+the project's other coverage gates. It proves:
+
+- every base table/column the mapping's source SQL reads (resolved through
+  aliases, CASE expressions, and joins with SQLGlot) exists as a column node in
+  the committed `replit_integrations/graph_metadata.json`;
+- every ontology term the mapping targets is declared in the ontology; and
+- every declared class / property is backed by at least one mapping — the shared
+  parent `:onTimeScore` counts as backed via its mapped sub-properties, so it is
+  not falsely flagged.
+
+It runs in `scripts/post-merge.sh`, so drift fails the build automatically. To
+run it on its own:
+
+```bash
+python3 poc/ontop-ontology-poc/mapping_drift_check.py
+```
+
+---
+
 ## Out of scope (sensible later steps)
 
-- Auto-generating the OBDA mapping from the `sql_graph_*` tables /
-  `graph_metadata.json` (to avoid drift) — here the single showcase mapping is
-  hand-authored.
+- Auto-*generating* the OBDA mapping from the `sql_graph_*` tables /
+  `graph_metadata.json` — here the single showcase mapping is hand-authored.
+  (Drift of the hand-authored mapping against the schema is now caught
+  automatically; see **Drift guard** above. This bullet is about generation,
+  not detection.)
 - The full schema — only `purchase_order` and `receiving` for this showcase.
 - A live SPARQL HTTP endpoint, a materialized triplestore, or OWL reasoning
   beyond the lightweight profile Ontop uses for SQL rewriting.

@@ -122,6 +122,17 @@ if [ -f replit_integrations/field_description_coverage_check.py ]; then
   }
 fi
 
+if [ -f poc/ontop-ontology-poc/mapping_drift_check.py ]; then
+  # Offline drift guard for the Ontop POC: proves the hand-authored .obda mapping
+  # and .ttl ontology stay aligned with the governed graph_metadata.json (file vs
+  # file, no DB/network). --skip-on-missing degrades gracefully if the POC files
+  # are absent from a stripped checkout.
+  python poc/ontop-ontology-poc/mapping_drift_check.py --skip-on-missing || {
+    echo "post-merge: Ontop ontology/mapping drift check failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py ]; then
   python hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py || {
     echo "post-merge: masking policy pipeline tests failed"
