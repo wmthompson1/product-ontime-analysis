@@ -14,8 +14,11 @@ Read-only by design (identical guarantee to ``parity_check.py``):
     properties, so the live file is never opened by the server at all.
   * A guard refuses to start unless those properties point at the snapshot and
     do NOT reference the live database path.
-  * The server binds to localhost. Nothing here is wired into the Flask / HF
-    Space app, Gradio, ArangoDB, or SolderEngine.
+  * Ontop's endpoint has no bind-host option, so it listens on all interfaces
+    inside the container; run it locally/manually and stop it when done (do not
+    forward its port publicly). Reach it at http://127.0.0.1:<port>/sparql.
+    Nothing here is wired into the Flask / HF Space app, Gradio, ArangoDB, or
+    SolderEngine.
 
 This module is also imported by ``endpoint_smoke_test.py`` for the start /
 ready / query / teardown helpers, so the lifecycle logic lives in one place.

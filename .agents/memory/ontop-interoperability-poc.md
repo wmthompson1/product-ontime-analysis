@@ -85,6 +85,29 @@ triple for Pending — same NULL pattern as on-time). Identify the supplier-id
 column in the lifted aggregate by "values ⊆ known supplier ids" (robust to
 Ontop's column aliasing), not by name/position.
 
+## Live read-only SPARQL HTTP endpoint
+The same ontology + `.obda` mapping can be served as a live SPARQL endpoint over
+HTTP via Ontop's `endpoint` subcommand (`sparql_endpoint.py` launcher +
+`endpoint_smoke_test.py`), still read-only over the snapshot. Non-obvious bits:
+- **Readiness must be a real query, not a socket/port check.** The HTTP port
+  accepts connections seconds before the mappings finish loading; poll by POSTing
+  a trivial `SELECT ... LIMIT 1` to `/sparql` and wait for HTTP 200, else the
+  first real query races and fails.
+- **Snapshot-only guard before boot:** refuse to start if the runtime
+  `.properties` JDBC url points at the live DB (only the snapshot is allowed) —
+  the endpoint is long-lived, so a wrong path would expose the live WAL file.
+- **Clean teardown:** the `ontop` shell launcher ends with `exec "$JAVA" …`, so
+  the Popen PID *is* the JVM and SIGTERM reaches it; still start it with
+  `start_new_session=True` and stop via `killpg` (SIGTERM→SIGKILL) so no orphan
+  JVM survives. Verify "no orphan" with a self-match-proof pattern like
+  `pgrep -af 'cli[.]Ontop'` (a plain `it.unibz.inf.ontop` pattern matches the
+  checking shell's own argv and gives a false positive).
+- **SPARQL CSV output is scientific notation** (e.g. `5.61538461538462E-1`);
+  Python `float()` parses it fine — don't hand-roll a decimal parser.
+- Query over HTTP with `POST /sparql`, form param `query`, `Accept: text/csv`.
+- Like the parity checks (Java + JVM boot) it is **standalone**, NOT added to
+  `scripts/post-merge.sh`.
+
 ## Toolchain
 Java module `java-graalvm22.3` (JDK 19). Ontop CLI + sqlite-jdbc are downloaded
 into `tools/` and **gitignored** (versions + SHA-256 pinned in the setup script).

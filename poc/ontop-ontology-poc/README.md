@@ -177,6 +177,69 @@ both of its triples resolve to the same `receiving` table, so Ontop already emit
 SQLite-compatible SQL and the same pipeline is a safe no-op there — a useful check
 that the lift only kicks in when it must.
 
+### Showcase 4 — a live, read-only SPARQL HTTP endpoint
+
+Showcases 1–3 query the virtual graph through the Ontop CLI. Showcase 4 stands
+the **same** ontology + mapping up as a **live SPARQL endpoint over HTTP**, so an
+outside system (another aerospace/enterprise service, a BI tool, a notebook) can
+ask the governed questions over the wire — still with no triplestore and no data
+copy. It stays **read-only**: the server is pointed at a read-only snapshot of
+the live database, never the live file (a guard refuses to start otherwise). It
+is a local, manually-run POC tool (not a workflow, not auto-started) — see
+**Read-only & safety** for the network-exposure note.
+
+Start it from the repository root:
+
+```bash
+python3 poc/ontop-ontology-poc/sparql_endpoint.py            # serves on :8090
+python3 poc/ontop-ontology-poc/sparql_endpoint.py --port 9999
+```
+
+Then query it over HTTP. The on-time delivery rate (the same number Showcase 1
+proves), returned as CSV:
+
+```bash
+curl -s "http://127.0.0.1:8090/sparql" \
+  --data-urlencode "query=PREFIX : <http://example.org/manufacturing/ontime#> SELECT (AVG(?s) AS ?onTimeRate) (COUNT(?s) AS ?deliveries) WHERE { ?d :opsOnTimeScore ?s }" \
+  -H "Accept: text/csv"
+# onTimeRate,deliveries
+# 5.61538461538462E-1,260
+```
+
+Every supplier with its OPTIONAL (LEFT-JOIN) deliveries (Showcase 2's governed
+optionality, over HTTP) — here sending a saved query file:
+
+```bash
+curl -s "http://127.0.0.1:8090/sparql" \
+  --data-urlencode "query@poc/ontop-ontology-poc/queries/suppliers_optional_deliveries.rq" \
+  -H "Accept: text/csv"
+```
+
+Press Ctrl-C to stop; the JVM is torn down cleanly (no orphaned process).
+
+**Automated HTTP smoke test.** `endpoint_smoke_test.py` proves the endpoint
+end-to-end: it boots the server on a free port over the snapshot, POSTs the
+on-time-rate SPARQL query over HTTP, asserts the result equals the governed
+number SolderEngine assembles from the *same* snapshot (to `1e-9`), confirms the
+supplier OPTIONAL query returns rows, and tears the server down in a `finally`
+block — exiting non-zero on any failure or if a process were left behind:
+
+```bash
+python3 poc/ontop-ontology-poc/endpoint_smoke_test.py
+```
+
+```
+  Governed on-time rate (SolderEngine): 0.5615384615384615
+  On-time rate over HTTP (SPARQL)     : 0.561538461538462
+  Rates match (tol 1e-09)            : True
+  Supplier OPTIONAL rows over HTTP    : 260 (True)
+  RESULT: ENDPOINT SERVES THE GOVERNED NUMBER OVER HTTP
+  Endpoint shut down cleanly (no orphan process).
+```
+
+Like the parity checks (Java + a JVM boot), it is **standalone** — not wired
+into `scripts/post-merge.sh`.
+
 ---
 
 ## Artifacts
@@ -197,6 +260,8 @@ that the lift only kicks in when it must.
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
 | `mapping_drift_check.py` | Offline drift guard: proves the mapping's columns and the ontology vocabulary stay aligned with the governed `graph_metadata.json` (file vs file, no DB/network). |
+| `sparql_endpoint.py` | Stands the ontology + mapping up as a live, **read-only** SPARQL HTTP endpoint over a snapshot; also the reusable start / ready / stop lifecycle helpers used by the smoke test. |
+| `endpoint_smoke_test.py` | Boots the endpoint on a free port, POSTs the on-time-rate SPARQL over HTTP, asserts it equals the governed number, and tears it down cleanly (no orphan); exits non-zero on failure. |
 | `../../replit_integrations/ontop_poc_run_demo.py` | One command: set up the toolchain (if needed) and run the parity check. |
 | `../../replit_integrations/ontop_poc_setup.py` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
 
@@ -228,6 +293,22 @@ python3 poc/ontop-ontology-poc/rating_parity_check.py
 
 It exits non-zero if any supplier's graph-recomputed rating differs from the
 stored value, or if the previously-failing aggregate SQL was not actually lifted.
+
+### Serve a live SPARQL endpoint (read-only)
+
+Start the endpoint and query it over HTTP (full details + curl examples in
+**Showcase 4** above):
+
+```bash
+python3 poc/ontop-ontology-poc/sparql_endpoint.py        # http://127.0.0.1:8090/sparql
+```
+
+Prove it end-to-end (boots, queries over HTTP, asserts the governed number,
+tears down — exits non-zero on failure):
+
+```bash
+python3 poc/ontop-ontology-poc/endpoint_smoke_test.py
+```
 
 ### Run a SPARQL query manually
 
@@ -270,6 +351,14 @@ committed; `replit_integrations/ontop_poc_setup.py` re-fetches the pinned versio
   WAL-mode and gitignored. The demo opens it **read-only** and takes a backup
   snapshot; Ontop and SolderEngine both run against that snapshot, so they
   provably see identical data and the live file is never written.
+- The live SPARQL endpoint (`sparql_endpoint.py`, Showcase 4) is pointed only at
+  that read-only snapshot — a guard refuses to start if its JDBC properties
+  reference the live database. Note: Ontop's `endpoint` has no bind-host option,
+  so it listens on all interfaces inside the container. It is a local,
+  manually-run POC tool (not a workflow, not auto-started) — reach it at
+  `http://127.0.0.1:<port>/sparql`, stop it when done, and don't forward its port
+  publicly. (Replit may auto-add a port mapping the first time it runs; remove
+  that mapping from the Ports pane if you don't want the port exposed.)
 - No ArangoDB writes. No changes to the app, Gradio tabs, or SolderEngine.
 
 ---
@@ -306,5 +395,6 @@ python3 poc/ontop-ontology-poc/mapping_drift_check.py
   automatically; see **Drift guard** above. This bullet is about generation,
   not detection.)
 - The full schema — only `purchase_order` and `receiving` for this showcase.
-- A live SPARQL HTTP endpoint, a materialized triplestore, or OWL reasoning
-  beyond the lightweight profile Ontop uses for SQL rewriting.
+- A materialized triplestore, or OWL reasoning beyond the lightweight profile
+  Ontop uses for SQL rewriting. (A live, read-only SPARQL HTTP endpoint is now
+  implemented — see **Showcase 4** above.)
