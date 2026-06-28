@@ -1,0 +1,183 @@
+name: Ontop interoperability POC
+
+# ──────────────────────────────────────────────────────────────────────────────
+# CI for the standards-based virtual knowledge graph (Ontop) interoperability POC.
+#
+# These checks are deliberately NOT in scripts/post-merge.sh because they need a
+# JVM + the downloaded Ontop toolchain (post-merge stays offline / no-network).
+# Without this workflow the interoperability guarantees can silently regress, so
+# this provisions Java + the pinned Ontop CLI and runs the JVM-dependent checks
+# end-to-end:
+#
+#   * parity_check.py        — SPARQL (Ontop) vs SolderEngine on-time-rate parity
+#                              + the governed supplier LEFT-JOIN optionality proof
+#   * rating_parity_check.py — full My MRP supplier-rating recompute through the
+#                              virtual graph + the SQLGlot OPTIONAL/GROUP BY lift
+#   * oee_parity_check.py    — Showcase 5 operational-OEE SPARQL vs SolderEngine
+#   * endpoint_smoke_test.py — boots the live read-only SPARQL HTTP endpoint,
+#                              answers the governed number over the wire, and
+#                              confirms a clean teardown (no orphan process)
+#
+# The OFFLINE mapping/vocabulary drift guard stays in scripts/post-merge.sh; only
+# the JVM-dependent checks live here.
+# ──────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - 'poc/ontop-ontology-poc/**'
+      - 'replit_integrations/ontop_poc_setup.py'
+      - 'replit_integrations/ontop_poc_run_demo.py'
+      - '.github/workflows/ontop-interop-ci.yml'
+  pull_request:
+    branches: ["**"]
+    paths:
+      - 'poc/ontop-ontology-poc/**'
+      - 'replit_integrations/ontop_poc_setup.py'
+      - 'replit_integrations/ontop_poc_run_demo.py'
+      - '.github/workflows/ontop-interop-ci.yml'
+  schedule:
+    - cron: '0 5 * * *'   # nightly, after graph-sync (2am) and arango-smoke (4am)
+  workflow_dispatch: {}
+
+jobs:
+  ontop-interop:
+    name: Ontop virtual-graph parity + live SPARQL endpoint
+    runs-on: ubuntu-latest
+    env:
+      GRAPH_SYNC_ALERT_WEBHOOK: ${{ secrets.GRAPH_SYNC_ALERT_WEBHOOK }}
+      ONTOP_CI_LOG: /tmp/ontop_ci.log
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Set up Java (Ontop runtime)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Show Java version
+        run: java -version
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # SolderEngine + sql_lift need SQLGlot; both live in the root requirements.
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          if [ -f hf-space-inventory-sqlgen/requirements.txt ]; then
+            pip install -r hf-space-inventory-sqlgen/requirements.txt
+          fi
+
+      - name: Verify the governed database is present
+        run: |
+          DB="hf-space-inventory-sqlgen/app_schema/manufacturing.db"
+          if [ ! -f "$DB" ]; then
+            echo "::error title=Manufacturing DB missing::The Ontop POC checks need the governed SQLite database at $DB, but it is not present in this checkout."
+            echo "The parity checks compare SPARQL-over-the-snapshot against SolderEngine-over-the-same-snapshot, so the populated database must be available."
+            exit 1
+          fi
+          echo "Found governed database: $DB"
+
+      - name: Provision the pinned Ontop toolchain
+        run: python replit_integrations/ontop_poc_setup.py
+
+      - name: Parity check — SPARQL vs SolderEngine + supplier optionality
+        run: |
+          python poc/ontop-ontology-poc/parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Rating parity + SQLGlot OPTIONAL/GROUP BY lift
+        run: |
+          python poc/ontop-ontology-poc/rating_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: OEE parity check (Showcase 5)
+        run: |
+          python poc/ontop-ontology-poc/oee_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Live SPARQL HTTP endpoint smoke test
+        run: |
+          python poc/ontop-ontology-poc/endpoint_smoke_test.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Write step summary
+        if: always()
+        run: |
+          {
+            echo "## Ontop interoperability POC"
+            echo ""
+            echo "Commit: \`${{ github.sha }}\`  Branch: \`${{ github.ref_name }}\`"
+            echo ""
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "> **All Ontop interoperability checks passed** — the virtual SPARQL graph still matches the governed SQL semantic layer, and the live endpoint serves the governed number over HTTP."
+            else
+              echo "> **One or more Ontop interoperability checks failed** — see the step logs above."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify on failure
+        if: ${{ failure() && env.GRAPH_SYNC_ALERT_WEBHOOK != '' }}
+        run: |
+          PAYLOAD=$(python3 - <<'PYEOF'
+import datetime, json, os
+
+ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+run_url = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+branch  = "${{ github.ref_name }}"
+trigger = "${{ github.event_name }}"
+
+log_file = os.environ.get("ONTOP_CI_LOG", "/tmp/ontop_ci.log")
+log_out  = open(log_file).read().strip() if os.path.exists(log_file) else "(no output captured — the run failed before any check produced output)"
+# Keep the Slack payload well under its size limits.
+if len(log_out) > 1500:
+    log_out = log_out[-1500:] + "\n...(truncated)"
+
+blocks = [
+    {
+        "type": "header",
+        "text": {"type": "plain_text", "text": ":rotating_light: Ontop interoperability POC FAILED"}
+    },
+    {
+        "type": "section",
+        "fields": [
+            {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
+            {"type": "mrkdwn", "text": f"*Trigger:*\n`{trigger}`"},
+            {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
+        ]
+    },
+    {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": f"*Check output (tail):*\n```{log_out}```"}
+    },
+    {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": (
+                "The virtual SPARQL graph drifted from the governed SQL semantic layer, "
+                "or the live SPARQL endpoint did not answer / tear down cleanly.\n"
+                f"<{run_url}|View workflow run>"
+            )
+        }
+    }
+]
+print(json.dumps({"blocks": blocks}))
+PYEOF
+          )
+
+          curl -sS -o /dev/null -w "Slack webhook HTTP status: %{http_code}\n" \
+            -X POST -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" \
+            "${GRAPH_SYNC_ALERT_WEBHOOK}"

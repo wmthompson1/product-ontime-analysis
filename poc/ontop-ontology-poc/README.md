@@ -238,7 +238,9 @@ python3 poc/ontop-ontology-poc/endpoint_smoke_test.py
 ```
 
 Like the parity checks (Java + a JVM boot), it is **standalone** — not wired
-into `scripts/post-merge.sh`.
+into `scripts/post-merge.sh`, but it (with the parity checks) now runs in the
+dedicated **Ontop interoperability CI** workflow (see **Continuous integration**
+below).
 
 ### Showcase 5 — a second governed metric (operational OEE)
 
@@ -294,7 +296,8 @@ python3 poc/ontop-ontology-poc/oee_parity_check.py
 
 Like the other parity checks (Java + a JVM boot), it is **standalone** — not
 wired into `scripts/post-merge.sh`. The offline **drift guard**, however, now
-covers *both* showcases automatically (see **Drift guard** below).
+covers *both* showcases automatically (see **Drift guard** below), and the
+JVM-dependent parity checks run in CI (see **Continuous integration** below).
 
 ---
 
@@ -454,6 +457,35 @@ python3 poc/ontop-ontology-poc/mapping_drift_check.py
 ```
 
 To narrow it to a single showcase, pass `--mapping`/`--ontology` explicitly.
+
+---
+
+## Continuous integration
+
+The offline drift/generation guards run in `scripts/post-merge.sh`, but the
+JVM-dependent checks (they need Java + the downloaded Ontop toolchain, so they
+are deliberately *not* in `post-merge.sh`) are covered by their own GitHub
+Actions workflow: **`.github/workflows/ontop-interop-ci.yml`**.
+
+It runs on changes under `poc/ontop-ontology-poc/**` (plus the toolchain setup
+scripts) and on a nightly schedule, consistent with the project's other
+smoke/drift workflows. Each run:
+
+1. provisions Java + the **pinned** Ontop CLI (via
+   `replit_integrations/ontop_poc_setup.py`, checksum-verified);
+2. runs `parity_check.py`, `rating_parity_check.py`, and `oee_parity_check.py`
+   (SPARQL-vs-SolderEngine parity + the supplier optionality / rating proofs);
+3. runs `endpoint_smoke_test.py` end-to-end — booting the live read-only SPARQL
+   HTTP endpoint, answering the governed number over the wire, and confirming a
+   clean teardown (no orphan process).
+
+Any mismatch, lift regression, or orphaned process fails the run. On failure it
+posts a Slack Block Kit alert — reusing the same `GRAPH_SYNC_ALERT_WEBHOOK`
+secret as the sync/drift workflows, and skipped silently when that secret is not
+configured. The checks compare the virtual graph against the governed SQL layer
+over the **same read-only snapshot**, so the governed database
+(`hf-space-inventory-sqlgen/app_schema/manufacturing.db`) must be present in the
+checkout; the workflow fails with a clear message if it is missing.
 
 ---
 
