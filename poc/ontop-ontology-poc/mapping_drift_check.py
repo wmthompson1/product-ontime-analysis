@@ -61,6 +61,11 @@ DEFAULT_SHOWCASES = [
         os.path.join(POC_DIR, "mapping", "operational_efficiency.obda"),
         os.path.join(POC_DIR, "ontology", "operational_efficiency.ttl"),
     ),
+    (
+        "customer order demand",
+        os.path.join(POC_DIR, "mapping", "customer_order_demand.obda"),
+        os.path.join(POC_DIR, "ontology", "customer_order_demand.ttl"),
+    ),
 ]
 
 # Ontology vocabulary terms live in the empty-prefix (``:``) ontime namespace.

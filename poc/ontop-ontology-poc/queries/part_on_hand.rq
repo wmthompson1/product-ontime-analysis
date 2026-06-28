@@ -1,0 +1,11 @@
+PREFIX : <http://example.org/manufacturing/customerdemand#>
+
+# Physical on-hand stock for the tightest-ATP part (P-10026 per the demand doc's
+# ATP table). A single triple over the part table — the availability input to
+# ATP = on_hand - SUM(open demand). Kept as its own scalar query (no GROUP BY) so
+# the parity check can combine it in Python with the open-demand sum, dodging the
+# documented Ontop+SQLite OPTIONAL/GROUP BY serialization limit.
+SELECT ?onHand
+WHERE {
+  <http://example.org/manufacturing/customerdemand#part/P-10026> :onHandQty ?onHand .
+}

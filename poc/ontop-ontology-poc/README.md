@@ -296,8 +296,72 @@ python3 poc/ontop-ontology-poc/oee_parity_check.py
 
 Like the other parity checks (Java + a JVM boot), it is **standalone** — not
 wired into `scripts/post-merge.sh`. The offline **drift guard**, however, now
-covers *both* showcases automatically (see **Drift guard** below), and the
-JVM-dependent parity checks run in CI (see **Continuous integration** below).
+covers *all the published showcases* automatically (see **Drift guard** below),
+and the JVM-dependent parity checks run in CI (see **Continuous integration** below).
+
+---
+
+### Showcase 6 — a governed metric with NO SolderEngine template (customer-order demand)
+
+The metric showcases so far (1 and 5) ground their parity against **SolderEngine**,
+because each metric has a semantic-layer computation template the engine assembles
+(Showcases 2–4 ride on that same governed SQL semantic layer — supplier
+optionality, the full rating recompute, and the live endpoint). Showcase 6 proves
+the interoperability layer **also covers governed numbers that live as SME-approved
+docs + a runnable SQL grounding query only** — with no computation template — by
+publishing the **customer-order demand** layer over the virtual graph and proving
+it agrees with that **governed SQL directly** (the grounding query in
+`docs/my-mrp-kb/Customer_Order_Demand.sqlite.sql`). The SQL stays the single
+source of truth; Ontop is only a standards-based publishing layer over it.
+
+It has its own small vocabulary (`ontology/customer_order_demand.ttl`) and mapping
+(`mapping/customer_order_demand.obda`), entirely separate from the other showcases:
+
+- `:CustomerOrder` (from `customer_order`, carrying `:orderStatus`), `:OrderLine`
+  (from `customer_order_line`, carrying `:lineQty` / `:unitPrice`), and `:Part`
+  (from `part`, carrying `:onHandQty`).
+- The links are minted **on the child** (order line) row — `:forOrder`
+  (line → order) and `:forPart` (line → part) — and given a **range only, no
+  `rdfs:domain`**: a domain on a link property makes Ontop infer the subject class
+  from two sources and emit invalid UNION/LEFT-JOIN SQL on SQLite.
+
+The two demand numbers restate the grounding query and, like the OEE showcase, are
+**pure aggregation** — the mapping exposes the per-row facts and the consumer's
+SPARQL aggregation assembles the totals. Both are **scalar** (no `GROUP BY`, no
+`OPTIONAL`), the shapes that serialize cleanly on Ontop + SQLite:
+
+```sparql
+PREFIX : <http://example.org/manufacturing/customerdemand#>
+SELECT (SUM(?qty * ?price) AS ?openValue) (COUNT(?line) AS ?lines)
+WHERE {
+  ?line :forOrder ?order ; :lineQty ?qty ; :unitPrice ?price .
+  ?order :orderStatus "Open" .
+}
+```
+
+ATP for the tightest-ATP part (`P-10026` in the doc's ATP table) is split into two
+scalar queries — its on-hand (`part_on_hand.rq`) and its summed open demand
+(`part_open_qty.rq`) — and the check computes `ATP = on_hand - open demand` in
+Python, dodging the `GROUP BY` needed to return a non-aggregated value beside a sum.
+
+`customer_order_demand_parity_check.py` proves the numbers answered through SPARQL
+equal the governed SQL aggregates on the same read-only snapshot (exits non-zero on
+drift):
+
+```
+Open demand value  (SQL / SPARQL): 290038.31 / 290038.31
+Open demand qty    (SQL / SPARQL): 65.0 / 65.0
+P-10026 ATP        (SQL / SPARQL): 3.0 / 3.0
+RESULT: PARITY CONFIRMED
+```
+
+```bash
+python3 poc/ontop-ontology-poc/customer_order_demand_parity_check.py
+```
+
+Like the other parity checks it is **standalone** (Java + a JVM boot), not wired
+into `scripts/post-merge.sh`; the offline drift guard covers its columns and terms
+automatically, and it runs in CI (see below).
 
 ---
 
@@ -320,6 +384,14 @@ JVM-dependent parity checks run in CI (see **Continuous integration** below).
 | `mapping/operational_efficiency.properties` | JDBC connection for **manual** OEE runs. |
 | `queries/oee_operational.rq` | Operational OEE = `SUM(actual run hours) / SUM(planned run hours)` (the Showcase 5 parity number). |
 | `oee_parity_check.py` | Runs the OEE SPARQL query + SolderEngine on the same snapshot and proves they return the same number (Showcase 5). |
+| `ontology/customer_order_demand.ttl` | The OWL ontology for Showcase 6 (the customer-order demand layer: `:CustomerOrder` / `:OrderLine` / `:Part`). |
+| `mapping/customer_order_demand.obda` | The Ontop OBDA mapping for Showcase 6 (per-row demand facts ↔ ontology terms; links minted on the order line). |
+| `mapping/customer_order_demand.properties` | JDBC connection for **manual** customer-order-demand runs. |
+| `queries/open_demand_value.rq` | Open demand value = `SUM(order_qty * unit_price)` over open-order lines (a Showcase 6 parity number). |
+| `queries/open_demand_qty.rq` | Open demand quantity = `SUM(order_qty)` over open-order lines (a Showcase 6 parity number). |
+| `queries/part_on_hand.rq` | On-hand stock for the tightest-ATP part (`P-10026`) — the availability input to ATP. |
+| `queries/part_open_qty.rq` | Summed open demand for `P-10026`; the check computes `ATP = on_hand - this` (the Showcase 6 ATP parity number). |
+| `customer_order_demand_parity_check.py` | Runs the demand SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves they match (Showcase 6 — no SolderEngine template exists for the demand layer). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
@@ -360,6 +432,16 @@ python3 poc/ontop-ontology-poc/rating_parity_check.py
 
 It exits non-zero if any supplier's graph-recomputed rating differs from the
 stored value, or if the previously-failing aggregate SQL was not actually lifted.
+
+To run the customer-order demand proof (Showcase 6 — SPARQL vs the governed SQL
+grounding query) after the toolchain is set up:
+
+```bash
+python3 poc/ontop-ontology-poc/customer_order_demand_parity_check.py
+```
+
+It exits non-zero if the open demand value/quantity or the `P-10026` ATP answered
+through the virtual graph differs from the governed SQL on the same snapshot.
 
 ### Serve a live SPARQL endpoint (read-only)
 
@@ -445,12 +527,14 @@ the project's other coverage gates. It proves:
   parent `:onTimeScore` counts as backed via its mapped sub-properties, so it is
   not falsely flagged.
 
-It guards **every published showcase** in one run — both the on-time-delivery
-files and the Showcase 5 operational-OEE files
-(`mapping/operational_efficiency.obda` + `ontology/operational_efficiency.ttl`) —
-so adding a governed metric automatically extends the guard to its new columns
-and terms. It runs in `scripts/post-merge.sh`, so drift fails the build
-automatically. To run it on its own:
+It guards **every published showcase** in one run — the on-time-delivery files,
+the Showcase 5 operational-OEE files (`mapping/operational_efficiency.obda` +
+`ontology/operational_efficiency.ttl`), and the Showcase 6 customer-order demand
+files (`mapping/customer_order_demand.obda` +
+`ontology/customer_order_demand.ttl`) — so adding a governed metric automatically
+extends the guard to its new columns and terms. It runs in
+`scripts/post-merge.sh`, so drift fails the build automatically. To run it on its
+own:
 
 ```bash
 python3 poc/ontop-ontology-poc/mapping_drift_check.py
@@ -473,8 +557,10 @@ smoke/drift workflows. Each run:
 
 1. provisions Java + the **pinned** Ontop CLI (via
    `replit_integrations/ontop_poc_setup.py`, checksum-verified);
-2. runs `parity_check.py`, `rating_parity_check.py`, and `oee_parity_check.py`
-   (SPARQL-vs-SolderEngine parity + the supplier optionality / rating proofs);
+2. runs `parity_check.py`, `rating_parity_check.py`, `oee_parity_check.py`, and
+   `customer_order_demand_parity_check.py` (SPARQL-vs-SolderEngine parity + the
+   supplier optionality / rating proofs, plus the customer-order demand
+   SPARQL-vs-governed-SQL proof);
 3. runs `endpoint_smoke_test.py` end-to-end — booting the live read-only SPARQL
    HTTP endpoint, answering the governed number over the wire, and confirming a
    clean teardown (no orphan process).

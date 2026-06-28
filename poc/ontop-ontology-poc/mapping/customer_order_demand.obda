@@ -1,0 +1,22 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/customerdemand#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-customerorder
+target          :order/{order_id} a :CustomerOrder ; :orderStatus {status}^^xsd:string .
+source          SELECT order_id, status FROM customer_order
+
+mappingId       map-orderline
+target          :line/{order_line_id} a :OrderLine ; :lineQty {order_qty}^^xsd:double ; :unitPrice {unit_price}^^xsd:double ; :forOrder :order/{order_id} ; :forPart :part/{part_id} .
+source          SELECT order_line_id, order_id, part_id, order_qty, unit_price FROM customer_order_line
+
+mappingId       map-part
+target          :part/{part_id} a :Part ; :onHandQty {on_hand_qty}^^xsd:double .
+source          SELECT part_id, on_hand_qty FROM part
+
+]]

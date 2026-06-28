@@ -14,6 +14,10 @@ name: Ontop interoperability POC
 #   * rating_parity_check.py — full My MRP supplier-rating recompute through the
 #                              virtual graph + the SQLGlot OPTIONAL/GROUP BY lift
 #   * oee_parity_check.py    — Showcase 5 operational-OEE SPARQL vs SolderEngine
+#   * customer_order_demand_parity_check.py
+#                            — Showcase 6 customer-order demand SPARQL vs the
+#                              governed SQL grounding query (no SolderEngine
+#                              template exists for the demand layer)
 #   * endpoint_smoke_test.py — boots the live read-only SPARQL HTTP endpoint,
 #                              answers the governed number over the wire, and
 #                              confirms a clean teardown (no orphan process)
@@ -105,6 +109,11 @@ jobs:
       - name: OEE parity check (Showcase 5)
         run: |
           python poc/ontop-ontology-poc/oee_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Customer order demand parity check (Showcase 6)
+        run: |
+          python poc/ontop-ontology-poc/customer_order_demand_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
           exit ${PIPESTATUS[0]}
 
       - name: Live SPARQL HTTP endpoint smoke test

@@ -1,0 +1,14 @@
+PREFIX : <http://example.org/manufacturing/customerdemand#>
+
+# Open demand quantity allocated against the tightest-ATP part (P-10026 per the
+# demand doc's ATP table) = SUM(order_qty) over its demand lines whose parent
+# order is still 'Open'. The part is pinned by matching :forPart to its IRI, so
+# this is a scalar SUM (no GROUP BY). The parity check computes
+# ATP = on_hand - this sum and compares to the governed SQL ATP on the snapshot.
+SELECT (SUM(?qty) AS ?openQty)
+WHERE {
+  ?line :forPart  <http://example.org/manufacturing/customerdemand#part/P-10026> ;
+        :forOrder ?order ;
+        :lineQty  ?qty .
+  ?order :orderStatus "Open" .
+}

@@ -1,0 +1,102 @@
+@prefix :     <http://example.org/manufacturing/customerdemand#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Customer Order demand — minimal OWL ontology (OWL 2 QL profile)
+# ===============================================================================
+# This is the standards-based VOCABULARY for the SIXTH governed showcase: the
+# customer-order DEMAND layer (the demand register + ATP-style availability),
+# published over the existing governed SQL layer via Ontop (virtual OBDA).
+#
+# Unlike the on-time (Showcase 1) and OEE (Showcase 5) showcases, the demand
+# layer has NO semantic-layer computation_template / concept — it was delivered
+# as SME-approved docs + a runnable SQLite grounding query only
+# (docs/my-mrp-kb/Customer_Order_Demand.sqlite.sql). So the parity check grounds
+# the SPARQL answers against that DIRECT governed SQL on the same read-only
+# snapshot, not against SolderEngine. The SQL stays the single source of truth;
+# this file only names the terms (see ../mapping/customer_order_demand.obda).
+#
+# The demand picture restated here mirrors the grounding query:
+#   * customer_order  -> :CustomerOrder   (demand header, carries :orderStatus)
+#   * customer_order_line -> :OrderLine    (demand detail, carries :lineQty/:unitPrice)
+#   * part            -> :Part             (availability, carries :onHandQty)
+# Open demand value = SUM(:lineQty * :unitPrice) over lines whose order is "Open".
+# ATP (per part)     = :onHandQty - SUM(open :lineQty for that part).
+# Both are PURE aggregation, so — like the OEE showcase — the mapping exposes the
+# per-row facts and the consumer's SPARQL aggregation assembles the totals.
+#
+
+<http://example.org/manufacturing/customerdemand>
+    a owl:Ontology ;
+    rdfs:label "Customer Order Demand Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the customer-order demand layer (demand register + ATP-style availability), published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app. Parity is proven against the governed SQLite grounding query, since the demand layer has no SolderEngine computation template." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:CustomerOrder
+    a owl:Class ;
+    rdfs:label "Customer Order" ;
+    rdfs:comment "A customer demand header (one row of the customer_order table)." .
+
+:OrderLine
+    a owl:Class ;
+    rdfs:label "Order Line" ;
+    rdfs:comment "A customer-order demand detail line (one row of the customer_order_line table)." .
+
+:Part
+    a owl:Class ;
+    rdfs:label "Part" ;
+    rdfs:comment "A part whose physical availability backs the ATP derivation (one row of the part table)." .
+
+# ── Object properties: minted on the CHILD (order line) row ──────────────────
+#
+# The links are minted from the customer_order_line table (the same mapping that
+# mints :OrderLine), pointing OUT to the order and the part. They are given a
+# range only and NO rdfs:domain: an rdfs:domain on a link property makes Ontop
+# infer the subject class from two sources and emit invalid UNION/LEFT-JOIN SQL
+# on SQLite. Range-only keeps the published triples clean.
+
+:forOrder
+    a owl:ObjectProperty ;
+    rdfs:label "for order" ;
+    rdfs:comment "Links a demand line to the customer order it belongs to (customer_order_line.order_id -> customer_order.order_id)." ;
+    rdfs:range  :CustomerOrder .
+
+:forPart
+    a owl:ObjectProperty ;
+    rdfs:label "for part" ;
+    rdfs:comment "Links a demand line to the part it demands (customer_order_line.part_id -> part.part_id)." ;
+    rdfs:range  :Part .
+
+# ── Datatype properties: the governed inputs to the demand aggregates ─────────
+
+:orderStatus
+    a owl:DatatypeProperty ;
+    rdfs:label "order status" ;
+    rdfs:comment "The order header status (customer_order.status): Open/Shipped/Closed/Cancelled. 'Open' demand is what the ATP derivation allocates against." ;
+    rdfs:domain :CustomerOrder ;
+    rdfs:range  xsd:string .
+
+:lineQty
+    a owl:DatatypeProperty ;
+    rdfs:label "line quantity" ;
+    rdfs:comment "Ordered quantity on this demand line (customer_order_line.order_qty)." ;
+    rdfs:domain :OrderLine ;
+    rdfs:range  xsd:double .
+
+:unitPrice
+    a owl:DatatypeProperty ;
+    rdfs:label "unit price" ;
+    rdfs:comment "Unit price on this demand line (customer_order_line.unit_price); line value = :lineQty * :unitPrice." ;
+    rdfs:domain :OrderLine ;
+    rdfs:range  xsd:double .
+
+:onHandQty
+    a owl:DatatypeProperty ;
+    rdfs:label "on-hand quantity" ;
+    rdfs:comment "Physical stock on hand for the part (part.on_hand_qty); the availability input to ATP = :onHandQty - SUM(open :lineQty)." ;
+    rdfs:domain :Part ;
+    rdfs:range  xsd:double .

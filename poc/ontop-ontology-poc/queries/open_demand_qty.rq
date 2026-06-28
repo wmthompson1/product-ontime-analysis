@@ -1,0 +1,15 @@
+PREFIX : <http://example.org/manufacturing/customerdemand#>
+
+# Total OPEN customer-order demand quantity = SUM(order_qty) across every demand
+# line whose parent order is still 'Open'. This restates the demand register
+# (customer_order JOIN customer_order_line) filtered to open orders, the same set
+# the ATP derivation allocates against in docs/my-mrp-kb/Customer_Order_Demand.sqlite.sql.
+# Ontop exposes the per-line quantity and order status; the consumer's SPARQL
+# aggregation sums them. Scalar (no GROUP BY) so it stays SQLite-safe. This is one
+# of the numbers compared against the governed SQL aggregate on the same snapshot.
+SELECT (SUM(?qty) AS ?openQty) (COUNT(?line) AS ?lines)
+WHERE {
+  ?line :forOrder ?order ;
+        :lineQty  ?qty .
+  ?order :orderStatus "Open" .
+}

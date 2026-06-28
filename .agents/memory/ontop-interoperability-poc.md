@@ -108,6 +108,33 @@ HTTP via Ontop's `endpoint` subcommand (`sparql_endpoint.py` launcher +
 - Like the parity checks (Java + JVM boot) it is **standalone**, NOT added to
   `scripts/post-merge.sh`.
 
+## Publishing a governed layer that has NO SolderEngine template
+A governed number can exist as SME-approved docs + a runnable SQL grounding query
+only (no semantic-layer `computation_template`/concept) — e.g. the customer-order
+demand layer (`docs/my-mrp-kb/Customer_Order_Demand.sqlite.sql`). Such a showcase
+grounds parity against the **direct governed SQL** run on the same read-only
+snapshot, NOT SolderEngine (there is no template to assemble). This is still
+faithful to the Solder Pattern: the SQL stays the single source of truth and
+Ontop is only the publishing layer. Do NOT invent a SolderEngine template just to
+reuse the existing parity helper — that is scope creep into the semantic layer.
+**How to apply:** import `parity_check as pc` for the snapshot/properties/CSV
+helpers, run the `.rq` files through the Ontop CLI, run the doc's aggregates via
+`sqlite3` on the SAME snapshot, assert equal. Register the new (label, obda, ttl)
+in `mapping_drift_check.py` `DEFAULT_SHOWCASES` so the offline post-merge guard
+covers it; keep the JVM parity check standalone (CI only, not post-merge.sh).
+
+## SPARQL gotcha: instance IRIs containing '/' need angle brackets
+An instance IRI minted with a path template (e.g. `:part/{part_id}` →
+`…#part/P-10026`) CANNOT be referenced in a SPARQL query as the prefixed name
+`:part/P-10026` — `/` is illegal in a SPARQL PN_LOCAL, so RDF4J throws
+`MalformedQueryException: Encountered " "/" "`. Write the FULL IRI in angle
+brackets instead: `<http://example.org/manufacturing/customerdemand#part/P-10026>`.
+(The `/` is fine inside `.obda` target templates — this only bites in `.rq` query
+text.) Also: a non-aggregated value beside a `SUM` forces a `GROUP BY`; to keep
+ATP-style answers scalar/SQLite-safe, split into two scalar queries (on-hand;
+summed open qty) and subtract in Python. `xsd:double` datatype-property ranges
+trigger a benign "not OWL 2 QL" WARN from Ontop but still answer correctly.
+
 ## Toolchain
 Java module `java-graalvm22.3` (JDK 19). Ontop CLI + sqlite-jdbc are downloaded
 into `tools/` and **gitignored** (versions + SHA-256 pinned in the setup script).
