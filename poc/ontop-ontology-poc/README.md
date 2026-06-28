@@ -108,6 +108,12 @@ RESULT: OPTIONALITY GOVERNED
 > `OPTIONAL` yields a clean LEFT JOIN. The optionality is governed by the
 > *mapping design* (entity from the full population table, link from receipts),
 > so it holds regardless of how a consumer phrases the query.
+>
+> This is a query-ergonomics limit, **not** a correctness one: the safe
+> no-receipt default (neutral `3.0`) is already guaranteed deterministically by
+> the **My MRP** rule (the backfill migration), so governance is unaffected.
+> Lifting the limit by intercepting Ontop's emitted SQL and re-transpiling it
+> with SQLGlot is a possible later step — deliberately **tabled** here.
 
 ---
 
@@ -198,3 +204,7 @@ committed; `replit_integrations/ontop_poc_setup.py` re-fetches the pinned versio
 - The full schema — only `purchase_order` and `receiving` for this showcase.
 - A live SPARQL HTTP endpoint, a materialized triplestore, or OWL reasoning
   beyond the lightweight profile Ontop uses for SQL rewriting.
+- Lifting the SQLite single-triple-`OPTIONAL` limit by intercepting Ontop's
+  generated SQL and re-transpiling it with SQLGlot (the stack already uses
+  SQLGlot). **Tabled** — the safe no-receipt default already comes from the
+  deterministic My MRP rule, so this is ergonomics, not correctness.

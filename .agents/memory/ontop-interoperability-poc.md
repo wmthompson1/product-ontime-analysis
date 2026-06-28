@@ -62,6 +62,10 @@ in hand-coded migration SQL.
   THROWAWAY snapshot only (never the live DB) and assert it stays published +
   unlinked + carries its default; compare exact SPARQL-IRI-tail vs SQL id SETS,
   not just counts.
+- The single-triple-OPTIONAL limit is ergonomics, NOT correctness — the safe
+  default already comes from the deterministic My MRP rule. A SQLGlot pass over
+  Ontop's emitted SQL (currently Ontop talks to SQLite directly via sqlite-jdbc;
+  we don't intercept the SQL) could lift it, but that is **tabled** by decision.
 
 ## Toolchain
 Java module `java-graalvm22.3` (JDK 19). Ontop CLI + sqlite-jdbc are downloaded
