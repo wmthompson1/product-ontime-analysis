@@ -133,6 +133,19 @@ if [ -f poc/ontop-ontology-poc/mapping_drift_check.py ]; then
   }
 fi
 
+if [ -f poc/ontop-ontology-poc/mapping_generation_check.py ]; then
+  # Offline equivalence gate for the Ontop POC mapping GENERATOR: proves the
+  # generated .obda is byte-identical to the committed hand-authored mapping (so
+  # the switch to generation is provably lossless), the committed generated
+  # vocabulary is fresh, and every generated term is declared in the runtime
+  # ontology — all file vs file, no DB/network. --skip-on-missing degrades
+  # gracefully if the POC files are absent from a stripped checkout.
+  python poc/ontop-ontology-poc/mapping_generation_check.py --skip-on-missing || {
+    echo "post-merge: Ontop mapping generation equivalence check failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py ]; then
   python hf-space-inventory-sqlgen/tests/test_masking_policy_pipeline.py || {
     echo "post-merge: masking policy pipeline tests failed"

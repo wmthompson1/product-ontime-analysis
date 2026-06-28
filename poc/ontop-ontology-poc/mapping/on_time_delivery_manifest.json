@@ -1,0 +1,131 @@
+{
+  "_comment": [
+    "Showcase manifest for the On-Time Delivery Ontop OBDA mapping generator.",
+    "This file holds ONLY the stable PUBLISHING decisions that are NOT present in",
+    "the governed schema (replit_integrations/graph_metadata.json): the ontology",
+    "term names + namespace, the hand-governed quality business rule, the supplier",
+    "id CAST, the required_date filter, and the entity/optionality modelling.",
+    "Every VOLATILE physical fact (which columns exist, their datatypes, the FK",
+    "join columns, and the on-time metric CASE + its variable bindings) is RESOLVED",
+    "from graph_metadata.json by generate_mapping.py at generation time, so a rename",
+    "or drop in the governed schema breaks generation loudly instead of silently",
+    "desyncing the published graph. Edit this file to change publishing intent; run",
+    "`python poc/ontop-ontology-poc/generate_mapping.py` to regenerate the .obda."
+  ],
+  "ontology_iri": "http://example.org/manufacturing/ontime",
+  "prefixes": [
+    [":", "http://example.org/manufacturing/ontime#"],
+    ["owl:", "http://www.w3.org/2002/07/owl#"],
+    ["rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"],
+    ["rdfs:", "http://www.w3.org/2000/01/rdf-schema#"],
+    ["xsd:", "http://www.w3.org/2001/XMLSchema#"]
+  ],
+  "literal_type_map": {
+    "DATE": "xsd:date",
+    "REAL": "xsd:double",
+    "TEXT": "xsd:string",
+    "INTEGER": "xsd:integer"
+  },
+  "classes": {
+    "Delivery": {
+      "table": "receiving",
+      "key_column": "receipt_id",
+      "iri_template": ":delivery/{receipt_id}",
+      "label": "Delivery"
+    },
+    "PurchaseOrder": {
+      "table": "purchase_order",
+      "key_column": "po_id",
+      "iri_template": ":po/{po_id}",
+      "label": "Purchase Order"
+    },
+    "Supplier": {
+      "table": "suppliers",
+      "key_column": "supplier_id",
+      "key_cast": "TEXT",
+      "iri_template": ":supplier/{supplier_id}",
+      "label": "Supplier"
+    }
+  },
+  "mappings": [
+    {
+      "id": "map-delivery",
+      "kind": "entity",
+      "class": "Delivery",
+      "datatype_properties": [
+        { "term": "receiptDate", "column": "receipt_date", "label": "receipt date" }
+      ],
+      "object_properties": [
+        { "term": "fulfillsPurchaseOrder", "fk_column": "po_id", "target_class": "PurchaseOrder", "label": "fulfills purchase order" }
+      ]
+    },
+    {
+      "id": "map-purchase-order",
+      "kind": "entity",
+      "class": "PurchaseOrder",
+      "datatype_properties": [
+        { "term": "requiredDate", "column": "required_date", "label": "required date" }
+      ],
+      "where": "required_date IS NOT NULL"
+    },
+    {
+      "id": "map-ontime-ops",
+      "kind": "metric",
+      "concept": "DeliveryPerformanceOps",
+      "property": "opsOnTimeScore",
+      "subject_class": "Delivery",
+      "score_alias": "on_time_score",
+      "score_datatype": "xsd:double",
+      "label": "on-time score (Operations perspective)"
+    },
+    {
+      "id": "map-ontime-supplier",
+      "kind": "metric",
+      "concept": "DeliveryPerformanceSupplier",
+      "property": "supplierOnTimeScore",
+      "subject_class": "Delivery",
+      "score_alias": "on_time_score",
+      "score_datatype": "xsd:double",
+      "label": "on-time score (Supplier perspective)"
+    },
+    {
+      "id": "map-ontime-finance",
+      "kind": "metric",
+      "concept": "DeliveryPerformanceFinance",
+      "property": "financeOnTimeScore",
+      "subject_class": "Delivery",
+      "score_alias": "on_time_score",
+      "score_datatype": "xsd:double",
+      "label": "on-time score (Finance perspective)"
+    },
+    {
+      "id": "map-quality",
+      "kind": "expression",
+      "property": "qualityScore",
+      "subject_class": "Delivery",
+      "table": "receiving",
+      "expression": "CASE WHEN inspection_status IN ('Passed','Waived') THEN 1.0 WHEN inspection_status = 'Failed' THEN 0.0 ELSE NULL END",
+      "score_alias": "quality_score",
+      "score_datatype": "xsd:double",
+      "label": "inspection quality score"
+    },
+    {
+      "id": "map-supplier",
+      "kind": "entity",
+      "class": "Supplier",
+      "datatype_properties": [
+        { "term": "supplierName", "column": "supplier_name", "label": "supplier name" },
+        { "term": "performanceRating", "column": "performance_rating", "label": "performance rating" }
+      ]
+    },
+    {
+      "id": "map-supplier-delivery",
+      "kind": "relationship",
+      "property": "hasDelivery",
+      "subject_class": "Supplier",
+      "object_class": "Delivery",
+      "table": "receiving",
+      "label": "has delivery"
+    }
+  ]
+}

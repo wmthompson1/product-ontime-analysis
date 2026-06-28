@@ -260,6 +260,9 @@ into `scripts/post-merge.sh`.
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
 | `mapping_drift_check.py` | Offline drift guard: proves the mapping's columns and the ontology vocabulary stay aligned with the governed `graph_metadata.json` (file vs file, no DB/network). |
+| `generate_mapping.py` | Deterministic offline generator: derives the `.obda` mapping + the mechanically-derivable vocabulary terms from `graph_metadata.json` + the publishing manifest; fails loud on any missing column/FK/binding. Writes both files in place. |
+| `mapping/on_time_delivery_manifest.json` | The small committed publishing manifest: stable decisions only (term names, namespace, quality-rule literals, casts/filters, mapping ids + order). No volatile schema facts — those are resolved from `graph_metadata.json`. |
+| `mapping_generation_check.py` | Offline equivalence gate: proves the generated `.obda` is byte-identical to the committed mapping, the committed generated vocabulary is fresh, and every generated term is declared in the runtime ontology (file vs file, no DB/network). |
 | `sparql_endpoint.py` | Stands the ontology + mapping up as a live, **read-only** SPARQL HTTP endpoint over a snapshot; also the reusable start / ready / stop lifecycle helpers used by the smoke test. |
 | `endpoint_smoke_test.py` | Boots the endpoint on a free port, POSTs the on-time-rate SPARQL over HTTP, asserts it equals the governed number, and tears it down cleanly (no orphan); exits non-zero on failure. |
 | `../../replit_integrations/ontop_poc_run_demo.py` | One command: set up the toolchain (if needed) and run the parity check. |
@@ -387,13 +390,52 @@ python3 poc/ontop-ontology-poc/mapping_drift_check.py
 
 ---
 
+## Generated mapping
+
+The drift guard *detects* when the hand-authored mapping falls out of sync with
+the schema. `generate_mapping.py` goes one step further and **derives** the
+mapping from the governed source of truth, so for this showcase the `.obda` is
+no longer hand-maintained — it is regenerated:
+
+```bash
+python3 poc/ontop-ontology-poc/generate_mapping.py
+```
+
+This reads two inputs and writes two files in place:
+
+- **Inputs** — `mapping/on_time_delivery_manifest.json` (the small committed
+  *publishing* manifest: term names, namespace, the quality-rule literals,
+  casts/filters, the optionality pattern, and the mapping ids + order) plus the
+  governed `replit_integrations/graph_metadata.json` (the *schema* source of
+  truth). Every volatile fact — column existence and type, the
+  `receiving.po_id → purchase_order.po_id` foreign key, each metric's
+  `computation_template` and its `variable_name → table.column` bindings — is
+  **resolved from the graph and never hard-coded**. If anything is missing the
+  generator fails loudly (non-zero exit) instead of emitting a broken mapping —
+  that is the whole anti-desync point.
+- **Outputs** — `mapping/on_time_delivery.obda` (the OBDA mapping, emitted
+  byte-identical to the committed showcase) and
+  `ontology/on_time_delivery.generated.vocab.ttl` (the mechanically-derivable
+  vocabulary terms: the classes, datatype/object properties, and the metric
+  score properties). The runtime `ontology/on_time_delivery.ttl` — its
+  `rdfs:subPropertyOf` hierarchy, labels, and human prose — stays
+  **hand-authored governance** and is deliberately *not* generated.
+
+`mapping_generation_check.py` proves the switch to generation is **provably
+lossless**, completely offline (file vs file, no DB / network / JVM): the
+rendered `.obda` is byte-identical to the committed mapping (byte identity ⇒ the
+same SPARQL answers), the committed generated vocabulary is fresh, and every
+generated term is declared in the runtime ontology. It runs in
+`scripts/post-merge.sh` alongside the drift guard. To run it on its own:
+
+```bash
+python3 poc/ontop-ontology-poc/mapping_generation_check.py
+```
+
+---
+
 ## Out of scope (sensible later steps)
 
-- Auto-*generating* the OBDA mapping from the `sql_graph_*` tables /
-  `graph_metadata.json` — here the single showcase mapping is hand-authored.
-  (Drift of the hand-authored mapping against the schema is now caught
-  automatically; see **Drift guard** above. This bullet is about generation,
-  not detection.)
 - The full schema — only `purchase_order` and `receiving` for this showcase.
 - A materialized triplestore, or OWL reasoning beyond the lightweight profile
   Ontop uses for SQL rewriting. (A live, read-only SPARQL HTTP endpoint is now
