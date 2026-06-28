@@ -19,7 +19,9 @@ single source of truth; Ontop is a *publishing* layer on top of it.
 
 ## What this proves
 
-One showcase: the **shared on-time delivery definition** that the SQL semantic
+### Showcase 1 — shared on-time delivery definition
+
+The **shared on-time delivery definition** that the SQL semantic
 layer surfaces under three perspectives (Operations, Supplier, Finance).
 
 1. **Standard vocabulary** — an OWL ontology (`ontology/on_time_delivery.ttl`)
@@ -58,19 +60,69 @@ with `receipt_date → receiving.receipt_date` and
 in SQL; SPARQL averages it. Deliveries with no required date produce no score
 triple, exactly as SQL `AVG` ignores `NULL`.
 
+### Showcase 2 — the supplier→receiving join, with governed LEFT-JOIN optionality
+
+The supplier→receiving relationship — and the fact that it is *optional* — is
+promoted out of hand-coded migration SQL (`suppliers LEFT JOIN receiving`) and
+into the governed vocabulary itself:
+
+- `:Supplier` is minted from the **suppliers** table, so **every** supplier is
+  published as an entity whether or not it has any receipts.
+- `:hasDelivery` (Supplier → Delivery) is minted **separately** from the
+  **receiving** table, so the link exists **only** when a real receipt does.
+- A supplier with no receipts therefore stays a first-class node with **no**
+  `:hasDelivery` edge — the *safe, unlinked state*. Its `:performanceRating`
+  carries the deterministic **My MRP** neutral default (`3.0` for a no-receipt
+  supplier), so the safe value lives in the data, not in an ad-hoc query.
+
+In SPARQL, a consumer wraps the link in `OPTIONAL {}` (which Ontop compiles to a
+SQL **LEFT JOIN**), and unlinked suppliers are preserved:
+
+```sparql
+SELECT ?supplier ?name ?rating ?delivery WHERE {
+  ?supplier :supplierName ?name ; :performanceRating ?rating .
+  OPTIONAL { ?supplier :hasDelivery ?delivery . }
+}
+```
+
+`parity_check.py` proves this end-to-end: the published supplier population and
+the linked subset match the SQL counts, and after injecting a no-receipt
+supplier **into the throwaway snapshot only** (never the live DB) it is still
+published, stays unlinked, and keeps its `3.0` default:
+
+```
+Suppliers published   (SPARQL / SQL): 26 / 26
+Suppliers w/ delivery (SPARQL / SQL): 26 / 26
+Injected a no-receipt supplier into the throwaway snapshot:
+  published in SPARQL              : True
+  unlinked (no :hasDelivery edge)  : True
+  safe default rating == 3.0       : True
+  population 26 → 27, linked 26 → 26 (unchanged)
+RESULT: OPTIONALITY GOVERNED
+```
+
+> **SQLite backend note.** Ontop treats SQLite as a limited dialect. A single
+> triple is kept inside `OPTIONAL` because Ontop serializes a *multi-triple*
+> `OPTIONAL` (a nested LEFT JOIN) — and `OPTIONAL` combined with `GROUP BY` — as
+> SQL the SQLite parser rejects (`near "ON"` / `near "UNION"`). A single-triple
+> `OPTIONAL` yields a clean LEFT JOIN. The optionality is governed by the
+> *mapping design* (entity from the full population table, link from receipts),
+> so it holds regardless of how a consumer phrases the query.
+
 ---
 
 ## Artifacts
 
 | Path | What it is |
 |---|---|
-| `ontology/on_time_delivery.ttl` | The OWL ontology (vocabulary + one hierarchy). |
-| `mapping/on_time_delivery.obda` | The Ontop OBDA mapping (SQL ↔ ontology terms). |
+| `ontology/on_time_delivery.ttl` | The OWL ontology (vocabulary + one hierarchy + the Supplier dimension). |
+| `mapping/on_time_delivery.obda` | The Ontop OBDA mapping (SQL ↔ ontology terms), incl. `map-supplier` / `map-supplier-delivery`. |
 | `mapping/on_time_delivery.properties` | JDBC connection for **manual** runs. |
 | `queries/on_time_rate_ops.rq` | On-time rate via the Operations sub-property (the parity number). |
 | `queries/on_time_rate_parent.rq` | On-time rate via the shared parent (hierarchy roll-up). |
 | `queries/sample_deliveries.rq` | A few per-delivery rows, to show real triples. |
-| `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot and compares. |
+| `queries/suppliers_optional_deliveries.rq` | Every supplier with its OPTIONAL (LEFT-JOIN) deliveries — the governed-optionality showcase. |
+| `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `../../replit_integrations/ontop_poc_run_demo.py` | One command: set up the toolchain (if needed) and run the parity check. |
 | `../../replit_integrations/ontop_poc_setup.py` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
 

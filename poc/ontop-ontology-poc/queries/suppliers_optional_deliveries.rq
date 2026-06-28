@@ -1,0 +1,21 @@
+PREFIX : <http://example.org/manufacturing/ontime#>
+
+# Governed LEFT-JOIN optionality, demonstrated in SPARQL.
+#
+# Every supplier is published from the SUPPLIERS table (:supplierName,
+# :performanceRating), so it ALWAYS appears. The supplier->delivery link is
+# OPTIONAL — Ontop compiles it to a SQL LEFT JOIN — so a supplier with NO
+# receipts still appears with ?delivery UNBOUND: the "safe, unlinked state".
+# Its governed :performanceRating (the deterministic My MRP neutral 3.0 for a
+# no-receipt supplier) is the safe default, carried in the data itself rather
+# than invented at query time.
+#
+# NOTE: exactly one triple is kept inside OPTIONAL on purpose. Ontop's SQLite
+# backend serializes a multi-triple OPTIONAL (a nested LEFT JOIN) as SQL the
+# SQLite parser rejects ("near ON"); a single triple yields a clean LEFT JOIN.
+SELECT ?supplier ?name ?rating ?delivery WHERE {
+  ?supplier :supplierName ?name ;
+            :performanceRating ?rating .
+  OPTIONAL { ?supplier :hasDelivery ?delivery . }
+}
+ORDER BY ?supplier ?delivery

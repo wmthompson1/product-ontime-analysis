@@ -30,23 +30,36 @@ migration's SQL:
 So LEFT-ness here encodes a governance choice — *absence of receipts is not the
 same as poor performance.*
 
-## Why SPARQL did NOT define this
+## How SPARQL now governs this
 
-The Ontop/SPARQL POC (`poc/ontop-ontology-poc/`) is relevant context but is **not**
-the source of this join:
+The supplier→receiving join and its LEFT-JOIN optionality have been **promoted out
+of the migration's hand-coded SQL and into the governed Ontop/SPARQL POC**
+(`poc/ontop-ontology-poc/`), so the rule no longer lives only in one migration
+script:
 
-- The semantic/SPARQL layer defines the **relationship** `receiving → purchase_order`
-  as the object property `:fulfillsPurchaseOrder` (minted from the `receiving.po_id`
-  foreign key). It defines *what relates to what*.
-- It does **not** define *left-ness*. In SPARQL, inner-vs-outer is a **query-time**
-  choice expressed with `OPTIONAL { }`, which Ontop compiles down to a SQL LEFT JOIN.
-  The POC's own mapping SQL actually uses an INNER join.
-- The POC ontology models only `Delivery` and `PurchaseOrder` — there is **no
-  Supplier** class or supplier→receiving relationship in it.
-- The backfill migration is **standalone SQLite** and never calls Ontop/SPARQL.
+- The ontology now models a `:Supplier` class plus `:supplierName` and
+  `:performanceRating`, and an object property `:hasDelivery` (Supplier → Delivery).
+- **Optionality is governed by the mapping design, not by a query choice.**
+  `:Supplier` is minted from the **suppliers** table, so *every* supplier is
+  published whether or not it has receipts. `:hasDelivery` is minted **separately**
+  from the **receiving** table, so the link exists *only* when a real receipt does.
+- A supplier with no receipts therefore stays a first-class node with **no
+  `:hasDelivery` edge** — the safe, unlinked state — and its `:performanceRating`
+  carries the neutral **3.0** default straight from the data. In SPARQL a consumer
+  reads it with `OPTIONAL { ?supplier :hasDelivery ?delivery }`, which Ontop
+  compiles to a SQL LEFT JOIN.
+- `parity_check.py` proves this: SPARQL and SQL agree on the published and linked
+  supplier sets, and an injected no-receipt supplier (into a throwaway snapshot
+  only) stays published, stays unlinked, and keeps its 3.0 default.
+- The backfill migration is still **standalone SQLite** and never calls
+  Ontop/SPARQL; the POC is a read-only *republishing* of the same governed rule, so
+  the two now agree by construction.
 
-Therefore the supplier→receiving LEFT JOIN and the neutral-3.0 rule exist **only
-in the migration's SQL**, which is why they are recorded here.
+> SQLite-backend caveat: Ontop compiles a *multi-triple* `OPTIONAL` (and
+> `OPTIONAL` + `GROUP BY`) into SQL the SQLite parser rejects, so the showcase keeps
+> a **single triple** inside `OPTIONAL`. The optionality holds regardless, because
+> it is enforced by the mapping (entity from the full population table, link from
+> receipts), not by how the query is phrased.
 
 ## Traceability
 

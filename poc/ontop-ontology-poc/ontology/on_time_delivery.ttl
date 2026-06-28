@@ -112,3 +112,47 @@
     rdfs:subPropertyOf :onTimeScore ;
     rdfs:domain :Delivery ;
     rdfs:range  xsd:double .
+
+# ── Supplier dimension: the supplier→receiving join + governed optionality ───
+#
+# This promotes the supplier→receiving relationship out of hand-coded migration
+# SQL (`suppliers LEFT JOIN receiving`) and into the governed vocabulary.
+#
+# GOVERNED OPTIONALITY — the key rule:
+#   * A :Supplier is minted from the SUPPLIERS table, so EVERY supplier is
+#     published as an entity whether or not it has any receipts.
+#   * The :hasDelivery link is minted SEPARATELY from the RECEIVING table, so it
+#     exists ONLY when a real receipt links the supplier to a delivery.
+#   * A supplier with no receipts therefore stays a first-class node with NO
+#     :hasDelivery edge — the "safe, unlinked state". Absence of receipts is NOT
+#     poor performance.
+#   * At query time, wrap :hasDelivery in OPTIONAL {} (Ontop compiles this to a
+#     SQL LEFT JOIN) to keep unlinked suppliers. Their safe default is the
+#     governed :performanceRating value itself (the deterministic My MRP rule
+#     assigns a neutral 3.0 to a supplier with no receiving history), so the
+#     default lives in the data, not in an ad-hoc query expression.
+
+:Supplier
+    a owl:Class ;
+    rdfs:label "Supplier" ;
+    rdfs:comment "A vendor (one row of the suppliers table). Published whether or not it has any receipts." .
+
+:hasDelivery
+    a owl:ObjectProperty ;
+    rdfs:label "has delivery" ;
+    rdfs:comment "Links a supplier to a delivery (goods receipt) it provided. OPTIONAL by construction: minted only from receiving rows, so a supplier with no receipts has none. (No rdfs:domain is declared on purpose: it would make Ontop infer :Supplier membership from receiving too, producing a second source that the SQLite backend serializes as invalid UNION/LEFT-JOIN SQL. Supplier identity comes solely from the suppliers table via map-supplier.)" ;
+    rdfs:range  :Delivery .
+
+:supplierName
+    a owl:DatatypeProperty ;
+    rdfs:label "supplier name" ;
+    rdfs:comment "The supplier's name." ;
+    rdfs:domain :Supplier ;
+    rdfs:range  xsd:string .
+
+:performanceRating
+    a owl:DatatypeProperty ;
+    rdfs:label "performance rating" ;
+    rdfs:comment "Supplier performance rating (1-5), derived strictly from the receiving flow (on-time delivery + inspection quality). A supplier with no receipts carries the neutral 3.0 default — the safe value for the unlinked state." ;
+    rdfs:domain :Supplier ;
+    rdfs:range  xsd:double .

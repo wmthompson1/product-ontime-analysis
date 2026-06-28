@@ -38,6 +38,31 @@ required date, so Ontop emits no triple — matching SQL `AVG` ignoring NULL.
 **How to apply:** any "does graph/alt-engine X agree with SolderEngine" check
 should snapshot first, not query the live WAL file twice.
 
+## Governed LEFT-JOIN optionality via mapping shape (not query phrasing)
+To promote an *optional* relationship (e.g. supplier→receiving) into the ontology
+so absence is a safe state: mint the entity class from the FULL population table
+and mint the link property SEPARATELY from the child/fact table. Then an entity
+with no children is still published but simply has no link edge — a SPARQL
+`OPTIONAL { }` (compiled by Ontop to a SQL LEFT JOIN) preserves it, and its safe
+default value (here the My-MRP neutral 3.0 rating) rides along straight from the
+data. Optionality is then enforced by the *mapping design*, not by whether a
+consumer remembers to write OPTIONAL.
+**Why:** keeps "absence of receipts ≠ poor performance" governed in the
+vocabulary, matching the migration's deterministic rule, instead of living only
+in hand-coded migration SQL.
+**Gotchas (Ontop + SQLite specifically):**
+- Do NOT give the link property an `rdfs:domain` or an inverse — that makes Ontop
+  infer the subject class from two sources and emit invalid UNION/LEFT-JOIN SQL
+  ("near UNION"). Give the property a `range` only.
+- Keep a SINGLE triple inside `OPTIONAL`. A multi-triple `OPTIONAL` (nested LEFT
+  JOIN) and `OPTIONAL` + `GROUP BY`/`AVG` both serialize to SQL SQLite rejects
+  ("near ON" / "near UNION").
+- No `#` comments inside `.obda` `[[ ]]` target/source blocks (parser rejects).
+- To prove optionality empirically, inject a synthetic no-child row into the
+  THROWAWAY snapshot only (never the live DB) and assert it stays published +
+  unlinked + carries its default; compare exact SPARQL-IRI-tail vs SQL id SETS,
+  not just counts.
+
 ## Toolchain
 Java module `java-graalvm22.3` (JDK 19). Ontop CLI + sqlite-jdbc are downloaded
 into `tools/` and **gitignored** (versions + SHA-256 pinned in the setup script).
