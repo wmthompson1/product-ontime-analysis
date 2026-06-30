@@ -27,6 +27,17 @@ idempotent, in this order):
   4. migrations/backfill_operation_progress.py — derive realistic, sequence-ordered
      job progress (operation.status Q/S/C + close_date) from each work order's
      status, so progress is measured by status/close_date, not by sequence_no.
+  5. migrations/backfill_operation_schedule.py — build a coherent routing schedule
+     (operation.sched_start_date / sched_finish_date) where each step starts on/after
+     the prior step's close, and derive the work-order window (work_order.sched_start_date
+     / sched_finish_date / desired_rls_date) from it. Needs close_date from step 4.
+  6. migrations/backfill_supplier_rating_and_wo_actuals.py — roll the recognized
+     operation estimates up into work_order.act_lab_cost / act_bur_cost / act_ser_cost
+     and score suppliers. Needs operation.status from step 4.
+  7. migrations/backfill_operation_actuals.py — distribute the work-order cost
+     rollups from step 6 back DOWN to the operations (operation.act_atl_lab_cost /
+     act_atl_bur_cost / act_atl_ser_cost) so the operation actuals reconcile exactly
+     to the work-order rollups. Needs the rollups from step 6.
 """
 
 import argparse

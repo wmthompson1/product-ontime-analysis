@@ -457,6 +457,21 @@ def init_sqlite_db():
                     "computation_template": "computation_template TEXT",
                 },
             )
+            # work_order gained routing-derived scheduling columns (Task #205):
+            # scheduled start/finish (the WO window derived from its operations)
+            # and a planner release anchor. CREATE TABLE IF NOT EXISTS never widens
+            # an existing table, so add them in place for older databases. Nullable
+            # so the ALTER succeeds; migrations/backfill_operation_schedule.py
+            # supplies the values.
+            _widen_table_columns(
+                conn,
+                "work_order",
+                {
+                    "desired_rls_date": "desired_rls_date DATETIME",
+                    "sched_start_date": "sched_start_date DATETIME",
+                    "sched_finish_date": "sched_finish_date DATETIME",
+                },
+            )
             conn.commit()
         except Exception as e:
             print(f"Database migration warning: {e}")

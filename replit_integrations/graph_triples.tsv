@@ -222,6 +222,9 @@ manufacturing_graph_node/work_order:entity:structural:system:none:none	has_colum
 manufacturing_graph_node/work_order:entity:structural:system:none:none	has_column	manufacturing_graph_node/work_order:outside_service:structural:system:none:none
 manufacturing_graph_node/work_order:entity:structural:system:none:none	has_column	manufacturing_graph_node/work_order:site_id:structural:system:none:none
 manufacturing_graph_node/work_order:entity:structural:system:none:none	has_column	manufacturing_graph_node/work_order:created_at:structural:system:none:none
+manufacturing_graph_node/work_order:entity:structural:system:none:none	has_column	manufacturing_graph_node/work_order:desired_rls_date:structural:system:none:none
+manufacturing_graph_node/work_order:entity:structural:system:none:none	has_column	manufacturing_graph_node/work_order:sched_start_date:structural:system:none:none
+manufacturing_graph_node/work_order:entity:structural:system:none:none	has_column	manufacturing_graph_node/work_order:sched_finish_date:structural:system:none:none
 manufacturing_graph_node/certification:part_id:structural:system:none:none	references	manufacturing_graph_node/part:part_id:structural:system:none:none
 manufacturing_graph_node/certification:receipt_id:structural:system:none:none	references	manufacturing_graph_node/receiving:receipt_id:structural:system:none:none
 manufacturing_graph_node/customer_order:site_id:structural:system:none:none	references	manufacturing_graph_node/site:site_id:structural:system:none:none

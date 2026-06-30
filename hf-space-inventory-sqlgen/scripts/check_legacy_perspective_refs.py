@@ -60,11 +60,14 @@ ALLOWED_PATHS = {
 # instead of reading from the ARANGO_DB environment variable.
 HARDCODED_GRAPH_NAME_PATTERN = re.compile(r"""["']semantic_graph["']""")
 
-# Paths allowed to contain "semantic_graph" as a literal (migration history
-# only; no production code should reference this name).
+# Paths allowed to contain "semantic_graph" as a literal: migration history,
+# and guard constants that list the legacy name precisely so research/scratch
+# writes can NEVER target it (a forbidden-name list, not a connection target —
+# mirrors the graph_sync.py "LEGACY_* constants for guard" allowance above).
 HARDCODED_GRAPH_NAME_ALLOWED_PATHS = {
     os.path.relpath(__file__, REPO_ROOT),
     "hf-space-inventory-sqlgen/migrations/rename_graph_to_manufacturing.py",
+    "scripts/librarian_server.py",  # CERTIFIED_DB_NAMES forbidden-name guard
 }
 
 SCAN_EXTS = (".py",)

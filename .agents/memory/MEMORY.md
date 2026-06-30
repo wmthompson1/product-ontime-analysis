@@ -24,3 +24,5 @@
 - [Ontop interoperability POC](ontop-interoperability-poc.md) — SQL layer republished as a virtual OWL/SPARQL graph via Ontop; parity proven over a read-only WAL snapshot.
 - [Synthetic ERP backfill grounding](synthetic-erp-backfill-grounding.md) — fill blank/zero ERP columns from the real PO→receiving→payable flow (supplier scorecard, WO job costing), deterministic, never random.
 - [Ontop ontology annotation layers](ontology-annotation-layers.md) — POC .ttl gates are regex-based & blind to annotations; safe to enrich existing terms; use subClassOf/skos:closeMatch not owl:equivalentClass; no new unmapped terms.
+- [Live flat-graph parity race](live-flat-graph-parity-race.md) — shared cloud ArangoDB is raced by external main-version loads; sql_aql_parity is non-deterministic pre-merge; sql_graph_parity (SQLite↔JSON) is the real acceptance.
+- [WO/operation cost accrual reconciliation](wo-cost-accrual-reconciliation.md) — WO act_* rollup is the truth (est×status_weight×variance); reverse-distribute to ops by est×weight; outside-service tie via (wo_id,service_id) NOT po_id seq-parse (regap breaks it); labor_ticket $ is qty-under-scaled.

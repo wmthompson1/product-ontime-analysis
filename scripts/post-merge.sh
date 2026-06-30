@@ -115,6 +115,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_operation_schedule_cost_accrual.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_operation_schedule_cost_accrual.py || {
+    echo "post-merge: operation schedule + cost-accrual tests failed"
+    exit 1
+  }
+fi
+
 if [ -f replit_integrations/field_description_coverage_check.py ]; then
   python replit_integrations/field_description_coverage_check.py || {
     echo "post-merge: field description graph coverage check failed"

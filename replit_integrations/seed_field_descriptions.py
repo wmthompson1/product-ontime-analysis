@@ -47,6 +47,18 @@ FIELD_DESCRIPTIONS = [
     ("work_order", "status", "Work Order Status",
      "Shop-floor lifecycle stage of the work order: open, released, in process, "
      "complete, or closed.", "IN PROCESS"),
+    ("work_order", "desired_rls_date", "Desired Release Date",
+     "The date the planner wants the job released to the floor — on or before its "
+     "first step begins — so material and capacity are lined up when work starts.",
+     "2025-04-09"),
+    ("work_order", "sched_start_date", "Scheduled Start Date",
+     "When the job is planned to begin: the start of its earliest routing step. "
+     "Read from the operation schedule, so it reflects when the first step is set "
+     "to begin on the floor.", "2025-04-09"),
+    ("work_order", "sched_finish_date", "Scheduled Finish Date",
+     "When the job is planned to be finished: the finish of its last routing step. "
+     "Read from the operation schedule, so it reflects the planned completion of "
+     "the whole job.", "2025-04-21"),
     ("operation", "status", "Operation Status",
      "Execution state of a routing step on the shop floor: queued, started / "
      "running, or complete.", "COMPLETE"),

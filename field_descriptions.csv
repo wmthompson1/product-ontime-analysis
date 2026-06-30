@@ -211,6 +211,7 @@ work_order,act_mat_cost,Act Mat Cost,Numeric act mat cost recorded for each work
 work_order,act_ser_cost,Act Ser Cost,Numeric act ser cost recorded for each work order.,0.0
 work_order,close_date,Close Date,The close date for the work order.,2026-04-16
 work_order,created_at,Created At,Timestamp for when the work order record was created.,2026-06-01 00:48:21
+work_order,desired_rls_date,Desired Release Date,The date the planner wants the job released to the floor — on or before its first step begins — so material and capacity are lined up when work starts.,2025-04-09
 work_order,open_date,Open Date,The open date for the work order.,2026-03-05
 work_order,outside_service,Outside Service,Yes/no flag indicating whether the work order outside service.,1
 work_order,part_description,Part Description,Free-text part description for the work order.,"Titanium Hex Bolt AN3-10A, 3/8-24 UNF"
@@ -218,6 +219,8 @@ work_order,part_id,Part ID,Links each work order to its related part.,PN-10010
 work_order,quantity,Build Quantity,Number of units the work order releases to the floor (the lot / batch size). One unit reflects the engineering per-unit standard; greater than one is a manufacturing batch.,50
 work_order,required_date,Required Date,The required date for the work order.,2026-03-27
 work_order,routing_template,Routing Template,"The routing template of each work order; one of a small set of values such as: COMPOSITE, BRACKET, AIRFRAME, FASTENER, WELDMENT, MACHINED.",COMPOSITE
+work_order,sched_finish_date,Scheduled Finish Date,"When the job is planned to be finished: the finish of its last routing step. Read from the operation schedule, so it reflects the planned completion of the whole job.",2025-04-21
+work_order,sched_start_date,Scheduled Start Date,"When the job is planned to begin: the start of its earliest routing step. Read from the operation schedule, so it reflects when the first step is set to begin on the floor.",2025-04-09
 work_order,site_id,Site ID,Links each work order to its related site.,SITE-1
 work_order,status,Work Order Status,"Shop-floor lifecycle stage of the work order: open, released, in process, complete, or closed.",IN PROCESS
 work_order,wo_id,Wo ID,Unique identifier for each work order record.,WO-00051
