@@ -122,6 +122,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_operation_schedule_cost_accrual.py 
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py || {
+    echo "post-merge: labor chain reconciliation tests failed"
+    exit 1
+  }
+fi
+
 if [ -f replit_integrations/field_description_coverage_check.py ]; then
   python replit_integrations/field_description_coverage_check.py || {
     echo "post-merge: field description graph coverage check failed"

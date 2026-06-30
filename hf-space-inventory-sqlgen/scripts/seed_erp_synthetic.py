@@ -38,6 +38,12 @@ idempotent, in this order):
      rollups from step 6 back DOWN to the operations (operation.act_atl_lab_cost /
      act_atl_bur_cost / act_atl_ser_cost) so the operation actuals reconcile exactly
      to the work-order rollups. Needs the rollups from step 6.
+  8. migrations/backfill_labor_chain.py — rebuild the labor_ticket detail BOTTOM-UP
+     so all three layers tie out: one aggregate labor posting per progressed in-house
+     step (labor anchors the unchanged work-order headline), burden re-derived
+     rate-consistently as hours x bur_per_hr_run, and the work_order burden rollup
+     recomputed from the operations. Must run LAST (needs the operation actuals from
+     step 7); fails closed if any layer does not reconcile.
 """
 
 import argparse

@@ -36,3 +36,27 @@ per-WO rounding residual to one op, or the "op actuals sum to WO bucket" gate fa
 `act_ser_cost > 0` while its outside op is still status Q (the PO receipt, not op status, is the
 accrual signal for outside work) — so outside-service accrual keys off the received-PO tie, not op
 status.
+
+## Labor_ticket detail: rebuilt BOTTOM-UP to tie to the op actuals
+
+Cost flows in TWO complementary passes — do not confuse the directions:
+1. **Top-down**: operation actuals are distributed DOWN from the WO rollup truth (above).
+2. **Bottom-up**: the `labor_ticket` detail is then REBUILT to reconcile UP to those op actuals,
+   so the full chain `labor_ticket → operation → work_order` ties out at every layer.
+
+The bottom-up rebuild mints **one aggregate labor posting per progressed in-house step** (a grain
+decision — not per-shift/per-worker rows). Two invariants govern it:
+- **Labor stays anchored**: ticket labor sums to the operation's `act_atl_lab_cost`, which already
+  sums to the unchanged `work_order.act_lab_cost` headline. A labor-chain rebuild must NOT move the
+  WO labor headline.
+- **Burden is rate-consistent, so it MOVES**: burden is RE-DERIVED as
+  `labor_hours × resource.bur_per_hr_run`, not carried over from the old (qty-under-scaled) tickets.
+  Expect `work_order.act_bur_cost` to change when you rebuild — that is the point (the prior burden
+  was not rate-consistent). Recompute the WO burden rollup from the operations after rebuild.
+
+**Why fail closed:** a silent partial rebuild desyncs the chain. The migration validates all three
+layers against the UNCOMMITTED rebuild and `rollback()`+`raise` on ANY drift — a progressed step
+whose resource has no usable run rate (can't back out hours), positive labor that rounds to 0.00
+hours, ticket→op drift, op→WO drift, or the labor headline moving. Only a fully reconciled rebuild
+commits. **Run order: LAST**, after the op-actuals distribution (documented in the
+`seed_erp_synthetic.py` manual run-order docstring).
