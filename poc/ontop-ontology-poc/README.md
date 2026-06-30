@@ -365,6 +365,67 @@ automatically, and it runs in CI (see below).
 
 ---
 
+### Showcase 7 — rough-cut capacity load (a second no-template governed layer)
+
+Showcase 6 proved the interoperability layer covers a governed number that lives
+as SME-approved docs + a SQL grounding query only. Showcase 7 repeats that proof
+on a **different question over a different table**: rough-cut **capacity planning**
+— how many standard shop-floor hours are scheduled on each in-house work center.
+Like the demand layer it has **no SolderEngine computation template**, so parity
+is grounded against the governed SQL directly (the grounding query in
+`docs/my-mrp-kb/Capacity_Planning.sqlite.sql`).
+
+It reads the **same `operation` table as the OEE showcase (Showcase 5)** but is
+minted in its **own namespace with its own files** — a different metric (planning
+LOAD = setup + run hours) under a different governance:
+
+- `:Operation` (from `operation`, carrying `:setupHours` / `:runHours`) and
+  `:WorkCenter` (from `shop_resource`, carrying `:resourceType` / `:workCenterName`).
+- The link `:onWorkCenter` (operation → work center) is minted on the operation
+  row and given a **range only, no `rdfs:domain`** (the same Ontop+SQLite rule as
+  the demand links).
+- **The governance lives in the mapping source SQL.** The in-house-only filter
+  (`service_id IS NULL` and a machine/labor work center) and the scheduled-only
+  filter (`sched_start_date IS NOT NULL`) are restated inside the `.obda` source
+  query, so only governed, in-house, scheduled load is ever published as a triple
+  — a consumer never has to remember the `WHERE`.
+
+The two capacity numbers are **pure aggregation** (like OEE) and **scalar** (no
+`GROUP BY`, no `OPTIONAL`): total in-house load = `SUM(:setupHours + :runHours)`
+over every published operation, and the busiest work center's load = the same sum
+filtered to one `:onWorkCenter`. The work-center IRI is minted with a path
+template, so it must be written as a full IRI in angle brackets in the query (a
+`/` is illegal in a SPARQL prefixed name):
+
+```sparql
+PREFIX : <http://example.org/manufacturing/capacity#>
+SELECT (SUM(?setup + ?run) AS ?wcLoad) (COUNT(?op) AS ?operations)
+WHERE {
+  ?op :onWorkCenter <http://example.org/manufacturing/capacity#workcenter/LB-003> ;
+      :setupHours ?setup ; :runHours ?run .
+}
+```
+
+`capacity_planning_parity_check.py` proves the numbers answered through SPARQL
+equal the governed SQL aggregates on the same read-only snapshot (exits non-zero
+on drift):
+
+```
+Total in-house load   (SQL / SPARQL): 834.25 / 834.25
+LB-003 total load      (SQL / SPARQL): 190.0 / 190.0
+RESULT: PARITY CONFIRMED
+```
+
+```bash
+python3 poc/ontop-ontology-poc/capacity_planning_parity_check.py
+```
+
+Like the other parity checks it is **standalone** (Java + a JVM boot), not wired
+into `scripts/post-merge.sh`; the offline drift guard covers its columns and terms
+automatically, and it runs in CI (see below).
+
+---
+
 ## Artifacts
 
 | Path | What it is |
@@ -392,6 +453,12 @@ automatically, and it runs in CI (see below).
 | `queries/part_on_hand.rq` | On-hand stock for the tightest-ATP part (`P-10026`) — the availability input to ATP. |
 | `queries/part_open_qty.rq` | Summed open demand for `P-10026`; the check computes `ATP = on_hand - this` (the Showcase 6 ATP parity number). |
 | `customer_order_demand_parity_check.py` | Runs the demand SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves they match (Showcase 6 — no SolderEngine template exists for the demand layer). |
+| `ontology/capacity_planning.ttl` | The OWL ontology for Showcase 7 (the capacity-planning load layer: `:Operation` / `:WorkCenter`). |
+| `mapping/capacity_planning.obda` | The Ontop OBDA mapping for Showcase 7 (per-operation setup/run hours ↔ ontology terms; the in-house + scheduled governance baked into the source SQL). |
+| `mapping/capacity_planning.properties` | JDBC connection for **manual** capacity-planning runs. |
+| `queries/capacity_total_load.rq` | Total in-house standard load = `SUM(setup_hrs + run_hrs)` over every published operation (a Showcase 7 parity number). |
+| `queries/work_center_load.rq` | Total load on the busiest work center (`LB-003`), pinned by `:onWorkCenter` to its IRI (a Showcase 7 parity number). |
+| `capacity_planning_parity_check.py` | Runs the capacity SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves they match (Showcase 7 — no SolderEngine template exists for the capacity layer). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
@@ -442,6 +509,17 @@ python3 poc/ontop-ontology-poc/customer_order_demand_parity_check.py
 
 It exits non-zero if the open demand value/quantity or the `P-10026` ATP answered
 through the virtual graph differs from the governed SQL on the same snapshot.
+
+To run the capacity-planning proof (Showcase 7 — SPARQL vs the governed SQL
+grounding query) after the toolchain is set up:
+
+```bash
+python3 poc/ontop-ontology-poc/capacity_planning_parity_check.py
+```
+
+It exits non-zero if the total in-house load or the busiest work center's load
+answered through the virtual graph differs from the governed SQL on the same
+snapshot.
 
 ### Serve a live SPARQL endpoint (read-only)
 
@@ -529,10 +607,11 @@ the project's other coverage gates. It proves:
 
 It guards **every published showcase** in one run — the on-time-delivery files,
 the Showcase 5 operational-OEE files (`mapping/operational_efficiency.obda` +
-`ontology/operational_efficiency.ttl`), and the Showcase 6 customer-order demand
+`ontology/operational_efficiency.ttl`), the Showcase 6 customer-order demand
 files (`mapping/customer_order_demand.obda` +
-`ontology/customer_order_demand.ttl`) — so adding a governed metric automatically
-extends the guard to its new columns and terms. It runs in
+`ontology/customer_order_demand.ttl`), and the Showcase 7 capacity-planning files
+(`mapping/capacity_planning.obda` + `ontology/capacity_planning.ttl`) — so adding
+a governed metric automatically extends the guard to its new columns and terms. It runs in
 `scripts/post-merge.sh`, so drift fails the build automatically. To run it on its
 own:
 
@@ -557,10 +636,10 @@ smoke/drift workflows. Each run:
 
 1. provisions Java + the **pinned** Ontop CLI (via
    `replit_integrations/ontop_poc_setup.py`, checksum-verified);
-2. runs `parity_check.py`, `rating_parity_check.py`, `oee_parity_check.py`, and
-   `customer_order_demand_parity_check.py` (SPARQL-vs-SolderEngine parity + the
-   supplier optionality / rating proofs, plus the customer-order demand
-   SPARQL-vs-governed-SQL proof);
+2. runs `parity_check.py`, `rating_parity_check.py`, `oee_parity_check.py`,
+   `customer_order_demand_parity_check.py`, and `capacity_planning_parity_check.py`
+   (SPARQL-vs-SolderEngine parity + the supplier optionality / rating proofs, plus
+   the customer-order demand and capacity-planning SPARQL-vs-governed-SQL proofs);
 3. runs `endpoint_smoke_test.py` end-to-end — booting the live read-only SPARQL
    HTTP endpoint, answering the governed number over the wire, and confirming a
    clean teardown (no orphan process).
@@ -621,9 +700,10 @@ python3 poc/ontop-ontology-poc/mapping_generation_check.py
 
 ## Out of scope (sensible later steps)
 
-- The full schema — the showcases cover `purchase_order`, `receiving`, and (as of
-  Showcase 5) `operation`/`work_order`. Two governed metrics now prove the layer
-  scales beyond a single one; publishing the remaining ~33 tables is a later step.
+- The full schema — the showcases cover `purchase_order`, `receiving`,
+  `operation`/`work_order`, and (as of Showcase 7) `shop_resource`. Multiple
+  governed layers now prove the pattern scales beyond a single metric; publishing
+  the remaining tables is a later step.
 - A materialized triplestore, or OWL reasoning beyond the lightweight profile
   Ontop uses for SQL rewriting. (A live, read-only SPARQL HTTP endpoint is now
   implemented — see **Showcase 4** above.)

@@ -1,0 +1,17 @@
+PREFIX : <http://example.org/manufacturing/capacity#>
+
+# Total standard LOAD hours on the busiest work center — LB-003, the Level-II
+# Assembly Technician, which carries the most total load in the capacity doc's
+# bottleneck ranking. The operation is pinned to that work center by matching
+# :onWorkCenter to its IRI, so this is a scalar SUM (no GROUP BY), dodging the
+# documented Ontop+SQLite OPTIONAL/GROUP BY serialization limit. The work-center
+# IRI is minted with a path template (:workcenter/{resource_id}); a '/' is
+# illegal in a SPARQL prefixed name, so it must be written as the FULL IRI in
+# angle brackets. The parity check compares this to the governed SQL load for the
+# same resource_id on the same snapshot.
+SELECT (SUM(?setup + ?run) AS ?wcLoad) (COUNT(?op) AS ?operations)
+WHERE {
+  ?op :onWorkCenter <http://example.org/manufacturing/capacity#workcenter/LB-003> ;
+      :setupHours    ?setup ;
+      :runHours      ?run .
+}

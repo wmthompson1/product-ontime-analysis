@@ -122,6 +122,28 @@ helpers, run the `.rq` files through the Ontop CLI, run the doc's aggregates via
 `sqlite3` on the SAME snapshot, assert equal. Register the new (label, obda, ttl)
 in `mapping_drift_check.py` `DEFAULT_SHOWCASES` so the offline post-merge guard
 covers it; keep the JVM parity check standalone (CI only, not post-merge.sh).
+Also add a step for the new check to `.github/workflows/ontop-interop-ci.yml`
+(the JVM checks run there, not in post-merge.sh).
+
+### Parity nuance: SUM/COUNT showcases want COALESCE, not NULL-drop
+The on-time/quality showcases deliberately emit NO triple for a NULL so SPARQL
+matches SQL `AVG` (which ignores NULL). A SUM/COUNT showcase (e.g. capacity
+LOAD = `SUM(setup_hrs + run_hrs)`) wants the OPPOSITE: use `COALESCE(col, 0)` in
+**both** the `.obda` source SQL and the governed grounding SQL, so a NULL never
+drops a row from the SPARQL inner join. Then the published population equals the
+governed population and you can assert the operation **COUNT** alongside the SUM
+— a count guard catches population drift that a coincidentally-matching sum would
+hide. Assert both; don't just print them.
+**Why:** SPARQL requires all triples in a basic graph pattern to bind, so a
+missing `:runHours` triple silently shrinks both the SUM and the COUNT.
+
+### CI workflow YAML caution
+A heredoc body inside a `run: |` block (`PAYLOAD=$(python3 - <<'PYEOF' … PYEOF`)
+must be indented to the block scalar's level; if it is dedented to column 0 the
+literal block terminates early and the WHOLE workflow fails to parse (so every
+step, not just the heredoc step, silently never runs). Indent the body + closing
+`PYEOF` to match — YAML strips that common indent back off, so bash still receives
+the same script. Always re-validate the file with a YAML parser after editing it.
 
 ## SPARQL gotcha: instance IRIs containing '/' need angle brackets
 An instance IRI minted with a path template (e.g. `:part/{part_id}` →

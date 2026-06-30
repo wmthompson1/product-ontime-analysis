@@ -18,6 +18,10 @@ name: Ontop interoperability POC
 #                            — Showcase 6 customer-order demand SPARQL vs the
 #                              governed SQL grounding query (no SolderEngine
 #                              template exists for the demand layer)
+#   * capacity_planning_parity_check.py
+#                            — Showcase 7 capacity-planning load SPARQL vs the
+#                              governed SQL grounding query (no SolderEngine
+#                              template exists for the capacity layer)
 #   * endpoint_smoke_test.py — boots the live read-only SPARQL HTTP endpoint,
 #                              answers the governed number over the wire, and
 #                              confirms a clean teardown (no orphan process)
@@ -116,6 +120,11 @@ jobs:
           python poc/ontop-ontology-poc/customer_order_demand_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
           exit ${PIPESTATUS[0]}
 
+      - name: Capacity planning parity check (Showcase 7)
+        run: |
+          python poc/ontop-ontology-poc/capacity_planning_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
       - name: Live SPARQL HTTP endpoint smoke test
         run: |
           python poc/ontop-ontology-poc/endpoint_smoke_test.py 2>&1 | tee -a "$ONTOP_CI_LOG"
@@ -140,50 +149,50 @@ jobs:
         if: ${{ failure() && env.GRAPH_SYNC_ALERT_WEBHOOK != '' }}
         run: |
           PAYLOAD=$(python3 - <<'PYEOF'
-import datetime, json, os
+          import datetime, json, os
 
-ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-run_url = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-branch  = "${{ github.ref_name }}"
-trigger = "${{ github.event_name }}"
+          ts      = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+          run_url = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          branch  = "${{ github.ref_name }}"
+          trigger = "${{ github.event_name }}"
 
-log_file = os.environ.get("ONTOP_CI_LOG", "/tmp/ontop_ci.log")
-log_out  = open(log_file).read().strip() if os.path.exists(log_file) else "(no output captured — the run failed before any check produced output)"
-# Keep the Slack payload well under its size limits.
-if len(log_out) > 1500:
-    log_out = log_out[-1500:] + "\n...(truncated)"
+          log_file = os.environ.get("ONTOP_CI_LOG", "/tmp/ontop_ci.log")
+          log_out  = open(log_file).read().strip() if os.path.exists(log_file) else "(no output captured — the run failed before any check produced output)"
+          # Keep the Slack payload well under its size limits.
+          if len(log_out) > 1500:
+              log_out = log_out[-1500:] + "\n...(truncated)"
 
-blocks = [
-    {
-        "type": "header",
-        "text": {"type": "plain_text", "text": ":rotating_light: Ontop interoperability POC FAILED"}
-    },
-    {
-        "type": "section",
-        "fields": [
-            {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
-            {"type": "mrkdwn", "text": f"*Trigger:*\n`{trigger}`"},
-            {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
-        ]
-    },
-    {
-        "type": "section",
-        "text": {"type": "mrkdwn", "text": f"*Check output (tail):*\n```{log_out}```"}
-    },
-    {
-        "type": "section",
-        "text": {
-            "type": "mrkdwn",
-            "text": (
-                "The virtual SPARQL graph drifted from the governed SQL semantic layer, "
-                "or the live SPARQL endpoint did not answer / tear down cleanly.\n"
-                f"<{run_url}|View workflow run>"
-            )
-        }
-    }
-]
-print(json.dumps({"blocks": blocks}))
-PYEOF
+          blocks = [
+              {
+                  "type": "header",
+                  "text": {"type": "plain_text", "text": ":rotating_light: Ontop interoperability POC FAILED"}
+              },
+              {
+                  "type": "section",
+                  "fields": [
+                      {"type": "mrkdwn", "text": f"*Time (UTC):*\n{ts}"},
+                      {"type": "mrkdwn", "text": f"*Trigger:*\n`{trigger}`"},
+                      {"type": "mrkdwn", "text": f"*Branch:*\n`{branch}`"},
+                  ]
+              },
+              {
+                  "type": "section",
+                  "text": {"type": "mrkdwn", "text": f"*Check output (tail):*\n```{log_out}```"}
+              },
+              {
+                  "type": "section",
+                  "text": {
+                      "type": "mrkdwn",
+                      "text": (
+                          "The virtual SPARQL graph drifted from the governed SQL semantic layer, "
+                          "or the live SPARQL endpoint did not answer / tear down cleanly.\n"
+                          f"<{run_url}|View workflow run>"
+                      )
+                  }
+              }
+          ]
+          print(json.dumps({"blocks": blocks}))
+          PYEOF
           )
 
           curl -sS -o /dev/null -w "Slack webhook HTTP status: %{http_code}\n" \

@@ -1,0 +1,18 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/capacity#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-capacity-operation
+target          :operation/{rowid_pk} a :Operation ; :setupHours {setup_hrs}^^xsd:double ; :runHours {run_hrs}^^xsd:double ; :onWorkCenter :workcenter/{resource_id} .
+source          SELECT o.rowid_pk AS rowid_pk, o.resource_id AS resource_id, COALESCE(o.setup_hrs, 0) AS setup_hrs, COALESCE(o.run_hrs, 0) AS run_hrs FROM operation o JOIN shop_resource sr ON sr.resource_id = o.resource_id WHERE o.service_id IS NULL AND sr.resource_type IN ('M', 'L') AND o.sched_start_date IS NOT NULL
+
+mappingId       map-capacity-workcenter
+target          :workcenter/{resource_id} a :WorkCenter ; :resourceType {resource_type}^^xsd:string ; :workCenterName {description}^^xsd:string .
+source          SELECT resource_id, resource_type, description FROM shop_resource WHERE resource_type IN ('M', 'L')
+
+]]

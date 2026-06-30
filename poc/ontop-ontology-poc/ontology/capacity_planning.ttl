@@ -1,0 +1,103 @@
+@prefix :     <http://example.org/manufacturing/capacity#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Capacity Planning (rough-cut shop-floor load) — minimal OWL ontology (OWL 2 QL)
+# ===============================================================================
+# This is the standards-based VOCABULARY for the SEVENTH governed showcase: the
+# capacity-planning LOAD layer (how many standard shop-floor hours are scheduled
+# on each in-house work center), published over the existing governed SQL layer
+# via Ontop (virtual OBDA).
+#
+# Like the customer-order demand showcase (Showcase 6), the capacity layer has NO
+# semantic-layer computation_template / concept — it was delivered as SME-approved
+# docs + a runnable SQLite grounding query only
+# (docs/my-mrp-kb/Capacity_Planning.sqlite.sql). So the parity check grounds the
+# SPARQL answers against that DIRECT governed SQL on the same read-only snapshot,
+# not against SolderEngine. The SQL stays the single source of truth; this file
+# only names the terms (see ../mapping/capacity_planning.obda).
+#
+# It reads the SAME operation table as the OEE showcase (Showcase 5) but is minted
+# in its OWN namespace with its OWN files — a different question (planning LOAD =
+# setup + run hours of in-house routing steps) over a different governance
+# (in-house only: outside-service excluded, machine/labor work centers only).
+#
+# The load picture restated here mirrors the grounding query:
+#   * operation     -> :Operation    (a routing/load step, carries :setupHours/:runHours)
+#   * shop_resource -> :WorkCenter    (the resource it loads, carries :resourceType)
+# Total in-house load = SUM(:setupHours + :runHours) over every published operation.
+# Per-work-center load = the same SUM filtered to one :onWorkCenter. Both are PURE
+# aggregation, so — like the OEE showcase — the mapping exposes the per-row hours
+# and the consumer's SPARQL aggregation assembles the totals.
+#
+# GOVERNANCE LIVES IN THE MAPPING SOURCE SQL. The in-house-only filter
+# (service_id IS NULL, resource_type IN ('M','L')) and the scheduled-only filter
+# (sched_start_date IS NOT NULL) are restated inside the .obda source query, so
+# only governed, in-house, scheduled load is ever published as a triple. A
+# consumer does not have to remember the WHERE — the published facts already
+# encode it.
+#
+
+<http://example.org/manufacturing/capacity>
+    a owl:Ontology ;
+    rdfs:label "Capacity Planning Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the capacity-planning load layer (in-house shop-floor load = standard setup + run hours per work center), published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app. Parity is proven against the governed SQLite grounding query, since the capacity layer has no SolderEngine computation template." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:Operation
+    a owl:Class ;
+    rdfs:label "Operation" ;
+    rdfs:comment "An in-house work-order routing step that places standard load (setup + run hours) on a work center (one governed row of the operation table)." .
+
+:WorkCenter
+    a owl:Class ;
+    rdfs:label "Work Center" ;
+    rdfs:comment "A shop-floor resource that absorbs operation load — a machine ('M') or labor ('L') center (one row of the shop_resource table)." .
+
+# ── Object property: minted on the operation row, pointing to its work center ─
+#
+# The link is minted from the operation table (the same mapping that mints
+# :Operation), pointing OUT to the work center. It is given a range only and NO
+# rdfs:domain: an rdfs:domain on a link property makes Ontop infer the subject
+# class from two sources and emit invalid UNION/LEFT-JOIN SQL on SQLite.
+# Range-only keeps the published triples clean.
+
+:onWorkCenter
+    a owl:ObjectProperty ;
+    rdfs:label "on work center" ;
+    rdfs:comment "Links a routing operation to the work center it loads (operation.resource_id -> shop_resource.resource_id)." ;
+    rdfs:range  :WorkCenter .
+
+# ── Datatype properties: the governed inputs to the load aggregates ───────────
+
+:setupHours
+    a owl:DatatypeProperty ;
+    rdfs:label "setup hours" ;
+    rdfs:comment "Standard setup hours for this operation (operation.setup_hrs, COALESCEd to 0); one half of the standard load this operation places on its work center." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:double .
+
+:runHours
+    a owl:DatatypeProperty ;
+    rdfs:label "run hours" ;
+    rdfs:comment "Standard run hours for this operation (operation.run_hrs, COALESCEd to 0); the other half of the standard load. Total load = :setupHours + :runHours." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:double .
+
+:resourceType
+    a owl:DatatypeProperty ;
+    rdfs:label "resource type" ;
+    rdfs:comment "The work-center type (shop_resource.resource_type): 'M' machine or 'L' labor. Outside-service ('S') resources consume no in-house capacity and are not published." ;
+    rdfs:domain :WorkCenter ;
+    rdfs:range  xsd:string .
+
+:workCenterName
+    a owl:DatatypeProperty ;
+    rdfs:label "work center name" ;
+    rdfs:comment "Human-readable name of the work center (shop_resource.description), e.g. 'Assembly Technician — Level II'." ;
+    rdfs:domain :WorkCenter ;
+    rdfs:range  xsd:string .
