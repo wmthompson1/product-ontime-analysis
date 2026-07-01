@@ -1,0 +1,98 @@
+@prefix :     <http://example.org/manufacturing/routing#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Shop Floor Work & Routing — minimal OWL ontology (OWL 2 QL profile)
+# ===============================================================================
+# This is the standards-based VOCABULARY for the EIGHTH governed showcase: the
+# shop-floor work & routing layer (a work order and the ordered routing steps —
+# operations — that build it), published over the existing governed SQL layer via
+# Ontop (virtual OBDA).
+#
+# Like the customer-order demand (Showcase 6) and capacity-planning (Showcase 7)
+# showcases, the routing layer has NO semantic-layer computation_template /
+# concept — it was delivered as SME-approved docs + a runnable SQLite grounding
+# query only (docs/my-mrp-kb/Shop_Floor_Routing.sqlite.sql). So the parity check
+# grounds the SPARQL answers against that DIRECT governed SQL on the same
+# read-only snapshot, not against SolderEngine. The SQL stays the single source
+# of truth; this file only names the terms (see ../mapping/shop_floor_routing.obda).
+#
+# The routing picture restated here mirrors the grounding query — a STRICT
+# TWO-TABLE join of work_order and operation on wo_id:
+#   * work_order -> :WorkOrder   (the job header)
+#   * operation  -> :Operation    (one routing step, carries :sequenceNumber /
+#                                  :operationStatus / :runHours / :setupHours)
+# Total routing run hours = SUM(:runHours) over every published operation.
+# Per-work-order step count = COUNT(operations) filtered to one :partOfWorkOrder.
+# Both are PURE aggregation, so — like the OEE / demand / capacity showcases —
+# the mapping exposes the per-row routing facts and the consumer's SPARQL
+# aggregation assembles the totals.
+#
+# NO THIRD TABLE. operation.resource_id is the work station, but a human-readable
+# work-station NAME lives in prose only (in shop_resource), never joined here —
+# exactly matching the two-table grounding SQL.
+#
+
+<http://example.org/manufacturing/routing>
+    a owl:Ontology ;
+    rdfs:label "Shop Floor Routing Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the shop-floor work & routing layer (a work order and its ordered routing operations), published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app. Parity is proven against the governed SQLite grounding query, since the routing layer has no SolderEngine computation template." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:WorkOrder
+    a owl:Class ;
+    rdfs:label "Work Order" ;
+    rdfs:comment "A job header — the instruction to build a quantity of a part (one row of the work_order table)." .
+
+:Operation
+    a owl:Class ;
+    rdfs:label "Operation" ;
+    rdfs:comment "One routing step on a work order's traveler — a sequenced operation that runs at a work station (one row of the operation table)." .
+
+# ── Object property: minted on the operation row, pointing to its work order ──
+#
+# The link is minted from the operation table (the same mapping that mints
+# :Operation), pointing OUT to the work order. It is given a range only and NO
+# rdfs:domain: an rdfs:domain on a link property makes Ontop infer the subject
+# class from two sources and emit invalid UNION/LEFT-JOIN SQL on SQLite.
+# Range-only keeps the published triples clean.
+
+:partOfWorkOrder
+    a owl:ObjectProperty ;
+    rdfs:label "part of work order" ;
+    rdfs:comment "Links a routing operation to the work order it belongs to (operation.wo_id -> work_order.wo_id)." ;
+    rdfs:range  :WorkOrder .
+
+# ── Datatype properties: the governed routing facts on each step ──────────────
+
+:sequenceNumber
+    a owl:DatatypeProperty ;
+    rdfs:label "sequence number" ;
+    rdfs:comment "The step's place in the routing (operation.sequence_no). Gapped on purpose (e.g. 30, 110, 230) so a planner can insert a step later without renumbering." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:integer .
+
+:operationStatus
+    a owl:DatatypeProperty ;
+    rdfs:label "operation status" ;
+    rdfs:comment "The routing-step status (operation.status): Q (Queued / waiting), S (Started / in work), C (Complete)." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:string .
+
+:runHours
+    a owl:DatatypeProperty ;
+    rdfs:label "run hours" ;
+    rdfs:comment "Planned run hours for this routing step (operation.run_hrs); the run-time half of the planned standard for the step." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:double .
+
+:setupHours
+    a owl:DatatypeProperty ;
+    rdfs:label "setup hours" ;
+    rdfs:comment "Planned setup hours for this routing step (operation.setup_hrs); the setup half of the planned standard for the step." ;
+    rdfs:domain :Operation ;
+    rdfs:range  xsd:double .

@@ -426,6 +426,66 @@ automatically, and it runs in CI (see below).
 
 ---
 
+### Showcase 8 — shop-floor work & routing (a third no-template governed layer)
+
+Showcases 6 and 7 each proved the interoperability layer covers a governed number
+that lives as SME-approved docs + a SQL grounding query only. Showcase 8 repeats
+that proof on the **execution side of the shop floor**: how routed work moves
+across the floor — a **work order** and the ordered **operations** (routing steps)
+that build it. Like the demand and capacity layers it has **no SolderEngine
+computation template**, so parity is grounded against the governed SQL directly
+(the grounding query in `docs/my-mrp-kb/Shop_Floor_Routing.sqlite.sql`).
+
+The grounding query is a **strict two-table join** of `work_order` and `operation`
+on `wo_id`. The showcase publishes exactly that — **no third table**. A
+human-readable work-station name lives in prose only (in `shop_resource`) and is
+never joined, matching the grounding SQL. It is minted in its **own namespace with
+its own files**, separate from the OEE (Showcase 5) and capacity (Showcase 7)
+layers that read the same `operation` table:
+
+- `:WorkOrder` (from `work_order`) and `:Operation` (from `operation`, carrying
+  `:sequenceNumber` / `:operationStatus` / `:runHours` / `:setupHours`).
+- The link `:partOfWorkOrder` (operation → work order) is minted on the operation
+  row and given a **range only, no `rdfs:domain`** (the same Ontop+SQLite rule as
+  the demand / capacity links). The operation mapping's source SQL is the same
+  two-table join the grounding uses, so the published operation set is exactly the
+  governed joined set.
+
+The two routing numbers are **pure aggregation** and **scalar** (no `GROUP BY`, no
+`OPTIONAL`): total routing run hours = `SUM(:runHours)` over every published
+operation, and the routing-step count for one specific work order = `COUNT` of the
+operations pinned to that work order. The work-order IRI is minted with a path
+template, so it must be written as a full IRI in angle brackets in the query (a
+`/` is illegal in a SPARQL prefixed name):
+
+```sparql
+PREFIX : <http://example.org/manufacturing/routing#>
+SELECT (COUNT(?op) AS ?steps)
+WHERE {
+  ?op :partOfWorkOrder <http://example.org/manufacturing/routing#workorder/WO-240003> .
+}
+```
+
+`shop_floor_routing_parity_check.py` proves the numbers answered through SPARQL
+equal the governed SQL aggregates on the same read-only snapshot (exits non-zero
+on drift):
+
+```
+Total routing run hours (SQL / SPARQL): 669.55 / 669.55
+WO-240003 step count    (SQL / SPARQL): 6 / 6
+RESULT: PARITY CONFIRMED
+```
+
+```bash
+python3 poc/ontop-ontology-poc/shop_floor_routing_parity_check.py
+```
+
+Like the other parity checks it is **standalone** (Java + a JVM boot), not wired
+into `scripts/post-merge.sh`; the offline drift guard covers its columns and terms
+automatically, and it runs in CI (see below).
+
+---
+
 ## Artifacts
 
 | Path | What it is |
@@ -459,6 +519,12 @@ automatically, and it runs in CI (see below).
 | `queries/capacity_total_load.rq` | Total in-house standard load = `SUM(setup_hrs + run_hrs)` over every published operation (a Showcase 7 parity number). |
 | `queries/work_center_load.rq` | Total load on the busiest work center (`LB-003`), pinned by `:onWorkCenter` to its IRI (a Showcase 7 parity number). |
 | `capacity_planning_parity_check.py` | Runs the capacity SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves they match (Showcase 7 — no SolderEngine template exists for the capacity layer). |
+| `ontology/shop_floor_routing.ttl` | The OWL ontology for Showcase 8 (the shop-floor routing layer: `:WorkOrder` / `:Operation`). |
+| `mapping/shop_floor_routing.obda` | The Ontop OBDA mapping for Showcase 8 (per-operation routing facts ↔ ontology terms; the strict two-table `work_order`+`operation` join in the source SQL; the link minted on the operation). |
+| `mapping/shop_floor_routing.properties` | JDBC connection for **manual** shop-floor-routing runs. |
+| `queries/routing_total_run_hours.rq` | Total routing-step run hours across work orders = `SUM(run_hrs)` over every published operation (a Showcase 8 parity number). |
+| `queries/work_order_step_count.rq` | Routing-step count for one work order (`WO-240003`), pinned by `:partOfWorkOrder` to its IRI (a Showcase 8 parity number). |
+| `shop_floor_routing_parity_check.py` | Runs the routing SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves they match (Showcase 8 — no SolderEngine template exists for the routing layer). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
@@ -518,6 +584,17 @@ python3 poc/ontop-ontology-poc/capacity_planning_parity_check.py
 ```
 
 It exits non-zero if the total in-house load or the busiest work center's load
+answered through the virtual graph differs from the governed SQL on the same
+snapshot.
+
+To run the shop-floor routing proof (Showcase 8 — SPARQL vs the governed SQL
+grounding query) after the toolchain is set up:
+
+```bash
+python3 poc/ontop-ontology-poc/shop_floor_routing_parity_check.py
+```
+
+It exits non-zero if the total routing run hours or the `WO-240003` step count
 answered through the virtual graph differs from the governed SQL on the same
 snapshot.
 
@@ -609,8 +686,10 @@ It guards **every published showcase** in one run — the on-time-delivery files
 the Showcase 5 operational-OEE files (`mapping/operational_efficiency.obda` +
 `ontology/operational_efficiency.ttl`), the Showcase 6 customer-order demand
 files (`mapping/customer_order_demand.obda` +
-`ontology/customer_order_demand.ttl`), and the Showcase 7 capacity-planning files
-(`mapping/capacity_planning.obda` + `ontology/capacity_planning.ttl`) — so adding
+`ontology/customer_order_demand.ttl`), the Showcase 7 capacity-planning files
+(`mapping/capacity_planning.obda` + `ontology/capacity_planning.ttl`), and the
+Showcase 8 shop-floor routing files (`mapping/shop_floor_routing.obda` +
+`ontology/shop_floor_routing.ttl`) — so adding
 a governed metric automatically extends the guard to its new columns and terms. It runs in
 `scripts/post-merge.sh`, so drift fails the build automatically. To run it on its
 own:
@@ -637,9 +716,11 @@ smoke/drift workflows. Each run:
 1. provisions Java + the **pinned** Ontop CLI (via
    `replit_integrations/ontop_poc_setup.py`, checksum-verified);
 2. runs `parity_check.py`, `rating_parity_check.py`, `oee_parity_check.py`,
-   `customer_order_demand_parity_check.py`, and `capacity_planning_parity_check.py`
+   `customer_order_demand_parity_check.py`, `capacity_planning_parity_check.py`,
+   and `shop_floor_routing_parity_check.py`
    (SPARQL-vs-SolderEngine parity + the supplier optionality / rating proofs, plus
-   the customer-order demand and capacity-planning SPARQL-vs-governed-SQL proofs);
+   the customer-order demand, capacity-planning, and shop-floor routing
+   SPARQL-vs-governed-SQL proofs);
 3. runs `endpoint_smoke_test.py` end-to-end — booting the live read-only SPARQL
    HTTP endpoint, answering the governed number over the wire, and confirming a
    clean teardown (no orphan process).

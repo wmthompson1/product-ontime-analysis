@@ -1,0 +1,14 @@
+PREFIX : <http://example.org/manufacturing/routing#>
+
+# Routing-step COUNT for ONE specific work order — WO-240003, the closed AIRFRAME
+# traveler the grounding doc walks step by step. The operation is pinned to that
+# work order by matching :partOfWorkOrder to its IRI, so this is a scalar COUNT
+# (no GROUP BY), dodging the documented Ontop+SQLite OPTIONAL/GROUP BY
+# serialization limit. The work-order IRI is minted with a path template
+# (:workorder/{wo_id}); a '/' is illegal in a SPARQL prefixed name, so it must be
+# written as the FULL IRI in angle brackets. The parity check compares this to
+# the governed SQL step count for the same wo_id on the same snapshot.
+SELECT (COUNT(?op) AS ?steps)
+WHERE {
+  ?op :partOfWorkOrder <http://example.org/manufacturing/routing#workorder/WO-240003> .
+}

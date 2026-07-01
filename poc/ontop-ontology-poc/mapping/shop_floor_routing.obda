@@ -1,0 +1,18 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/routing#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-routing-operation
+target          :operation/{rowid_pk} a :Operation ; :sequenceNumber {sequence_no}^^xsd:integer ; :operationStatus {status}^^xsd:string ; :runHours {run_hrs}^^xsd:double ; :setupHours {setup_hrs}^^xsd:double ; :partOfWorkOrder :workorder/{wo_id} .
+source          SELECT o.rowid_pk AS rowid_pk, o.wo_id AS wo_id, o.sequence_no AS sequence_no, o.status AS status, o.run_hrs AS run_hrs, o.setup_hrs AS setup_hrs FROM operation o JOIN work_order wo ON wo.wo_id = o.wo_id
+
+mappingId       map-routing-workorder
+target          :workorder/{wo_id} a :WorkOrder .
+source          SELECT DISTINCT wo_id FROM work_order
+
+]]

@@ -22,6 +22,10 @@ name: Ontop interoperability POC
 #                            — Showcase 7 capacity-planning load SPARQL vs the
 #                              governed SQL grounding query (no SolderEngine
 #                              template exists for the capacity layer)
+#   * shop_floor_routing_parity_check.py
+#                            — Showcase 8 shop-floor routing SPARQL vs the
+#                              governed SQL grounding query (no SolderEngine
+#                              template exists for the routing layer)
 #   * endpoint_smoke_test.py — boots the live read-only SPARQL HTTP endpoint,
 #                              answers the governed number over the wire, and
 #                              confirms a clean teardown (no orphan process)
@@ -123,6 +127,11 @@ jobs:
       - name: Capacity planning parity check (Showcase 7)
         run: |
           python poc/ontop-ontology-poc/capacity_planning_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Shop floor routing parity check (Showcase 8)
+        run: |
+          python poc/ontop-ontology-poc/shop_floor_routing_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
           exit ${PIPESTATUS[0]}
 
       - name: Live SPARQL HTTP endpoint smoke test
