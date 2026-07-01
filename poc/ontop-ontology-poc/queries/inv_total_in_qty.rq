@@ -1,0 +1,14 @@
+PREFIX : <http://example.org/manufacturing/inventory#>
+
+# Total INBOUND (In) inventory movement quantity = SUM(quantity) over every
+# transaction whose :transactionType is "I". Per the Terminology Guide an "In"
+# transaction adds +qty to Quantity on Hand. This is one half of the net-movement
+# math: the parity check subtracts the Out sum (inv_total_out_qty.rq) from this to
+# get the signed net, keeping each SPARQL query scalar (no GROUP BY, no OPTIONAL,
+# no CASE inside SUM) so it stays within the Ontop+SQLite shapes that serialize
+# cleanly. Compared against the governed SQL aggregate on the same snapshot.
+SELECT (SUM(?qty) AS ?inQty) (COUNT(?txn) AS ?transactions)
+WHERE {
+  ?txn :transactionType "I" ;
+       :transactionQty   ?qty .
+}

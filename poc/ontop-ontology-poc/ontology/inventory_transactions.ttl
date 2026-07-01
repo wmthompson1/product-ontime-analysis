@@ -1,0 +1,92 @@
+@prefix :     <http://example.org/manufacturing/inventory#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Inventory Transactions — minimal OWL ontology (OWL 2 QL profile)
+# ===============================================================================
+# This is the standards-based VOCABULARY for the NINTH governed showcase: the
+# inventory-transactions ledger (the movement register that drives Quantity on
+# Hand), published over the existing governed SQL layer via Ontop (virtual OBDA).
+#
+# Like the customer-order demand (Showcase 6), capacity-planning (Showcase 7),
+# and shop-floor routing (Showcase 8) showcases, the inventory-transactions layer
+# has NO semantic-layer computation_template / concept — it was delivered as
+# SME-approved docs + a runnable SQLite grounding query only
+# (docs/my-mrp-kb/kb-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql,
+# plus the Terminology Guide + Entry Index). So the parity check grounds the
+# SPARQL answers against that DIRECT governed SQL on the same read-only snapshot,
+# not against SolderEngine. The SQL stays the single source of truth; this file
+# only names the terms (see ../mapping/inventory_transactions.obda).
+#
+# The ledger picture restated here mirrors the grounding query:
+#   * inventory_transaction -> :InventoryTransaction  (one movement row, carries
+#                              :transactionType / :transactionQty / :siteId)
+#   * part                  -> :Part                   (the part moved)
+# The signed effect on Quantity on Hand is, per the Terminology Guide,
+#   effect = +qty when :transactionType = "I" (In),  -qty when "O" (Out).
+# Net movement is therefore SUM(In qty) - SUM(Out qty). To stay within the
+# Ontop+SQLite shapes that serialize cleanly, the signed math is NOT expressed as
+# a single CASE inside the SPARQL SUM; instead each side (In / Out) is a separate
+# scalar SUM and the two are subtracted in Python (see the parity check). So —
+# like the OEE / demand / capacity / routing showcases — the mapping exposes the
+# per-row ledger facts and the consumer assembles the totals.
+#
+# The link :forPart is minted on the transaction row with a range only and NO
+# rdfs:domain: an rdfs:domain on a link property makes Ontop infer the subject
+# class from two sources and emit invalid UNION/LEFT-JOIN SQL on SQLite.
+#
+
+<http://example.org/manufacturing/inventory>
+    a owl:Ontology ;
+    rdfs:label "Inventory Transactions Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the inventory-transactions ledger (the movement register that drives Quantity on Hand), published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app. Parity is proven against the governed SQLite grounding query, since the inventory-transactions layer has no SolderEngine computation template." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:InventoryTransaction
+    a owl:Class ;
+    rdfs:label "Inventory Transaction" ;
+    rdfs:comment "One inventory movement — a single row of the inventory_transaction ledger (a receipt, issue, adjustment, or return) that changes Quantity on Hand." .
+
+:Part
+    a owl:Class ;
+    rdfs:label "Part" ;
+    rdfs:comment "A part whose stock the transactions move (one row of the part table)." .
+
+# ── Object property: minted on the transaction row, pointing to its part ──────
+#
+# The link is minted from the inventory_transaction table (the same mapping that
+# mints :InventoryTransaction), pointing OUT to the part. Range only, NO
+# rdfs:domain (see header note) — keeps the published triples clean on SQLite.
+
+:forPart
+    a owl:ObjectProperty ;
+    rdfs:label "for part" ;
+    rdfs:comment "Links an inventory transaction to the part it moves (inventory_transaction.part_id -> part.part_id)." ;
+    rdfs:range  :Part .
+
+# ── Datatype properties: the governed ledger facts on each movement ───────────
+
+:transactionType
+    a owl:DatatypeProperty ;
+    rdfs:label "transaction type" ;
+    rdfs:comment "The movement direction (inventory_transaction.type): 'I' (In, increases Quantity on Hand) or 'O' (Out, decreases it). Per the Terminology Guide the signed effect is +qty for 'I' and -qty for 'O'." ;
+    rdfs:domain :InventoryTransaction ;
+    rdfs:range  xsd:string .
+
+:transactionQty
+    a owl:DatatypeProperty ;
+    rdfs:label "transaction quantity" ;
+    rdfs:comment "The (unsigned) quantity moved by this transaction (inventory_transaction.quantity); the sign is carried by :transactionType." ;
+    rdfs:domain :InventoryTransaction ;
+    rdfs:range  xsd:double .
+
+:siteId
+    a owl:DatatypeProperty ;
+    rdfs:label "site id" ;
+    rdfs:comment "The site the movement was booked at (inventory_transaction.site_id); inventory transactions are entered on a site-by-site basis, so a per-part net is scoped to a site to match the grounding query." ;
+    rdfs:domain :InventoryTransaction ;
+    rdfs:range  xsd:string .

@@ -26,6 +26,10 @@ name: Ontop interoperability POC
 #                            — Showcase 8 shop-floor routing SPARQL vs the
 #                              governed SQL grounding query (no SolderEngine
 #                              template exists for the routing layer)
+#   * inventory_transactions_parity_check.py
+#                            — Showcase 9 inventory-transactions ledger SPARQL vs
+#                              the governed SQL grounding query (no SolderEngine
+#                              template exists for the inventory-transactions layer)
 #   * endpoint_smoke_test.py — boots the live read-only SPARQL HTTP endpoint,
 #                              answers the governed number over the wire, and
 #                              confirms a clean teardown (no orphan process)
@@ -132,6 +136,11 @@ jobs:
       - name: Shop floor routing parity check (Showcase 8)
         run: |
           python poc/ontop-ontology-poc/shop_floor_routing_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Inventory transactions parity check (Showcase 9)
+        run: |
+          python poc/ontop-ontology-poc/inventory_transactions_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
           exit ${PIPESTATUS[0]}
 
       - name: Live SPARQL HTTP endpoint smoke test

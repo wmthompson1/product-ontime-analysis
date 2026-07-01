@@ -1,0 +1,18 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/inventory#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-inv-transaction
+target          :transaction/{transaction_id} a :InventoryTransaction ; :transactionType {type}^^xsd:string ; :transactionQty {quantity}^^xsd:double ; :siteId {site_id}^^xsd:string ; :forPart :part/{part_id} .
+source          SELECT transaction_id, type, quantity, site_id, part_id FROM inventory_transaction
+
+mappingId       map-inv-part
+target          :part/{part_id} a :Part .
+source          SELECT DISTINCT part_id FROM part
+
+]]

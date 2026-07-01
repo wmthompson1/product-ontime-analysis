@@ -1,0 +1,13 @@
+PREFIX : <http://example.org/manufacturing/inventory#>
+
+# Total OUTBOUND (Out) inventory movement quantity = SUM(quantity) over every
+# transaction whose :transactionType is "O". Per the Terminology Guide an "Out"
+# transaction subtracts qty from Quantity on Hand. This is the other half of the
+# net-movement math: the parity check computes net = In sum (inv_total_in_qty.rq)
+# - this Out sum. Scalar (no GROUP BY / OPTIONAL) so it stays SQLite-safe.
+# Compared against the governed SQL aggregate on the same snapshot.
+SELECT (SUM(?qty) AS ?outQty) (COUNT(?txn) AS ?transactions)
+WHERE {
+  ?txn :transactionType "O" ;
+       :transactionQty   ?qty .
+}

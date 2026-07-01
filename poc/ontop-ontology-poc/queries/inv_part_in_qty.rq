@@ -1,0 +1,18 @@
+PREFIX : <http://example.org/manufacturing/inventory#>
+
+# INBOUND movement quantity for ONE specific part at ONE site = SUM(quantity)
+# over its "In" transactions. The part is P-10011 at SITE-1, the fully-reconciled
+# case the grounding query walks (ledger net = on-hand = trace = 62 -> 'Y'). The
+# part is pinned by matching :forPart to its IRI and the site by :siteId, so this
+# is a scalar SUM (no GROUP BY). The part IRI is minted with a path template
+# (:part/{part_id}); a '/' is illegal in a SPARQL prefixed name, so it must be
+# written as the FULL IRI in angle brackets. The parity check computes the
+# per-part net = this In sum - the Out sum (inv_part_out_qty.rq) and compares to
+# the governed SQL net for the same part+site on the same snapshot.
+SELECT (SUM(?qty) AS ?inQty)
+WHERE {
+  ?txn :forPart         <http://example.org/manufacturing/inventory#part/P-10011> ;
+       :siteId          "SITE-1" ;
+       :transactionType "I" ;
+       :transactionQty  ?qty .
+}

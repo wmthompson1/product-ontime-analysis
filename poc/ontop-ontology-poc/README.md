@@ -486,6 +486,70 @@ automatically, and it runs in CI (see below).
 
 ---
 
+### Showcase 9 — inventory transactions (a fourth no-template governed layer)
+
+Showcases 6, 7, and 8 each proved the interoperability layer covers a governed
+number that lives as SME-approved docs + a SQL grounding query only. Showcase 9
+repeats that proof on the **inventory ledger**: the movement register that drives
+Quantity on Hand — a stream of **inventory transactions**, each an `In` or `Out`
+of some `quantity` for a `part` at a `site`. Like the demand, capacity, and
+routing layers it has **no SolderEngine computation template**, so parity is
+grounded against the governed SQL directly (the grounding query in
+`docs/my-mrp-kb/kb-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql`).
+
+Per the Terminology Guide the signed effect on Quantity on Hand is `+qty` for an
+`In` (`type='I'`) and `−qty` for an `Out` (`type='O'`), so net movement =
+`SUM(In qty) − SUM(Out qty)`. It is minted in its **own namespace with its own
+files**:
+
+- `:InventoryTransaction` (from `inventory_transaction`, carrying
+  `:transactionType` / `:transactionQty` / `:siteId`) and `:Part` (from `part`).
+- The link `:forPart` (transaction → part) is minted on the transaction row and
+  given a **range only, no `rdfs:domain`** (the same Ontop+SQLite rule as the
+  demand / capacity / routing links).
+
+Rather than express the signed `CASE` inside a single SPARQL `SUM` (a shape Ontop
+serializes to SQL that SQLite rejects), each direction is a **separate scalar
+`SUM`** and the two are subtracted in Python — so every query stays scalar (no
+`GROUP BY`, no `OPTIONAL`, no `CASE` in `SUM`). The per-part net uses the
+fully-reconciled case the grounding query walks (`P-10011` @ `SITE-1`, where
+ledger net = on-hand = trace = 62 → `'Y'`); the part IRI is minted with a path
+template, so it is written as a full IRI in angle brackets in the query (a `/` is
+illegal in a SPARQL prefixed name):
+
+```sparql
+PREFIX : <http://example.org/manufacturing/inventory#>
+SELECT (SUM(?qty) AS ?inQty)
+WHERE {
+  ?txn :forPart         <http://example.org/manufacturing/inventory#part/P-10011> ;
+       :siteId          "SITE-1" ;
+       :transactionType "I" ;
+       :transactionQty  ?qty .
+}
+```
+
+`inventory_transactions_parity_check.py` proves the numbers answered through
+SPARQL equal the governed SQL aggregates on the same read-only snapshot (exits
+non-zero on drift):
+
+```
+Net movement, all txns  (SQL / SPARQL): 2104.33 / 2104.33
+  In qty  (SQL / SPARQL): 5516.5 / 5516.5  [332 / 332 txns]
+  Out qty (SQL / SPARQL): 3412.17 / 3412.17  [307 / 307 txns]
+P-10011 @ SITE-1 net    (SQL / SPARQL): 62.0 / 62.0
+RESULT: PARITY CONFIRMED
+```
+
+```bash
+python3 poc/ontop-ontology-poc/inventory_transactions_parity_check.py
+```
+
+Like the other parity checks it is **standalone** (Java + a JVM boot), not wired
+into `scripts/post-merge.sh`; the offline drift guard covers its columns and terms
+automatically, and it runs in CI (see below).
+
+---
+
 ## Artifacts
 
 | Path | What it is |
@@ -525,6 +589,14 @@ automatically, and it runs in CI (see below).
 | `queries/routing_total_run_hours.rq` | Total routing-step run hours across work orders = `SUM(run_hrs)` over every published operation (a Showcase 8 parity number). |
 | `queries/work_order_step_count.rq` | Routing-step count for one work order (`WO-240003`), pinned by `:partOfWorkOrder` to its IRI (a Showcase 8 parity number). |
 | `shop_floor_routing_parity_check.py` | Runs the routing SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves they match (Showcase 8 — no SolderEngine template exists for the routing layer). |
+| `ontology/inventory_transactions.ttl` | The OWL ontology for Showcase 9 (the inventory-transactions ledger layer: `:InventoryTransaction` / `:Part`). |
+| `mapping/inventory_transactions.obda` | The Ontop OBDA mapping for Showcase 9 (per-row ledger facts ↔ ontology terms; the type/quantity/site movement register in the source SQL; the link minted on the transaction). |
+| `mapping/inventory_transactions.properties` | JDBC connection for **manual** inventory-transactions runs. |
+| `queries/inv_total_in_qty.rq` | Total inbound movement quantity = `SUM(quantity)` over `type='I'` transactions, with the In txn count (one half of the net-movement math — Showcase 9). |
+| `queries/inv_total_out_qty.rq` | Total outbound movement quantity = `SUM(quantity)` over `type='O'` transactions, with the Out txn count (the other half — Showcase 9). |
+| `queries/inv_part_in_qty.rq` | Inbound movement quantity for `P-10011` at `SITE-1`, pinned by `:forPart` + `:siteId` (the fully-reconciled per-part case — Showcase 9). |
+| `queries/inv_part_out_qty.rq` | Outbound movement quantity for `P-10011` at `SITE-1`; the check computes the per-part net `= In − Out` (a Showcase 9 parity number). |
+| `inventory_transactions_parity_check.py` | Runs the inventory-transactions SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves the net movement, directional quantities, transaction counts, and per-part net match (Showcase 9 — no SolderEngine template exists for the inventory-transactions layer). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
@@ -597,6 +669,17 @@ python3 poc/ontop-ontology-poc/shop_floor_routing_parity_check.py
 It exits non-zero if the total routing run hours or the `WO-240003` step count
 answered through the virtual graph differs from the governed SQL on the same
 snapshot.
+
+To run the inventory-transactions proof (Showcase 9 — SPARQL vs the governed SQL
+grounding query) after the toolchain is set up:
+
+```bash
+python3 poc/ontop-ontology-poc/inventory_transactions_parity_check.py
+```
+
+It exits non-zero if the net movement, directional (In/Out) quantities,
+transaction counts, or the `P-10011` @ `SITE-1` per-part net answered through the
+virtual graph differs from the governed SQL on the same snapshot.
 
 ### Serve a live SPARQL endpoint (read-only)
 
@@ -687,9 +770,11 @@ the Showcase 5 operational-OEE files (`mapping/operational_efficiency.obda` +
 `ontology/operational_efficiency.ttl`), the Showcase 6 customer-order demand
 files (`mapping/customer_order_demand.obda` +
 `ontology/customer_order_demand.ttl`), the Showcase 7 capacity-planning files
-(`mapping/capacity_planning.obda` + `ontology/capacity_planning.ttl`), and the
+(`mapping/capacity_planning.obda` + `ontology/capacity_planning.ttl`), the
 Showcase 8 shop-floor routing files (`mapping/shop_floor_routing.obda` +
-`ontology/shop_floor_routing.ttl`) — so adding
+`ontology/shop_floor_routing.ttl`), and the Showcase 9 inventory-transactions
+files (`mapping/inventory_transactions.obda` +
+`ontology/inventory_transactions.ttl`) — so adding
 a governed metric automatically extends the guard to its new columns and terms. It runs in
 `scripts/post-merge.sh`, so drift fails the build automatically. To run it on its
 own:
@@ -717,10 +802,11 @@ smoke/drift workflows. Each run:
    `replit_integrations/ontop_poc_setup.py`, checksum-verified);
 2. runs `parity_check.py`, `rating_parity_check.py`, `oee_parity_check.py`,
    `customer_order_demand_parity_check.py`, `capacity_planning_parity_check.py`,
-   and `shop_floor_routing_parity_check.py`
+   `shop_floor_routing_parity_check.py`, and
+   `inventory_transactions_parity_check.py`
    (SPARQL-vs-SolderEngine parity + the supplier optionality / rating proofs, plus
-   the customer-order demand, capacity-planning, and shop-floor routing
-   SPARQL-vs-governed-SQL proofs);
+   the customer-order demand, capacity-planning, shop-floor routing, and
+   inventory-transactions SPARQL-vs-governed-SQL proofs);
 3. runs `endpoint_smoke_test.py` end-to-end — booting the live read-only SPARQL
    HTTP endpoint, answering the governed number over the wire, and confirming a
    clean teardown (no orphan process).
@@ -782,9 +868,9 @@ python3 poc/ontop-ontology-poc/mapping_generation_check.py
 ## Out of scope (sensible later steps)
 
 - The full schema — the showcases cover `purchase_order`, `receiving`,
-  `operation`/`work_order`, and (as of Showcase 7) `shop_resource`. Multiple
-  governed layers now prove the pattern scales beyond a single metric; publishing
-  the remaining tables is a later step.
+  `operation`/`work_order`, `shop_resource`, and (as of Showcase 9)
+  `inventory_transaction`/`part`. Multiple governed layers now prove the pattern
+  scales beyond a single metric; publishing the remaining tables is a later step.
 - A materialized triplestore, or OWL reasoning beyond the lightweight profile
   Ontop uses for SQL rewriting. (A live, read-only SPARQL HTTP endpoint is now
   implemented — see **Showcase 4** above.)
