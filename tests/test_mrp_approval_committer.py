@@ -216,24 +216,39 @@ def test_invalid_decision_fails_closed():
         assert "INVALID_DECISION" in str(exc)
 
 
-def test_missing_reviewer_decision_column_defaults_proposed():
-    """Old CSVs without reviewer_decision column → all default to 'proposed', nothing approved."""
+def test_missing_reviewer_decision_column_fails_closed():
+    """CSVs without reviewer_decision column must fail closed with a clear message."""
     rows = [
         ("Available Capacity", "", "", "", "", "yes", "Cap definition."),
         ("Bill of Materials", "BOM", "yes", "", "", "yes", "BOM definition."),
     ]
     run_dir = _make_run_dir(rows, _PAYLOAD, include_reviewer_decision=False)
 
-    csv_rows = ac._load_csv(run_dir)
-    for row in csv_rows:
-        decision = row.get("reviewer_decision") or "proposed"
-        assert decision == "proposed", (
-            f"Missing column should default to 'proposed', got '{decision}'"
+    try:
+        ac._load_csv(run_dir)
+        raise AssertionError("Expected ValueError for missing reviewer_decision column was not raised")
+    except ValueError as exc:
+        assert "reviewer_decision" in str(exc), (
+            f"Error should mention 'reviewer_decision', got: {exc}"
         )
 
-    summary = ac.run(run_dir=run_dir, commit=False)
-    assert summary["approved"] == 0, "no approved terms without column"
-    assert summary["committed"] is False
+
+def test_blank_reviewer_decision_fails_closed():
+    """A blank reviewer_decision cell must fail closed — no silent defaults."""
+    rows = [
+        _make_csv_row("Available Capacity", "approved"),
+        _make_csv_row("Bill of Materials", ""),
+    ]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    csv_rows = ac._load_csv(run_dir)
+    try:
+        ac._validate_decisions(csv_rows)
+        raise AssertionError("Expected ValueError for blank reviewer_decision was not raised")
+    except ValueError as exc:
+        assert "Blank reviewer_decision" in str(exc), (
+            f"Error should mention 'Blank reviewer_decision', got: {exc}"
+        )
 
 
 def test_edges_filtered_to_approved_terms():
@@ -284,7 +299,8 @@ if __name__ == "__main__":
         test_dry_run_committed_false,
         test_no_approved_exits_clean,
         test_invalid_decision_fails_closed,
-        test_missing_reviewer_decision_column_defaults_proposed,
+        test_missing_reviewer_decision_column_fails_closed,
+        test_blank_reviewer_decision_fails_closed,
         test_edges_filtered_to_approved_terms,
         test_anchor_nodes_included_for_approved_terms,
     ]

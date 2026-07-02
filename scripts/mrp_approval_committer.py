@@ -90,18 +90,22 @@ def _resolve_run_dir(
 # ---------------------------------------------------------------------------
 
 def _load_csv(run_dir: Path) -> List[Dict[str, str]]:
-    """Load proposed_terms.csv; backward-compat with CSVs that lack reviewer_decision."""
+    """Load proposed_terms.csv; fail closed if reviewer_decision column is absent."""
     csv_path = run_dir / "proposed_terms.csv"
     if not csv_path.exists():
         raise FileNotFoundError(f"proposed_terms.csv not found in {run_dir}")
     rows: List[Dict[str, str]] = []
     with csv_path.open(encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
+        fieldnames = list(reader.fieldnames or [])
+        if "reviewer_decision" not in fieldnames:
+            raise ValueError(
+                "proposed_terms.csv is missing the 'reviewer_decision' column. "
+                "Re-run the terminology stager to regenerate the CSV with this "
+                "column, then set each row to 'approved', 'rejected', or 'proposed'."
+            )
         for row in reader:
-            d = dict(row)
-            if "reviewer_decision" not in d:
-                d["reviewer_decision"] = "proposed"
-            rows.append(d)
+            rows.append(dict(row))
     return rows
 
 
@@ -123,10 +127,15 @@ def _load_json(run_dir: Path) -> Dict[str, List[Dict[str, Any]]]:
 # ---------------------------------------------------------------------------
 
 def _validate_decisions(csv_rows: List[Dict[str, str]]) -> None:
-    """Fail closed on any unrecognised reviewer_decision value."""
+    """Fail closed on any blank or unrecognised reviewer_decision value."""
     for row in csv_rows:
         raw = (row.get("reviewer_decision") or "").strip()
-        if raw and raw.lower() not in VALID_DECISIONS:
+        if not raw:
+            raise ValueError(
+                f"Blank reviewer_decision for term '{row.get('term', '?')}'. "
+                f"Set each row to one of: {sorted(VALID_DECISIONS)}."
+            )
+        if raw.lower() not in VALID_DECISIONS:
             raise ValueError(
                 f"Unrecognised reviewer_decision '{raw}' for term "
                 f"'{row.get('term', '?')}'. "
