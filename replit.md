@@ -49,6 +49,9 @@ Groundwork for a time-phased single-level MRP grid over the synthetic SQLite `ma
 - **Migration** `hf-space-inventory-sqlgen/migrations/backfill_mrp_demand_supply.py` (idempotent, SQLite-only synthetic, crc32-seeded from stable keys) adds and populates: `customer_order_line.need_by_date` + `.desired_release_date` (demand placement); `work_order.service_date` + `.vendor_id` (outside-service header enrichment, **display-only**). It also places supply into the horizon — past-due Open POs and non-closed WOs are rescheduled forward to a deterministic in-horizon due date (their `required_date` is the "PO due date"; only Open POs with no receipts and non-closed WOs with no close_date are touched, so scorecards/on-time metrics are unaffected), and a fallback Open PO (`PO-MRP-<part_id>`, INSERT OR IGNORE) is created for any BUY demand part lacking an in-horizon PO receipt. The migration ends by running the fail-closed validation.
 - **Graph curation**: the 4 physical columns are curated into the canonical graph (exporter is PRAGMA-based, so col-node count must equal PRAGMA). Re-exported to **SCHEMA_VERSION 19** (`mrp_demand_supply_foundation`): canonical 296 nodes, 306 edges (230 has_column, 39 references, 37 resolves_to); `field_descriptions.csv` regenerated to 230 rows (one per graph column node). Seed schema kept in sync: `schema_sqlite.sql` (work_order), `add_wave4_traceability_tables.py` (customer_order_line CREATE), and `app.py` `init_sqlite_db` self-heal widen (work_order).
 
+### MRP schedule grid (Cycle 2, netting engine + UI)
+On the Cycle 1 foundation, `mrp_engine.py` now computes the time-phased grid itself (still read-only, deterministic, data-derived AS_OF). `compute_mrp_grid(conn, part_id)` nets open customer-order demand against on-hand inventory and non-closed WO / open-or-partial PO scheduled receipts across **Past Due + 6 monthly buckets**, producing the six standard MRP rows (Gross Requirements, Scheduled Receipts, Projected Available Balance, Net Requirements, Planned Order Receipts, Planned Order Releases). Planned receipts are **lot-for-lot** (fill each period's net requirement); planned **releases** are those receipts pulled earlier by the part's `lead_time_days` (release = need − lead time), folding into Past Due when the release date is already behind PLAN_START. `list_planning_parts` returns the parts selectable in the UI (all in-horizon demand parts; on a foundation that passed `validate_planning_inputs` these are all plannable, and `compute_mrp_grid` still **fails closed** per-part regardless — on unknown part, missing planning columns, or non-positive/absent lead time — rather than planning against zero). Surfaced in the Gradio **MRP Schedule** tab. No graph, schema, or CSV artifacts change (Cycle 2 is compute + UI only).
+
 ### Test suite
 All tests run via `scripts/post-merge.sh` (all passing):
 | File | What it covers |
@@ -66,6 +69,7 @@ All tests run via `scripts/post-merge.sh` (all passing):
 | `tests/test_sql_aql_parity.py` | SQL (SQLite tables) vs AQL (live graph) parity via injected fake Arango (8 tests) |
 | `hf-space-inventory-sqlgen/tests/test_metric_assembly.py` | Metric template storage, variable→column binding/lineage, define-once identical SQL, perspective fan-out yields identical SQL, conflicting/missing/static templates fail closed, cross-dialect transpile, table-description overlay round-trip, overlay-never-on-graph-nodes (12 tests) |
 | `hf-space-inventory-sqlgen/tests/test_get_resolves_to.py` | `GET /mcp/tools/get_resolves_to` payload shape (6 cross-repo keys), all 11 M4 bindings present, OEEOperational + DeliveryPerformanceOps bindings + canonical `field_key`, unknown concept → empty (5 tests) |
+| `hf-space-inventory-sqlgen/tests/test_mrp_schedule.py` | MRP netting grid on a fixture DB: full netting math over Past Due + 6 buckets, lot-for-lot receipts, lead-time-offset planned releases, data-derived AS_OF (not wall clock), bucket boundaries, `list_planning_parts` in-horizon filter, fail-closed on unknown part / non-positive-or-absent lead / missing columns, and fractional-qty + release-folds-into-Past-Due (11 tests) |
 
 ### Graph parity gates (run by post-merge.sh)
 - **SQL vs file**: `replit_integrations/sql_graph_parity_check.py` — proves `graph_metadata.json` is field-for-field identical to the `sql_graph_*` tables (emission order asserted).
@@ -90,9 +94,11 @@ All tests run via `scripts/post-merge.sh` (all passing):
 - **Sync**: `sync_watcher.py` daemon polls `graph_sync_queue` SQLite table (populated by triggers); `scripts/install_sync_triggers.py` installs 9 triggers on 3 bridge tables
 
 ### Frontend (Gradio)
-Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix · Metrics
+Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix · Metrics · MRP Schedule
 
 The **Metrics** tab lets you pick a metric concept and shows its plain-language description, the dialect-agnostic `computation_template`, the variable→column→table lineage, the table-level meta-context, and the SolderEngine-assembled SQL for a chosen dialect.
+
+The **MRP Schedule** tab lets you pick a planning part and shows its time-phased MRP grid — open demand netted against on-hand inventory and existing WO/PO scheduled receipts across Past Due + 6 monthly buckets, with lot-for-lot planned order receipts and lead-time-offset planned order releases. Read-only, deterministic, and anchored to the data-derived as-of date.
 
 ### Masking approval copies (repo root)
 `masking_matrix.csv` and `masking_type.csv` live at the repo root as the SME-facing approval copies (CSV ↔ SQLite, upsert on boot). `masking_matrix.py` / `masking_type.py` manage them; `certificate_for_receiving/generate_certificate.py` reads the root `masking_matrix.csv` and imports only `status == active` rows.

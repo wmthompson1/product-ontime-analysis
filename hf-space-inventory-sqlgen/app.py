@@ -5729,6 +5729,104 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[metric_sql_output, metric_info],
             )
 
+        with gr.Tab("📆 MRP Schedule"):
+            import mrp_engine as mrp
+
+            gr.Markdown("""
+            ### MRP Demand-Supply Schedule Grid
+
+            A classic **time-phased MRP grid** for a selected part: open customer-order
+            demand is netted against on-hand inventory and existing work-order /
+            purchase-order scheduled receipts across a rolling **6-month horizon**, and
+            lot-for-lot **planned orders** fill the gaps. Planned order *releases* are the
+            planned *receipts* pulled earlier by the part's lead time.
+
+            Everything is **deterministic** and computed **read-only** against SQLite. The
+            horizon is anchored to a **data-derived as-of date** (the latest work-order
+            close date), never the wall clock. A part with missing planning inputs (no
+            lead time, missing columns) **fails with a clear message** rather than
+            silently planning against zero.
+            """)
+
+            try:
+                _mc = mrp.connect()
+                _mrp_parts = mrp.list_planning_parts(_mc)
+                _mrp_as_of = mrp.compute_as_of(_mc)
+                _mrp_buckets = mrp.month_buckets(_mrp_as_of)
+                _mc.close()
+            except Exception:
+                _mrp_parts, _mrp_as_of, _mrp_buckets = [], None, []
+
+            _mrp_choices = [
+                (f"{p['part_id']} — {p['part_class']} · demand {p['demand_qty']}", p["part_id"])
+                for p in _mrp_parts
+            ]
+            if _mrp_as_of and _mrp_buckets:
+                _mrp_hdr = (
+                    f"**As-of (data-derived):** {_mrp_as_of.strftime('%Y-%m-%d')}  ·  "
+                    f"**Horizon:** {_mrp_buckets[0][0]} … {_mrp_buckets[-1][0]}  ·  "
+                    f"**{len(_mrp_choices)}** planning parts"
+                )
+            else:
+                _mrp_hdr = (
+                    "_MRP data foundation not found — run "
+                    "`migrations/backfill_mrp_demand_supply.py` first._"
+                )
+            gr.Markdown(_mrp_hdr)
+
+            with gr.Row():
+                mrp_part = gr.Dropdown(
+                    choices=_mrp_choices,
+                    label="Planning part (open demand in horizon)",
+                    value=_mrp_choices[0][1] if _mrp_choices else None,
+                    interactive=True,
+                    scale=3,
+                )
+                mrp_btn = gr.Button("Show MRP Grid", variant="primary", scale=1)
+
+            mrp_detail = gr.Markdown()
+            mrp_grid = gr.Dataframe(
+                headers=["MRP Line"]
+                + (["Past Due"] + [b[0] for b in _mrp_buckets] if _mrp_buckets else []),
+                interactive=False,
+                wrap=True,
+                label="Time-phased MRP grid",
+            )
+
+            def render_mrp(part_id):
+                import pandas as pd
+                import mrp_engine as mrp
+
+                if not part_id:
+                    return None, "Select a planning part to view its MRP schedule."
+                conn = mrp.connect()
+                try:
+                    grid = mrp.compute_mrp_grid(conn, part_id)
+                except ValueError as exc:
+                    return None, f"⚠️ {exc}"
+                except Exception as exc:  # pragma: no cover - defensive
+                    return None, f"⚠️ Unexpected error: {exc}"
+                finally:
+                    conn.close()
+
+                cols = ["MRP Line"] + grid["columns"]
+                data = [[label] + list(vals) for label, vals in grid["rows"]]
+                df = pd.DataFrame(data, columns=cols)
+                detail = (
+                    f"**Part:** `{grid['part_id']}`  ·  class **{grid['part_class']}**  ·  "
+                    f"lead time **{grid['lead_time_days']} days**  ·  "
+                    f"on-hand **{grid['on_hand_qty']}**\n\n"
+                    f"**As-of (data-derived):** {grid['as_of'].strftime('%Y-%m-%d')}  ·  "
+                    f"**Horizon:** {grid['columns'][1]} … {grid['columns'][-1]}\n\n"
+                    "*Planned Order Releases = Planned Order Receipts pulled earlier by the "
+                    "part's lead time; anything already behind the plan start folds into "
+                    "Past Due.*"
+                )
+                return df, detail
+
+            mrp_btn.click(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
+            mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
+
         with gr.Tab("🔄 Graph Sync"):
             gr.Markdown("""
             ### ArangoDB Graph Sync

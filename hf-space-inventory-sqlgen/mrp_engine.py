@@ -24,7 +24,7 @@ cycle.
 import calendar
 import os
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "manufacturing.db")
 
@@ -266,6 +266,177 @@ def validate_planning_inputs(conn):
         "horizon_end": he,
         "buckets": [b[0] for b in buckets],
         "demand_parts": len(parts),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# MRP netting grid (Cycle 2)
+# --------------------------------------------------------------------------- #
+MRP_ROWS = (
+    "Gross Requirements",
+    "Scheduled Receipts",
+    "Projected Available Balance",
+    "Net Requirements",
+    "Planned Order Receipts",
+    "Planned Order Releases",
+)
+
+
+def list_planning_parts(conn):
+    """Selectable parts for the grid: parts with open demand in the horizon.
+
+    On a DB whose data foundation passed ``validate_planning_inputs`` these are all
+    plannable (positive lead time + a real supply basis). ``compute_mrp_grid`` still
+    fails closed per-part regardless, so a part that somehow lacks a lead time
+    surfaces a clear error rather than a silent zero plan.
+    """
+    as_of = compute_as_of(conn)
+    buckets = month_buckets(as_of)
+    return demand_parts_in_horizon(conn, buckets)
+
+
+def _period_index(d, ps: date, buckets):
+    """Map a date to a grid period: 0 = Past Due, 1..N = bucket M0..M(N-1).
+
+    Returns ``None`` for dates on/after the horizon end (excluded from the grid).
+    """
+    if d is None:
+        return None
+    if d < ps:
+        return 0
+    bi = bucket_index_for(d, buckets)
+    return None if bi is None else bi + 1
+
+
+def _fetch_part(conn, part_id):
+    return conn.execute(
+        "SELECT part_id, part_class, lead_time_days, on_hand_qty "
+        "FROM part WHERE part_id = ?",
+        (part_id,),
+    ).fetchone()
+
+
+def compute_mrp_grid(conn, part_id):
+    """Compute the single-level, lot-for-lot MRP grid for one part.
+
+    Columns: 'Past Due' + six monthly buckets (M0..M5). Rows: the six standard MRP
+    lines (see ``MRP_ROWS``). Planned order receipts fill each period's net
+    requirement (lot-for-lot); planned order releases are the same quantities
+    offset earlier by the part's lead time (release = need − lead_time_days),
+    folding into 'Past Due' when the release date is already behind the plan start.
+
+    Fail closed: unknown part, missing planning columns, or a non-positive lead
+    time raise ``ValueError`` rather than planning against zero. Read-only.
+    """
+    _require_columns(conn, "customer_order_line", ["need_by_date"])
+    part = _fetch_part(conn, part_id)
+    if part is None:
+        raise ValueError(f"Unknown part '{part_id}' (fail closed).")
+    _pid, part_class, lead, on_hand = part
+    if lead is None or lead <= 0:
+        raise ValueError(
+            f"Part '{part_id}' has missing or non-positive lead_time_days (fail closed)."
+        )
+    lead = int(lead)
+    on_hand = on_hand or 0
+
+    as_of = compute_as_of(conn)
+    buckets = month_buckets(as_of)
+    ps = plan_start(as_of)
+    n = len(buckets) + 1  # Past Due + monthly buckets
+
+    gross = [0] * n
+    sched = [0] * n
+
+    # Gross requirements — open customer-order demand by need_by_date.
+    for need_by, qty in conn.execute(
+        """
+        SELECT l.need_by_date, l.order_qty
+        FROM customer_order_line l
+        JOIN customer_order o ON o.order_id = l.order_id
+        WHERE l.part_id = ? AND o.status = ? AND l.need_by_date IS NOT NULL
+        """,
+        (part_id, OPEN_CO_STATUS),
+    ):
+        idx = _period_index(_parse(need_by), ps, buckets)
+        if idx is not None:
+            gross[idx] += qty or 0
+
+    # Scheduled receipts — non-closed work orders due in period.
+    for req, qty in conn.execute(
+        f"""
+        SELECT required_date, quantity FROM work_order
+        WHERE part_id = ? AND status IN ({_in_clause(NONCLOSED_WO_STATUSES)})
+          AND required_date IS NOT NULL
+        """,
+        (part_id, *NONCLOSED_WO_STATUSES),
+    ):
+        idx = _period_index(_parse(req), ps, buckets)
+        if idx is not None:
+            sched[idx] += qty or 0
+
+    # Scheduled receipts — open/partial purchase-order lines due in period.
+    for req, qty in conn.execute(
+        f"""
+        SELECT po.required_date, pl.quantity
+        FROM po_line pl
+        JOIN purchase_order po ON po.po_id = pl.po_id
+        WHERE pl.part_id = ? AND po.status IN ({_in_clause(OPEN_PO_STATUSES)})
+          AND po.required_date IS NOT NULL
+        """,
+        (part_id, *OPEN_PO_STATUSES),
+    ):
+        idx = _period_index(_parse(req), ps, buckets)
+        if idx is not None:
+            sched[idx] += qty or 0
+
+    # Left-to-right netting (lot-for-lot planned receipts).
+    pab = [0] * n
+    net = [0] * n
+    receipts = [0] * n
+    releases = [0] * n
+    prev = on_hand
+    for i in range(n):
+        available = prev + sched[i]
+        shortfall = gross[i] - available
+        nr = shortfall if shortfall > 0 else 0
+        net[i] = nr
+        receipts[i] = nr  # lot-for-lot
+        pab[i] = available + receipts[i] - gross[i]
+        prev = pab[i]
+
+    # Planned order releases — offset each planned receipt earlier by lead time.
+    for i in range(n):
+        if receipts[i] <= 0:
+            continue
+        if i == 0:  # Past Due receipt → release is even further behind
+            releases[0] += receipts[i]
+            continue
+        need_date = buckets[i - 1][1]  # bucket start = need date
+        release_date = need_date - timedelta(days=lead)
+        rel = _period_index(release_date, ps, buckets)
+        if rel is None:
+            rel = 0 if release_date < ps else n - 1
+        releases[rel] += receipts[i]
+
+    columns = ["Past Due"] + [b[0] for b in buckets]
+    rows = [
+        ("Gross Requirements", gross),
+        ("Scheduled Receipts", sched),
+        ("Projected Available Balance", pab),
+        ("Net Requirements", net),
+        ("Planned Order Receipts", receipts),
+        ("Planned Order Releases", releases),
+    ]
+    return {
+        "part_id": part_id,
+        "part_class": part_class,
+        "lead_time_days": lead,
+        "on_hand_qty": on_hand,
+        "as_of": as_of,
+        "plan_start": ps,
+        "columns": columns,
+        "rows": rows,
     }
 
 
