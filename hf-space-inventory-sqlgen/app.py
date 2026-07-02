@@ -5827,6 +5827,292 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mrp_btn.click(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
             mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
 
+        with gr.Tab("🗳️ Term Review"):
+            import sys as _tr_sys, pathlib as _tr_pl
+            _tr_repo_scripts = str(_tr_pl.Path(__file__).parent.parent / "scripts")
+            if _tr_repo_scripts not in _tr_sys.path:
+                _tr_sys.path.insert(0, _tr_repo_scripts)
+            try:
+                import mrp_approval_committer as _tr_mac
+                _tr_staging_root = _tr_mac.DEFAULT_STAGING_ROOT
+                _tr_run_ids = sorted(
+                    (d.name for d in _tr_staging_root.iterdir() if d.is_dir()),
+                    reverse=True,
+                ) if _tr_staging_root.is_dir() else []
+            except Exception:
+                _tr_mac = None
+                _tr_staging_root = None
+                _tr_run_ids = []
+
+            _tr_commit_enabled = os.getenv("MRP_ENABLE_GRAPH_COMMIT", "").lower() == "true"
+            _TR_DISPLAY_COLS = ["term", "definition", "anchored", "reviewer_decision"]
+
+            gr.Markdown(
+                "### 🗳️ MRP Research Term Review\n\n"
+                "SMEs can approve or reject each proposed term here — no text editor or CLI needed. "
+                "Select a staging run, edit the **reviewer_decision** column (`approved` / `rejected` / `proposed`), "
+                "then **Save decisions** to persist your choices. When you're ready, **Commit approved** "
+                "pushes the approved terms into the `mrp_research` graph.\n\n"
+                + (
+                    "⚠️ **Commit gate is OFF** — set `MRP_ENABLE_GRAPH_COMMIT=true` to enable live commits. "
+                    "Save + dry-run preview are always available."
+                    if not _tr_commit_enabled
+                    else "✅ **Commit gate is ON** — the Commit button will write to ArangoDB."
+                )
+            )
+
+            with gr.Row():
+                tr_run_dd = gr.Dropdown(
+                    choices=_tr_run_ids,
+                    value=_tr_run_ids[0] if _tr_run_ids else None,
+                    label="Staging run (most-recent first)",
+                    interactive=True,
+                    scale=3,
+                )
+                tr_load_btn = gr.Button("↺ Load terms", size="sm", scale=1)
+
+            tr_status_md = gr.Markdown(
+                "_Select a staging run and click **Load terms**._"
+                if not _tr_run_ids else "_Click **Load terms** to begin._"
+            )
+
+            tr_grid = gr.Dataframe(
+                headers=_TR_DISPLAY_COLS,
+                datatype=["str", "str", "str", "str"],
+                column_count=(4, "fixed"),
+                row_count=(1, "dynamic"),
+                label="Proposed terms — edit reviewer_decision then Save",
+                interactive=True,
+                wrap=True,
+            )
+
+            tr_summary_md = gr.Markdown()
+
+            with gr.Row():
+                tr_save_btn = gr.Button(
+                    "💾 Save decisions", variant="primary", size="sm"
+                )
+                tr_commit_btn = gr.Button(
+                    "🚀 Commit approved" if _tr_commit_enabled
+                    else "🚀 Commit approved (gate off — dry-run only)",
+                    variant="primary" if _tr_commit_enabled else "secondary",
+                    size="sm",
+                )
+
+            tr_run_state = gr.State(value=None)
+
+            def _tr_list_run_ids():
+                """Return sorted run IDs (newest-first) from the staging root."""
+                import sys as _s, pathlib as _p
+                _rs = str(_p.Path(__file__).parent.parent / "scripts")
+                if _rs not in _s.path:
+                    _s.path.insert(0, _rs)
+                try:
+                    import mrp_approval_committer as _m
+                    root = _m.DEFAULT_STAGING_ROOT
+                    if not root.is_dir():
+                        return []
+                    return sorted((d.name for d in root.iterdir() if d.is_dir()), reverse=True)
+                except Exception:
+                    return []
+
+            def _tr_load(run_id):
+                """Load proposed_terms.csv for a run and return the display grid."""
+                import sys as _s, pathlib as _p, csv as _csv, pandas as _pd
+                _rs = str(_p.Path(__file__).parent.parent / "scripts")
+                if _rs not in _s.path:
+                    _s.path.insert(0, _rs)
+                try:
+                    import mrp_approval_committer as _m
+                except ImportError as exc:
+                    return None, f"⚠️ Could not import committer: {exc}", None
+
+                root = _m.DEFAULT_STAGING_ROOT
+                try:
+                    run_dir = _m._resolve_run_dir(run_id or None, root)
+                except FileNotFoundError as exc:
+                    return None, f"⚠️ {exc}", None
+
+                csv_path = run_dir / "proposed_terms.csv"
+                if not csv_path.exists():
+                    return None, f"⚠️ `proposed_terms.csv` not found in `{run_dir.name}`.", None
+
+                rows = []
+                with csv_path.open(encoding="utf-8", newline="") as fh:
+                    for row in _csv.DictReader(fh):
+                        rows.append(dict(row))
+
+                if not rows:
+                    return (
+                        _pd.DataFrame(columns=["term", "definition", "anchored", "reviewer_decision"]),
+                        f"_Run `{run_dir.name}` has no terms._",
+                        str(run_dir),
+                    )
+
+                display = []
+                for r in rows:
+                    defn = (r.get("definition") or "").strip()
+                    if len(defn) > 120:
+                        defn = defn[:117] + "…"
+                    display.append({
+                        "term": r.get("term", ""),
+                        "definition": defn,
+                        "anchored": r.get("anchored", ""),
+                        "reviewer_decision": (r.get("reviewer_decision") or "proposed").strip() or "proposed",
+                    })
+
+                pending = sum(1 for r in rows if (r.get("reviewer_decision") or "proposed").strip().lower() in ("", "proposed"))
+                approved = sum(1 for r in rows if (r.get("reviewer_decision") or "").strip().lower() == "approved")
+                rejected = sum(1 for r in rows if (r.get("reviewer_decision") or "").strip().lower() == "rejected")
+
+                status = (
+                    f"**Run:** `{run_dir.name}` · "
+                    f"**{len(rows)}** terms · "
+                    f"✅ {approved} approved · "
+                    f"❌ {rejected} rejected · "
+                    f"⏳ {pending} pending\n\n"
+                    "_Edit the **reviewer_decision** column (approved / rejected / proposed), then click **Save decisions**._"
+                )
+                df = _pd.DataFrame(display, columns=["term", "definition", "anchored", "reviewer_decision"])
+                return df, status, str(run_dir)
+
+            def _tr_save(grid, run_dir_path):
+                """Persist reviewer_decision values from the grid back to proposed_terms.csv."""
+                import csv as _csv, pathlib as _p, io as _io, pandas as _pd
+                if not run_dir_path:
+                    return "⚠️ No run loaded — click **Load terms** first.", None
+                run_dir = _p.Path(run_dir_path)
+                csv_path = run_dir / "proposed_terms.csv"
+                if not csv_path.exists():
+                    return f"⚠️ `proposed_terms.csv` not found in `{run_dir.name}`.", None
+
+                if grid is None:
+                    return "⚠️ Grid is empty — nothing to save.", None
+
+                if isinstance(grid, _pd.DataFrame):
+                    grid_rows = grid.to_dict(orient="records")
+                elif isinstance(grid, list):
+                    cols = ["term", "definition", "anchored", "reviewer_decision"]
+                    grid_rows = [
+                        {c: (row[i] if isinstance(row, (list, tuple)) and i < len(row) else
+                             row.get(c, "") if isinstance(row, dict) else "")
+                         for i, c in enumerate(cols)}
+                        for row in grid
+                    ]
+                else:
+                    return "⚠️ Unexpected grid type — save aborted.", None
+
+                decision_by_term = {
+                    str(r.get("term", "")).strip(): str(r.get("reviewer_decision", "proposed")).strip()
+                    for r in grid_rows
+                    if r.get("term")
+                }
+
+                original_rows = []
+                with csv_path.open(encoding="utf-8", newline="") as fh:
+                    reader = _csv.DictReader(fh)
+                    fieldnames = list(reader.fieldnames or [])
+                    for row in reader:
+                        original_rows.append(dict(row))
+
+                if "reviewer_decision" not in fieldnames:
+                    fieldnames.append("reviewer_decision")
+
+                updated = 0
+                for row in original_rows:
+                    term = str(row.get("term", "")).strip()
+                    if term in decision_by_term:
+                        new_dec = decision_by_term[term].lower()
+                        if new_dec not in ("approved", "rejected", "proposed"):
+                            new_dec = "proposed"
+                        if row.get("reviewer_decision", "").strip().lower() != new_dec:
+                            row["reviewer_decision"] = new_dec
+                            updated += 1
+                        elif "reviewer_decision" not in row or not row["reviewer_decision"]:
+                            row["reviewer_decision"] = new_dec
+
+                buf = _io.StringIO()
+                writer = _csv.DictWriter(buf, fieldnames=fieldnames, lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(original_rows)
+                csv_path.write_text(buf.getvalue(), encoding="utf-8")
+
+                approved = sum(1 for r in original_rows if (r.get("reviewer_decision") or "").strip().lower() == "approved")
+                rejected = sum(1 for r in original_rows if (r.get("reviewer_decision") or "").strip().lower() == "rejected")
+                pending = sum(1 for r in original_rows if (r.get("reviewer_decision") or "proposed").strip().lower() in ("", "proposed"))
+                return (
+                    f"💾 Saved `{csv_path.name}` ({len(original_rows)} rows, {updated} updated). "
+                    f"✅ {approved} approved · ❌ {rejected} rejected · ⏳ {pending} pending"
+                ), None
+
+            def _tr_commit(run_dir_path):
+                """Call the committer for the loaded run. Dry-run if gate is off."""
+                import sys as _s, pathlib as _p
+                _rs = str(_p.Path(__file__).parent.parent / "scripts")
+                if _rs not in _s.path:
+                    _s.path.insert(0, _rs)
+                try:
+                    import mrp_approval_committer as _m
+                except ImportError as exc:
+                    return f"⚠️ Could not import committer: {exc}"
+
+                if not run_dir_path:
+                    return "⚠️ No run loaded — click **Load terms** first, then save your decisions."
+
+                commit_enabled = os.getenv("MRP_ENABLE_GRAPH_COMMIT", "").lower() == "true"
+                run_dir = _p.Path(run_dir_path)
+                try:
+                    summary = _m.run(run_dir=run_dir, commit=commit_enabled)
+                except (FileNotFoundError, ValueError) as exc:
+                    return f"⚠️ {exc}"
+                except Exception as exc:
+                    return f"⚠️ Unexpected error: {type(exc).__name__}: {exc}"
+
+                lines = [
+                    f"**Run:** `{summary['run_id']}`",
+                    f"✅ Approved: {summary['approved']} · ❌ Rejected: {summary['rejected']} · ⏳ Pending: {summary['pending_review']}",
+                    f"Edges included: {summary['edges_included']} · Anchor nodes: {summary['anchor_nodes_included']}",
+                ]
+                if summary.get("dry_run"):
+                    lines.append(
+                        "ℹ️ **Dry run** — no data written. "
+                        "Set `MRP_ENABLE_GRAPH_COMMIT=true` and re-click Commit to write to ArangoDB."
+                    )
+                elif summary.get("committed"):
+                    commit_result = summary.get("commit_result", {})
+                    lines.append(f"🚀 **Committed** — result: `{commit_result}`")
+                else:
+                    lines.append("ℹ️ No approved terms to commit.")
+
+                return "\n\n".join(lines)
+
+            tr_load_btn.click(
+                fn=_tr_load,
+                inputs=[tr_run_dd],
+                outputs=[tr_grid, tr_status_md, tr_run_state],
+            )
+            tr_run_dd.change(
+                fn=_tr_load,
+                inputs=[tr_run_dd],
+                outputs=[tr_grid, tr_status_md, tr_run_state],
+            )
+            tr_save_btn.click(
+                fn=_tr_save,
+                inputs=[tr_grid, tr_run_state],
+                outputs=[tr_status_md, tr_summary_md],
+            )
+            tr_commit_btn.click(
+                fn=_tr_commit,
+                inputs=[tr_run_state],
+                outputs=[tr_summary_md],
+            )
+
+            if _tr_run_ids:
+                demo.load(
+                    fn=lambda: _tr_load(_tr_run_ids[0]),
+                    outputs=[tr_grid, tr_status_md, tr_run_state],
+                )
+
         with gr.Tab("🔄 Graph Sync"):
             gr.Markdown("""
             ### ArangoDB Graph Sync
@@ -6852,6 +7138,48 @@ Check that perspective-concept and intent-concept relationships are seeded.
         demo.load(fn=_load_gt_erp_header, outputs=aaq_erp_md)
     
     return demo
+
+
+@app.post("/mcp/tools/mrp_term_review_commit")
+async def mrp_term_review_commit(run_id: Optional[str] = None, commit: bool = False):
+    """Load a staging run and optionally commit approved MRP research terms to mrp_research graph.
+
+    Parameters
+    ----------
+    run_id : str, optional
+        Staging run folder name (e.g. ``20260627T185702Z``).  When omitted the
+        most-recent run folder is used.
+    commit : bool
+        ``True`` to actually write to ArangoDB.  Also requires the environment
+        variable ``MRP_ENABLE_GRAPH_COMMIT=true``; otherwise the call is always
+        a dry-run regardless of this flag.
+
+    Returns the committer summary dict (decision counts, committed flag, etc.).
+    """
+    import sys as _sys
+    import pathlib as _pl
+    _repo_scripts = str(_pl.Path(__file__).parent.parent / "scripts")
+    if _repo_scripts not in _sys.path:
+        _sys.path.insert(0, _repo_scripts)
+    try:
+        import mrp_approval_committer as _mac
+    except ImportError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not import mrp_approval_committer: {exc}")
+
+    staging_root = _mac.DEFAULT_STAGING_ROOT
+    try:
+        run_dir = _mac._resolve_run_dir(run_id, staging_root)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    try:
+        summary = _mac.run(run_dir=run_dir, commit=commit)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Committer error: {exc}")
+
+    return summary
 
 
 get_db_engine()
