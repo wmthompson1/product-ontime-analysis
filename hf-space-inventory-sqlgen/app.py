@@ -470,6 +470,10 @@ def init_sqlite_db():
                     "desired_rls_date": "desired_rls_date DATETIME",
                     "sched_start_date": "sched_start_date DATETIME",
                     "sched_finish_date": "sched_finish_date DATETIME",
+                    # Outside-service header enrichment (MRP data foundation).
+                    # Display-only; set by migrations/backfill_mrp_demand_supply.py.
+                    "service_date": "service_date DATE",
+                    "vendor_id": "vendor_id TEXT",
                 },
             )
             conn.commit()

@@ -120,6 +120,8 @@ CREATE TABLE IF NOT EXISTS customer_order_line (
     site_id       TEXT,
     order_qty     REAL NOT NULL,
     unit_price    REAL DEFAULT 0,
+    need_by_date         DATE,                    -- demand need-by (MRP), set by migrations/backfill_mrp_demand_supply.py
+    desired_release_date DATE,                    -- need_by_date − part.lead_time_days (MRP), set by migrations/backfill_mrp_demand_supply.py
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES customer_order(order_id),
     FOREIGN KEY (part_id)  REFERENCES part(part_id),

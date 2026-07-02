@@ -227,6 +227,8 @@ CREATE TABLE IF NOT EXISTS work_order (
     sched_start_date  DATETIME,                  -- scheduled start = earliest operation start (derived from routing), set by migrations/backfill_operation_schedule.py
     sched_finish_date DATETIME,                  -- scheduled finish = latest operation finish (derived from routing), set by migrations/backfill_operation_schedule.py
     outside_service  INTEGER DEFAULT 0,          -- 1 if any op routes outside
+    service_date     DATE,                       -- outside-service due date (display-only), set by migrations/backfill_mrp_demand_supply.py
+    vendor_id        TEXT,                       -- outside-service vendor → suppliers (display-only), set by migrations/backfill_mrp_demand_supply.py
     site_id          TEXT DEFAULT 'SITE-1',
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
