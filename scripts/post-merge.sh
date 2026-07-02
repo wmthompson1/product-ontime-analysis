@@ -278,4 +278,11 @@ if [ -f replit_integrations/sql_aql_parity_check.py ]; then
   }
 fi
 
+if [ -f tests/test_mrp_approval_committer.py ]; then
+  python tests/test_mrp_approval_committer.py || {
+    echo "post-merge: MRP approval committer tests failed"
+    exit 1
+  }
+fi
+
 echo "post-merge: OK"

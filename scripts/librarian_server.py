@@ -528,12 +528,27 @@ def stage_terminology(filepath: Optional[str] = None, commit: bool = False) -> D
         doc_path = _resolve_path(filepath) if filepath else stager.DEFAULT_DOC
         logger.info("Staging terminology from %s (commit=%s)", doc_path, commit)
 
-        return stager.run(
+        result = stager.run(
             doc_path=Path(doc_path),
             db_path=stager.DEFAULT_SQLITE,
             staging_root=stager.DEFAULT_STAGING_ROOT,
             commit=commit,
         )
+        result["next_step"] = {
+            "action": "review_and_approve",
+            "instructions": (
+                "Open proposed_terms.csv in the staging folder. "
+                "Set reviewer_decision to 'approved' or 'rejected' for each term "
+                "(leave as 'proposed' to skip for now). "
+                "Then run the committer to push only the approved terms to mrp_research."
+            ),
+            "staging_dir": result.get("artifact_dir", ""),
+            "committer_cmd": (
+                f"python scripts/mrp_approval_committer.py "
+                f"--run-id {result.get('run_id', '')}"
+            ),
+        }
+        return result
     except Exception:
         logger.exception("Failed to stage terminology")
         raise

@@ -332,6 +332,7 @@ def build_payload(
                 "source_section": term.source_section,
                 "extraction_method": extraction_method,
                 "is_anchored": term.is_anchored,
+                "reviewer_decision": "proposed",
             }
         )
 
@@ -396,6 +397,7 @@ def write_artifacts(
                 "category_anchors",
                 "anchored",
                 "definition",
+                "reviewer_decision",
             ]
         )
         for term in terms:
@@ -408,6 +410,7 @@ def write_artifacts(
                     "; ".join(f"{a['name']}({a['score']})" for a in term.category_anchors),
                     "yes" if term.is_anchored else "no",
                     term.definition,
+                    "proposed",
                 ]
             )
 
