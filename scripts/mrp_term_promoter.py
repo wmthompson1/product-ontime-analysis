@@ -589,11 +589,51 @@ def run(
     summary["inserted"] = inserted
 
     # --- Bump SCHEMA_VERSION and re-run exporter ---
-    _bump_schema_version(export_script, new_version, new_milestone)
-    summary["schema_version_bumped_to"] = new_version
-    summary["milestone"] = new_milestone
+    # Snapshot the file BEFORE any change so we can revert atomically if the
+    # exporter subprocess fails.  The DB write is intentionally left in place on
+    # failure — INSERT OR IGNORE makes re-promotion idempotent, so a subsequent
+    # --commit run will skip the already-inserted rows and retry the export
+    # cleanly without any manual cleanup.
+    _export_script_original = export_script.read_text(encoding="utf-8")
 
-    _run_exporter(export_script)
+    try:
+        _bump_schema_version(export_script, new_version, new_milestone)
+        summary["schema_version_bumped_to"] = new_version
+        summary["milestone"] = new_milestone
+
+        _run_exporter(export_script)
+    except Exception as exc:
+        # Restore the file so SCHEMA_VERSION stays in sync with the last
+        # successfully committed graph_metadata.json snapshot.
+        try:
+            export_script.write_text(_export_script_original, encoding="utf-8")
+            logger.warning(
+                "Exporter failed — SCHEMA_VERSION reverted to %d in %s.",
+                current_version,
+                export_script.name,
+            )
+        except OSError as restore_err:
+            logger.error(
+                "SCHEMA_VERSION revert also failed (%s). "
+                "Manually restore SCHEMA_VERSION = %d in %s before the next run.",
+                restore_err,
+                current_version,
+                export_script,
+            )
+        raise RuntimeError(
+            f"Promotion incomplete — exporter failed; SCHEMA_VERSION reverted to "
+            f"{current_version}.\n\n"
+            f"What happened:\n"
+            f"  • {inserted} concept(s) were written to schema_concepts (they remain in the DB).\n"
+            f"  • The SCHEMA_VERSION bump was rolled back so graph_metadata.json stays in\n"
+            f"    sync with version {current_version} (the last clean snapshot).\n\n"
+            f"Recovery — fix the exporter error, then re-run:\n"
+            f"  MRP_ENABLE_GRAPH_COMMIT=true python scripts/mrp_term_promoter.py --commit\n"
+            f"Re-running is safe: INSERT OR IGNORE will skip the already-inserted rows\n"
+            f"and the exporter will run again against the complete concept set.\n\n"
+            f"Original error:\n{exc}"
+        ) from exc
+
     summary["export_ran"] = True
 
     # --- Verify field description coverage still passes ---

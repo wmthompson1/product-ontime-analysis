@@ -580,6 +580,143 @@ def test_missing_reviewer_decision_column_fails_closed(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# Unit tests — exporter failure: SCHEMA_VERSION revert guard
+# ---------------------------------------------------------------------------
+
+
+def test_exporter_failure_reverts_schema_version(tmp_path):
+    """If the exporter subprocess fails, SCHEMA_VERSION is restored to its
+    pre-bump value so graph_metadata.json stays in sync with the version number.
+    """
+    csv_rows = [_make_row("Available Capacity", "approved")]
+    run_dir = _make_run_dir(csv_rows, _PAYLOAD)
+    db_path = _make_temp_db()
+    export_script = _make_temp_export_script(version=19)
+    original_text = export_script.read_text(encoding="utf-8")
+
+    def _failing_exporter(_script):
+        raise RuntimeError("Simulated exporter crash")
+
+    with mock.patch.dict(os.environ, {"MRP_ENABLE_GRAPH_COMMIT": "true"}):
+        with mock.patch.object(pt, "_run_exporter", side_effect=_failing_exporter):
+            try:
+                pt.run(
+                    run_dir=run_dir,
+                    commit=True,
+                    db_path=db_path,
+                    export_script=export_script,
+                    coverage_check=tmp_path / "nonexistent_coverage.py",
+                )
+                raise AssertionError("Expected RuntimeError was not raised")
+            except RuntimeError as exc:
+                msg = str(exc)
+                assert "SCHEMA_VERSION reverted" in msg, (
+                    "Error message must mention SCHEMA_VERSION revert"
+                )
+                assert str(19) in msg, "Error message must reference the original version"
+                assert "INSERT OR IGNORE" in msg or "re-running" in msg.lower() or "Re-running" in msg, (
+                    "Error message must include recovery instructions"
+                )
+
+    # The file must be restored to its original content (version 19, not 20).
+    restored_text = export_script.read_text(encoding="utf-8")
+    assert restored_text == original_text, (
+        "export_graph_metadata.py must be fully restored to pre-bump content on exporter failure"
+    )
+    assert "SCHEMA_VERSION = 20" not in restored_text, (
+        "Bumped version must not remain after exporter failure"
+    )
+    assert "SCHEMA_VERSION = 19" in restored_text, "Original version 19 must be present after revert"
+
+
+def test_exporter_failure_leaves_db_write_intact(tmp_path):
+    """DB rows inserted before the exporter failure are intentionally kept —
+    idempotent re-promotion will skip them via INSERT OR IGNORE.
+    """
+    csv_rows = [_make_row("Available Capacity", "approved")]
+    run_dir = _make_run_dir(csv_rows, _PAYLOAD)
+    db_path = _make_temp_db()
+    export_script = _make_temp_export_script(version=19)
+
+    def _failing_exporter(_script):
+        raise RuntimeError("Simulated exporter crash")
+
+    with mock.patch.dict(os.environ, {"MRP_ENABLE_GRAPH_COMMIT": "true"}):
+        with mock.patch.object(pt, "_run_exporter", side_effect=_failing_exporter):
+            try:
+                pt.run(
+                    run_dir=run_dir,
+                    commit=True,
+                    db_path=db_path,
+                    export_script=export_script,
+                    coverage_check=tmp_path / "nonexistent_coverage.py",
+                )
+            except RuntimeError:
+                pass
+
+    # Concept rows must still be present in the DB.
+    conn = sqlite3.connect(str(db_path))
+    count = conn.execute("SELECT COUNT(*) FROM schema_concepts").fetchone()[0]
+    names = {r[0] for r in conn.execute("SELECT concept_name FROM schema_concepts").fetchall()}
+    conn.close()
+    assert count == 1, f"DB write must survive exporter failure, found {count} rows"
+    assert "Available Capacity" in names
+
+
+def test_rerun_after_exporter_failure_succeeds(tmp_path):
+    """After a failed commit (exporter crash + version revert), a clean re-run
+    completes successfully: INSERT OR IGNORE skips the already-inserted rows
+    and the exporter runs against the full concept set.
+    """
+    csv_rows = [_make_row("Available Capacity", "approved")]
+    run_dir = _make_run_dir(csv_rows, _PAYLOAD)
+    db_path = _make_temp_db()
+    export_script = _make_temp_export_script(version=19)
+
+    def _failing_exporter(_script):
+        raise RuntimeError("Simulated exporter crash")
+
+    # First run — exporter fails, version reverts.
+    with mock.patch.dict(os.environ, {"MRP_ENABLE_GRAPH_COMMIT": "true"}):
+        with mock.patch.object(pt, "_run_exporter", side_effect=_failing_exporter):
+            try:
+                pt.run(
+                    run_dir=run_dir,
+                    commit=True,
+                    db_path=db_path,
+                    export_script=export_script,
+                    coverage_check=tmp_path / "nonexistent_coverage.py",
+                )
+            except RuntimeError:
+                pass
+
+    # Confirm version was reverted.
+    assert "SCHEMA_VERSION = 19" in export_script.read_text(encoding="utf-8")
+
+    # Second run — exporter succeeds.
+    with mock.patch.dict(os.environ, {"MRP_ENABLE_GRAPH_COMMIT": "true"}):
+        with mock.patch.object(pt, "_run_exporter"):
+            with mock.patch.object(pt, "_run_coverage_check"):
+                summary = pt.run(
+                    run_dir=run_dir,
+                    commit=True,
+                    db_path=db_path,
+                    export_script=export_script,
+                    coverage_check=tmp_path / "nonexistent_coverage.py",
+                )
+
+    assert summary["committed"] is True
+    # All rows were already present from the first (partial) run — inserted == 0.
+    assert summary["inserted"] == 0, (
+        f"Re-run must skip already-inserted rows via INSERT OR IGNORE, got {summary['inserted']}"
+    )
+    assert summary["schema_version_bumped_to"] == 20, (
+        "Version must advance to 20 on successful re-run"
+    )
+    assert "SCHEMA_VERSION = 20" in export_script.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
 # Entry point (run directly or via pytest)
 # ---------------------------------------------------------------------------
 
@@ -606,6 +743,9 @@ if __name__ == "__main__":
         test_no_approved_terms_exits_clean,
         test_invalid_decision_fails_closed,
         test_missing_reviewer_decision_column_fails_closed,
+        test_exporter_failure_reverts_schema_version,
+        test_exporter_failure_leaves_db_write_intact,
+        test_rerun_after_exporter_failure_succeeds,
     ]
 
     passed = 0
