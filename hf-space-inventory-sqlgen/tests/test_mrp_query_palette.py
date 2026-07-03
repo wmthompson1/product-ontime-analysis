@@ -420,6 +420,117 @@ def test_batch8_resolve_by_binding_key_returns_sql():
     assert not errors, "\n".join(errors)
 
 
+# ---------------------------------------------------------------------------
+# Live execution: prove each of the 7 pure-SQL MRP snippets EXECUTES against
+# manufacturing.db and returns at least one row.  Parsing / resolving is not
+# enough — a snippet must actually run and yield data.  These 7 are the
+# time-phased ATP + AllocatedQuantity (batch 7) and the five static/horizon
+# policy proxies (batch 8).
+# ---------------------------------------------------------------------------
+
+SEVEN_MRP_BINDING_KEYS = {**DERIVED_BINDING_KEYS, **BATCH8_BINDING_KEYS}
+
+
+def _execute_snippet(sql: str):
+    """Run a snippet against manufacturing.db, returning (columns, rows).
+
+    Read-only: opens the DB, executes the SELECT, fetches all rows, closes.
+    """
+    import sqlite3
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cur = conn.execute(sql)
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description] if cur.description else []
+        return cols, rows
+    finally:
+        conn.close()
+
+
+def test_seven_mrp_snippets_execute_and_return_rows():
+    """Each of the 7 pure-SQL MRP snippets executes on manufacturing.db and
+    returns at least one row (not just parses/resolves)."""
+    _require_db()
+    engine = SolderEngine(db_path=DB_PATH, manifest_path=MANIFEST_PATH)
+
+    errors = []
+    for concept, bk in SEVEN_MRP_BINDING_KEYS.items():
+        result = engine.resolve_by_binding_key(bk, target_dialect="sqlite")
+        sql = result.get("sql", "")
+        if not sql:
+            errors.append(f"{concept} ({bk}): resolve returned empty SQL")
+            continue
+        try:
+            cols, rows = _execute_snippet(sql)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{concept} ({bk}): SQL failed to execute: {exc}")
+            continue
+        if not cols:
+            errors.append(f"{concept} ({bk}): query returned no columns")
+        if not rows:
+            errors.append(
+                f"{concept} ({bk}): query executed but returned 0 rows — "
+                f"a snippet that yields no data cannot back a live MRP concept"
+            )
+
+    assert not errors, "\n".join(errors)
+
+
+def test_seven_mrp_snippets_resolve_without_fallback():
+    """resolve_by_binding_key for the 7 MRP snippets never emits a fallback /
+    auto-generated warning — resolution must hit the approved SME snippet."""
+    _require_db()
+    engine = SolderEngine(db_path=DB_PATH, manifest_path=MANIFEST_PATH)
+
+    errors = []
+    for concept, bk in SEVEN_MRP_BINDING_KEYS.items():
+        result = engine.resolve_by_binding_key(bk, target_dialect="sqlite")
+        warnings = result.get("warnings", []) or []
+        fallback = [
+            w for w in warnings
+            if "auto-generated" in w.lower() or "no approved" in w.lower()
+        ]
+        if fallback:
+            errors.append(f"{concept} ({bk}): unexpected fallback warning: {fallback}")
+
+    assert not errors, "\n".join(errors)
+
+
+def test_seven_mrp_snippets_are_pure_sql():
+    """The 7 MRP snippet files contain only pure SQL — no SPARQL / AQL / graph
+    traversal or runtime {variable} templating.  The Solder Pattern serves them
+    verbatim, so any non-SQL token would break execution."""
+    manifest = _load_manifest()
+    snippets = manifest.get("approved_snippets", {})
+
+    import re
+
+    forbidden = re.compile(
+        r"\{[A-Za-z_][A-Za-z0-9_]*\}"      # {variable} template placeholders
+        r"|\bSPARQL\b|\bPREFIX\b"           # SPARQL
+        r"|\bresolves_to\b|\bAQL\b",        # graph traversal
+        re.IGNORECASE,
+    )
+
+    errors = []
+    for concept, bk in SEVEN_MRP_BINDING_KEYS.items():
+        entry = snippets.get(bk, {})
+        resolved = _resolve_sql_path(entry.get("file_path", ""))
+        if not resolved:
+            errors.append(f"{concept} ({bk}): SQL file not found on disk")
+            continue
+        content = open(resolved, encoding="utf-8").read()
+        hit = forbidden.search(content)
+        if hit:
+            errors.append(
+                f"{concept} ({bk}): non-SQL token found ({hit.group(0)!r}) — "
+                f"snippet must be pure SQL"
+            )
+
+    assert not errors, "\n".join(errors)
+
+
 def test_fallback_path_sets_warning_in_solder_result() -> None:
     """When no approved snippet exists, SolderEngine must record the fallback
     warning in SolderResult.warnings.
@@ -469,6 +580,9 @@ if __name__ == "__main__":
         test_batch8_snippet_files_exist_and_have_sql,
         test_batch8_intents_solder_returns_real_sql,
         test_batch8_resolve_by_binding_key_returns_sql,
+        test_seven_mrp_snippets_execute_and_return_rows,
+        test_seven_mrp_snippets_resolve_without_fallback,
+        test_seven_mrp_snippets_are_pure_sql,
         test_fallback_path_sets_warning_in_solder_result,
     ]
     passed = failed = 0
