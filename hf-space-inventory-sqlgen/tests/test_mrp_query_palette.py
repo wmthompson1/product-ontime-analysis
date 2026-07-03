@@ -420,6 +420,35 @@ def test_batch8_resolve_by_binding_key_returns_sql():
     assert not errors, "\n".join(errors)
 
 
+def test_fallback_path_sets_warning_in_solder_result() -> None:
+    """When no approved snippet exists, SolderEngine must record the fallback
+    warning in SolderResult.warnings.
+
+    This guards the Solder Pattern guarantee: auto-generated SQL is never
+    silently served as if it were an SME-approved snippet.  The Query Palette
+    reads result.warnings and surfaces them in the Solder Details panel.
+    """
+    import unittest.mock
+
+    solder = SolderEngine(DB_PATH)
+    # Patch approved bindings to empty so every intent hits the fallback path.
+    with unittest.mock.patch.object(solder, "load_approved_bindings", return_value={}):
+        result = solder.solder(intent_name="inventory_planning", target_dialect="sqlite")
+
+    assert result.warnings, (
+        "Expected at least one warning on the fallback path, got none"
+    )
+    fallback_msgs = [
+        w for w in result.warnings
+        if "auto-generated" in w.lower() or "no approved" in w.lower()
+    ]
+    assert fallback_msgs, (
+        f"Expected fallback warning mentioning 'auto-generated' or 'no approved', "
+        f"got: {result.warnings}"
+    )
+    print("PASS: fallback path sets warning in SolderResult.warnings")
+
+
 # ---------------------------------------------------------------------------
 # Standalone runner (also runs under pytest)
 # ---------------------------------------------------------------------------
@@ -440,6 +469,7 @@ if __name__ == "__main__":
         test_batch8_snippet_files_exist_and_have_sql,
         test_batch8_intents_solder_returns_real_sql,
         test_batch8_resolve_by_binding_key_returns_sql,
+        test_fallback_path_sets_warning_in_solder_result,
     ]
     passed = failed = 0
     for _t in _TESTS:

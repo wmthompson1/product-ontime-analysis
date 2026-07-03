@@ -284,6 +284,7 @@ class ProductionDispatcher:
     def _build_system_prompt(self) -> str:
         intent_block = "\n".join(
             f"  - {d['intent_name']} ({d['intent_category']}): {d['description']}"
+            + (f'  e.g. "{d["typical_question"]}"' if d.get("typical_question") else "")
             for d in self.intent_details
         )
         concept_block = ", ".join(self.concepts)

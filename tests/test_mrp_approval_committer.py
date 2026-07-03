@@ -401,6 +401,76 @@ def test_env_var_zero_blocks_do_commit():
 
 
 # ---------------------------------------------------------------------------
+# Truthy-spelling tests: guard PASSES for all accepted values
+# ---------------------------------------------------------------------------
+
+def _call_do_commit_truthy(env_value: str) -> unittest.mock.MagicMock:
+    """Call _do_commit with a truthy MRP_ENABLE_GRAPH_COMMIT value.
+
+    Patches librarian_server.commit_to_arangodb to return a success dict so
+    no ArangoDB connection is needed.  Returns the mock so callers can assert
+    it was invoked — confirming the guard passed rather than being bypassed.
+    """
+    import os as _os
+    import sys as _sys
+
+    _scripts_dir = str(Path(__file__).parent.parent / "scripts")
+    if _scripts_dir not in _sys.path:
+        _sys.path.insert(0, _scripts_dir)
+    import librarian_server as _ls  # noqa: E402 — must be on path before patching
+
+    _mock = unittest.mock.MagicMock(return_value={
+        "committed": True, "upserted_nodes": 0, "upserted_edges": 0, "errors": [],
+    })
+    with unittest.mock.patch.dict(_os.environ, {"MRP_ENABLE_GRAPH_COMMIT": env_value}):
+        with unittest.mock.patch.object(_ls, "commit_to_arangodb", _mock):
+            ac._do_commit(_MINIMAL_PAYLOAD)
+    return _mock
+
+
+def test_truthy_true_unlocks_commit():
+    """Guard passes and mock is called when MRP_ENABLE_GRAPH_COMMIT='true'."""
+    mock = _call_do_commit_truthy("true")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'true'"
+
+
+def test_truthy_one_unlocks_commit():
+    """Guard passes when MRP_ENABLE_GRAPH_COMMIT='1'."""
+    mock = _call_do_commit_truthy("1")
+    assert mock.called, "commit_to_arangodb mock should have been called for '1'"
+
+
+def test_truthy_yes_unlocks_commit():
+    """Guard passes when MRP_ENABLE_GRAPH_COMMIT='yes'."""
+    mock = _call_do_commit_truthy("yes")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'yes'"
+
+
+def test_truthy_on_unlocks_commit():
+    """Guard passes when MRP_ENABLE_GRAPH_COMMIT='on'."""
+    mock = _call_do_commit_truthy("on")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'on'"
+
+
+def test_truthy_uppercase_TRUE_unlocks_commit():
+    """Guard is case-insensitive: 'TRUE' passes."""
+    mock = _call_do_commit_truthy("TRUE")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'TRUE'"
+
+
+def test_truthy_titlecase_True_unlocks_commit():
+    """Guard is case-insensitive: 'True' passes."""
+    mock = _call_do_commit_truthy("True")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'True'"
+
+
+def test_truthy_uppercase_YES_unlocks_commit():
+    """Guard is case-insensitive: 'YES' passes."""
+    mock = _call_do_commit_truthy("YES")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'YES'"
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner (also runs under pytest)
 # ---------------------------------------------------------------------------
 
@@ -419,6 +489,13 @@ if __name__ == "__main__":
         test_env_var_absent_blocks_do_commit,
         test_env_var_false_blocks_do_commit,
         test_env_var_zero_blocks_do_commit,
+        test_truthy_true_unlocks_commit,
+        test_truthy_one_unlocks_commit,
+        test_truthy_yes_unlocks_commit,
+        test_truthy_on_unlocks_commit,
+        test_truthy_uppercase_TRUE_unlocks_commit,
+        test_truthy_titlecase_True_unlocks_commit,
+        test_truthy_uppercase_YES_unlocks_commit,
     ]
     passed = failed = 0
     for _t in _TESTS:
