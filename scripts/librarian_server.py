@@ -505,7 +505,11 @@ def parse_ddl_csv(csv_filepath: str) -> str:
 
 
 @mcp.tool()
-def stage_terminology(filepath: Optional[str] = None, commit: bool = False) -> Dict[str, Any]:
+def stage_terminology(
+    filepath: Optional[str] = None,
+    commit: bool = False,
+    preserve_decisions_path: Optional[str] = None,
+) -> Dict[str, Any]:
     """Read a manufacturing terminology .docx and stage PROPOSED terms into mrp_research.
 
     Deterministic glossary extraction anchors each proposed term to the existing
@@ -519,6 +523,10 @@ def stage_terminology(filepath: Optional[str] = None, commit: bool = False) -> D
             document root). Defaults to the bundled terminology document.
         commit: When True, stage the proposals into the mrp_research graph via the
             gated, hard-guarded commit path. When False (default), dry run only.
+        preserve_decisions_path: Optional path to a prior proposed_terms.csv.
+            When supplied, any 'approved' or 'rejected' reviewer_decision values
+            from that file are carried forward into the new CSV, keyed by term
+            name. Brand-new terms not found in the prior file start as 'proposed'.
     """
     try:
         if str(_SCRIPTS_DIR) not in sys.path:
@@ -526,13 +534,25 @@ def stage_terminology(filepath: Optional[str] = None, commit: bool = False) -> D
         import mrp_terminology_stager as stager
 
         doc_path = _resolve_path(filepath) if filepath else stager.DEFAULT_DOC
-        logger.info("Staging terminology from %s (commit=%s)", doc_path, commit)
+        logger.info(
+            "Staging terminology from %s (commit=%s, preserve_decisions=%s)",
+            doc_path,
+            commit,
+            preserve_decisions_path,
+        )
+
+        prior_path = (
+            Path(preserve_decisions_path).expanduser()
+            if preserve_decisions_path
+            else None
+        )
 
         result = stager.run(
             doc_path=Path(doc_path),
             db_path=stager.DEFAULT_SQLITE,
             staging_root=stager.DEFAULT_STAGING_ROOT,
             commit=commit,
+            preserve_decisions=prior_path,
         )
         result["next_step"] = {
             "action": "review_and_approve",

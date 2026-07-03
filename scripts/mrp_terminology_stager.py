@@ -374,11 +374,35 @@ def build_payload(
     return {"nodes": nodes, "edges": edges}
 
 
+_CARRY_OVER_DECISIONS: Set[str] = {"approved", "rejected"}
+
+
+def _load_prior_decisions(csv_path: Path) -> Dict[str, str]:
+    """Return {term_name: reviewer_decision} from a prior proposed_terms.csv.
+
+    Only ``approved`` and ``rejected`` decisions are loaded; everything else is
+    ignored so that ``proposed`` / blank rows in the old CSV do not pin new
+    terms to a stale state.
+    """
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Prior decisions CSV not found: {csv_path}")
+    decisions: Dict[str, str] = {}
+    with csv_path.open(encoding="utf-8", newline="") as fh:
+        reader = csv.DictReader(fh)
+        for row in reader:
+            term_name = (row.get("term") or "").strip()
+            decision = (row.get("reviewer_decision") or "").strip().lower()
+            if term_name and decision in _CARRY_OVER_DECISIONS:
+                decisions[term_name] = decision
+    return decisions
+
+
 def write_artifacts(
     run_dir: Path,
     payload: Dict[str, List[Dict[str, Any]]],
     terms: Sequence[CandidateTerm],
     manifest: Dict[str, Any],
+    prior_decisions: Optional[Dict[str, str]] = None,
 ) -> None:
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "proposed_terms.json").write_text(
@@ -401,6 +425,8 @@ def write_artifacts(
             ]
         )
         for term in terms:
+            carried = (prior_decisions or {}).get(term.term, "")
+            decision = carried if carried in _CARRY_OVER_DECISIONS else "proposed"
             writer.writerow(
                 [
                     term.term,
@@ -410,7 +436,7 @@ def write_artifacts(
                     "; ".join(f"{a['name']}({a['score']})" for a in term.category_anchors),
                     "yes" if term.is_anchored else "no",
                     term.definition,
-                    "proposed",
+                    decision,
                 ]
             )
 
@@ -437,6 +463,7 @@ def run(
     staging_root: Path,
     commit: bool = False,
     use_ai: bool = False,
+    preserve_decisions: Optional[Path] = None,
 ) -> Dict[str, Any]:
     if not doc_path.exists():
         raise FileNotFoundError(f"Terminology document not found: {doc_path}")
@@ -500,6 +527,15 @@ def run(
         ),
     }
 
+    prior_decisions: Dict[str, str] = {}
+    if preserve_decisions is not None:
+        prior_decisions = _load_prior_decisions(preserve_decisions)
+        logger.info(
+            "Preserving %d reviewer decision(s) from %s",
+            len(prior_decisions),
+            preserve_decisions,
+        )
+
     run_dir = staging_root / run_id
 
     commit_result: Optional[Dict[str, Any]] = None
@@ -508,7 +544,7 @@ def run(
         manifest["committed"] = True
         manifest["commit_result"] = commit_result
 
-    write_artifacts(run_dir, payload, terms, manifest)
+    write_artifacts(run_dir, payload, terms, manifest, prior_decisions or None)
 
     summary = {
         "run_id": run_id,
@@ -558,17 +594,33 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="(Disabled) AI extraction is intentionally not available",
     )
+    parser.add_argument(
+        "--preserve-decisions",
+        metavar="PATH",
+        default=None,
+        help=(
+            "Path to a prior proposed_terms.csv whose 'approved' and 'rejected' "
+            "reviewer_decision values should be carried forward into the new CSV. "
+            "Brand-new terms not present in the prior file start as 'proposed'."
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = _parse_args()
+    preserve_path = (
+        Path(args.preserve_decisions).expanduser()
+        if args.preserve_decisions
+        else None
+    )
     summary = run(
         doc_path=Path(args.doc).expanduser(),
         db_path=Path(args.db).expanduser(),
         staging_root=Path(args.staging_root).expanduser(),
         commit=args.commit,
         use_ai=args.ai,
+        preserve_decisions=preserve_path,
     )
     print(json.dumps(summary, indent=2))
 
