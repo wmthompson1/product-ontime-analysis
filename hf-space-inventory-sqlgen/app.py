@@ -393,6 +393,14 @@ def ensure_app_metadata_tables(conn) -> None:
     except Exception as _mig_err:
         print(f"[ensure_app_metadata_tables] edge_type CHECK migration skipped: {_mig_err}")
 
+    # View ontology table — stores the ontological structure (tables, joins,
+    # predicates, grain, time-phasing) extracted from the 7 MRP ground-truth views.
+    try:
+        from view_ontology_extractor import create_view_ontology_table
+        create_view_ontology_table(conn)
+    except Exception as _vo_err:
+        print(f"[ensure_app_metadata_tables] view_ontology table skipped: {_vo_err}")
+
     conn.commit()
 
 
@@ -554,6 +562,22 @@ def init_sqlite_db():
                 print(f"table_descriptions sync warning: {_td.get('error')}")
     except Exception as e:
         print(f"table_descriptions sync warning: {e}")
+
+    # Extract the embedded ontological structure from the 7 MRP ground-truth SQL
+    # views and seed sql_view_ontology. INSERT OR REPLACE — idempotent on every
+    # boot, safe to re-run. Never blocks boot.
+    try:
+        import sqlite3 as _vo_sqlite3
+        from view_ontology_extractor import extract_all_mrp_views, seed_view_ontology_table
+        _vo_base = os.path.dirname(os.path.abspath(__file__))
+        _vo_manifest = os.path.join(_vo_base, "app_schema", "ground_truth", "reviewer_manifest.json")
+        if os.path.exists(_vo_manifest):
+            _vos = extract_all_mrp_views(_vo_manifest, _vo_base)
+            with _vo_sqlite3.connect(SQLITE_DB_PATH) as _vc:
+                _vn = seed_view_ontology_table(_vc, _vos)
+            print(f"view_ontology: seeded {_vn} view(s) into sql_view_ontology.")
+    except Exception as e:
+        print(f"view_ontology seed warning: {e}")
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
@@ -5828,6 +5852,133 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
             mrp_btn.click(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
             mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
+
+        with gr.Tab("🧩 View Ontology"):
+            gr.Markdown("""
+            ### Ground-Truth View Ontology
+
+            The ground-truth SQL **IS the view** — it tells the complete story.
+            The joins are the relationships, the CTEs provide the hierarchy scaffolding,
+            the WHERE predicates encode the set-membership rules, and the ORDER/GROUP BY
+            defines the grain.
+
+            This tab surfaces the ontological structure **extracted by SQLGlot** from
+            each of the 7 MRP views — physical tables touched, join relationships,
+            set-gating predicates, grain, time-phasing, and output concepts — as
+            first-class governed metadata stored in `sql_view_ontology`.
+
+            Nothing is executed against a database. Extraction is pure AST analysis
+            of the SQL text.
+            """)
+
+            try:
+                import sqlite3 as _svo_sqlite
+                from view_ontology_extractor import list_view_ontologies, get_view_ontology
+                _svo_conn = _svo_sqlite.connect(SQLITE_DB_PATH)
+                _svo_all = list_view_ontologies(_svo_conn)
+                _svo_conn.close()
+            except Exception:
+                _svo_all = []
+
+            _svo_choices = [
+                (f"{r['concept_anchor']}  {'⏱' if r['time_phased'] else '·'}"
+                 f"  [{', '.join(r['physical_tables_json'][:3])}{'…' if len(r['physical_tables_json']) > 3 else ''}]",
+                 r["concept_anchor"])
+                for r in _svo_all
+            ]
+
+            with gr.Row():
+                svo_picker = gr.Dropdown(
+                    choices=_svo_choices,
+                    label="View (concept anchor)",
+                    value=_svo_choices[0][1] if _svo_choices else None,
+                    interactive=True,
+                    scale=3,
+                )
+                svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
+
+            svo_summary = gr.Markdown()
+            svo_joins = gr.Dataframe(
+                headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
+                interactive=False,
+                label="Join relationships",
+                wrap=False,
+            )
+            svo_detail = gr.Markdown()
+
+            def render_view_ontology(concept_anchor):
+                import sqlite3 as _r_sqlite
+                from view_ontology_extractor import get_view_ontology
+
+                if not concept_anchor:
+                    return "Select a view above.", [], ""
+
+                conn = _r_sqlite.connect(SQLITE_DB_PATH)
+                try:
+                    rec = get_view_ontology(conn, concept_anchor)
+                finally:
+                    conn.close()
+
+                if rec is None:
+                    return f"No ontology found for `{concept_anchor}`.", [], ""
+
+                tp = "⏱ **Time-phased**" if rec["time_phased"] else "· Single-point-in-time"
+                tk = (
+                    f"  Temporal keys: `{'`, `'.join(rec['temporal_keys_json'])}`"
+                    if rec["temporal_keys_json"] else ""
+                )
+
+                summary = (
+                    f"**{rec['concept_anchor']}**  —  `{rec['binding_key']}`\n\n"
+                    f"{tp}{tk}\n\n"
+                    f"**Physical tables** ({len(rec['physical_tables_json'])}):"
+                    f"  `{'` · `'.join(rec['physical_tables_json'])}`\n\n"
+                    f"**CTE scaffolding** ({len(rec['cte_names_json'])}):"
+                    + (f"  `{'` · `'.join(rec['cte_names_json'])}`" if rec['cte_names_json'] else "  _(none)_")
+                )
+
+                joins_table = [
+                    [
+                        j["left_table"], j["join_type"], j["right_table"],
+                        j["left_key"] or "", j["right_key"] or "",
+                    ]
+                    for j in rec["joins_json"]
+                ]
+
+                preds = rec["state_predicates_json"]
+                grain = rec["grain_columns_json"]
+                outcols = rec["selected_columns_json"]
+
+                detail_lines = []
+                if preds:
+                    detail_lines.append("#### Set-membership predicates (WHERE)")
+                    for p in preds:
+                        detail_lines.append(f"```sql\n{p}\n```")
+                if grain:
+                    detail_lines.append(f"#### Grain  (GROUP BY / ORDER BY keys)\n`{'` · `'.join(grain)}`")
+                if outcols:
+                    detail_lines.append(
+                        f"#### Output columns ({len(outcols)})\n"
+                        + "  ".join(f"`{c}`" for c in outcols)
+                    )
+                detail_lines.append(
+                    f"\n---\n_Extracted by SQLGlot · semantics version `{rec['semantics_version']}`"
+                    f" · as of {rec['extracted_at'][:10]}_"
+                )
+                detail = "\n\n".join(detail_lines)
+
+                return summary, joins_table, detail
+
+            svo_btn.click(
+                fn=render_view_ontology,
+                inputs=[svo_picker],
+                outputs=[svo_summary, svo_joins, svo_detail],
+            )
+            svo_picker.change(
+                fn=render_view_ontology,
+                inputs=[svo_picker],
+                outputs=[svo_summary, svo_joins, svo_detail],
+            )
 
         with gr.Tab("🗳️ Term Review"):
             import sys as _tr_sys, pathlib as _tr_pl
