@@ -8,10 +8,15 @@ Covers:
   - rejected and pending terms excluded from approved set
   - no approved rows exits cleanly (no error, committed=False)
   - unrecognised reviewer_decision value fails closed
-  - backward-compat: CSV without reviewer_decision column defaults all to proposed
+  - CSV without reviewer_decision column fails closed (column is required)
+  - blank reviewer_decision cell fails closed
+  - edges filtered to approved terms only
   - dry run never calls commit (committed=False)
   - dry run never reaches _do_commit (mock-verified write-path guard)
   - live run calls _do_commit exactly once and surfaces its result
+  - env var absent at commit time raises RuntimeError (guard blocks write)
+  - env var = "false" at commit time raises RuntimeError (guard blocks write)
+  - env var = "0" at commit time raises RuntimeError (guard blocks write)
 """
 
 from __future__ import annotations
@@ -327,6 +332,75 @@ def test_live_run_calls_do_commit_exactly_once():
 
 
 # ---------------------------------------------------------------------------
+# Env-var commit guard tests (call through the real _do_commit path)
+# ---------------------------------------------------------------------------
+
+_MINIMAL_PAYLOAD: Dict[str, Any] = {
+    "nodes": [
+        {
+            "_key": "term__available_capacity",
+            "node_type": "proposed_term",
+            "name": "Available Capacity",
+            "approval_status": "proposed",
+            "certified": False,
+            "is_anchored": False,
+        }
+    ],
+    "edges": [],
+}
+
+
+def _call_do_commit_with_env(env_value: object) -> None:
+    """Helper: call _do_commit with MRP_ENABLE_GRAPH_COMMIT set to env_value.
+
+    If env_value is None the key is removed from os.environ before the call.
+    Raises whatever _do_commit raises; the callers assert on the exception type
+    and message.
+    """
+    import os as _os
+
+    with unittest.mock.patch.dict(_os.environ, {}, clear=False):
+        if env_value is None:
+            _os.environ.pop("MRP_ENABLE_GRAPH_COMMIT", None)
+        else:
+            _os.environ["MRP_ENABLE_GRAPH_COMMIT"] = str(env_value)
+        ac._do_commit(_MINIMAL_PAYLOAD)
+
+
+def test_env_var_absent_blocks_do_commit():
+    """_do_commit raises RuntimeError when MRP_ENABLE_GRAPH_COMMIT is not set."""
+    try:
+        _call_do_commit_with_env(None)
+        raise AssertionError("Expected RuntimeError was not raised when env var is absent")
+    except RuntimeError as exc:
+        assert "Graph commit is disabled" in str(exc), (
+            f"Error must mention 'Graph commit is disabled', got: {exc}"
+        )
+
+
+def test_env_var_false_blocks_do_commit():
+    """_do_commit raises RuntimeError when MRP_ENABLE_GRAPH_COMMIT='false'."""
+    try:
+        _call_do_commit_with_env("false")
+        raise AssertionError("Expected RuntimeError was not raised when env var is 'false'")
+    except RuntimeError as exc:
+        assert "Graph commit is disabled" in str(exc), (
+            f"Error must mention 'Graph commit is disabled', got: {exc}"
+        )
+
+
+def test_env_var_zero_blocks_do_commit():
+    """_do_commit raises RuntimeError when MRP_ENABLE_GRAPH_COMMIT='0'."""
+    try:
+        _call_do_commit_with_env("0")
+        raise AssertionError("Expected RuntimeError was not raised when env var is '0'")
+    except RuntimeError as exc:
+        assert "Graph commit is disabled" in str(exc), (
+            f"Error must mention 'Graph commit is disabled', got: {exc}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner (also runs under pytest)
 # ---------------------------------------------------------------------------
 
@@ -342,6 +416,9 @@ if __name__ == "__main__":
         test_anchor_nodes_included_for_approved_terms,
         test_dry_run_never_calls_do_commit,
         test_live_run_calls_do_commit_exactly_once,
+        test_env_var_absent_blocks_do_commit,
+        test_env_var_false_blocks_do_commit,
+        test_env_var_zero_blocks_do_commit,
     ]
     passed = failed = 0
     for _t in _TESTS:
