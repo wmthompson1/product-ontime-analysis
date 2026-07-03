@@ -82,6 +82,19 @@ MOCK_ROUTES = {
         "concepts": ["ReorderPoint"],
         "perspective": "Inventory_Transactions"
     },
+    # "lead time demand" / "demand during lead time" must appear BEFORE
+    # the shorter "lead time" keyword — otherwise the substring match on
+    # "lead time" wins and the more specific routes are never reached.
+    "lead time demand": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "demand during lead time": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
     "lead time": {
         "intent": "inventory_planning",
         "concepts": ["LeadTime"],
@@ -102,9 +115,55 @@ MOCK_ROUTES = {
         "concepts": ["OnHandQuantity"],
         "perspective": "Inventory_Transactions"
     },
+    # Specific phrases that contain "stock level" as a substring must appear
+    # BEFORE "stock level" so the substring match hits the right route first.
+    "safety stock": {
+        "intent": "inventory_safety_stock",
+        "concepts": ["SafetyStock"],
+        "perspective": "Inventory_Transactions"
+    },
+    "buffer stock": {
+        "intent": "inventory_safety_stock",
+        "concepts": ["SafetyStock"],
+        "perspective": "Inventory_Transactions"
+    },
+    "minimum stock": {
+        "intent": "inventory_minimum_stock",
+        "concepts": ["MinimumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "min stock": {
+        "intent": "inventory_minimum_stock",
+        "concepts": ["MinimumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "maximum stock": {
+        "intent": "inventory_maximum_stock",
+        "concepts": ["MaximumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "max stock": {
+        "intent": "inventory_maximum_stock",
+        "concepts": ["MaximumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    # Generic stock-level and inventory catch-alls — must come after the
+    # specific "* stock" phrases above.
     "stock level": {
         "intent": "inventory_stock_status",
         "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    # "committed" must appear before "inventory" — "committed inventory"
+    # would otherwise match the shorter "inventory" catch-all first.
+    "allocated": {
+        "intent": "inventory_allocated_qty",
+        "concepts": ["AllocatedQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "committed": {
+        "intent": "inventory_allocated_qty",
+        "concepts": ["AllocatedQuantity"],
         "perspective": "Inventory_Transactions"
     },
     "inventory": {
@@ -127,26 +186,8 @@ MOCK_ROUTES = {
         "concepts": ["AvailableToPromise"],
         "perspective": "Inventory_Transactions"
     },
-    "allocated": {
-        "intent": "inventory_allocated_qty",
-        "concepts": ["AllocatedQuantity"],
-        "perspective": "Inventory_Transactions"
-    },
-    "committed": {
-        "intent": "inventory_allocated_qty",
-        "concepts": ["AllocatedQuantity"],
-        "perspective": "Inventory_Transactions"
-    },
-    "safety stock": {
-        "intent": "inventory_safety_stock",
-        "concepts": ["SafetyStock"],
-        "perspective": "Inventory_Transactions"
-    },
-    "buffer stock": {
-        "intent": "inventory_safety_stock",
-        "concepts": ["SafetyStock"],
-        "perspective": "Inventory_Transactions"
-    },
+    # "lead time demand" / "demand during lead time" are already positioned
+    # before the shorter "lead time" key (see earlier in this dict).
     "lead time demand": {
         "intent": "inventory_lead_time_demand",
         "concepts": ["LeadTimeDemand"],
@@ -155,26 +196,6 @@ MOCK_ROUTES = {
     "demand during lead time": {
         "intent": "inventory_lead_time_demand",
         "concepts": ["LeadTimeDemand"],
-        "perspective": "Inventory_Transactions"
-    },
-    "minimum stock": {
-        "intent": "inventory_minimum_stock",
-        "concepts": ["MinimumStockQuantity"],
-        "perspective": "Inventory_Transactions"
-    },
-    "min stock": {
-        "intent": "inventory_minimum_stock",
-        "concepts": ["MinimumStockQuantity"],
-        "perspective": "Inventory_Transactions"
-    },
-    "maximum stock": {
-        "intent": "inventory_maximum_stock",
-        "concepts": ["MaximumStockQuantity"],
-        "perspective": "Inventory_Transactions"
-    },
-    "max stock": {
-        "intent": "inventory_maximum_stock",
-        "concepts": ["MaximumStockQuantity"],
         "perspective": "Inventory_Transactions"
     },
     "eoq": {
@@ -399,7 +420,7 @@ RETURN FORMAT (JSON only, no other text):
                 perspective="",
                 assembled_sql="-- Question is outside manufacturing domain scope",
                 assembly_report=["Question could not be mapped to any manufacturing intent."],
-                warnings=["OUT_OF_SCOPE: Try asking about defects, costs, suppliers, OEE, or scheduling."],
+                warnings=["OUT_OF_SCOPE: Try asking about defects, costs, suppliers, OEE, scheduling, or inventory/MRP."],
                 routing_mode=routing_mode,
                 routing_confidence=confidence,
                 out_of_scope=True

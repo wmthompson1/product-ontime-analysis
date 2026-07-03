@@ -18,8 +18,8 @@ Governance (the "Solder Pattern"):
   * An unrecognised reviewer_decision value (not proposed/approved/rejected) fails
     closed with a clear error rather than silently proceeding.
 
-Backward-compatible: CSVs produced before this feature (without a reviewer_decision
-column) are accepted; all terms default to 'proposed' (nothing approved).
+The reviewer_decision column is required. CSVs that lack it are rejected with a
+clear error; use `--migrate-csv` (or re-run the stager) to add the column.
 """
 
 from __future__ import annotations

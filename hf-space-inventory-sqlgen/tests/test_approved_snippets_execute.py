@@ -56,13 +56,16 @@ def _resolve_sql_path(file_path: str) -> str | None:
     return None
 
 
-def _approved_entries() -> list[tuple[str, dict]]:
+def _all_entries() -> list[tuple[str, dict]]:
     with open(MANIFEST_PATH, "r") as f:
         manifest = json.load(f)
-    snippets = manifest.get("approved_snippets", {})
+    return list(manifest.get("approved_snippets", {}).items())
+
+
+def _approved_entries() -> list[tuple[str, dict]]:
     return [
         (key, entry)
-        for key, entry in snippets.items()
+        for key, entry in _all_entries()
         if entry.get("validation_status") == "APPROVED"
     ]
 
@@ -119,11 +122,55 @@ def test_every_approved_snippet_executes() -> None:
         conn.close()
 
 
+def test_all_manifest_entries_path_resolution_smoke() -> None:
+    """Smoke-test path resolution for every manifest entry, not just APPROVED.
+
+    APPROVED entries with an unresolvable file_path are a hard failure —
+    the Solder Pattern guarantee is broken.
+
+    ARCHIVED entries with unresolvable paths are printed as warnings only;
+    files may be intentionally removed when a snippet is retired.
+    """
+    hard_failures: list[str] = []
+    archived_missing: list[str] = []
+
+    for key, entry in _all_entries():
+        status = entry.get("validation_status", "UNKNOWN")
+        fp = entry.get("file_path", "")
+        resolved = _resolve_sql_path(fp)
+        if resolved is None:
+            if status == "APPROVED":
+                hard_failures.append(f"{key} (file_path={fp!r})")
+            else:
+                archived_missing.append(f"{key} [{status}] (file_path={fp!r})")
+
+    for msg in archived_missing:
+        print(f"WARNING: unresolvable path for non-APPROVED entry: {msg}")
+
+    assert not hard_failures, (
+        "APPROVED manifest entries with no SQL file on disk:\n  "
+        + "\n  ".join(hard_failures)
+    )
+
+    total = len(list(_all_entries()))
+    approved_ok = sum(
+        1 for k, e in _all_entries()
+        if e.get("validation_status") == "APPROVED"
+        and _resolve_sql_path(e.get("file_path", "")) is not None
+    )
+    print(
+        f"PASS: all {approved_ok} APPROVED paths resolve; "
+        f"{len(archived_missing)} ARCHIVED path(s) missing (expected); "
+        f"{total} total entries checked"
+    )
+
+
 def main() -> int:
     tests = [
         test_manifest_present_with_approved_snippets,
         test_database_present,
         test_every_approved_snippet_resolves_to_a_file,
+        test_all_manifest_entries_path_resolution_smoke,
         test_every_approved_snippet_executes,
     ]
     failed = 0

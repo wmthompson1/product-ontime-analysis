@@ -122,6 +122,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_mrp_keyword_routing.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_mrp_keyword_routing.py || {
+    echo "post-merge: MRP keyword routing tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py ]; then
   python hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py || {
     echo "post-merge: DB init self-heal tests failed"
