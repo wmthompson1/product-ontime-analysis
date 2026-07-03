@@ -62,6 +62,33 @@ DERIVED_INTENTS = [
     "inventory_allocated_qty",
 ]
 
+# Batch 8: five remaining MRP glossary concepts — dataset derivations over
+# customer_order_line and po_line; column anchors registered in seed_elevations
+# batches 8.  Each intent uses primary_binding_key for direct resolution.
+BATCH8_CONCEPT_ANCHORS = [
+    "SAFETYSTOCK",
+    "LEADTIMEDEMAND",
+    "MINIMUMSTOCKQUANTITY",
+    "MAXIMUMSTOCKQUANTITY",
+    "ECONOMICORDERQUANTITY",
+]
+
+BATCH8_BINDING_KEYS = {
+    "SAFETYSTOCK":           "inventory_safetystock_20260703_000006",
+    "LEADTIMEDEMAND":        "inventory_leadtimedemand_20260703_000007",
+    "MINIMUMSTOCKQUANTITY":  "inventory_minimumstock_20260703_000008",
+    "MAXIMUMSTOCKQUANTITY":  "inventory_maximumstock_20260703_000009",
+    "ECONOMICORDERQUANTITY": "inventory_eoq_20260703_000010",
+}
+
+BATCH8_INTENTS = [
+    "inventory_safety_stock",
+    "inventory_lead_time_demand",
+    "inventory_minimum_stock",
+    "inventory_maximum_stock",
+    "inventory_eoq",
+]
+
 
 def _resolve_sql_path(file_path: str) -> str | None:
     """Resolve a manifest file_path to an absolute path on disk.
@@ -311,6 +338,89 @@ def test_derived_resolve_by_binding_key_returns_sql():
 
 
 # ---------------------------------------------------------------------------
+# Batch 8: five remaining MRP glossary concepts (SafetyStock, LeadTimeDemand,
+# MinimumStockQuantity, MaximumStockQuantity, EconomicOrderQuantity)
+# Derived over customer_order_line and po_line; column anchors in batch 8
+# of seed_elevations.py; intents use primary_binding_key for resolution.
+# ---------------------------------------------------------------------------
+
+def test_batch8_manifest_entries_are_approved():
+    """All 5 batch-8 glossary concepts have APPROVED entries in the manifest."""
+    manifest = _load_manifest()
+    snippets = manifest.get("approved_snippets", {})
+
+    approved_anchors = {
+        entry["concept_anchor"].upper()
+        for entry in snippets.values()
+        if entry.get("validation_status") == "APPROVED"
+    }
+
+    missing = [a for a in BATCH8_CONCEPT_ANCHORS if a not in approved_anchors]
+    assert not missing, (
+        f"Batch-8 concept anchor(s) missing from approved_snippets: {missing}"
+    )
+
+
+def test_batch8_snippet_files_exist_and_have_sql():
+    """Each batch-8 binding entry's SQL file exists on disk and contains real SQL."""
+    manifest = _load_manifest()
+    snippets = manifest.get("approved_snippets", {})
+
+    errors = []
+    for concept, bk in BATCH8_BINDING_KEYS.items():
+        entry = snippets.get(bk)
+        if entry is None:
+            errors.append(f"{concept} ({bk}): binding key not found in manifest")
+            continue
+        resolved = _resolve_sql_path(entry.get("file_path", ""))
+        if not resolved:
+            errors.append(f"{concept} ({bk}): file_path does not resolve on disk")
+            continue
+        content = open(resolved, encoding="utf-8").read().strip()
+        if _is_comment_stub(content):
+            errors.append(f"{concept} ({bk}): SQL file contains no DML/DQL statement")
+
+    assert not errors, "\n".join(errors)
+
+
+def test_batch8_intents_solder_returns_real_sql():
+    """solder() returns non-stub SQL for all 5 batch-8 glossary concept intents."""
+    _require_db()
+    engine = SolderEngine(db_path=DB_PATH, manifest_path=MANIFEST_PATH)
+
+    errors = []
+    for intent in BATCH8_INTENTS:
+        result = engine.solder(intent, target_dialect="sqlite")
+        sql = result.soldered_sql
+        if not sql:
+            errors.append(f"solder('{intent}') returned empty string")
+        elif _is_comment_stub(sql):
+            errors.append(
+                f"solder('{intent}') returned a comment stub — "
+                f"primary_binding_key may be missing or file not found:\n{sql[:200]}"
+            )
+
+    assert not errors, "\n".join(errors)
+
+
+def test_batch8_resolve_by_binding_key_returns_sql():
+    """resolve_by_binding_key returns non-empty SQL for all 5 batch-8 concepts."""
+    _require_db()
+    engine = SolderEngine(db_path=DB_PATH, manifest_path=MANIFEST_PATH)
+
+    errors = []
+    for concept, bk in BATCH8_BINDING_KEYS.items():
+        result = engine.resolve_by_binding_key(bk, target_dialect="sqlite")
+        sql = result.get("sql", "")
+        if not sql:
+            errors.append(f"{concept} ({bk}): resolve_by_binding_key returned empty SQL")
+        elif _is_comment_stub(sql):
+            errors.append(f"{concept} ({bk}): resolve_by_binding_key returned comment stub")
+
+    assert not errors, "\n".join(errors)
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner (also runs under pytest)
 # ---------------------------------------------------------------------------
 
@@ -326,6 +436,10 @@ if __name__ == "__main__":
         test_derived_snippet_files_exist_and_have_sql,
         test_derived_intents_solder_returns_real_sql,
         test_derived_resolve_by_binding_key_returns_sql,
+        test_batch8_manifest_entries_are_approved,
+        test_batch8_snippet_files_exist_and_have_sql,
+        test_batch8_intents_solder_returns_real_sql,
+        test_batch8_resolve_by_binding_key_returns_sql,
     ]
     passed = failed = 0
     for _t in _TESTS:

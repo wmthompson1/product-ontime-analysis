@@ -696,6 +696,66 @@ SELECT si.intent_id, sp.perspective_id, 1, 'inventory_allocated_qty operates wit
 FROM schema_intents si, schema_perspectives sp
 WHERE si.intent_name = 'inventory_allocated_qty' AND sp.perspective_name = 'Inventory_Transactions';
 
+-- Batch 8: five remaining MRP glossary concepts (dataset-derived measures)
+-- Each uses primary_binding_key for direct snippet resolution. Column anchors
+-- for these concepts are registered in seed_elevations.py batch 8.
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question, primary_binding_key) VALUES
+('inventory_safety_stock', 'inventory_management',
+ 'Safety stock proxy per part: reorder point minus estimated lead-time demand from open orders',
+ 'How much safety stock buffer does each part carry?',
+ 'inventory_safetystock_20260703_000006'),
+('inventory_lead_time_demand', 'inventory_management',
+ 'Expected demand during the replenishment lead-time window (avg daily demand × lead_time_days)',
+ 'How much demand will occur during the lead time for each part?',
+ 'inventory_leadtimedemand_20260703_000007'),
+('inventory_minimum_stock', 'inventory_management',
+ 'Minimum stock quantity per part: the reorder point as the min level in a min/max policy',
+ 'What is the minimum stock level for each part?',
+ 'inventory_minimumstock_20260703_000008'),
+('inventory_maximum_stock', 'inventory_management',
+ 'Maximum stock quantity per part: reorder point plus average historical PO replenishment qty',
+ 'What is the maximum stock level each part should be replenished up to?',
+ 'inventory_maximumstock_20260703_000009'),
+('inventory_eoq', 'inventory_management',
+ 'Economic order quantity proxy per part: average observed PO order quantity from purchase history',
+ 'What is the economic order quantity for each part?',
+ 'inventory_eoq_20260703_000010');
+
+-- Batch 8 intent-concept links
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: SafetyStock is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_safety_stock' AND sc.concept_name = 'SafetyStock';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: LeadTimeDemand is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_lead_time_demand' AND sc.concept_name = 'LeadTimeDemand';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: MinimumStockQuantity is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_minimum_stock' AND sc.concept_name = 'MinimumStockQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: MaximumStockQuantity is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_maximum_stock' AND sc.concept_name = 'MaximumStockQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: EconomicOrderQuantity is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_eoq' AND sc.concept_name = 'EconomicOrderQuantity';
+
+-- Batch 8 perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name IN (
+    'inventory_safety_stock','inventory_lead_time_demand',
+    'inventory_minimum_stock','inventory_maximum_stock','inventory_eoq'
+) AND sp.perspective_name = 'Inventory_Transactions';
+
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
 -- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed
 -- For defect analysis, each intent elevates ONE severity interpretation

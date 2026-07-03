@@ -137,6 +137,61 @@ MOCK_ROUTES = {
         "concepts": ["AllocatedQuantity"],
         "perspective": "Inventory_Transactions"
     },
+    "safety stock": {
+        "intent": "inventory_safety_stock",
+        "concepts": ["SafetyStock"],
+        "perspective": "Inventory_Transactions"
+    },
+    "buffer stock": {
+        "intent": "inventory_safety_stock",
+        "concepts": ["SafetyStock"],
+        "perspective": "Inventory_Transactions"
+    },
+    "lead time demand": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "demand during lead time": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "minimum stock": {
+        "intent": "inventory_minimum_stock",
+        "concepts": ["MinimumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "min stock": {
+        "intent": "inventory_minimum_stock",
+        "concepts": ["MinimumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "maximum stock": {
+        "intent": "inventory_maximum_stock",
+        "concepts": ["MaximumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "max stock": {
+        "intent": "inventory_maximum_stock",
+        "concepts": ["MaximumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "eoq": {
+        "intent": "inventory_eoq",
+        "concepts": ["EconomicOrderQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "economic order quantity": {
+        "intent": "inventory_eoq",
+        "concepts": ["EconomicOrderQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "economic order": {
+        "intent": "inventory_eoq",
+        "concepts": ["EconomicOrderQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
 }
 
 
