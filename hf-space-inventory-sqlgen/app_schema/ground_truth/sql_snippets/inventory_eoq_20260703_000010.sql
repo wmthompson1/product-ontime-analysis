@@ -1,9 +1,16 @@
-/* Economic Order Quantity (EOQ) Proxy by Part */
+/* Economic Order Quantity (EOQ) Proxy by Part — static empirical proxy */
 /* Without explicit ordering-cost and holding-cost parameters in this schema,
    the average observed purchase-order line quantity is used as the EOQ proxy —
    it reflects the historically settled replenishment lot size for each part.
-   Parts with no PO history fall back to the reorder point as a conservative
-   minimum order size.  eoq_order_value = eoq_proxy × unit_cost. */
+   Set semantics (per docs/mrp_set_semantics_criteria.md):
+     * This is a STATIC scalar proxy — no planning horizon / time-phasing.
+     * The historical PO population EXCLUDES Cancelled purchase orders (a
+       cancelled PO was never a real order and would bias the empirical average).
+       Open / Partial / Received / Closed POs all represent genuine placed
+       orders and are retained.  po_line has no status of its own, so status is
+       taken from the parent purchase_order via the join.
+   Parts with no (non-cancelled) PO history fall back to the reorder point as a
+   conservative minimum order size.  eoq_order_value = eoq_proxy x unit_cost. */
 SELECT
     p.part_id,
     p.part_description,
@@ -26,12 +33,14 @@ SELECT
 FROM part p
 LEFT JOIN (
     SELECT
-        part_id,
-        ROUND(AVG(quantity), 2)  AS avg_po_qty,
-        SUM(quantity)            AS total_po_qty,
-        COUNT(*)                 AS po_line_count
-    FROM po_line
-    GROUP BY part_id
+        pl.part_id,
+        ROUND(AVG(pl.quantity), 2)  AS avg_po_qty,
+        SUM(pl.quantity)            AS total_po_qty,
+        COUNT(*)                    AS po_line_count
+    FROM po_line pl
+    JOIN purchase_order po ON po.po_id = pl.po_id
+    WHERE po.status <> 'Cancelled'
+    GROUP BY pl.part_id
 ) pol ON pol.part_id = p.part_id
 WHERE p.active = 1
 ORDER BY eoq_order_value DESC

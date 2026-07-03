@@ -1,7 +1,14 @@
-/* Maximum Stock Quantity by Part */
+/* Maximum Stock Quantity by Part — static min/max policy proxy */
 /* In a min/max replenishment policy the maximum stock level is the upper
    replenishment target: reorder point plus the average historical
    replenishment quantity derived from purchase-order lines.
+   Set semantics (per docs/mrp_set_semantics_criteria.md):
+     * This is a STATIC scalar policy proxy — no planning horizon / time-phasing.
+     * The historical PO population EXCLUDES Cancelled purchase orders (a
+       cancelled PO was never a real replenishment and would bias the average).
+       Open / Partial / Received / Closed POs all represent genuine placed
+       orders and are retained.  po_line has no status of its own, so status is
+       taken from the parent purchase_order via the join.
    Parts already above their computed maximum may be over-stocked. */
 SELECT
     p.part_id,
@@ -24,11 +31,13 @@ SELECT
 FROM part p
 LEFT JOIN (
     SELECT
-        part_id,
-        ROUND(AVG(quantity), 2)  AS avg_po_qty,
-        COUNT(*)                 AS po_line_count
-    FROM po_line
-    GROUP BY part_id
+        pl.part_id,
+        ROUND(AVG(pl.quantity), 2)  AS avg_po_qty,
+        COUNT(*)                    AS po_line_count
+    FROM po_line pl
+    JOIN purchase_order po ON po.po_id = pl.po_id
+    WHERE po.status <> 'Cancelled'
+    GROUP BY pl.part_id
 ) pol ON pol.part_id = p.part_id
 WHERE p.active = 1
 ORDER BY maximum_stock_qty DESC

@@ -1,6 +1,9 @@
-/* Minimum Stock Quantity by Part */
+/* Minimum Stock Quantity by Part — static min/max policy proxy */
 /* In a min/max replenishment policy the minimum stock level is the
    reorder point — the floor below which a replenishment must be triggered.
+   Set semantics (per docs/mrp_set_semantics_criteria.md): this is a STATIC
+   scalar policy proxy read straight from part.reorder_point — no planning
+   horizon / time-phasing and no order-status set to filter.
    Parts currently below their minimum are highlighted for immediate action. */
 SELECT
     p.part_id,
