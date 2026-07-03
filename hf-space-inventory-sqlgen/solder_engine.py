@@ -129,11 +129,14 @@ class SolderEngine:
             sql_path = entry.get("file_path", "")
             resolved_path = sql_path
             if sql_path and not os.path.isabs(sql_path):
+                hf_dir = os.path.dirname(os.path.abspath(__file__))
                 candidate = os.path.join(manifest_dir, os.path.basename(sql_path))
                 if os.path.exists(candidate):
                     resolved_path = candidate
+                elif os.path.exists(os.path.join(hf_dir, sql_path)):
+                    resolved_path = os.path.join(hf_dir, sql_path)
                 elif not os.path.exists(sql_path):
-                    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    repo_root = os.path.dirname(hf_dir)
                     candidate2 = os.path.join(repo_root, sql_path)
                     if os.path.exists(candidate2):
                         resolved_path = candidate2

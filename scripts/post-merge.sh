@@ -115,6 +115,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_mrp_schedule.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py || {
+    echo "post-merge: MRP query palette tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py ]; then
   python hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py || {
     echo "post-merge: DB init self-heal tests failed"
