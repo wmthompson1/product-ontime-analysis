@@ -5305,6 +5305,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     - *"What are the top NCM costs this quarter?"*
                     - *"Which defects have customer impact?"*
                     - *"What's the maintenance schedule for critical equipment?"*
+                    - *"Which parts need reordering?"*
+                    - *"What are our current stock levels by part class?"*
                     """)
                 
                 with gr.Column(scale=1):

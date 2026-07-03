@@ -72,6 +72,46 @@ MOCK_ROUTES = {
         "concepts": ["DeliveryPerformanceFinance"],
         "perspective": "Finance"
     },
+    "reorder": {
+        "intent": "inventory_planning",
+        "concepts": ["ReorderPoint"],
+        "perspective": "Inventory_Transactions"
+    },
+    "replenish": {
+        "intent": "inventory_planning",
+        "concepts": ["ReorderPoint"],
+        "perspective": "Inventory_Transactions"
+    },
+    "lead time": {
+        "intent": "inventory_planning",
+        "concepts": ["LeadTime"],
+        "perspective": "Inventory_Transactions"
+    },
+    "mrp": {
+        "intent": "inventory_planning",
+        "concepts": ["ReorderPoint", "OnHandQuantity", "LeadTime"],
+        "perspective": "Inventory_Transactions"
+    },
+    "on hand": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "on-hand": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "stock level": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "inventory": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
 }
 
 
