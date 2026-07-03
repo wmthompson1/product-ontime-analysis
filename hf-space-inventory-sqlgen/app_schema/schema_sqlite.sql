@@ -607,6 +607,53 @@ INSERT INTO schema_intents (intent_name, intent_category, description, typical_q
 ('supplier_scorecard', 'supplier_performance', 'Evaluate supplier delivery and quality metrics', 'Which suppliers have the best on-time delivery?'),
 ('supplier_cost_penalties', 'supplier_performance', 'Analyze supplier performance for penalty/credit calculations', 'What penalties are owed for late deliveries?');
 
+-- MRP / Inventory Management intents (M3 — added with MRP Query Palette wiring)
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question) VALUES
+('inventory_planning', 'inventory_management', 'Identify parts needing replenishment based on reorder point and lead time', 'Which parts need to be reordered?'),
+('inventory_stock_status', 'inventory_management', 'Summarise current on-hand stock levels and inventory value by part class', 'What are our current stock levels by part class?');
+
+-- MRP intent-concept links (name-based subqueries — ID-independent)
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: Reorder point is the primary replenishment trigger'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_planning' AND sc.concept_name = 'ReorderPoint';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: Lead time sets the planning horizon for replenishment'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_planning' AND sc.concept_name = 'LeadTime';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: On-hand quantity compared against reorder point'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_planning' AND sc.concept_name = 'OnHandQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: On-hand quantity is the primary stock-status measure'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_stock_status' AND sc.concept_name = 'OnHandQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 0, 'Neutral: Lead time informational in stock-status context'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_stock_status' AND sc.concept_name = 'LeadTime';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 0, 'Neutral: Reorder point informational in stock-status context'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_stock_status' AND sc.concept_name = 'ReorderPoint';
+
+-- MRP intent-perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_planning operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_planning' AND sp.perspective_name = 'Inventory_Transactions';
+
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_stock_status operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_stock_status' AND sp.perspective_name = 'Inventory_Transactions';
+
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
 -- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed
 -- For defect analysis, each intent elevates ONE severity interpretation

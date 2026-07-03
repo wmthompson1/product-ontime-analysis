@@ -1,6 +1,45 @@
 {
-    "last_updated": "2026-06-01T00:00:00.000000",
+    "last_updated": "2026-07-03T00:00:00.000000",
     "approved_snippets": {
+        "inventory_reorderpoint_20260703_000001": {
+            "concept_anchor": "REORDERPOINT",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_reorderpoint_20260703_000001.sql",
+            "sme_justification": "Parts at or below reorder point — replenishment trigger report against the part table reorder_point threshold; primary MRP replenishment planning query",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_reorderpoint_20260703_000001",
+            "created_at": "2026-07-03T00:00:01Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:01Z"
+        },
+        "inventory_onhandquantity_20260703_000002": {
+            "concept_anchor": "ONHANDQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_onhandquantity_20260703_000002.sql",
+            "sme_justification": "On-hand stock levels by part class with inventory value and reorder-point flag counts — primary stock-status query against the part table",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_onhandquantity_20260703_000002",
+            "created_at": "2026-07-03T00:00:02Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:02Z"
+        },
+        "inventory_leadtime_20260703_000003": {
+            "concept_anchor": "LEADTIME",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_leadtime_20260703_000003.sql",
+            "sme_justification": "Lead time summary by part class (avg/min/max days, long-lead count) — MRP planning-horizon decision support query against the part table",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_leadtime_20260703_000003",
+            "created_at": "2026-07-03T00:00:03Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:03Z"
+        },
         "suppliers_supplierscorecard_20260601_000001": {
             "concept_anchor": "DELIVERYPERFORMANCESUPPLIER",
             "perspective": "Quality",

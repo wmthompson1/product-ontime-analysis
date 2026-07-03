@@ -1,7 +1,7 @@
 {
   "schema_version": 19,
   "milestone": "mrp_demand_supply_foundation",
-  "synced_at": "2026-07-02T04:36:10.968913+00:00",
+  "synced_at": "2026-07-03T02:28:39.581990+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Canonical structural graph exported from SQLite in the fixed 6-slot composite-key scheme: table + column + concept nodes, has_column edges (table -> column), and references edges (child column -> parent column) built from declared foreign keys, all with unified abbreviated unique_ids. Covers the business ERP tables (schema_* metadata tables excluded \u2014 the graph models the domain, not its own bookkeeping); the semantic ``resolves_to`` layer is active and node-guarded \u2014 each SME-curated elevation is an edge from a column node to the CONCEPT node it expresses under a business perspective (M2 re-point), carrying the binary weight gate and the raw priority_weight. Concept nodes are perspective-agnostic and carry the M3 payload (concept_type, domain, description as the definition, and the synonyms/tags arrays, emitted from schema_concepts); perspective is never stored on the node \u2014 it lives only on the resolves_to edge. M4 adds metrics: a metric concept carries a dialect-agnostic computation_template, and the resolves_to edges that bind its template {variable} placeholders to physical columns carry variable_name. A concept may exist without a resolves_to edge (an orphan glossary term) until a real ERP column is onboarded.",
   "key_scheme": {
