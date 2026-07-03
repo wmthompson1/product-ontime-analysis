@@ -112,6 +112,31 @@ MOCK_ROUTES = {
         "concepts": ["OnHandQuantity"],
         "perspective": "Inventory_Transactions"
     },
+    "atp": {
+        "intent": "inventory_atp",
+        "concepts": ["AvailableToPromise"],
+        "perspective": "Inventory_Transactions"
+    },
+    "available to promise": {
+        "intent": "inventory_atp",
+        "concepts": ["AvailableToPromise"],
+        "perspective": "Inventory_Transactions"
+    },
+    "available": {
+        "intent": "inventory_atp",
+        "concepts": ["AvailableToPromise"],
+        "perspective": "Inventory_Transactions"
+    },
+    "allocated": {
+        "intent": "inventory_allocated_qty",
+        "concepts": ["AllocatedQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "committed": {
+        "intent": "inventory_allocated_qty",
+        "concepts": ["AllocatedQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
 }
 
 

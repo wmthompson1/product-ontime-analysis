@@ -654,6 +654,48 @@ SELECT si.intent_id, sp.perspective_id, 1, 'inventory_stock_status operates with
 FROM schema_intents si, schema_perspectives sp
 WHERE si.intent_name = 'inventory_stock_status' AND sp.perspective_name = 'Inventory_Transactions';
 
+-- ATP and AllocatedQuantity intents (M3 batch 7 — dataset-derived MRP concepts)
+-- Both are derivations over customer_order_line, not single-column anchors.
+-- primary_binding_key is set here so SolderEngine resolves the approved snippet
+-- directly without needing a schema_concept_fields elevation path.
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question, primary_binding_key) VALUES
+('inventory_atp', 'inventory_management',
+ 'Available-to-promise quantity per part: on-hand minus open customer order commitments',
+ 'How much stock is available to promise to new orders?',
+ 'inventory_atp_20260703_000004'),
+('inventory_allocated_qty', 'inventory_management',
+ 'Quantity of on-hand stock committed to existing customer orders (allocated demand)',
+ 'How much inventory is already allocated to open orders?',
+ 'inventory_allocated_20260703_000005');
+
+-- ATP intent-concept links
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: AvailableToPromise is the primary derived measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_atp' AND sc.concept_name = 'AvailableToPromise';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 0, 'Neutral: AllocatedQuantity is the deduction term in the ATP calculation'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_atp' AND sc.concept_name = 'AllocatedQuantity';
+
+-- AllocatedQuantity intent-concept link
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: AllocatedQuantity is the open customer-order demand commitment'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_allocated_qty' AND sc.concept_name = 'AllocatedQuantity';
+
+-- ATP and AllocatedQuantity perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_atp operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_atp' AND sp.perspective_name = 'Inventory_Transactions';
+
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_allocated_qty operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_allocated_qty' AND sp.perspective_name = 'Inventory_Transactions';
+
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
 -- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed
 -- For defect analysis, each intent elevates ONE severity interpretation

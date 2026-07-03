@@ -48,6 +48,20 @@ MRP_INTENTS = [
     "inventory_stock_status",
 ]
 
+# Batch 7: dataset-derived concepts — primary_binding_key on the intent row
+# resolves directly; no schema_concept_fields column anchor.
+DERIVED_CONCEPT_ANCHORS = ["AVAILABLETOPROMISE", "ALLOCATEDQUANTITY"]
+
+DERIVED_BINDING_KEYS = {
+    "AVAILABLETOPROMISE": "inventory_atp_20260703_000004",
+    "ALLOCATEDQUANTITY":  "inventory_allocated_20260703_000005",
+}
+
+DERIVED_INTENTS = [
+    "inventory_atp",
+    "inventory_allocated_qty",
+]
+
 
 def _resolve_sql_path(file_path: str) -> str | None:
     """Resolve a manifest file_path to an absolute path on disk.
@@ -216,6 +230,87 @@ def test_resolve_by_binding_key_returns_sql_for_all_mrp_concepts():
 
 
 # ---------------------------------------------------------------------------
+# Batch 7: dataset-derived concepts (ATP and AllocatedQuantity)
+# Resolved via primary_binding_key on the intent row — no column anchor needed.
+# ---------------------------------------------------------------------------
+
+def test_derived_manifest_entries_are_approved():
+    """ATP and AllocatedQuantity have APPROVED entries in the manifest."""
+    manifest = _load_manifest()
+    snippets = manifest.get("approved_snippets", {})
+
+    approved_anchors = {
+        entry["concept_anchor"].upper()
+        for entry in snippets.values()
+        if entry.get("validation_status") == "APPROVED"
+    }
+
+    missing = [a for a in DERIVED_CONCEPT_ANCHORS if a not in approved_anchors]
+    assert not missing, (
+        f"Derived concept anchor(s) missing from approved_snippets: {missing}"
+    )
+
+
+def test_derived_snippet_files_exist_and_have_sql():
+    """Each derived binding entry's file exists on disk and contains real SQL."""
+    manifest = _load_manifest()
+    snippets = manifest.get("approved_snippets", {})
+
+    errors = []
+    for concept, bk in DERIVED_BINDING_KEYS.items():
+        entry = snippets.get(bk)
+        if entry is None:
+            errors.append(f"{concept} ({bk}): binding key not found in manifest")
+            continue
+        resolved = _resolve_sql_path(entry.get("file_path", ""))
+        if not resolved:
+            errors.append(f"{concept} ({bk}): file_path does not resolve on disk")
+            continue
+        content = open(resolved, encoding="utf-8").read().strip()
+        if _is_comment_stub(content):
+            errors.append(f"{concept} ({bk}): SQL file contains no DML/DQL statement")
+
+    assert not errors, "\n".join(errors)
+
+
+def test_derived_intents_solder_returns_real_sql():
+    """solder() returns non-stub SQL for the two dataset-derived intents."""
+    _require_db()
+    engine = SolderEngine(db_path=DB_PATH, manifest_path=MANIFEST_PATH)
+
+    errors = []
+    for intent in DERIVED_INTENTS:
+        result = engine.solder(intent, target_dialect="sqlite")
+        sql = result.soldered_sql
+        if not sql:
+            errors.append(f"solder('{intent}') returned empty string")
+        elif _is_comment_stub(sql):
+            errors.append(
+                f"solder('{intent}') returned a comment stub — "
+                f"primary_binding_key may be missing or file not found:\n{sql[:200]}"
+            )
+
+    assert not errors, "\n".join(errors)
+
+
+def test_derived_resolve_by_binding_key_returns_sql():
+    """resolve_by_binding_key returns non-empty SQL for ATP and AllocatedQuantity."""
+    _require_db()
+    engine = SolderEngine(db_path=DB_PATH, manifest_path=MANIFEST_PATH)
+
+    errors = []
+    for concept, bk in DERIVED_BINDING_KEYS.items():
+        result = engine.resolve_by_binding_key(bk, target_dialect="sqlite")
+        sql = result.get("sql", "")
+        if not sql:
+            errors.append(f"{concept} ({bk}): resolve_by_binding_key returned empty SQL")
+        elif _is_comment_stub(sql):
+            errors.append(f"{concept} ({bk}): resolve_by_binding_key returned comment stub")
+
+    assert not errors, "\n".join(errors)
+
+
+# ---------------------------------------------------------------------------
 # Standalone runner (also runs under pytest)
 # ---------------------------------------------------------------------------
 
@@ -227,6 +322,10 @@ if __name__ == "__main__":
         test_inventory_planning_solder_returns_real_sql,
         test_inventory_stock_status_solder_returns_real_sql,
         test_resolve_by_binding_key_returns_sql_for_all_mrp_concepts,
+        test_derived_manifest_entries_are_approved,
+        test_derived_snippet_files_exist_and_have_sql,
+        test_derived_intents_solder_returns_real_sql,
+        test_derived_resolve_by_binding_key_returns_sql,
     ]
     passed = failed = 0
     for _t in _TESTS:

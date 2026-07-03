@@ -40,6 +40,32 @@
             "approved_by": "seed_data",
             "approved_at": "2026-07-03T00:00:03Z"
         },
+        "inventory_atp_20260703_000004": {
+            "concept_anchor": "AVAILABLETOPROMISE",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_atp_20260703_000004.sql",
+            "sme_justification": "Available-to-promise quantity per part: on-hand stock minus total open customer-order commitments. Dataset derivation — no single column owns ATP; the approved snippet is the definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_atp_20260703_000004",
+            "created_at": "2026-07-03T00:00:04Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:04Z"
+        },
+        "inventory_allocated_20260703_000005": {
+            "concept_anchor": "ALLOCATEDQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_allocated_20260703_000005.sql",
+            "sme_justification": "Allocated quantity per part: sum of open customer-order-line quantities committed against on-hand stock. Dataset derivation over customer_order_line — the approved snippet is the definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_allocated_20260703_000005",
+            "created_at": "2026-07-03T00:00:05Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:05Z"
+        },
         "suppliers_supplierscorecard_20260601_000001": {
             "concept_anchor": "DELIVERYPERFORMANCESUPPLIER",
             "perspective": "Quality",
