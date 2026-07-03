@@ -10,6 +10,8 @@ Covers:
   - unrecognised reviewer_decision value fails closed
   - backward-compat: CSV without reviewer_decision column defaults all to proposed
   - dry run never calls commit (committed=False)
+  - dry run never reaches _do_commit (mock-verified write-path guard)
+  - live run calls _do_commit exactly once and surfaces its result
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import csv
 import json
 import sys
 import tempfile
+import unittest.mock
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -289,6 +292,40 @@ def test_anchor_nodes_included_for_approved_terms():
     )
 
 
+def test_dry_run_never_calls_do_commit():
+    """run(commit=False) must never invoke _do_commit, even when approved terms exist."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    with unittest.mock.patch.object(ac, "_do_commit") as mock_commit:
+        summary = ac.run(run_dir=run_dir, commit=False)
+
+    mock_commit.assert_not_called(), (
+        "_do_commit must never be called during a dry run"
+    )
+    assert summary["committed"] is False, "dry run must not set committed=True"
+    assert summary["dry_run"] is True, "dry run must set dry_run=True"
+    assert summary["approved"] == 2, f"expected 2 approved terms, got {summary['approved']}"
+
+
+def test_live_run_calls_do_commit_exactly_once():
+    """run(commit=True) must call _do_commit exactly once and surface its return value."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    synthetic_result: Dict[str, Any] = {"upserted": 2, "edges_written": 2, "status": "ok"}
+
+    with unittest.mock.patch.object(ac, "_do_commit", return_value=synthetic_result) as mock_commit:
+        summary = ac.run(run_dir=run_dir, commit=True)
+
+    mock_commit.assert_called_once(), "_do_commit must be called exactly once on a live run"
+    assert summary["committed"] is True, "live run must set committed=True"
+    assert summary["dry_run"] is False, "live run must not set dry_run=True"
+    assert summary.get("commit_result") == synthetic_result, (
+        "summary must surface the result returned by _do_commit"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Standalone runner (also runs under pytest)
 # ---------------------------------------------------------------------------
@@ -303,6 +340,8 @@ if __name__ == "__main__":
         test_blank_reviewer_decision_fails_closed,
         test_edges_filtered_to_approved_terms,
         test_anchor_nodes_included_for_approved_terms,
+        test_dry_run_never_calls_do_commit,
+        test_live_run_calls_do_commit_exactly_once,
     ]
     passed = failed = 0
     for _t in _TESTS:
