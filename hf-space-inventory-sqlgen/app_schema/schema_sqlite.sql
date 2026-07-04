@@ -227,6 +227,8 @@ CREATE TABLE IF NOT EXISTS work_order (
     sched_start_date  DATETIME,                  -- scheduled start = earliest operation start (derived from routing), set by migrations/backfill_operation_schedule.py
     sched_finish_date DATETIME,                  -- scheduled finish = latest operation finish (derived from routing), set by migrations/backfill_operation_schedule.py
     outside_service  INTEGER DEFAULT 0,          -- 1 if any op routes outside
+    service_date     DATE,                       -- outside-service due date (display-only), set by migrations/backfill_mrp_demand_supply.py
+    vendor_id        TEXT,                       -- outside-service vendor → suppliers (display-only), set by migrations/backfill_mrp_demand_supply.py
     site_id          TEXT DEFAULT 'SITE-1',
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -604,6 +606,155 @@ INSERT INTO schema_intents (intent_name, intent_category, description, typical_q
 -- Supplier Performance intents
 ('supplier_scorecard', 'supplier_performance', 'Evaluate supplier delivery and quality metrics', 'Which suppliers have the best on-time delivery?'),
 ('supplier_cost_penalties', 'supplier_performance', 'Analyze supplier performance for penalty/credit calculations', 'What penalties are owed for late deliveries?');
+
+-- MRP / Inventory Management intents (M3 — added with MRP Query Palette wiring)
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question) VALUES
+('inventory_planning', 'inventory_management', 'Identify parts needing replenishment based on reorder point and lead time', 'Which parts need to be reordered?'),
+('inventory_stock_status', 'inventory_management', 'Summarise current on-hand stock levels and inventory value by part class', 'What are our current stock levels by part class?');
+
+-- MRP intent-concept links (name-based subqueries — ID-independent)
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: Reorder point is the primary replenishment trigger'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_planning' AND sc.concept_name = 'ReorderPoint';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: Lead time sets the planning horizon for replenishment'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_planning' AND sc.concept_name = 'LeadTime';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: On-hand quantity compared against reorder point'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_planning' AND sc.concept_name = 'OnHandQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: On-hand quantity is the primary stock-status measure'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_stock_status' AND sc.concept_name = 'OnHandQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 0, 'Neutral: Lead time informational in stock-status context'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_stock_status' AND sc.concept_name = 'LeadTime';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 0, 'Neutral: Reorder point informational in stock-status context'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_stock_status' AND sc.concept_name = 'ReorderPoint';
+
+-- MRP intent-perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_planning operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_planning' AND sp.perspective_name = 'Inventory_Transactions';
+
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_stock_status operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_stock_status' AND sp.perspective_name = 'Inventory_Transactions';
+
+-- ATP and AllocatedQuantity intents (M3 batch 7 — dataset-derived MRP concepts)
+-- Both are derivations over customer_order_line, not single-column anchors.
+-- primary_binding_key is set here so SolderEngine resolves the approved snippet
+-- directly without needing a schema_concept_fields elevation path.
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question, primary_binding_key) VALUES
+('inventory_atp', 'inventory_management',
+ 'Available-to-promise quantity per part: on-hand minus open customer order commitments',
+ 'How much stock is available to promise to new orders?',
+ 'inventory_atp_20260703_000004'),
+('inventory_allocated_qty', 'inventory_management',
+ 'Quantity of on-hand stock committed to existing customer orders (allocated demand)',
+ 'How much inventory is already allocated to open orders?',
+ 'inventory_allocated_20260703_000005');
+
+-- ATP intent-concept links
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: AvailableToPromise is the primary derived measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_atp' AND sc.concept_name = 'AvailableToPromise';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 0, 'Neutral: AllocatedQuantity is the deduction term in the ATP calculation'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_atp' AND sc.concept_name = 'AllocatedQuantity';
+
+-- AllocatedQuantity intent-concept link
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: AllocatedQuantity is the open customer-order demand commitment'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_allocated_qty' AND sc.concept_name = 'AllocatedQuantity';
+
+-- ATP and AllocatedQuantity perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_atp operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_atp' AND sp.perspective_name = 'Inventory_Transactions';
+
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'inventory_allocated_qty operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name = 'inventory_allocated_qty' AND sp.perspective_name = 'Inventory_Transactions';
+
+-- Batch 8: five remaining MRP glossary concepts (dataset-derived measures)
+-- Each uses primary_binding_key for direct snippet resolution. Column anchors
+-- for these concepts are registered in seed_elevations.py batch 8.
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question, primary_binding_key) VALUES
+('inventory_safety_stock', 'inventory_management',
+ 'Safety stock proxy per part: reorder point minus estimated lead-time demand from open orders',
+ 'How much safety stock buffer does each part carry?',
+ 'inventory_safetystock_20260703_000006'),
+('inventory_lead_time_demand', 'inventory_management',
+ 'Expected demand during the replenishment lead-time window (avg daily demand × lead_time_days)',
+ 'How much demand will occur during the lead time for each part?',
+ 'inventory_leadtimedemand_20260703_000007'),
+('inventory_minimum_stock', 'inventory_management',
+ 'Minimum stock quantity per part: the reorder point as the min level in a min/max policy',
+ 'What is the minimum stock level for each part?',
+ 'inventory_minimumstock_20260703_000008'),
+('inventory_maximum_stock', 'inventory_management',
+ 'Maximum stock quantity per part: reorder point plus average historical PO replenishment qty',
+ 'What is the maximum stock level each part should be replenished up to?',
+ 'inventory_maximumstock_20260703_000009'),
+('inventory_eoq', 'inventory_management',
+ 'Economic order quantity proxy per part: average observed PO order quantity from purchase history',
+ 'What is the economic order quantity for each part?',
+ 'inventory_eoq_20260703_000010');
+
+-- Batch 8 intent-concept links
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: SafetyStock is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_safety_stock' AND sc.concept_name = 'SafetyStock';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: LeadTimeDemand is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_lead_time_demand' AND sc.concept_name = 'LeadTimeDemand';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: MinimumStockQuantity is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_minimum_stock' AND sc.concept_name = 'MinimumStockQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: MaximumStockQuantity is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_maximum_stock' AND sc.concept_name = 'MaximumStockQuantity';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: EconomicOrderQuantity is the primary measure for this intent'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'inventory_eoq' AND sc.concept_name = 'EconomicOrderQuantity';
+
+-- Batch 8 perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'operates within Inventory_Transactions perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name IN (
+    'inventory_safety_stock','inventory_lead_time_demand',
+    'inventory_minimum_stock','inventory_maximum_stock','inventory_eoq'
+) AND sp.perspective_name = 'Inventory_Transactions';
 
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
 -- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed

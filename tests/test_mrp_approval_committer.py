@@ -1,0 +1,513 @@
+"""
+tests/test_mrp_approval_committer.py
+Tests for scripts/mrp_approval_committer.py
+
+Covers:
+  - approved-only filtering (term nodes and edges)
+  - anchor node inclusion for approved terms
+  - rejected and pending terms excluded from approved set
+  - no approved rows exits cleanly (no error, committed=False)
+  - unrecognised reviewer_decision value fails closed
+  - CSV without reviewer_decision column fails closed (column is required)
+  - blank reviewer_decision cell fails closed
+  - edges filtered to approved terms only
+  - dry run never calls commit (committed=False)
+  - dry run never reaches _do_commit (mock-verified write-path guard)
+  - live run calls _do_commit exactly once and surfaces its result
+  - env var absent at commit time raises RuntimeError (guard blocks write)
+  - env var = "false" at commit time raises RuntimeError (guard blocks write)
+  - env var = "0" at commit time raises RuntimeError (guard blocks write)
+"""
+
+from __future__ import annotations
+
+import csv
+import json
+import sys
+import tempfile
+import unittest.mock
+from pathlib import Path
+from typing import Any, Dict, List
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+import mrp_approval_committer as ac  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Shared fixture data
+# ---------------------------------------------------------------------------
+
+_TERM_NODES: List[Dict[str, Any]] = [
+    {
+        "_key": "term__available_capacity",
+        "node_type": "proposed_term",
+        "name": "Available Capacity",
+        "approval_status": "proposed",
+        "certified": False,
+        "is_anchored": True,
+    },
+    {
+        "_key": "term__bill_of_materials",
+        "node_type": "proposed_term",
+        "name": "Bill of Materials",
+        "approval_status": "proposed",
+        "certified": False,
+        "is_anchored": True,
+    },
+    {
+        "_key": "term__lot_sizing",
+        "node_type": "proposed_term",
+        "name": "Lot Sizing",
+        "approval_status": "proposed",
+        "certified": False,
+        "is_anchored": False,
+    },
+    {
+        "_key": "term__net_requirements",
+        "node_type": "proposed_term",
+        "name": "Net Requirements",
+        "approval_status": "proposed",
+        "certified": False,
+        "is_anchored": True,
+    },
+]
+
+_ANCHOR_NODES: List[Dict[str, Any]] = [
+    {
+        "_key": "anchor_perspective__work_orders",
+        "node_type": "approved_anchor",
+        "name": "Work_Orders",
+        "approval_status": "approved_reference",
+    },
+    {
+        "_key": "anchor_perspective__parts",
+        "node_type": "approved_anchor",
+        "name": "Parts",
+        "approval_status": "approved_reference",
+    },
+]
+
+_EDGES: List[Dict[str, Any]] = [
+    {
+        "_from": "term__available_capacity",
+        "_to": "anchor_perspective__work_orders",
+        "predicate": "CANDIDATE_TERM_FOR_PERSPECTIVE",
+    },
+    {
+        "_from": "term__bill_of_materials",
+        "_to": "anchor_perspective__parts",
+        "predicate": "CANDIDATE_TERM_FOR_PERSPECTIVE",
+    },
+    {
+        "_from": "term__net_requirements",
+        "_to": "anchor_perspective__work_orders",
+        "predicate": "CANDIDATE_TERM_FOR_PERSPECTIVE",
+    },
+]
+
+_PAYLOAD: Dict[str, Any] = {"nodes": _TERM_NODES + _ANCHOR_NODES, "edges": _EDGES}
+
+_CSV_HEADER_WITH_DECISION = [
+    "term", "acronym", "foundational", "perspective_anchors",
+    "category_anchors", "anchored", "definition", "reviewer_decision",
+]
+_CSV_HEADER_WITHOUT_DECISION = _CSV_HEADER_WITH_DECISION[:-1]
+
+_FULL_DECISIONS = [
+    ("Available Capacity", "approved"),
+    ("Bill of Materials", "rejected"),
+    ("Lot Sizing", "proposed"),
+    ("Net Requirements", "approved"),
+]
+
+
+def _make_csv_row(term: str, decision: str) -> tuple:
+    return (term, "", "", "", "", "yes", f"Definition of {term}.", decision)
+
+
+def _make_run_dir(
+    csv_rows: List[tuple],
+    payload: Dict[str, Any],
+    include_reviewer_decision: bool = True,
+) -> Path:
+    """Create a temp staging run folder with given fixture CSV and JSON."""
+    tmp = Path(tempfile.mkdtemp())
+    run_dir = tmp / "20260701T120000Z"
+    run_dir.mkdir()
+
+    header = _CSV_HEADER_WITH_DECISION if include_reviewer_decision else _CSV_HEADER_WITHOUT_DECISION
+    with (run_dir / "proposed_terms.csv").open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(header)
+        for row in csv_rows:
+            writer.writerow(row[: len(header)])
+
+    (run_dir / "proposed_terms.json").write_text(
+        json.dumps(payload, indent=2), encoding="utf-8"
+    )
+    return run_dir
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+def test_approved_only_filter():
+    """Only terms with reviewer_decision=='approved' appear in approved_nodes."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    csv_rows = ac._load_csv(run_dir)
+    payload = ac._load_json(run_dir)
+    approved_nodes, _edges, _anchors = ac._filter_payload(
+        csv_rows, payload["nodes"], payload["edges"]
+    )
+
+    approved_names = {n["name"] for n in approved_nodes}
+    assert approved_names == {"Available Capacity", "Net Requirements"}, (
+        f"Expected only approved terms, got: {approved_names}"
+    )
+    assert "Bill of Materials" not in approved_names, "rejected term must be excluded"
+    assert "Lot Sizing" not in approved_names, "pending term must be excluded"
+
+
+def test_dry_run_committed_false():
+    """run() with commit=False always returns committed=False and dry_run=True."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    summary = ac.run(run_dir=run_dir, commit=False)
+
+    assert summary["committed"] is False, "dry run must not set committed=True"
+    assert summary["dry_run"] is True, "dry run must set dry_run=True"
+    assert summary["approved"] == 2, f"expected 2 approved, got {summary['approved']}"
+
+
+def test_no_approved_exits_clean():
+    """All proposed/rejected → approved=0, committed=False, no exception raised."""
+    rows = [
+        _make_csv_row("Available Capacity", "rejected"),
+        _make_csv_row("Lot Sizing", "proposed"),
+        _make_csv_row("Bill of Materials", "rejected"),
+    ]
+    payload: Dict[str, Any] = {
+        "nodes": _TERM_NODES[:3] + _ANCHOR_NODES,
+        "edges": _EDGES[:2],
+    }
+    run_dir = _make_run_dir(rows, payload)
+
+    summary = ac.run(run_dir=run_dir, commit=False)
+
+    assert summary["approved"] == 0, "no approved terms expected"
+    assert summary["committed"] is False
+    assert summary["edges_included"] == 0, "no edges should be included"
+
+
+def test_invalid_decision_fails_closed():
+    """An unrecognised reviewer_decision value raises ValueError."""
+    rows = [
+        _make_csv_row("Available Capacity", "approved"),
+        _make_csv_row("Bill of Materials", "INVALID_DECISION"),
+    ]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    csv_rows = ac._load_csv(run_dir)
+    try:
+        ac._validate_decisions(csv_rows)
+        raise AssertionError("Expected ValueError was not raised for invalid decision")
+    except ValueError as exc:
+        assert "Unrecognised reviewer_decision" in str(exc), (
+            f"Error message should mention 'Unrecognised reviewer_decision', got: {exc}"
+        )
+        assert "INVALID_DECISION" in str(exc)
+
+
+def test_missing_reviewer_decision_column_fails_closed():
+    """CSVs without reviewer_decision column must fail closed with a clear message."""
+    rows = [
+        ("Available Capacity", "", "", "", "", "yes", "Cap definition."),
+        ("Bill of Materials", "BOM", "yes", "", "", "yes", "BOM definition."),
+    ]
+    run_dir = _make_run_dir(rows, _PAYLOAD, include_reviewer_decision=False)
+
+    try:
+        ac._load_csv(run_dir)
+        raise AssertionError("Expected ValueError for missing reviewer_decision column was not raised")
+    except ValueError as exc:
+        assert "reviewer_decision" in str(exc), (
+            f"Error should mention 'reviewer_decision', got: {exc}"
+        )
+
+
+def test_blank_reviewer_decision_fails_closed():
+    """A blank reviewer_decision cell must fail closed — no silent defaults."""
+    rows = [
+        _make_csv_row("Available Capacity", "approved"),
+        _make_csv_row("Bill of Materials", ""),
+    ]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    csv_rows = ac._load_csv(run_dir)
+    try:
+        ac._validate_decisions(csv_rows)
+        raise AssertionError("Expected ValueError for blank reviewer_decision was not raised")
+    except ValueError as exc:
+        assert "Blank reviewer_decision" in str(exc), (
+            f"Error should mention 'Blank reviewer_decision', got: {exc}"
+        )
+
+
+def test_edges_filtered_to_approved_terms():
+    """Edges from rejected/pending terms are excluded; only approved terms' edges included."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    csv_rows = ac._load_csv(run_dir)
+    payload = ac._load_json(run_dir)
+    _nodes, approved_edges, _anchors = ac._filter_payload(
+        csv_rows, payload["nodes"], payload["edges"]
+    )
+
+    from_keys = {e["_from"] for e in approved_edges}
+    assert "term__available_capacity" in from_keys, "approved term's edge must be included"
+    assert "term__net_requirements" in from_keys, "approved term's edge must be included"
+    assert "term__bill_of_materials" not in from_keys, "rejected term's edge must be excluded"
+    assert "term__lot_sizing" not in from_keys, "pending term's edge must be excluded"
+
+
+def test_anchor_nodes_included_for_approved_terms():
+    """Anchor nodes referenced by approved terms' edges are pulled through; others excluded."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    csv_rows = ac._load_csv(run_dir)
+    payload = ac._load_json(run_dir)
+    _nodes, _edges, anchor_nodes = ac._filter_payload(
+        csv_rows, payload["nodes"], payload["edges"]
+    )
+
+    anchor_keys = {n["_key"] for n in anchor_nodes}
+    assert "anchor_perspective__work_orders" in anchor_keys, (
+        "Work_Orders anchor must be included (referenced by approved Available Capacity + Net Requirements)"
+    )
+    assert "anchor_perspective__parts" not in anchor_keys, (
+        "Parts anchor must NOT be included (only referenced by rejected Bill of Materials)"
+    )
+
+
+def test_dry_run_never_calls_do_commit():
+    """run(commit=False) must never invoke _do_commit, even when approved terms exist."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    with unittest.mock.patch.object(ac, "_do_commit") as mock_commit:
+        summary = ac.run(run_dir=run_dir, commit=False)
+
+    mock_commit.assert_not_called(), (
+        "_do_commit must never be called during a dry run"
+    )
+    assert summary["committed"] is False, "dry run must not set committed=True"
+    assert summary["dry_run"] is True, "dry run must set dry_run=True"
+    assert summary["approved"] == 2, f"expected 2 approved terms, got {summary['approved']}"
+
+
+def test_live_run_calls_do_commit_exactly_once():
+    """run(commit=True) must call _do_commit exactly once and surface its return value."""
+    rows = [_make_csv_row(t, d) for t, d in _FULL_DECISIONS]
+    run_dir = _make_run_dir(rows, _PAYLOAD)
+
+    synthetic_result: Dict[str, Any] = {"upserted": 2, "edges_written": 2, "status": "ok"}
+
+    with unittest.mock.patch.object(ac, "_do_commit", return_value=synthetic_result) as mock_commit:
+        summary = ac.run(run_dir=run_dir, commit=True)
+
+    mock_commit.assert_called_once(), "_do_commit must be called exactly once on a live run"
+    assert summary["committed"] is True, "live run must set committed=True"
+    assert summary["dry_run"] is False, "live run must not set dry_run=True"
+    assert summary.get("commit_result") == synthetic_result, (
+        "summary must surface the result returned by _do_commit"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Env-var commit guard tests (call through the real _do_commit path)
+# ---------------------------------------------------------------------------
+
+_MINIMAL_PAYLOAD: Dict[str, Any] = {
+    "nodes": [
+        {
+            "_key": "term__available_capacity",
+            "node_type": "proposed_term",
+            "name": "Available Capacity",
+            "approval_status": "proposed",
+            "certified": False,
+            "is_anchored": False,
+        }
+    ],
+    "edges": [],
+}
+
+
+def _call_do_commit_with_env(env_value: object) -> None:
+    """Helper: call _do_commit with MRP_ENABLE_GRAPH_COMMIT set to env_value.
+
+    If env_value is None the key is removed from os.environ before the call.
+    Raises whatever _do_commit raises; the callers assert on the exception type
+    and message.
+    """
+    import os as _os
+
+    with unittest.mock.patch.dict(_os.environ, {}, clear=False):
+        if env_value is None:
+            _os.environ.pop("MRP_ENABLE_GRAPH_COMMIT", None)
+        else:
+            _os.environ["MRP_ENABLE_GRAPH_COMMIT"] = str(env_value)
+        ac._do_commit(_MINIMAL_PAYLOAD)
+
+
+def test_env_var_absent_blocks_do_commit():
+    """_do_commit raises RuntimeError when MRP_ENABLE_GRAPH_COMMIT is not set."""
+    try:
+        _call_do_commit_with_env(None)
+        raise AssertionError("Expected RuntimeError was not raised when env var is absent")
+    except RuntimeError as exc:
+        assert "Graph commit is disabled" in str(exc), (
+            f"Error must mention 'Graph commit is disabled', got: {exc}"
+        )
+
+
+def test_env_var_false_blocks_do_commit():
+    """_do_commit raises RuntimeError when MRP_ENABLE_GRAPH_COMMIT='false'."""
+    try:
+        _call_do_commit_with_env("false")
+        raise AssertionError("Expected RuntimeError was not raised when env var is 'false'")
+    except RuntimeError as exc:
+        assert "Graph commit is disabled" in str(exc), (
+            f"Error must mention 'Graph commit is disabled', got: {exc}"
+        )
+
+
+def test_env_var_zero_blocks_do_commit():
+    """_do_commit raises RuntimeError when MRP_ENABLE_GRAPH_COMMIT='0'."""
+    try:
+        _call_do_commit_with_env("0")
+        raise AssertionError("Expected RuntimeError was not raised when env var is '0'")
+    except RuntimeError as exc:
+        assert "Graph commit is disabled" in str(exc), (
+            f"Error must mention 'Graph commit is disabled', got: {exc}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Truthy-spelling tests: guard PASSES for all accepted values
+# ---------------------------------------------------------------------------
+
+def _call_do_commit_truthy(env_value: str) -> unittest.mock.MagicMock:
+    """Call _do_commit with a truthy MRP_ENABLE_GRAPH_COMMIT value.
+
+    Patches librarian_server.commit_to_arangodb to return a success dict so
+    no ArangoDB connection is needed.  Returns the mock so callers can assert
+    it was invoked — confirming the guard passed rather than being bypassed.
+    """
+    import os as _os
+    import sys as _sys
+
+    _scripts_dir = str(Path(__file__).parent.parent / "scripts")
+    if _scripts_dir not in _sys.path:
+        _sys.path.insert(0, _scripts_dir)
+    import librarian_server as _ls  # noqa: E402 — must be on path before patching
+
+    _mock = unittest.mock.MagicMock(return_value={
+        "committed": True, "upserted_nodes": 0, "upserted_edges": 0, "errors": [],
+    })
+    with unittest.mock.patch.dict(_os.environ, {"MRP_ENABLE_GRAPH_COMMIT": env_value}):
+        with unittest.mock.patch.object(_ls, "commit_to_arangodb", _mock):
+            ac._do_commit(_MINIMAL_PAYLOAD)
+    return _mock
+
+
+def test_truthy_true_unlocks_commit():
+    """Guard passes and mock is called when MRP_ENABLE_GRAPH_COMMIT='true'."""
+    mock = _call_do_commit_truthy("true")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'true'"
+
+
+def test_truthy_one_unlocks_commit():
+    """Guard passes when MRP_ENABLE_GRAPH_COMMIT='1'."""
+    mock = _call_do_commit_truthy("1")
+    assert mock.called, "commit_to_arangodb mock should have been called for '1'"
+
+
+def test_truthy_yes_unlocks_commit():
+    """Guard passes when MRP_ENABLE_GRAPH_COMMIT='yes'."""
+    mock = _call_do_commit_truthy("yes")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'yes'"
+
+
+def test_truthy_on_unlocks_commit():
+    """Guard passes when MRP_ENABLE_GRAPH_COMMIT='on'."""
+    mock = _call_do_commit_truthy("on")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'on'"
+
+
+def test_truthy_uppercase_TRUE_unlocks_commit():
+    """Guard is case-insensitive: 'TRUE' passes."""
+    mock = _call_do_commit_truthy("TRUE")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'TRUE'"
+
+
+def test_truthy_titlecase_True_unlocks_commit():
+    """Guard is case-insensitive: 'True' passes."""
+    mock = _call_do_commit_truthy("True")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'True'"
+
+
+def test_truthy_uppercase_YES_unlocks_commit():
+    """Guard is case-insensitive: 'YES' passes."""
+    mock = _call_do_commit_truthy("YES")
+    assert mock.called, "commit_to_arangodb mock should have been called for 'YES'"
+
+
+# ---------------------------------------------------------------------------
+# Standalone runner (also runs under pytest)
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    _TESTS = [
+        test_approved_only_filter,
+        test_dry_run_committed_false,
+        test_no_approved_exits_clean,
+        test_invalid_decision_fails_closed,
+        test_missing_reviewer_decision_column_fails_closed,
+        test_blank_reviewer_decision_fails_closed,
+        test_edges_filtered_to_approved_terms,
+        test_anchor_nodes_included_for_approved_terms,
+        test_dry_run_never_calls_do_commit,
+        test_live_run_calls_do_commit_exactly_once,
+        test_env_var_absent_blocks_do_commit,
+        test_env_var_false_blocks_do_commit,
+        test_env_var_zero_blocks_do_commit,
+        test_truthy_true_unlocks_commit,
+        test_truthy_one_unlocks_commit,
+        test_truthy_yes_unlocks_commit,
+        test_truthy_on_unlocks_commit,
+        test_truthy_uppercase_TRUE_unlocks_commit,
+        test_truthy_titlecase_True_unlocks_commit,
+        test_truthy_uppercase_YES_unlocks_commit,
+    ]
+    passed = failed = 0
+    for _t in _TESTS:
+        try:
+            _t()
+            print(f"PASS  {_t.__name__}")
+            passed += 1
+        except Exception as _exc:
+            import traceback
+            print(f"FAIL  {_t.__name__}: {_exc}")
+            traceback.print_exc()
+            failed += 1
+    print(f"\n{passed}/{passed + failed} approval committer tests passed")
+    if failed:
+        raise SystemExit(1)

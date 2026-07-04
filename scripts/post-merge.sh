@@ -108,6 +108,27 @@ if [ -f hf-space-inventory-sqlgen/tests/test_get_resolves_to.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_mrp_schedule.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_mrp_schedule.py || {
+    echo "post-merge: MRP schedule grid tests failed"
+    exit 1
+  }
+fi
+
+if [ -f hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py || {
+    echo "post-merge: MRP query palette tests failed"
+    exit 1
+  }
+fi
+
+if [ -f hf-space-inventory-sqlgen/tests/test_mrp_keyword_routing.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_mrp_keyword_routing.py || {
+    echo "post-merge: MRP keyword routing tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py ]; then
   python hf-space-inventory-sqlgen/tests/test_db_init_self_heal.py || {
     echo "post-merge: DB init self-heal tests failed"
@@ -267,6 +288,20 @@ if [ -f replit_integrations/sql_aql_parity_check.py ]; then
     --report-file replit_integrations/sql_aql_parity_report.txt \
     --csv-dir replit_integrations || {
     echo "post-merge: SQLite <-> live ArangoDB (SQL vs AQL) parity check failed"
+    exit 1
+  }
+fi
+
+if [ -f tests/test_mrp_approval_committer.py ]; then
+  python tests/test_mrp_approval_committer.py || {
+    echo "post-merge: MRP approval committer tests failed"
+    exit 1
+  }
+fi
+
+if [ -f tests/test_mrp_term_promoter.py ]; then
+  python tests/test_mrp_term_promoter.py || {
+    echo "post-merge: MRP term promoter tests failed"
     exit 1
   }
 fi

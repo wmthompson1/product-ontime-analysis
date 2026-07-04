@@ -15,7 +15,9 @@ customer_order,order_id,Order ID,Unique identifier for each customer order recor
 customer_order,site_id,Site ID,Links each customer order to its related site.,SITE-2
 customer_order,status,Order Status,"Where a customer order sits in its lifecycle: entered, released, in process, shipped, invoiced, or closed. At 'shipped' the order is recognized as revenue.",SHIPPED
 customer_order_line,created_at,Created At,Timestamp for when the customer order line record was created.,2026-06-06 05:16:25
+customer_order_line,desired_release_date,Desired Release Date,The date to start work so the item is ready by its need-by date (need-by date minus the item's lead time).,2026-05-23
 customer_order_line,line_no,Line No.,Numeric line no. recorded for each customer order line.,1
+customer_order_line,need_by_date,Need By Date,The date the customer needs this line's item delivered.,2026-08-21
 customer_order_line,order_id,Order ID,Links each customer order line to its related order.,CO-00001
 customer_order_line,order_line_id,Order Line ID,Unique identifier for each customer order line record.,1
 customer_order_line,order_qty,Order Quantity,How many units the customer ordered on this line. Drives the production batch size; the per-unit engineering standard is multiplied by this quantity.,25
@@ -221,7 +223,9 @@ work_order,required_date,Required Date,The required date for the work order.,202
 work_order,routing_template,Routing Template,"The routing template of each work order; one of a small set of values such as: COMPOSITE, BRACKET, AIRFRAME, FASTENER, WELDMENT, MACHINED.",COMPOSITE
 work_order,sched_finish_date,Scheduled Finish Date,"When the job is planned to be finished: the finish of its last routing step. Read from the operation schedule, so it reflects the planned completion of the whole job.",2025-04-21
 work_order,sched_start_date,Scheduled Start Date,"When the job is planned to begin: the start of its earliest routing step. Read from the operation schedule, so it reflects when the first step is set to begin on the floor.",2025-04-09
+work_order,service_date,Service Date,The date the outside-service step for this work order is due.,2026-03-10
 work_order,site_id,Site ID,Links each work order to its related site.,SITE-1
 work_order,status,Work Order Status,"Shop-floor lifecycle stage of the work order: open, released, in process, complete, or closed.",IN PROCESS
+work_order,vendor_id,Vendor ID,The outside-service vendor that performs work for this work order.,S-010
 work_order,wo_id,Wo ID,Unique identifier for each work order record.,WO-00051
 work_order,workorder_type,Workorder Type,"The workorder type of each work order; one of a small set of values such as: M, W.",M

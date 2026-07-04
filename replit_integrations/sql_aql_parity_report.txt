@@ -1,12 +1,16 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-07-01T01:11:30+00:00
+generated: 2026-07-03T09:31:14+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
 
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
-nodes                292         292       OK
-edges                302         302       OK
+nodes                296         399 MISMATCH
+edges                306         306       OK
 
-[sql_aql_parity] OK — 292 nodes and 302 edges match between SQLite (SQL) and ArangoDB (AQL)
+differences:
+  - nodes: count mismatch — SQLite=296 ArangoDB=399
+  - nodes: 103 _key(s) in ArangoDB but not SQLite, e.g. ['manufacturing_graph_node_concept_AllocatedQuantity', 'manufacturing_graph_node_concept_AvailableToPromise', 'manufacturing_graph_node_concept_CertificationStatusState', 'manufacturing_graph_node_concept_CertificationType', 'manufacturing_graph_node_concept_DefectSeverityCost']
+
+[sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph

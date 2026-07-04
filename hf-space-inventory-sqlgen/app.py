@@ -393,6 +393,14 @@ def ensure_app_metadata_tables(conn) -> None:
     except Exception as _mig_err:
         print(f"[ensure_app_metadata_tables] edge_type CHECK migration skipped: {_mig_err}")
 
+    # View ontology table — stores the ontological structure (tables, joins,
+    # predicates, grain, time-phasing) extracted from the 7 MRP ground-truth views.
+    try:
+        from view_ontology_extractor import create_view_ontology_table
+        create_view_ontology_table(conn)
+    except Exception as _vo_err:
+        print(f"[ensure_app_metadata_tables] view_ontology table skipped: {_vo_err}")
+
     conn.commit()
 
 
@@ -470,6 +478,10 @@ def init_sqlite_db():
                     "desired_rls_date": "desired_rls_date DATETIME",
                     "sched_start_date": "sched_start_date DATETIME",
                     "sched_finish_date": "sched_finish_date DATETIME",
+                    # Outside-service header enrichment (MRP data foundation).
+                    # Display-only; set by migrations/backfill_mrp_demand_supply.py.
+                    "service_date": "service_date DATE",
+                    "vendor_id": "vendor_id TEXT",
                 },
             )
             conn.commit()
@@ -550,6 +562,22 @@ def init_sqlite_db():
                 print(f"table_descriptions sync warning: {_td.get('error')}")
     except Exception as e:
         print(f"table_descriptions sync warning: {e}")
+
+    # Extract the embedded ontological structure from the 7 MRP ground-truth SQL
+    # views and seed sql_view_ontology. INSERT OR REPLACE — idempotent on every
+    # boot, safe to re-run. Never blocks boot.
+    try:
+        import sqlite3 as _vo_sqlite3
+        from view_ontology_extractor import extract_all_mrp_views, seed_view_ontology_table
+        _vo_base = os.path.dirname(os.path.abspath(__file__))
+        _vo_manifest = os.path.join(_vo_base, "app_schema", "ground_truth", "reviewer_manifest.json")
+        if os.path.exists(_vo_manifest):
+            _vos = extract_all_mrp_views(_vo_manifest, _vo_base)
+            with _vo_sqlite3.connect(SQLITE_DB_PATH) as _vc:
+                _vn = seed_view_ontology_table(_vc, _vos)
+            print(f"view_ontology: seeded {_vn} view(s) into sql_view_ontology.")
+    except Exception as e:
+        print(f"view_ontology seed warning: {e}")
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""
@@ -5301,6 +5329,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     - *"What are the top NCM costs this quarter?"*
                     - *"Which defects have customer impact?"*
                     - *"What's the maintenance schedule for critical equipment?"*
+                    - *"Which parts need reordering?"*
+                    - *"What are our current stock levels by part class?"*
                     """)
                 
                 with gr.Column(scale=1):
@@ -5724,6 +5754,517 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 inputs=[metric_dropdown, metric_dialect],
                 outputs=[metric_sql_output, metric_info],
             )
+
+        with gr.Tab("📆 MRP Schedule"):
+            import mrp_engine as mrp
+
+            gr.Markdown("""
+            ### MRP Demand-Supply Schedule Grid
+
+            A classic **time-phased MRP grid** for a selected part: open customer-order
+            demand is netted against on-hand inventory and existing work-order /
+            purchase-order scheduled receipts across a rolling **6-month horizon**, and
+            lot-for-lot **planned orders** fill the gaps. Planned order *releases* are the
+            planned *receipts* pulled earlier by the part's lead time.
+
+            Everything is **deterministic** and computed **read-only** against SQLite. The
+            horizon is anchored to a **data-derived as-of date** (the latest work-order
+            close date), never the wall clock. A part with missing planning inputs (no
+            lead time, missing columns) **fails with a clear message** rather than
+            silently planning against zero.
+            """)
+
+            try:
+                _mc = mrp.connect()
+                _mrp_parts = mrp.list_planning_parts(_mc)
+                _mrp_as_of = mrp.compute_as_of(_mc)
+                _mrp_buckets = mrp.month_buckets(_mrp_as_of)
+                _mc.close()
+            except Exception:
+                _mrp_parts, _mrp_as_of, _mrp_buckets = [], None, []
+
+            _mrp_choices = [
+                (f"{p['part_id']} — {p['part_class']} · demand {p['demand_qty']}", p["part_id"])
+                for p in _mrp_parts
+            ]
+            if _mrp_as_of and _mrp_buckets:
+                _mrp_hdr = (
+                    f"**As-of (data-derived):** {_mrp_as_of.strftime('%Y-%m-%d')}  ·  "
+                    f"**Horizon:** {_mrp_buckets[0][0]} … {_mrp_buckets[-1][0]}  ·  "
+                    f"**{len(_mrp_choices)}** planning parts"
+                )
+            else:
+                _mrp_hdr = (
+                    "_MRP data foundation not found — run "
+                    "`migrations/backfill_mrp_demand_supply.py` first._"
+                )
+            gr.Markdown(_mrp_hdr)
+
+            with gr.Row():
+                mrp_part = gr.Dropdown(
+                    choices=_mrp_choices,
+                    label="Planning part (open demand in horizon)",
+                    value=_mrp_choices[0][1] if _mrp_choices else None,
+                    interactive=True,
+                    scale=3,
+                )
+                mrp_btn = gr.Button("Show MRP Grid", variant="primary", scale=1)
+
+            mrp_detail = gr.Markdown()
+            mrp_grid = gr.Dataframe(
+                headers=["MRP Line"]
+                + (["Past Due"] + [b[0] for b in _mrp_buckets] if _mrp_buckets else []),
+                interactive=False,
+                wrap=True,
+                label="Time-phased MRP grid",
+            )
+
+            def render_mrp(part_id):
+                import pandas as pd
+                import mrp_engine as mrp
+
+                if not part_id:
+                    return None, "Select a planning part to view its MRP schedule."
+                conn = mrp.connect()
+                try:
+                    grid = mrp.compute_mrp_grid(conn, part_id)
+                except ValueError as exc:
+                    return None, f"⚠️ {exc}"
+                except Exception as exc:  # pragma: no cover - defensive
+                    return None, f"⚠️ Unexpected error: {exc}"
+                finally:
+                    conn.close()
+
+                cols = ["MRP Line"] + grid["columns"]
+                data = [[label] + list(vals) for label, vals in grid["rows"]]
+                df = pd.DataFrame(data, columns=cols)
+                detail = (
+                    f"**Part:** `{grid['part_id']}`  ·  class **{grid['part_class']}**  ·  "
+                    f"lead time **{grid['lead_time_days']} days**  ·  "
+                    f"on-hand **{grid['on_hand_qty']}**\n\n"
+                    f"**As-of (data-derived):** {grid['as_of'].strftime('%Y-%m-%d')}  ·  "
+                    f"**Horizon:** {grid['columns'][1]} … {grid['columns'][-1]}\n\n"
+                    "*Planned Order Releases = Planned Order Receipts pulled earlier by the "
+                    "part's lead time; anything already behind the plan start folds into "
+                    "Past Due.*"
+                )
+                return df, detail
+
+            mrp_btn.click(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
+            mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
+
+        with gr.Tab("🧩 View Ontology"):
+            gr.Markdown("""
+            ### Ground-Truth View Ontology
+
+            The ground-truth SQL **IS the view** — it tells the complete story.
+            The joins are the relationships, the CTEs provide the hierarchy scaffolding,
+            the WHERE predicates encode the set-membership rules, and the ORDER/GROUP BY
+            defines the grain.
+
+            This tab surfaces the ontological structure **extracted by SQLGlot** from
+            each of the 7 MRP views — physical tables touched, join relationships,
+            set-gating predicates, grain, time-phasing, and output concepts — as
+            first-class governed metadata stored in `sql_view_ontology`.
+
+            Nothing is executed against a database. Extraction is pure AST analysis
+            of the SQL text.
+            """)
+
+            try:
+                import sqlite3 as _svo_sqlite
+                from view_ontology_extractor import list_view_ontologies, get_view_ontology
+                _svo_conn = _svo_sqlite.connect(SQLITE_DB_PATH)
+                _svo_all = list_view_ontologies(_svo_conn)
+                _svo_conn.close()
+            except Exception:
+                _svo_all = []
+
+            _svo_choices = [
+                (f"{r['concept_anchor']}  {'⏱' if r['time_phased'] else '·'}"
+                 f"  [{', '.join(r['physical_tables_json'][:3])}{'…' if len(r['physical_tables_json']) > 3 else ''}]",
+                 r["concept_anchor"])
+                for r in _svo_all
+            ]
+
+            with gr.Row():
+                svo_picker = gr.Dropdown(
+                    choices=_svo_choices,
+                    label="View (concept anchor)",
+                    value=_svo_choices[0][1] if _svo_choices else None,
+                    interactive=True,
+                    scale=3,
+                )
+                svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
+
+            svo_summary = gr.Markdown()
+            svo_joins = gr.Dataframe(
+                headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
+                interactive=False,
+                label="Join relationships",
+                wrap=False,
+            )
+            svo_detail = gr.Markdown()
+
+            def render_view_ontology(concept_anchor):
+                import sqlite3 as _r_sqlite
+                from view_ontology_extractor import get_view_ontology
+
+                if not concept_anchor:
+                    return "Select a view above.", [], ""
+
+                conn = _r_sqlite.connect(SQLITE_DB_PATH)
+                try:
+                    rec = get_view_ontology(conn, concept_anchor)
+                finally:
+                    conn.close()
+
+                if rec is None:
+                    return f"No ontology found for `{concept_anchor}`.", [], ""
+
+                tp = "⏱ **Time-phased**" if rec["time_phased"] else "· Single-point-in-time"
+                tk = (
+                    f"  Temporal keys: `{'`, `'.join(rec['temporal_keys_json'])}`"
+                    if rec["temporal_keys_json"] else ""
+                )
+
+                summary = (
+                    f"**{rec['concept_anchor']}**  —  `{rec['binding_key']}`\n\n"
+                    f"{tp}{tk}\n\n"
+                    f"**Physical tables** ({len(rec['physical_tables_json'])}):"
+                    f"  `{'` · `'.join(rec['physical_tables_json'])}`\n\n"
+                    f"**CTE scaffolding** ({len(rec['cte_names_json'])}):"
+                    + (f"  `{'` · `'.join(rec['cte_names_json'])}`" if rec['cte_names_json'] else "  _(none)_")
+                )
+
+                joins_table = [
+                    [
+                        j["left_table"], j["join_type"], j["right_table"],
+                        j["left_key"] or "", j["right_key"] or "",
+                    ]
+                    for j in rec["joins_json"]
+                ]
+
+                preds = rec["state_predicates_json"]
+                grain = rec["grain_columns_json"]
+                outcols = rec["selected_columns_json"]
+
+                detail_lines = []
+                if preds:
+                    detail_lines.append("#### Set-membership predicates (WHERE)")
+                    for p in preds:
+                        detail_lines.append(f"```sql\n{p}\n```")
+                if grain:
+                    detail_lines.append(f"#### Grain  (GROUP BY / ORDER BY keys)\n`{'` · `'.join(grain)}`")
+                if outcols:
+                    detail_lines.append(
+                        f"#### Output columns ({len(outcols)})\n"
+                        + "  ".join(f"`{c}`" for c in outcols)
+                    )
+                detail_lines.append(
+                    f"\n---\n_Extracted by SQLGlot · semantics version `{rec['semantics_version']}`"
+                    f" · as of {rec['extracted_at'][:10]}_"
+                )
+                detail = "\n\n".join(detail_lines)
+
+                return summary, joins_table, detail
+
+            svo_btn.click(
+                fn=render_view_ontology,
+                inputs=[svo_picker],
+                outputs=[svo_summary, svo_joins, svo_detail],
+            )
+            svo_picker.change(
+                fn=render_view_ontology,
+                inputs=[svo_picker],
+                outputs=[svo_summary, svo_joins, svo_detail],
+            )
+
+        with gr.Tab("🗳️ Term Review"):
+            import sys as _tr_sys, pathlib as _tr_pl
+            _tr_repo_scripts = str(_tr_pl.Path(__file__).parent.parent / "scripts")
+            if _tr_repo_scripts not in _tr_sys.path:
+                _tr_sys.path.insert(0, _tr_repo_scripts)
+            try:
+                import mrp_approval_committer as _tr_mac
+                _tr_staging_root = _tr_mac.DEFAULT_STAGING_ROOT
+                _tr_run_ids = sorted(
+                    (d.name for d in _tr_staging_root.iterdir() if d.is_dir()),
+                    reverse=True,
+                ) if _tr_staging_root.is_dir() else []
+            except Exception:
+                _tr_mac = None
+                _tr_staging_root = None
+                _tr_run_ids = []
+
+            _tr_commit_enabled = os.getenv("MRP_ENABLE_GRAPH_COMMIT", "").lower() == "true"
+            _TR_DISPLAY_COLS = ["term", "definition", "anchored", "reviewer_decision"]
+
+            gr.Markdown(
+                "### 🗳️ MRP Research Term Review\n\n"
+                "SMEs can approve or reject each proposed term here — no text editor or CLI needed. "
+                "Select a staging run, edit the **reviewer_decision** column (`approved` / `rejected` / `proposed`), "
+                "then **Save decisions** to persist your choices. When you're ready, **Commit approved** "
+                "pushes the approved terms into the `mrp_research` graph.\n\n"
+                + (
+                    "⚠️ **Commit gate is OFF** — set `MRP_ENABLE_GRAPH_COMMIT=true` to enable live commits. "
+                    "Save + dry-run preview are always available."
+                    if not _tr_commit_enabled
+                    else "✅ **Commit gate is ON** — the Commit button will write to ArangoDB."
+                )
+            )
+
+            with gr.Row():
+                tr_run_dd = gr.Dropdown(
+                    choices=_tr_run_ids,
+                    value=_tr_run_ids[0] if _tr_run_ids else None,
+                    label="Staging run (most-recent first)",
+                    interactive=True,
+                    scale=3,
+                )
+                tr_load_btn = gr.Button("↺ Load terms", size="sm", scale=1)
+
+            tr_status_md = gr.Markdown(
+                "_Select a staging run and click **Load terms**._"
+                if not _tr_run_ids else "_Click **Load terms** to begin._"
+            )
+
+            tr_grid = gr.Dataframe(
+                headers=_TR_DISPLAY_COLS,
+                datatype=["str", "str", "str", "str"],
+                column_count=(4, "fixed"),
+                row_count=(1, "dynamic"),
+                label="Proposed terms — edit reviewer_decision then Save",
+                interactive=True,
+                wrap=True,
+            )
+
+            tr_summary_md = gr.Markdown()
+
+            with gr.Row():
+                tr_save_btn = gr.Button(
+                    "💾 Save decisions", variant="primary", size="sm"
+                )
+                tr_commit_btn = gr.Button(
+                    "🚀 Commit approved" if _tr_commit_enabled
+                    else "🚀 Commit approved (gate off — dry-run only)",
+                    variant="primary" if _tr_commit_enabled else "secondary",
+                    size="sm",
+                )
+
+            tr_run_state = gr.State(value=None)
+
+            def _tr_list_run_ids():
+                """Return sorted run IDs (newest-first) from the staging root."""
+                import sys as _s, pathlib as _p
+                _rs = str(_p.Path(__file__).parent.parent / "scripts")
+                if _rs not in _s.path:
+                    _s.path.insert(0, _rs)
+                try:
+                    import mrp_approval_committer as _m
+                    root = _m.DEFAULT_STAGING_ROOT
+                    if not root.is_dir():
+                        return []
+                    return sorted((d.name for d in root.iterdir() if d.is_dir()), reverse=True)
+                except Exception:
+                    return []
+
+            def _tr_load(run_id):
+                """Load proposed_terms.csv for a run and return the display grid."""
+                import sys as _s, pathlib as _p, csv as _csv, pandas as _pd
+                _rs = str(_p.Path(__file__).parent.parent / "scripts")
+                if _rs not in _s.path:
+                    _s.path.insert(0, _rs)
+                try:
+                    import mrp_approval_committer as _m
+                except ImportError as exc:
+                    return None, f"⚠️ Could not import committer: {exc}", None
+
+                root = _m.DEFAULT_STAGING_ROOT
+                try:
+                    run_dir = _m._resolve_run_dir(run_id or None, root)
+                except FileNotFoundError as exc:
+                    return None, f"⚠️ {exc}", None
+
+                csv_path = run_dir / "proposed_terms.csv"
+                if not csv_path.exists():
+                    return None, f"⚠️ `proposed_terms.csv` not found in `{run_dir.name}`.", None
+
+                rows = []
+                with csv_path.open(encoding="utf-8", newline="") as fh:
+                    for row in _csv.DictReader(fh):
+                        rows.append(dict(row))
+
+                if not rows:
+                    return (
+                        _pd.DataFrame(columns=["term", "definition", "anchored", "reviewer_decision"]),
+                        f"_Run `{run_dir.name}` has no terms._",
+                        str(run_dir),
+                    )
+
+                display = []
+                for r in rows:
+                    defn = (r.get("definition") or "").strip()
+                    if len(defn) > 120:
+                        defn = defn[:117] + "…"
+                    display.append({
+                        "term": r.get("term", ""),
+                        "definition": defn,
+                        "anchored": r.get("anchored", ""),
+                        "reviewer_decision": (r.get("reviewer_decision") or "proposed").strip() or "proposed",
+                    })
+
+                pending = sum(1 for r in rows if (r.get("reviewer_decision") or "proposed").strip().lower() in ("", "proposed"))
+                approved = sum(1 for r in rows if (r.get("reviewer_decision") or "").strip().lower() == "approved")
+                rejected = sum(1 for r in rows if (r.get("reviewer_decision") or "").strip().lower() == "rejected")
+
+                status = (
+                    f"**Run:** `{run_dir.name}` · "
+                    f"**{len(rows)}** terms · "
+                    f"✅ {approved} approved · "
+                    f"❌ {rejected} rejected · "
+                    f"⏳ {pending} pending\n\n"
+                    "_Edit the **reviewer_decision** column (approved / rejected / proposed), then click **Save decisions**._"
+                )
+                df = _pd.DataFrame(display, columns=["term", "definition", "anchored", "reviewer_decision"])
+                return df, status, str(run_dir)
+
+            def _tr_save(grid, run_dir_path):
+                """Persist reviewer_decision values from the grid back to proposed_terms.csv."""
+                import csv as _csv, pathlib as _p, io as _io, pandas as _pd
+                if not run_dir_path:
+                    return "⚠️ No run loaded — click **Load terms** first.", None
+                run_dir = _p.Path(run_dir_path)
+                csv_path = run_dir / "proposed_terms.csv"
+                if not csv_path.exists():
+                    return f"⚠️ `proposed_terms.csv` not found in `{run_dir.name}`.", None
+
+                if grid is None:
+                    return "⚠️ Grid is empty — nothing to save.", None
+
+                if isinstance(grid, _pd.DataFrame):
+                    grid_rows = grid.to_dict(orient="records")
+                elif isinstance(grid, list):
+                    cols = ["term", "definition", "anchored", "reviewer_decision"]
+                    grid_rows = [
+                        {c: (row[i] if isinstance(row, (list, tuple)) and i < len(row) else
+                             row.get(c, "") if isinstance(row, dict) else "")
+                         for i, c in enumerate(cols)}
+                        for row in grid
+                    ]
+                else:
+                    return "⚠️ Unexpected grid type — save aborted.", None
+
+                decision_by_term = {
+                    str(r.get("term", "")).strip(): str(r.get("reviewer_decision", "proposed")).strip()
+                    for r in grid_rows
+                    if r.get("term")
+                }
+
+                original_rows = []
+                with csv_path.open(encoding="utf-8", newline="") as fh:
+                    reader = _csv.DictReader(fh)
+                    fieldnames = list(reader.fieldnames or [])
+                    for row in reader:
+                        original_rows.append(dict(row))
+
+                if "reviewer_decision" not in fieldnames:
+                    fieldnames.append("reviewer_decision")
+
+                updated = 0
+                for row in original_rows:
+                    term = str(row.get("term", "")).strip()
+                    if term in decision_by_term:
+                        new_dec = decision_by_term[term].lower()
+                        if new_dec not in ("approved", "rejected", "proposed"):
+                            new_dec = "proposed"
+                        if row.get("reviewer_decision", "").strip().lower() != new_dec:
+                            row["reviewer_decision"] = new_dec
+                            updated += 1
+                        elif "reviewer_decision" not in row or not row["reviewer_decision"]:
+                            row["reviewer_decision"] = new_dec
+
+                buf = _io.StringIO()
+                writer = _csv.DictWriter(buf, fieldnames=fieldnames, lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(original_rows)
+                csv_path.write_text(buf.getvalue(), encoding="utf-8")
+
+                approved = sum(1 for r in original_rows if (r.get("reviewer_decision") or "").strip().lower() == "approved")
+                rejected = sum(1 for r in original_rows if (r.get("reviewer_decision") or "").strip().lower() == "rejected")
+                pending = sum(1 for r in original_rows if (r.get("reviewer_decision") or "proposed").strip().lower() in ("", "proposed"))
+                return (
+                    f"💾 Saved `{csv_path.name}` ({len(original_rows)} rows, {updated} updated). "
+                    f"✅ {approved} approved · ❌ {rejected} rejected · ⏳ {pending} pending"
+                ), None
+
+            def _tr_commit(run_dir_path):
+                """Call the committer for the loaded run. Dry-run if gate is off."""
+                import sys as _s, pathlib as _p
+                _rs = str(_p.Path(__file__).parent.parent / "scripts")
+                if _rs not in _s.path:
+                    _s.path.insert(0, _rs)
+                try:
+                    import mrp_approval_committer as _m
+                except ImportError as exc:
+                    return f"⚠️ Could not import committer: {exc}"
+
+                if not run_dir_path:
+                    return "⚠️ No run loaded — click **Load terms** first, then save your decisions."
+
+                commit_enabled = os.getenv("MRP_ENABLE_GRAPH_COMMIT", "").lower() == "true"
+                run_dir = _p.Path(run_dir_path)
+                try:
+                    summary = _m.run(run_dir=run_dir, commit=commit_enabled)
+                except (FileNotFoundError, ValueError) as exc:
+                    return f"⚠️ {exc}"
+                except Exception as exc:
+                    return f"⚠️ Unexpected error: {type(exc).__name__}: {exc}"
+
+                lines = [
+                    f"**Run:** `{summary['run_id']}`",
+                    f"✅ Approved: {summary['approved']} · ❌ Rejected: {summary['rejected']} · ⏳ Pending: {summary['pending_review']}",
+                    f"Edges included: {summary['edges_included']} · Anchor nodes: {summary['anchor_nodes_included']}",
+                ]
+                if summary.get("dry_run"):
+                    lines.append(
+                        "ℹ️ **Dry run** — no data written. "
+                        "Set `MRP_ENABLE_GRAPH_COMMIT=true` and re-click Commit to write to ArangoDB."
+                    )
+                elif summary.get("committed"):
+                    commit_result = summary.get("commit_result", {})
+                    lines.append(f"🚀 **Committed** — result: `{commit_result}`")
+                else:
+                    lines.append("ℹ️ No approved terms to commit.")
+
+                return "\n\n".join(lines)
+
+            tr_load_btn.click(
+                fn=_tr_load,
+                inputs=[tr_run_dd],
+                outputs=[tr_grid, tr_status_md, tr_run_state],
+            )
+            tr_run_dd.change(
+                fn=_tr_load,
+                inputs=[tr_run_dd],
+                outputs=[tr_grid, tr_status_md, tr_run_state],
+            )
+            tr_save_btn.click(
+                fn=_tr_save,
+                inputs=[tr_grid, tr_run_state],
+                outputs=[tr_status_md, tr_summary_md],
+            )
+            tr_commit_btn.click(
+                fn=_tr_commit,
+                inputs=[tr_run_state],
+                outputs=[tr_summary_md],
+            )
+
+            if _tr_run_ids:
+                demo.load(
+                    fn=lambda: _tr_load(_tr_run_ids[0]),
+                    outputs=[tr_grid, tr_status_md, tr_run_state],
+                )
 
         with gr.Tab("🔄 Graph Sync"):
             gr.Markdown("""
@@ -6750,6 +7291,48 @@ Check that perspective-concept and intent-concept relationships are seeded.
         demo.load(fn=_load_gt_erp_header, outputs=aaq_erp_md)
     
     return demo
+
+
+@app.post("/mcp/tools/mrp_term_review_commit")
+async def mrp_term_review_commit(run_id: Optional[str] = None, commit: bool = False):
+    """Load a staging run and optionally commit approved MRP research terms to mrp_research graph.
+
+    Parameters
+    ----------
+    run_id : str, optional
+        Staging run folder name (e.g. ``20260627T185702Z``).  When omitted the
+        most-recent run folder is used.
+    commit : bool
+        ``True`` to actually write to ArangoDB.  Also requires the environment
+        variable ``MRP_ENABLE_GRAPH_COMMIT=true``; otherwise the call is always
+        a dry-run regardless of this flag.
+
+    Returns the committer summary dict (decision counts, committed flag, etc.).
+    """
+    import sys as _sys
+    import pathlib as _pl
+    _repo_scripts = str(_pl.Path(__file__).parent.parent / "scripts")
+    if _repo_scripts not in _sys.path:
+        _sys.path.insert(0, _repo_scripts)
+    try:
+        import mrp_approval_committer as _mac
+    except ImportError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not import mrp_approval_committer: {exc}")
+
+    staging_root = _mac.DEFAULT_STAGING_ROOT
+    try:
+        run_dir = _mac._resolve_run_dir(run_id, staging_root)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    try:
+        summary = _mac.run(run_dir=run_dir, commit=commit)
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Committer error: {exc}")
+
+    return summary
 
 
 get_db_engine()

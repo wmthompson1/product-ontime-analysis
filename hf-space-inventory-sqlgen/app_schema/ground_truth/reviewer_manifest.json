@@ -1,6 +1,71 @@
 {
-    "last_updated": "2026-06-01T00:00:00.000000",
+    "last_updated": "2026-07-03T00:00:00.000000",
     "approved_snippets": {
+        "inventory_reorderpoint_20260703_000001": {
+            "concept_anchor": "REORDERPOINT",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_reorderpoint_20260703_000001.sql",
+            "sme_justification": "Parts at or below reorder point — replenishment trigger report against the part table reorder_point threshold; primary MRP replenishment planning query",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_reorderpoint_20260703_000001",
+            "created_at": "2026-07-03T00:00:01Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:01Z"
+        },
+        "inventory_onhandquantity_20260703_000002": {
+            "concept_anchor": "ONHANDQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_onhandquantity_20260703_000002.sql",
+            "sme_justification": "On-hand stock levels by part class with inventory value and reorder-point flag counts — primary stock-status query against the part table",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_onhandquantity_20260703_000002",
+            "created_at": "2026-07-03T00:00:02Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:02Z"
+        },
+        "inventory_leadtime_20260703_000003": {
+            "concept_anchor": "LEADTIME",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_leadtime_20260703_000003.sql",
+            "sme_justification": "Lead time summary by part class (avg/min/max days, long-lead count) — MRP planning-horizon decision support query against the part table",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_leadtime_20260703_000003",
+            "created_at": "2026-07-03T00:00:03Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:03Z"
+        },
+        "inventory_atp_20260703_000004": {
+            "concept_anchor": "AVAILABLETOPROMISE",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_atp_20260703_000004.sql",
+            "sme_justification": "Available-to-promise quantity per part: on-hand stock minus total open customer-order commitments. Dataset derivation — no single column owns ATP; the approved snippet is the definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_atp_20260703_000004",
+            "created_at": "2026-07-03T00:00:04Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:04Z"
+        },
+        "inventory_allocated_20260703_000005": {
+            "concept_anchor": "ALLOCATEDQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_allocated_20260703_000005.sql",
+            "sme_justification": "Allocated quantity per part: sum of open customer-order-line quantities committed against on-hand stock. Dataset derivation over customer_order_line — the approved snippet is the definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_allocated_20260703_000005",
+            "created_at": "2026-07-03T00:00:05Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:05Z"
+        },
         "suppliers_supplierscorecard_20260601_000001": {
             "concept_anchor": "DELIVERYPERFORMANCESUPPLIER",
             "perspective": "Quality",
@@ -433,6 +498,71 @@
             "created_at": "2026-06-04T00:00:13Z",
             "approved_by": "seed_data",
             "approved_at": "2026-06-04T00:00:13Z"
+        },
+        "inventory_safetystock_20260703_000006": {
+            "concept_anchor": "SAFETYSTOCK",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DERIVED",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_safetystock_20260703_000006.sql",
+            "sme_justification": "Safety stock proxy: reorder point minus estimated lead-time demand (avg daily demand from customer_order_line × lead_time_days). Column anchor: part.reorder_point encodes the safety buffer in this ERP (ROP = SS + LT demand). Dataset derivation — approved snippet is the authoritative definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_safetystock_20260703_000006",
+            "created_at": "2026-07-03T00:00:06Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:06Z"
+        },
+        "inventory_leadtimedemand_20260703_000007": {
+            "concept_anchor": "LEADTIMEDEMAND",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DERIVED",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_leadtimedemand_20260703_000007.sql",
+            "sme_justification": "Lead-time demand: average daily demand (customer_order_line) × part.lead_time_days. Column anchor: part.lead_time_days is the planning window factor. Dataset derivation — approved snippet is the authoritative definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_leadtimedemand_20260703_000007",
+            "created_at": "2026-07-03T00:00:07Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:07Z"
+        },
+        "inventory_minimumstock_20260703_000008": {
+            "concept_anchor": "MINIMUMSTOCKQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DIRECT",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_minimumstock_20260703_000008.sql",
+            "sme_justification": "Minimum stock quantity: part.reorder_point is the min level in a min/max replenishment policy. Direct column read with below/at/above status classification.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_minimumstock_20260703_000008",
+            "created_at": "2026-07-03T00:00:08Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:08Z"
+        },
+        "inventory_maximumstock_20260703_000009": {
+            "concept_anchor": "MAXIMUMSTOCKQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DERIVED",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_maximumstock_20260703_000009.sql",
+            "sme_justification": "Maximum stock quantity: reorder_point + average historical PO replenishment qty (po_line.quantity aggregated per part). Column anchor: po_line.quantity captures the observed replenishment lot size. Dataset derivation — approved snippet is the authoritative definition.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_maximumstock_20260703_000009",
+            "created_at": "2026-07-03T00:00:09Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:09Z"
+        },
+        "inventory_eoq_20260703_000010": {
+            "concept_anchor": "ECONOMICORDERQUANTITY",
+            "perspective": "Inventory_Transactions",
+            "category": "inventory_management",
+            "logic_type": "DERIVED",
+            "file_path": "app_schema/ground_truth/sql_snippets/inventory_eoq_20260703_000010.sql",
+            "sme_justification": "EOQ proxy: average observed PO order quantity (po_line.quantity) reflects the historically settled replenishment lot size. Without D/S/H cost parameters in this schema the empirical PO quantity is the closest available proxy. Column anchor: po_line.quantity. Falls back to reorder_point when no PO history exists.",
+            "validation_status": "APPROVED",
+            "binding_key": "inventory_eoq_20260703_000010",
+            "created_at": "2026-07-03T00:00:10Z",
+            "approved_by": "seed_data",
+            "approved_at": "2026-07-03T00:00:10Z"
         }
     }
 }

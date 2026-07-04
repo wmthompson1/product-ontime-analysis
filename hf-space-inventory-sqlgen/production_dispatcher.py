@@ -72,6 +72,147 @@ MOCK_ROUTES = {
         "concepts": ["DeliveryPerformanceFinance"],
         "perspective": "Finance"
     },
+    "reorder": {
+        "intent": "inventory_planning",
+        "concepts": ["ReorderPoint"],
+        "perspective": "Inventory_Transactions"
+    },
+    "replenish": {
+        "intent": "inventory_planning",
+        "concepts": ["ReorderPoint"],
+        "perspective": "Inventory_Transactions"
+    },
+    # "lead time demand" / "demand during lead time" must appear BEFORE
+    # the shorter "lead time" keyword — otherwise the substring match on
+    # "lead time" wins and the more specific routes are never reached.
+    "lead time demand": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "demand during lead time": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "lead time": {
+        "intent": "inventory_planning",
+        "concepts": ["LeadTime"],
+        "perspective": "Inventory_Transactions"
+    },
+    "mrp": {
+        "intent": "inventory_planning",
+        "concepts": ["ReorderPoint", "OnHandQuantity", "LeadTime"],
+        "perspective": "Inventory_Transactions"
+    },
+    "on hand": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "on-hand": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    # Specific phrases that contain "stock level" as a substring must appear
+    # BEFORE "stock level" so the substring match hits the right route first.
+    "safety stock": {
+        "intent": "inventory_safety_stock",
+        "concepts": ["SafetyStock"],
+        "perspective": "Inventory_Transactions"
+    },
+    "buffer stock": {
+        "intent": "inventory_safety_stock",
+        "concepts": ["SafetyStock"],
+        "perspective": "Inventory_Transactions"
+    },
+    "minimum stock": {
+        "intent": "inventory_minimum_stock",
+        "concepts": ["MinimumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "min stock": {
+        "intent": "inventory_minimum_stock",
+        "concepts": ["MinimumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "maximum stock": {
+        "intent": "inventory_maximum_stock",
+        "concepts": ["MaximumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "max stock": {
+        "intent": "inventory_maximum_stock",
+        "concepts": ["MaximumStockQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    # Generic stock-level and inventory catch-alls — must come after the
+    # specific "* stock" phrases above.
+    "stock level": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    # "committed" must appear before "inventory" — "committed inventory"
+    # would otherwise match the shorter "inventory" catch-all first.
+    "allocated": {
+        "intent": "inventory_allocated_qty",
+        "concepts": ["AllocatedQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "committed": {
+        "intent": "inventory_allocated_qty",
+        "concepts": ["AllocatedQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "inventory": {
+        "intent": "inventory_stock_status",
+        "concepts": ["OnHandQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "atp": {
+        "intent": "inventory_atp",
+        "concepts": ["AvailableToPromise"],
+        "perspective": "Inventory_Transactions"
+    },
+    "available to promise": {
+        "intent": "inventory_atp",
+        "concepts": ["AvailableToPromise"],
+        "perspective": "Inventory_Transactions"
+    },
+    "available": {
+        "intent": "inventory_atp",
+        "concepts": ["AvailableToPromise"],
+        "perspective": "Inventory_Transactions"
+    },
+    # "lead time demand" / "demand during lead time" are already positioned
+    # before the shorter "lead time" key (see earlier in this dict).
+    "lead time demand": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "demand during lead time": {
+        "intent": "inventory_lead_time_demand",
+        "concepts": ["LeadTimeDemand"],
+        "perspective": "Inventory_Transactions"
+    },
+    "eoq": {
+        "intent": "inventory_eoq",
+        "concepts": ["EconomicOrderQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "economic order quantity": {
+        "intent": "inventory_eoq",
+        "concepts": ["EconomicOrderQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
+    "economic order": {
+        "intent": "inventory_eoq",
+        "concepts": ["EconomicOrderQuantity"],
+        "perspective": "Inventory_Transactions"
+    },
 }
 
 
@@ -143,6 +284,7 @@ class ProductionDispatcher:
     def _build_system_prompt(self) -> str:
         intent_block = "\n".join(
             f"  - {d['intent_name']} ({d['intent_category']}): {d['description']}"
+            + (f'  e.g. "{d["typical_question"]}"' if d.get("typical_question") else "")
             for d in self.intent_details
         )
         concept_block = ", ".join(self.concepts)
@@ -279,7 +421,7 @@ RETURN FORMAT (JSON only, no other text):
                 perspective="",
                 assembled_sql="-- Question is outside manufacturing domain scope",
                 assembly_report=["Question could not be mapped to any manufacturing intent."],
-                warnings=["OUT_OF_SCOPE: Try asking about defects, costs, suppliers, OEE, or scheduling."],
+                warnings=["OUT_OF_SCOPE: Try asking about defects, costs, suppliers, OEE, scheduling, or inventory/MRP."],
                 routing_mode=routing_mode,
                 routing_confidence=confidence,
                 out_of_scope=True

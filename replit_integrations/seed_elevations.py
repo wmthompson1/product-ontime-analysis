@@ -259,6 +259,37 @@ ELEVATIONS = [
     ("Inventory_Transactions", "OnHandQuantity",
      "part", "on_hand_qty", 3,
      "Part on-hand stock quantity"),
+    # --- batch 7: dataset-derived concepts (ATP and AllocatedQuantity).
+    # No single column IS the metric; the approved SQL snippet is the
+    # authoritative definition. The column anchor here captures the PRIMARY
+    # INPUT to each derivation so the graph stays navigable and the
+    # schema_concept_fields row exists as required by the curation rule.
+    # ATP = on_hand_qty − allocated; AllocatedQty = SUM(order_qty) per part.
+    ("Inventory_Transactions", "AvailableToPromise",
+     "part", "on_hand_qty", 3,
+     "Primary stock input to ATP: on-hand qty reduced by open customer-order commitments"),
+    ("Inventory_Transactions", "AllocatedQuantity",
+     "customer_order_line", "order_qty", 3,
+     "Per-line order quantity — the raw demand commitment allocated against on-hand stock"),
+    # --- batch 8: five remaining MRP glossary concepts. No dedicated column
+    # exists for any of these; each is anchored to the closest available
+    # physical input column. The approved SQL snippet is the authoritative
+    # definition of the derived / computed measure.
+    ("Inventory_Transactions", "SafetyStock",
+     "part", "reorder_point", 3,
+     "ROP encodes the safety buffer: ROP ≈ SS + lead-time demand"),
+    ("Inventory_Transactions", "LeadTimeDemand",
+     "part", "lead_time_days", 3,
+     "Lead-time days — the planning-window factor in the LT demand derivation"),
+    ("Inventory_Transactions", "MinimumStockQuantity",
+     "part", "reorder_point", 3,
+     "Min-max minimum level = reorder_point (the replenishment floor in this ERP)"),
+    ("Inventory_Transactions", "MaximumStockQuantity",
+     "po_line", "quantity", 3,
+     "Average PO replenishment quantity — upper bound input for the max-stock derivation"),
+    ("Inventory_Transactions", "EconomicOrderQuantity",
+     "po_line", "quantity", 3,
+     "Average observed PO order quantity — empirical EOQ proxy (no D/S/H cost params in schema)"),
 ]
 
 # --- M4: METRIC computation templates -------------------------------------
