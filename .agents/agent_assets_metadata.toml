@@ -275,4 +275,28 @@ title = "t241_40"
 id = "NTLplaYueDXm9dAgakzb5"
 uri = "file://attached_assets/generated_audio/task241/episode_task241.mp3"
 type = "audio"
-title = "Pilot v2 — Interaction Trace (task-241), peer/technical register"
+title = "Pilot v3 — Interaction Trace (task-241) with recap checkpoints"
+
+[[outputs]]
+id = "1bkLaBz_0_EYRywouuQxM"
+uri = "file://attached_assets/generated_audio/task241/cache/9fb8a7aabc8b0705.mp3"
+type = "audio"
+title = "rev_0"
+
+[[outputs]]
+id = "GFudJ07ZtcFDOpqFAancd"
+uri = "file://attached_assets/generated_audio/task241/cache/bc92761a81d77405.mp3"
+type = "audio"
+title = "rev_1"
+
+[[outputs]]
+id = "5uM4TnvFnBoihqT9XLa5H"
+uri = "file://attached_assets/generated_audio/task241/cache/a53a9ab8c6fb65ae.mp3"
+type = "audio"
+title = "rev_2"
+
+[[outputs]]
+id = "QqGhjp-uNFrRk35JqWgMz"
+uri = "file://attached_assets/generated_audio/task241/cache/013353a73300335a.mp3"
+type = "audio"
+title = "rev_3"
