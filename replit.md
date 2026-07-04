@@ -16,6 +16,7 @@ API management: Cost-conscious, prefers demo modes before live API usage.
 Synthetic sources: Always target SQLite (the local `manufacturing.db` dialect) for any synthetic SQL/DDL or synthetic data source. Real-source ground-truth files (e.g. SQL Server `Live.dbo.*` T-SQL) are faithful reference benchmarks only — never the synthetic target dialect.
 Task management: Do NOT auto-create or propose follow-up tasks. Never use proposeFollowUpTasks or create project tasks unless explicitly asked.
 Planning-doc retention: At the end of each planning session, resync the git-tracked `docs/plans/` folder from the gitignored `.local/tasks/` (copy the `*.md` files) so the planning docs are preserved in git history. The user may also ask for an on-demand resync.
+Save to pods: When the user says "save to pods", save the referenced chat response (default: the most recent substantive one) as a dated markdown file in `docs/pods/` (`YYYY-MM-DD_short-topic.md`) so it is git-tracked and easy to copy.
 
 ## Runtime & Setup
 - **Python 3.13** (pinned). Do NOT move to 3.14 — it removes `ast.Str`, which SQLGlot/SQLMesh AST handling depends on. Replit runtime module: `python-base-3.13`; virtualenv at `.pythonlibs`.
