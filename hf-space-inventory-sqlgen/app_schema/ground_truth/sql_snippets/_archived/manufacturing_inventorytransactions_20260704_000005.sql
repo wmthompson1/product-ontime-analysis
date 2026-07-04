@@ -1,8 +1,12 @@
 /*
+ARCHIVED 2026-07-04 — perspective: manufacturing. Moved out of the knowledge
+loop (was docs/my-mrp-kb/05-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql);
+POC-era grounding query kept as ground-truth reference only.
+
 Inventory transaction reconciliation review — SQLite SYNTHETIC counterpart.
 
 This is the SQLite-runnable synthetic version of the ground-truth T-SQL benchmark
-in the same folder (Inventory_-_Transactions_AI_Review.sql). The reconciliation
+archived beside this file (manufacturing_inventorytransactions_20260704_000004.sql). The reconciliation
 logic — trace lot rollup vs. inventory ledger net effect vs. planning on-hand,
 with a Y/N reconciled flag — is preserved exactly; only the dialect and the table
 / column names change to the local manufacturing.db ERP stand-in.

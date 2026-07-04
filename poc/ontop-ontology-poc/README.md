@@ -495,7 +495,7 @@ Quantity on Hand — a stream of **inventory transactions**, each an `In` or `Ou
 of some `quantity` for a `part` at a `site`. Like the demand, capacity, and
 routing layers it has **no SolderEngine computation template**, so parity is
 grounded against the governed SQL directly (the grounding query in
-`docs/my-mrp-kb/05-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql`).
+`hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/manufacturing_inventorytransactions_20260704_000005.sql`).
 
 Per the Terminology Guide the signed effect on Quantity on Hand is `+qty` for an
 `In` (`type='I'`) and `−qty` for an `Out` (`type='O'`), so net movement =

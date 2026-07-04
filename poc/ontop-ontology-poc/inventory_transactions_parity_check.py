@@ -13,7 +13,8 @@ LIKE SHOWCASES 6 (customer-order demand), 7 (capacity planning), AND 8
 (shop-floor routing), AND UNLIKE the on-time / OEE showcases, the
 inventory-transactions layer has NO computation_template / concept — it was
 delivered as SME-approved docs + a runnable SQLite grounding query only
-(docs/my-mrp-kb/05-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql,
+(archived at hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/
+_archived/manufacturing_inventorytransactions_20260704_000005.sql,
 plus the Terminology Guide + Entry Index). So this check grounds the SPARQL
 answers against that DIRECT governed SQL, run on the same snapshot. The SQL stays
 the single source of truth; Ontop is only a publishing layer over it.

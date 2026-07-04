@@ -1,4 +1,14 @@
 /*
+ARCHIVED 2026-07-04 - perspective: manufacturing. Moved out of the knowledge
+loop (was docs/my-mrp-kb/05-inventory-transactions/Inventory_-_Transactions_AI_Review.sql);
+POC-era review query kept as ground-truth reference only. NOTE: this is the
+real-source T-SQL benchmark (Live.dbo.*) - a faithful reference only, NOT
+runnable against the synthetic SQLite manufacturing.db. Its runnable SQLite
+counterpart is archived beside this file as
+manufacturing_inventorytransactions_20260704_000005.sql.
+*/
+
+/*
 Inventory transaction reconciliation review.
 
 SQLMesh-friendly notes:
