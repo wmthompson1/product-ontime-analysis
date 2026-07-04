@@ -20,8 +20,9 @@ days a week = **40 hours per week** per work center) and see where that holds an
 where it doesn't. Moving to 2 or 3 shifts is then a single number change.
 
 This is the SQLite-grounded synthetic showcase. The runnable queries live in the
-companion file **`Capacity_Planning.sqlite.sql`** and all sample numbers below
-come from running them against `manufacturing.db`.
+companion file **`manufacturing_capacityplanning_20260704_000001.sql`** (archived
+under `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/`)
+and all sample numbers below come from running them against `manufacturing.db`.
 
 ---
 
@@ -200,7 +201,7 @@ watch for these triggers at 1 shift:
 
 ```bash
 sqlite3 hf-space-inventory-sqlgen/app_schema/manufacturing.db \
-    < "docs/my-mrp-kb/Capacity_Planning.sqlite.sql"
+    < "hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/manufacturing_capacityplanning_20260704_000001.sql"
 ```
 
 All four queries are standard SQLite and read-only. Change the `params` CTE to

@@ -373,7 +373,7 @@ on a **different question over a different table**: rough-cut **capacity plannin
 — how many standard shop-floor hours are scheduled on each in-house work center.
 Like the demand layer it has **no SolderEngine computation template**, so parity
 is grounded against the governed SQL directly (the grounding query in
-`docs/my-mrp-kb/02-capacity-planning/Capacity_Planning.sqlite.sql`).
+`hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/manufacturing_capacityplanning_20260704_000001.sql`).
 
 It reads the **same `operation` table as the OEE showcase (Showcase 5)** but is
 minted in its **own namespace with its own files** — a different metric (planning

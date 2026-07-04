@@ -1,4 +1,8 @@
 /*
+ARCHIVED 2026-07-04 — perspective: manufacturing. Moved out of the knowledge
+loop (was docs/my-mrp-kb/02-capacity-planning/Capacity_Planning.sqlite.sql);
+POC-era grounding query kept as ground-truth reference only.
+
 Capacity Planning — SQLite grounding query (SYNTHETIC). START WITH 1 SHIFT.
 
 This is the runnable SQLite query set that grounds the companion document
