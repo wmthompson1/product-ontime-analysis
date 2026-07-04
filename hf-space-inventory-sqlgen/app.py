@@ -5601,10 +5601,22 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 
                 if result.get("fail_closed"):
                     fc = ", ".join(result.get("fail_closed_concepts", []))
+                    fc_condition = result.get("fail_closed_condition") or ""
+                    reason = {
+                        "no_perspective_compatible_snippet": (
+                            f"no perspective-compatible snippet under perspective "
+                            f"**{perspective or '(none)'}**. Cross-perspective SQL is never served."
+                        ),
+                        "missing_snippet_file": "the approved binding has no snippet SQL to serve.",
+                        "fingerprint_validation_failed": (
+                            "the snippet failed structural-fingerprint validation "
+                            "(unparseable or drifted from its SME-approved base tables)."
+                        ),
+                        "multiple": "multiple fail-closed conditions were triggered.",
+                    }.get(fc_condition, "one or more concepts could not be served.")
                     report_md += (
-                        f"> ⛔ **FAIL-CLOSED — no perspective-compatible snippet** "
-                        f"for `{fc}` under perspective **{perspective or '(none)'}**. "
-                        f"Cross-perspective SQL is never served.\n\n"
+                        f"> ⛔ **FAIL-CLOSED ({fc_condition or 'unknown'})** for `{fc}` — "
+                        f"{reason} No SQL is served.\n\n"
                     )
                 
                 if result.get("report"):

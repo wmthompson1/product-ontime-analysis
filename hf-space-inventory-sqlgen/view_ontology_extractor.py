@@ -66,6 +66,8 @@ class JoinRelationship:
     on_condition: str        # full ON expression as SQL string, "" for CROSS
     left_key: Optional[str] = None
     right_key: Optional[str] = None
+    left_alias: str = ""     # alias in FROM/JOIN (e.g. "p" in "part p"), "" if none
+    right_alias: str = ""
 
 
 @dataclass
@@ -96,6 +98,16 @@ def _expr_table_name(expr) -> str:
     return ""
 
 
+def _expr_alias(expr) -> str:
+    """Alias assigned in a FROM/JOIN (e.g. "p" in "part p"), "" when none.
+
+    SQLGlot exposes the alias natively on every relevant node — exp.Table AND
+    exp.Subquery — via the ``.alias`` property, so we lean on the parser rather
+    than string-matching the SQL.
+    """
+    return expr.alias or ""
+
+
 def _extract_equi_keys(on_expr) -> tuple:
     if on_expr is None:
         return None, None
@@ -116,22 +128,27 @@ def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
         left_name = _expr_table_name(from_clause.this)
         if not left_name:
             continue
+        left_alias = _expr_alias(from_clause.this)
         for join in select.args.get("joins") or []:
             right_name = _expr_table_name(join.this)
             if not right_name:
                 continue
+            right_alias = _expr_alias(join.this)
             side = (join.args.get("side") or "").upper()
             kind = (join.args.get("kind") or "").upper()
             kind = " ".join(filter(None, [side, kind])) or "INNER"
             on_expr = join.args.get("on")
             on_str = on_expr.sql(dialect="sqlite") if on_expr else ""
             lk, rk = _extract_equi_keys(on_expr)
-            # Dedup on the full relationship, INCLUDING the ON predicate: two
-            # joins between the same table pair but with different ON conditions
-            # (e.g. self-joins with different aliases/keys) are distinct
-            # relationships and must both survive. Only byte-identical repeats
-            # (the same join re-seen across nested SELECT scopes) collapse.
-            key = (left_name, right_name, kind, on_str)
+            # Dedup on the FULL relationship — table pair, aliases, join type,
+            # AND the ON predicate. The same table pair can be joined more than
+            # once under different business aliases and/or predicates (e.g. the
+            # ATP view joins `part` to both a supply line and a demand line);
+            # collapsing on coarse (table, table, type) keys erases that
+            # distinct relational lineage. Aliases also disambiguate predicate-
+            # less CROSS JOINs. Only byte-identical repeats (the same join
+            # re-seen across nested SELECT scopes) collapse.
+            key = (left_name, left_alias, right_name, right_alias, kind, on_str)
             if key not in seen:
                 seen.add(key)
                 results.append(JoinRelationship(
@@ -141,6 +158,8 @@ def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
                     on_condition=on_str,
                     left_key=lk,
                     right_key=rk,
+                    left_alias=left_alias,
+                    right_alias=right_alias,
                 ))
     return results
 

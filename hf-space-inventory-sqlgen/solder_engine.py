@@ -745,6 +745,35 @@ class SolderEngine:
                     f"SPATIAL_ALIAS on {concept}: verify coordinate/bin accuracy"
                 )
 
+        # Hard fail-closed: if ANY requested concept failed closed (conditions
+        # 2/3/4), refuse the WHOLE assembly. Serving SQL for the resolved subset
+        # would silently drop a concept the caller asked for — and, worse, could
+        # answer a question with partial data that looks complete. Fail-closed
+        # means no runnable SQL, not partial SQL.
+        if fail_closed_concepts:
+            condition = self._summarize_fail_condition(fail_closed_conditions)
+            base_warning = (
+                "Failing closed: one or more requested concepts could not be "
+                f"served ({', '.join(fail_closed_concepts)}). No SQL is returned."
+            )
+            return {
+                "sql": (
+                    f"-- FAIL-CLOSED ({condition}): refusing to serve partial SQL "
+                    f"for intent '{intent}'. Blocked concepts: "
+                    f"{', '.join(fail_closed_concepts)}."
+                ),
+                "dialect": target_dialect,
+                "report": report,
+                "warnings": [base_warning] + warnings,
+                "concept_count": 0,
+                "intent": intent,
+                "perspective": perspective,
+                "base_table": base_table,
+                "fail_closed": True,
+                "fail_closed_concepts": fail_closed_concepts,
+                "fail_closed_condition": condition,
+            }
+
         if not select_refs:
             base_warning = "No concepts could be resolved to approved snippets"
             return {
@@ -752,9 +781,9 @@ class SolderEngine:
                 "dialect": target_dialect,
                 "report": report,
                 "warnings": ([base_warning] + warnings) if warnings else [base_warning],
-                "fail_closed": bool(fail_closed_concepts),
-                "fail_closed_concepts": fail_closed_concepts,
-                "fail_closed_condition": self._summarize_fail_condition(fail_closed_conditions),
+                "fail_closed": False,
+                "fail_closed_concepts": [],
+                "fail_closed_condition": None,
             }
 
         cte_clause = "WITH " + ",\n".join(cte_parts) + "\n" if cte_parts else ""

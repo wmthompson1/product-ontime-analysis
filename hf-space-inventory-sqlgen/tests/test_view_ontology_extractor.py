@@ -157,28 +157,43 @@ def test_left_join_type_captured(simple_vo):
 
 
 def test_joins_are_deduped(simple_vo):
-    # Uniqueness is on the FULL relationship (pair + type + ON predicate), which
-    # is the dedup contract: byte-identical repeats collapse, distinct ones stay.
+    # Uniqueness is on the FULL relationship (pair + aliases + type + ON
+    # predicate): byte-identical repeats collapse, distinct ones stay.
     keys = [
-        (j["left_table"], j["right_table"], j["join_type"], j["on_condition"])
+        (j["left_table"], j["left_alias"], j["right_table"],
+         j["right_alias"], j["join_type"], j["on_condition"])
         for j in simple_vo.joins
     ]
     assert len(keys) == len(set(keys))
 
 
+def test_join_aliases_captured(simple_vo):
+    # Alias lineage is preserved (e.g. "col" for customer_order_line).
+    col_order_join = next(
+        (j for j in simple_vo.joins
+         if j["left_table"] == "customer_order_line" and j["right_table"] == "customer_order"),
+        None,
+    )
+    assert col_order_join is not None
+    assert col_order_join["left_alias"] == "col"
+    assert col_order_join["right_alias"] == "o"
+
+
 def test_distinct_joins_same_pair_preserved():
-    # Two joins to the same table pair with DIFFERENT ON predicates are distinct
-    # relationships and must both survive — the dedup must not collapse them.
+    # Two joins to the same table pair with DIFFERENT aliases and predicates are
+    # distinct relationships and must both survive — the dedup must not collapse
+    # them, and the alias lineage must be retained for each.
     sql = """
         SELECT a.id
         FROM a
-        JOIN b ON b.x = a.x
+        JOIN b b1 ON b1.x = a.x
         JOIN b b2 ON b2.y = a.y
     """
     vo = extract_view_ontology(sql, "k", "TEST", "f.sql")
     a_b = [j for j in vo.joins if j["left_table"] == "a" and j["right_table"] == "b"]
     assert len(a_b) == 2
     assert len({j["on_condition"] for j in a_b}) == 2
+    assert {j["right_alias"] for j in a_b} == {"b1", "b2"}
 
 
 # ── 4. State predicates ───────────────────────────────────────────────────────

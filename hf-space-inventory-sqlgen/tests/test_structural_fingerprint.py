@@ -229,6 +229,30 @@ def test_engine_fail_closed():
               "fingerprint drift reported as condition (4)")
         check(fp_fc.get("sql", "").strip().startswith("--"),
               "fingerprint-drift assembly serves no real SQL")
+
+        # HARD fail-closed on MIXED batches: one concept resolves cleanly, one
+        # fails closed. assemble_query must refuse the WHOLE assembly rather than
+        # quietly serving SQL for the resolved subset (partial data that looks
+        # complete).
+        def _mixed(p, c, i=None):
+            if c == "GOOD_CONCEPT":
+                return _fake_binding("SELECT part_id FROM part", ["part"])
+            return _fake_binding("SELECT FROM (", [])  # BAD_CONCEPT -> parse fail
+        eng.resolve_concept_snippet = _mixed
+        mixed = eng.assemble_query(
+            intent=None, perspective="Operations",
+            concepts=["GOOD_CONCEPT", "BAD_CONCEPT"],
+            base_table="stg_manufacturing_flat", target_dialect="sqlite",
+        )
+        check(mixed.get("fail_closed") is True, "mixed batch fails closed")
+        check("BAD_CONCEPT" in mixed.get("fail_closed_concepts", []),
+              "mixed batch names the blocked concept")
+        check(mixed.get("sql", "").strip().startswith("--"),
+              "mixed batch serves NO runnable SQL")
+        check("from part" not in mixed.get("sql", "").lower(),
+              "mixed batch does not leak the resolved concept's SQL")
+        check(mixed.get("concept_count", -1) == 0,
+              "mixed batch reports zero concepts served")
     finally:
         eng.resolve_concept_snippet = orig_resolve
 

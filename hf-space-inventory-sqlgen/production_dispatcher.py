@@ -500,11 +500,26 @@ RETURN FORMAT (JSON only, no other text):
         assembly_fail_closed = assembly_result.get("fail_closed", False)
         if assembly_fail_closed:
             fc_concepts = assembly_result.get("fail_closed_concepts", [])
+            fc_condition = assembly_result.get("fail_closed_condition") or ""
+            # Drive the reason off the actual condition code — not every
+            # fail-closed is a perspective mismatch (could be a missing snippet,
+            # a parse failure, or a structural-fingerprint drift).
+            reason = {
+                "no_perspective_compatible_snippet": (
+                    "no perspective-compatible snippet under perspective "
+                    f"'{perspective}'; cross-perspective SQL is never served"
+                ),
+                "missing_snippet_file": "the approved binding has no snippet SQL to serve",
+                "fingerprint_validation_failed": (
+                    "the snippet failed structural-fingerprint validation "
+                    "(unparseable or drifted from its SME-approved base tables)"
+                ),
+                "multiple": "multiple fail-closed conditions were triggered",
+            }.get(fc_condition, "one or more concepts could not be served")
             warnings.insert(
                 0,
-                "FAIL-CLOSED: no perspective-compatible snippet for "
-                f"{', '.join(fc_concepts)} under perspective '{perspective}'. "
-                "Cross-perspective SQL is never served."
+                f"FAIL-CLOSED ({fc_condition or 'unknown'}): {reason}. "
+                f"Blocked concepts: {', '.join(fc_concepts)}. No SQL is served."
             )
         if semantic_map.get("warning"):
             warnings.insert(0, semantic_map["warning"])
