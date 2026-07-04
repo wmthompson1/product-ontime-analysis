@@ -15,7 +15,7 @@
 # Like the customer-order demand (Showcase 6) and capacity-planning (Showcase 7)
 # showcases, the routing layer has NO semantic-layer computation_template /
 # concept — it was delivered as SME-approved docs + a runnable SQLite grounding
-# query only (docs/my-mrp-kb/Shop_Floor_Routing.sqlite.sql). So the parity check
+# query only (docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql). So the parity check
 # grounds the SPARQL answers against that DIRECT governed SQL on the same
 # read-only snapshot, not against SolderEngine. The SQL stays the single source
 # of truth; this file only names the terms (see ../mapping/shop_floor_routing.obda).

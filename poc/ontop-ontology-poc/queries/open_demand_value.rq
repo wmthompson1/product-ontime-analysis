@@ -2,7 +2,7 @@ PREFIX : <http://example.org/manufacturing/customerdemand#>
 
 # Total OPEN customer-order demand VALUE = SUM(order_qty * unit_price) across every
 # demand line whose parent order is still 'Open'. This is the extended line value
-# (line_value in docs/my-mrp-kb/Customer_Order_Demand.sqlite.sql) summed over the
+# (line_value in docs/my-mrp-kb/03-customer-order-demand/Customer_Order_Demand.sqlite.sql) summed over the
 # open-demand set. Ontop exposes the per-line quantity, unit price, and order
 # status; the consumer's SPARQL aggregation multiplies and sums. Scalar (no
 # GROUP BY) so it stays SQLite-safe. Compared against the governed SQL aggregate

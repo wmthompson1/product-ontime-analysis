@@ -12,7 +12,7 @@ snapshot.
 LIKE SHOWCASE 6 (customer-order demand) AND UNLIKE the on-time / OEE showcases,
 the capacity layer has NO computation_template / concept — it was delivered as
 SME-approved docs + a runnable SQLite grounding query only
-(docs/my-mrp-kb/Capacity_Planning.sqlite.sql). So this check grounds the SPARQL
+(docs/my-mrp-kb/02-capacity-planning/Capacity_Planning.sqlite.sql). So this check grounds the SPARQL
 answers against that DIRECT governed SQL, run on the same snapshot. The SQL stays
 the single source of truth; Ontop is only a publishing layer over it.
 

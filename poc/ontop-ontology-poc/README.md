@@ -311,7 +311,7 @@ the interoperability layer **also covers governed numbers that live as SME-appro
 docs + a runnable SQL grounding query only** — with no computation template — by
 publishing the **customer-order demand** layer over the virtual graph and proving
 it agrees with that **governed SQL directly** (the grounding query in
-`docs/my-mrp-kb/Customer_Order_Demand.sqlite.sql`). The SQL stays the single
+`docs/my-mrp-kb/03-customer-order-demand/Customer_Order_Demand.sqlite.sql`). The SQL stays the single
 source of truth; Ontop is only a standards-based publishing layer over it.
 
 It has its own small vocabulary (`ontology/customer_order_demand.ttl`) and mapping
@@ -373,7 +373,7 @@ on a **different question over a different table**: rough-cut **capacity plannin
 — how many standard shop-floor hours are scheduled on each in-house work center.
 Like the demand layer it has **no SolderEngine computation template**, so parity
 is grounded against the governed SQL directly (the grounding query in
-`docs/my-mrp-kb/Capacity_Planning.sqlite.sql`).
+`docs/my-mrp-kb/02-capacity-planning/Capacity_Planning.sqlite.sql`).
 
 It reads the **same `operation` table as the OEE showcase (Showcase 5)** but is
 minted in its **own namespace with its own files** — a different metric (planning
@@ -434,7 +434,7 @@ that proof on the **execution side of the shop floor**: how routed work moves
 across the floor — a **work order** and the ordered **operations** (routing steps)
 that build it. Like the demand and capacity layers it has **no SolderEngine
 computation template**, so parity is grounded against the governed SQL directly
-(the grounding query in `docs/my-mrp-kb/Shop_Floor_Routing.sqlite.sql`).
+(the grounding query in `docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql`).
 
 The grounding query is a **strict two-table join** of `work_order` and `operation`
 on `wo_id`. The showcase publishes exactly that — **no third table**. A
@@ -495,7 +495,7 @@ Quantity on Hand — a stream of **inventory transactions**, each an `In` or `Ou
 of some `quantity` for a `part` at a `site`. Like the demand, capacity, and
 routing layers it has **no SolderEngine computation template**, so parity is
 grounded against the governed SQL directly (the grounding query in
-`docs/my-mrp-kb/kb-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql`).
+`docs/my-mrp-kb/05-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql`).
 
 Per the Terminology Guide the signed effect on Quantity on Hand is `+qty` for an
 `In` (`type='I'`) and `−qty` for an `Out` (`type='O'`), so net movement =

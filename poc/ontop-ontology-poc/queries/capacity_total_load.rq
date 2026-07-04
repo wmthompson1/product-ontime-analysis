@@ -5,7 +5,7 @@ PREFIX : <http://example.org/manufacturing/capacity#>
 # source SQL already restricts the published operations to the governed set
 # (in-house only: service_id IS NULL and a machine/labor work center; scheduled
 # only: sched_start_date IS NOT NULL), so this scalar SUM is exactly the
-# horizon-total load in docs/my-mrp-kb/Capacity_Planning.sqlite.sql. Ontop
+# horizon-total load in docs/my-mrp-kb/02-capacity-planning/Capacity_Planning.sqlite.sql. Ontop
 # exposes the per-operation hours; the consumer's SPARQL aggregation sums them.
 # Scalar (no GROUP BY) so it stays SQLite-safe. Compared against the governed SQL
 # aggregate on the same snapshot.

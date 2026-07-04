@@ -2,7 +2,7 @@
 Migration: add the WAREHOUSE and PART_LOCATION stand-in tables.
 
 These two tables complete the inventory-transaction reconciliation surface so the
-ground-truth review query (docs/my-mrp-kb/kb-inventory-transactions/
+ground-truth review query (docs/my-mrp-kb/05-inventory-transactions/
 Inventory_-_Transactions_AI_Review.sql) can run as a SQLite synthetic benchmark.
 They mirror the real Infor VISUAL DDLs in this repo (ddl/dbo.WAREHOUSE.sql,
 ddl/dbo.PART_LOCATION.sql), trimmed to the columns the reconciliation needs.

@@ -57,7 +57,7 @@ from my_mrp_ingestion_runner import _detect_pii, _sha256_bytes  # noqa: E402
 DEFAULT_DOC_ROOT = Path(
     os.getenv("MRP_DOCUMENTS_DIR", str(_REPO_ROOT / "docs" / "my-mrp-kb"))
 ).expanduser()
-DEFAULT_DOC = DEFAULT_DOC_ROOT / "Manufacturing and MRP Terminology in Semantic Models.docx"
+DEFAULT_DOC = DEFAULT_DOC_ROOT / "01-core-framework" / "Manufacturing and MRP Terminology in Semantic Models.docx"
 DEFAULT_SQLITE = (
     _REPO_ROOT / "hf-space-inventory-sqlgen" / "app_schema" / "manufacturing.db"
 )

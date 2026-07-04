@@ -15,7 +15,7 @@
 # Like the customer-order demand showcase (Showcase 6), the capacity layer has NO
 # semantic-layer computation_template / concept — it was delivered as SME-approved
 # docs + a runnable SQLite grounding query only
-# (docs/my-mrp-kb/Capacity_Planning.sqlite.sql). So the parity check grounds the
+# (docs/my-mrp-kb/02-capacity-planning/Capacity_Planning.sqlite.sql). So the parity check grounds the
 # SPARQL answers against that DIRECT governed SQL on the same read-only snapshot,
 # not against SolderEngine. The SQL stays the single source of truth; this file
 # only names the terms (see ../mapping/capacity_planning.obda).

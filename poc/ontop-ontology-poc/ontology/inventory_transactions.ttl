@@ -15,7 +15,7 @@
 # and shop-floor routing (Showcase 8) showcases, the inventory-transactions layer
 # has NO semantic-layer computation_template / concept — it was delivered as
 # SME-approved docs + a runnable SQLite grounding query only
-# (docs/my-mrp-kb/kb-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql,
+# (docs/my-mrp-kb/05-inventory-transactions/Inventory_-_Transactions_AI_Review.sqlite.sql,
 # plus the Terminology Guide + Entry Index). So the parity check grounds the
 # SPARQL answers against that DIRECT governed SQL on the same read-only snapshot,
 # not against SolderEngine. The SQL stays the single source of truth; this file
