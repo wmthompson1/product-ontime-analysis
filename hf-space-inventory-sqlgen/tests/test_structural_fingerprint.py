@@ -431,6 +431,102 @@ def test_registration_flow():
         check(raised, "parse-fail registration rejected (fail closed)")
 
 
+# ---------------------------------------------------------------------------
+# 8. Join-edge dimension of the fingerprint
+# ---------------------------------------------------------------------------
+def test_join_edges():
+    print("\n[test_join_edges]")
+
+    # Alias resolution: equi-join columns resolve to their base tables.
+    edges, unresolved = sfp.join_edges_from_sql(
+        "SELECT * FROM part p JOIN customer_order_line col ON col.part_id = p.part_id"
+    )
+    check(edges == [("customer_order_line", "part_id", "part", "part_id", "INNER")],
+          "equi-join resolves aliases to base tables (INNER symmetric)")
+    check(unresolved == [], "clean equi-join has no unresolved joins")
+
+    # Endpoints are sorted; INNER is order-independent.
+    edges_rev, _ = sfp.join_edges_from_sql(
+        "SELECT * FROM customer_order_line col JOIN part p ON p.part_id = col.part_id"
+    )
+    check(edges_rev == edges, "INNER edge is identical regardless of FROM/ON order")
+
+    # LEFT/RIGHT orientation follows the PRESERVED table, not text order.
+    part_pres, _ = sfp.join_edges_from_sql(
+        "SELECT * FROM part p LEFT JOIN customer_order_line col ON col.part_id = p.part_id"
+    )
+    col_pres, _ = sfp.join_edges_from_sql(
+        "SELECT * FROM customer_order_line col LEFT JOIN part p ON col.part_id = p.part_id"
+    )
+    check(part_pres == [("customer_order_line", "part_id", "part", "part_id", "RIGHT")],
+          "part preserved -> endpoint b preserved -> RIGHT")
+    check(col_pres == [("customer_order_line", "part_id", "part", "part_id", "LEFT")],
+          "col preserved -> endpoint a preserved -> LEFT")
+    check(part_pres != col_pres,
+          "different preserved table -> different canonical edge (not collapsed)")
+
+    # RIGHT JOIN mirrors the equivalent LEFT JOIN.
+    right_join, _ = sfp.join_edges_from_sql(
+        "SELECT * FROM part p RIGHT JOIN customer_order_line col ON col.part_id = p.part_id"
+    )
+    check(right_join == col_pres, "RIGHT JOIN normalizes to the mirrored LEFT edge")
+
+    # Composite key -> one edge per column pair.
+    comp, _ = sfp.join_edges_from_sql(
+        "SELECT * FROM work_order w JOIN operation o "
+        "ON o.wo_id = w.wo_id AND o.part_id = w.part_id"
+    )
+    check(comp == [
+        ("operation", "part_id", "work_order", "part_id", "INNER"),
+        ("operation", "wo_id", "work_order", "wo_id", "INNER"),
+    ], "composite join yields one edge per column pair")
+
+    # Warn-only classes: CROSS, non-equi, CTE-touching.
+    cross_e, cross_u = sfp.join_edges_from_sql("SELECT * FROM a CROSS JOIN b")
+    check(cross_e == [] and cross_u and cross_u[0]["reason"] == "cross_join",
+          "CROSS join is unresolved (warn-only), never an edge")
+    _, nonequi_u = sfp.join_edges_from_sql(
+        "SELECT * FROM part p JOIN inventory i ON i.qty > p.reorder_point"
+    )
+    check(nonequi_u and nonequi_u[0]["reason"] == "non_equi",
+          "non-equi predicate is unresolved (warn-only)")
+    cte_e, cte_u = sfp.join_edges_from_sql(
+        "WITH c AS (SELECT part_id FROM part) "
+        "SELECT * FROM c JOIN customer_order_line col ON col.part_id = c.part_id"
+    )
+    check(cte_e == [] and cte_u,
+          "join touching a CTE is unresolved (warn-only), not a graph edge")
+
+    # dict round-trip.
+    d = sfp.edge_to_dict(edges[0])
+    check(sfp.edge_from_dict(d) == edges[0], "edge dict round-trips")
+
+    # validate_join_edges: drift, recognition, unresolved-as-warning.
+    sql = "SELECT * FROM part p JOIN customer_order_line col ON col.part_id = p.part_id"
+    approved = [sfp.edge_to_dict(edges[0])]
+    graph = set(edges)
+    ok, reason, warns = sfp.validate_join_edges(sql, approved, graph)
+    check(ok and reason is None and warns == [], "matching + recognized join validates")
+
+    ok2, reason2, _ = sfp.validate_join_edges(
+        "SELECT * FROM part p LEFT JOIN customer_order_line col ON col.part_id = p.part_id",
+        approved, graph)
+    check(not ok2 and "drift" in reason2, "changed join type fails closed (drift)")
+
+    ok3, reason3, _ = sfp.validate_join_edges(sql, approved, set())
+    check(not ok3 and "not recognized" in reason3,
+          "join absent from graph fails closed (recognition)")
+
+    ok4, _, warns4 = sfp.validate_join_edges(
+        "SELECT * FROM a CROSS JOIN b", [], set())
+    check(ok4 and any("cross_join" in w for w in warns4),
+          "unresolved join warns but does not block")
+
+    ok5, reason5, _ = sfp.validate_join_edges("SELECT FROM WHERE (", [], set())
+    check(not ok5 and "parse" in reason5.lower(),
+          "unparseable snippet fails closed on join validation")
+
+
 if __name__ == "__main__":
     test_extractor()
     test_validate_fingerprint()
@@ -439,5 +535,6 @@ if __name__ == "__main__":
     test_backfill_idempotent()
     test_graph_wiring()
     test_registration_flow()
+    test_join_edges()
     print(f"\n{_passed} passed, {_failed} failed")
     sys.exit(1 if _failed else 0)

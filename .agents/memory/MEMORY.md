@@ -26,6 +26,7 @@
 - [Ontop interoperability POC](ontop-interoperability-poc.md) — SQL layer republished as a virtual OWL/SPARQL graph via Ontop; parity proven over a read-only WAL snapshot.
 - [Synthetic ERP backfill grounding](synthetic-erp-backfill-grounding.md) — fill blank/zero ERP columns from the real PO→receiving→payable flow (supplier scorecard, WO job costing), deterministic, never random.
 - [Ontop ontology annotation layers](ontology-annotation-layers.md) — POC .ttl gates are regex-based & blind to annotations; safe to enrich existing terms; use subClassOf/skos:closeMatch not owl:equivalentClass; no new unmapped terms.
+- [Graph-aware fingerprint (v2)](graph-aware-fingerprint.md) — runtime enforces join edges ONLY for v2 (join_aware) bindings; write side (register_snippet) must stamp v2 too or new snippets bypass join validation.
 - [SQLGlot Select arg names](sqlglot-select-arg-names.md) — FROM clause is "from_" (not "from"); LEFT/RIGHT join in "side"; CROSS/FULL in "kind"; combine both for canonical type.
 - [Canonical→live Arango sync](canonical-to-live-arango-sync.md) — push canonical graph changes to live graph via load_canonical_to_arango.py (NOT graph_sync.py, which only syncs bridges); regen committed parity reports with --report-file/--csv-dir.
 - [Live flat-graph parity race](live-flat-graph-parity-race.md) — shared cloud ArangoDB is raced by external main-version loads; sql_aql_parity is non-deterministic pre-merge; sql_graph_parity (SQLite↔JSON) is the real acceptance.

@@ -128,6 +128,12 @@ def register_snippet(
     if not base_tables:
         raise RegistrationError("snippet reaches no base table; nothing to fingerprint")
 
+    # v2 (graph-aware) fingerprint: also capture the snippet's canonical join
+    # edges (+ any unresolved joins) so the runtime enforces join drift/recognition
+    # — a hard cutover, so every newly registered snippet is join-aware.
+    join_edge_tuples, unresolved_joins = sfp.join_edges_from_sql(sql_text)
+    join_edges = [sfp.edge_to_dict(e) for e in join_edge_tuples]
+
     manifest = _load_manifest(manifest_path)
     snippets = manifest.setdefault("approved_snippets", {})
 
@@ -161,7 +167,9 @@ def register_snippet(
         "approved_by": signed_off_by,
         "structural_fingerprint": {
             "base_tables": base_tables,
-            "extractor": sfp.EXTRACTOR_ID,
+            "join_edges": join_edges,
+            "unresolved_joins": unresolved_joins,
+            "extractor": sfp.EXTRACTOR_ID_V2,
             "dialect": sfp.FINGERPRINT_DIALECT,
             "signed_off_by": signed_off_by,
             "signed_off_at": now,
@@ -181,6 +189,8 @@ def register_snippet(
     return {
         "binding_key": binding_key,
         "base_tables": base_tables,
+        "join_edges": join_edges,
+        "unresolved_joins": unresolved_joins,
         "reused_existing": reused,
         "file_path": file_rel,
         "written": write,
@@ -247,6 +257,8 @@ def main() -> int:
     print(f"  binding_key : {result['binding_key']}"
           f"{' (reused)' if result['reused_existing'] else ' (new)'}")
     print(f"  base_tables : {result['base_tables']}")
+    print(f"  join_edges  : {len(result['join_edges'])} "
+          f"({len(result['unresolved_joins'])} unresolved)")
     print(f"  file_path   : {result['file_path']}")
 
     if not args.dry_run and args.refresh_routing:

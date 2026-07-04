@@ -81,8 +81,8 @@ MANIFEST_PATH = os.path.join(
 )
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 21
-MILESTONE_NAME = "manifest_binding_fingerprint_topology"
+SCHEMA_VERSION = 22
+MILESTONE_NAME = "graph_aware_join_edge_topology"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -106,6 +106,13 @@ EDGE_PREDICATE_ELEVATES = "resolves_to"
 # Living-manifest predicate (v21): a binding-key node -> each base table it
 # touches (its structural fingerprint, as topology edges).
 EDGE_PREDICATE_BINDS_TABLE = "binds_table"
+# v22: a ``references`` edge's provenance. Declared foreign keys carry
+# ``fk_declared`` (join_type NULL — an FK implies an INNER-joinable relationship).
+# Joins discovered in SME-approved snippet fingerprints that the schema's FKs did
+# NOT already imply carry ``sql_observed`` + the canonical ``join_type`` — folding
+# the graph-aware structural fingerprint into the SAME structural edge layer.
+ORIGIN_FK_DECLARED = "fk_declared"
+ORIGIN_SQL_OBSERVED = "sql_observed"
 
 # SQLite graph source tables. These persist the exact node/edge rows that the
 # graph JSON is serialized FROM, so SQLite is the inspectable source of truth and
@@ -166,7 +173,9 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     weight            INTEGER,
     priority_weight   INTEGER,
     field_component   INTEGER,
-    variable_name     TEXT
+    variable_name     TEXT,
+    origin            TEXT,
+    join_type         TEXT
 );
 """
 
@@ -821,8 +830,43 @@ def _fetch_foreign_keys(conn: sqlite3.Connection, table_names: list[str],
     return fks
 
 
+def _emit_reference_edge(edges: list[dict], counter: dict[str, int],
+                         from_table: str, from_col: str,
+                         to_table: str, to_col: str,
+                         origin: str, join_type: str | None) -> None:
+    """Append one ``references``-family structural edge (from_col -> to_col).
+
+    Both declared FKs and SME-observed joins live in this single edge layer,
+    distinguished only by ``origin``/``join_type``. The uniqifier is allocated
+    from the SHARED ``counter`` keyed by the (system, references, from_table,
+    from_col) prefix, so an FK edge and a sql_observed edge that happen to anchor
+    on the same column never collide on ``_key``.
+    """
+    prefix = _edge_uid_prefix(PERSPECTIVE_SYSTEM, EDGE_PREDICATE_REFERENCES,
+                              from_table, from_col)
+    n = counter.get(prefix, 0) + 1
+    counter[prefix] = n
+    uid = f"{prefix}_{n:03d}"
+    edges.append(
+        {
+            "_id": references_edge_id(from_table, from_col, uid),
+            "_key": references_edge_key(from_table, from_col, uid),
+            "_from": column_id(from_table, from_col),
+            "_to": column_id(to_table, to_col),
+            "edge_family": FAMILY_STRUCTURAL,
+            "edge_type": EDGE_PREDICATE_REFERENCES,
+            "perspective": PERSPECTIVE_SYSTEM,
+            "unique_id": uid,
+            "references_table": to_table,
+            "references_column": to_col,
+            "origin": origin,
+            "join_type": join_type,
+        }
+    )
+
+
 def _build_references_edges(fk_rows: list[dict], node_index: set,
-                            integrity: dict) -> list[dict]:
+                            integrity: dict) -> tuple[list[dict], dict, set]:
     """One references edge per FK column pair: child column -> parent column.
 
     Edges are emitted in a deterministic sorted order; the uniqifier counts up
@@ -830,9 +874,16 @@ def _build_references_edges(fk_rows: list[dict], node_index: set,
     containment allocator). A foreign key whose child or parent column is not an
     exported node is skipped and recorded in the integrity report rather than
     emitting a dangling edge.
+
+    Returns ``(edges, counter, fk_inner_set)`` — the shared uniqifier counter (so
+    the sql_observed join builder can continue the SAME allocation) and the set
+    of canonical ``(a, ca, b, cb, 'INNER')`` tuples the FKs already imply (so an
+    observed INNER join on a declared FK is not stored a second time). Every FK
+    edge carries ``origin='fk_declared'`` and ``join_type=None``.
     """
     edges: list[dict] = []
     counter: dict[str, int] = {}
+    fk_inner_set: set = set()
     ordered = sorted(
         fk_rows,
         key=lambda f: (
@@ -846,24 +897,76 @@ def _build_references_edges(fk_rows: list[dict], node_index: set,
         if pc is None or (ct, cc) not in node_index or (pt, pc) not in node_index:
             integrity["foreign_keys_skipped"].append(f"{ct}.{cc} -> {pt}.{pc}")
             continue
-        prefix = _edge_uid_prefix(PERSPECTIVE_SYSTEM, EDGE_PREDICATE_REFERENCES, ct, cc)
-        n = counter.get(prefix, 0) + 1
-        counter[prefix] = n
-        uid = f"{prefix}_{n:03d}"
-        edges.append(
-            {
-                "_id": references_edge_id(ct, cc, uid),
-                "_key": references_edge_key(ct, cc, uid),
-                "_from": column_id(ct, cc),
-                "_to": column_id(pt, pc),
-                "edge_family": FAMILY_STRUCTURAL,
-                "edge_type": EDGE_PREDICATE_REFERENCES,
-                "perspective": PERSPECTIVE_SYSTEM,
-                "unique_id": uid,
-                "references_table": pt,
-                "references_column": pc,
-            }
-        )
+        _emit_reference_edge(edges, counter, ct, cc, pt, pc,
+                             ORIGIN_FK_DECLARED, None)
+        (a, b) = sorted([(ct, cc), (pt, pc)])
+        fk_inner_set.add((a[0], a[1], b[0], b[1], "INNER"))
+    return edges, counter, fk_inner_set
+
+
+def _canonical_join_tuple(jd: dict) -> tuple:
+    """Normalize a manifest ``join_edges`` dict to the canonical 5-tuple.
+
+    The manifest already stores each edge canonically (endpoints sorted, join
+    type oriented relative to that sort — see structural_fingerprint), so this is
+    a pure case/shape normalization, NOT a re-derivation.
+    """
+    return (
+        (jd.get("table_a") or "").lower(),
+        (jd.get("column_a") or "").lower(),
+        (jd.get("table_b") or "").lower(),
+        (jd.get("column_b") or "").lower(),
+        (jd.get("join_type") or "INNER").upper(),
+    )
+
+
+def _fetch_manifest_join_edges(fk_inner_set: set,
+                               manifest_path: str = MANIFEST_PATH) -> list[tuple]:
+    """Union of canonical join edges across every APPROVED snippet fingerprint,
+    minus those a declared FK already covers (its INNER-joinable relationship).
+
+    Returns a sorted list of canonical ``(a, ca, b, cb, join_type)`` tuples to
+    fold into the graph as ``sql_observed`` references edges — exactly the joins
+    the schema's FKs did not already imply (non-INNER optionality on an FK pair,
+    or a genuine business join with no FK at all). Tolerant of a missing or
+    unreadable manifest (returns []). Read-only.
+    """
+    try:
+        with open(manifest_path, encoding="utf-8") as fh:
+            manifest = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return []
+    union: set = set()
+    for entry in (manifest.get("approved_snippets") or {}).values():
+        if entry.get("validation_status") != "APPROVED":
+            continue
+        fp = entry.get("structural_fingerprint") or {}
+        for jd in fp.get("join_edges") or []:
+            union.add(_canonical_join_tuple(jd))
+    return sorted(union - fk_inner_set)
+
+
+def _build_sql_observed_join_edges(join_rows: list[tuple], node_index: set,
+                                   counter: dict[str, int],
+                                   integrity: dict) -> list[dict]:
+    """Emit ``sql_observed`` references edges for the manifest's discovered joins.
+
+    ``join_rows`` are canonical ``(a, ca, b, cb, join_type)`` tuples (a<=b), so
+    ``_from`` is always the lexicographically smaller endpoint and the stored
+    edge is already in canonical form — the engine reads it back without
+    re-sorting. Endpoints must be exported column nodes or the edge is skipped
+    (recorded in the integrity report), exactly like a dangling FK. The shared
+    ``counter`` continues the FK uniqifier allocation.
+    """
+    edges: list[dict] = []
+    for (ta, ca, tb, cb, jt) in sorted(join_rows):
+        if (ta, ca) not in node_index or (tb, cb) not in node_index:
+            integrity.setdefault("sql_observed_joins_skipped", []).append(
+                f"{ta}.{ca} <-> {tb}.{cb} [{jt}]"
+            )
+            continue
+        _emit_reference_edge(edges, counter, ta, ca, tb, cb,
+                             ORIGIN_SQL_OBSERVED, jt)
     return edges
 
 
@@ -1315,6 +1418,11 @@ def _sql_graph_edges_is_stale(conn: sqlite3.Connection) -> bool:
     # resolves_to round-trip carries it.
     if "variable_name" not in cols:
         return True
+    # v22 added references-edge provenance (``origin``/``join_type``) so joins
+    # discovered in snippet fingerprints fold into the structural edge layer.
+    # Rebuild when a pre-v22 table lacks them so the round-trip carries them.
+    if "origin" not in cols or "join_type" not in cols:
+        return True
     ddl_row = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='sql_graph_edges'"
     ).fetchone()
@@ -1398,15 +1506,17 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                 f"INSERT INTO {SQL_GRAPH_EDGES_TABLE} "
                 "(ordinal, _key, _id, _from, _to, edge_family, edge_type, "
                 "perspective, unique_id, references_table, references_column, "
-                "weight, priority_weight, field_component, variable_name) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "weight, priority_weight, field_component, variable_name, "
+                "origin, join_type) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, e["_key"], e["_id"], e["_from"], e["_to"],
                     e["edge_family"], e["edge_type"], e["perspective"],
                     e["unique_id"], e.get("references_table"),
                     e.get("references_column"), e.get("weight"),
                     e.get("priority_weight"), e.get("field_component"),
-                    e.get("variable_name"),
+                    e.get("variable_name"), e.get("origin"),
+                    e.get("join_type"),
                 ),
             )
 
@@ -1495,6 +1605,10 @@ def _edge_dict_from_row(row: sqlite3.Row) -> dict:
     if et == EDGE_PREDICATE_REFERENCES:
         doc["references_table"] = row["references_table"]
         doc["references_column"] = row["references_column"]
+        # v22: provenance of the relationship. fk_declared edges carry
+        # join_type=None; sql_observed edges carry the canonical join type.
+        doc["origin"] = row["origin"]
+        doc["join_type"] = row["join_type"]
     elif et == EDGE_PREDICATE_ELEVATES:
         doc["weight"] = row["weight"]
         doc["priority_weight"] = row["priority_weight"]
@@ -1631,7 +1745,16 @@ def main() -> int:
             uid_map = allocate_containment_uids(column_nodes)
             has_column_edges = _build_has_column_edges(column_nodes, uid_map)
             node_index = {(c["table_name"], c["column_name"]) for c in column_nodes}
-            references_edges = _build_references_edges(fk_rows, node_index, integrity)
+            references_edges, ref_counter, fk_inner_set = _build_references_edges(
+                fk_rows, node_index, integrity
+            )
+            # v22: fold graph-aware structural fingerprints in — the joins SME
+            # snippets actually use, minus those a declared FK already implies,
+            # emitted as sql_observed references edges sharing the FK uniqifier.
+            join_rows = _fetch_manifest_join_edges(fk_inner_set)
+            sql_observed_join_edges = _build_sql_observed_join_edges(
+                join_rows, node_index, ref_counter, integrity
+            )
             concept_index = {c["concept_name"] for c in concept_nodes}
             elevates_edges = _build_elevates_edges(
                 elevation_rows, node_index, concept_index, integrity
@@ -1643,8 +1766,8 @@ def main() -> int:
                 table_names, integrity
             )
             edges = (
-                has_column_edges + references_edges + elevates_edges
-                + binds_table_edges
+                has_column_edges + references_edges + sql_observed_join_edges
+                + elevates_edges + binds_table_edges
             )
 
             # Persist the graph into the SQLite source tables, then read it back
@@ -1685,7 +1808,8 @@ def main() -> int:
     print(
         f"  edges   : {doc['counts']['edges_total']}  "
         f"({len(has_column_edges)} {EDGE_PREDICATE_HAS_COLUMN}, "
-        f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES}, "
+        f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES} fk_declared "
+        f"+ {len(sql_observed_join_edges)} sql_observed, "
         f"{len(elevates_edges)} {EDGE_PREDICATE_ELEVATES}, "
         f"{len(binds_table_edges)} {EDGE_PREDICATE_BINDS_TABLE}) in {EDGE_COLLECTION}"
     )

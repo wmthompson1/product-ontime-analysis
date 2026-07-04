@@ -93,6 +93,10 @@ def _sample_graph():
             "unique_id": "none",
             "references_table": "CUSTOMER",
             "references_column": "ID",
+            # v22: an FK-declared reference carries origin=fk_declared and no
+            # join type (join_type=None); sql_observed edges carry a join type.
+            "origin": ex.ORIGIN_FK_DECLARED,
+            "join_type": None,
         },
         {
             "_id": f"{ex.EDGE_COLLECTION}/res_CUSTOMER_NAME",

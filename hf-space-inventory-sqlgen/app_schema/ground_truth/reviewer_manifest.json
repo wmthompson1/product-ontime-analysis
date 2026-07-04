@@ -17,10 +17,12 @@
         "base_tables": [
           "part"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.463849+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.591003+00:00"
       }
     },
     "inventory_onhandquantity_20260703_000002": {
@@ -39,10 +41,12 @@
         "base_tables": [
           "part"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.467088+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.595135+00:00"
       }
     },
     "inventory_leadtime_20260703_000003": {
@@ -61,10 +65,12 @@
         "base_tables": [
           "part"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.469712+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.598121+00:00"
       }
     },
     "inventory_atp_20260703_000004": {
@@ -88,10 +94,52 @@
           "purchase_order",
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "customer_order",
+            "column_a": "order_id",
+            "table_b": "customer_order_line",
+            "column_b": "order_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "po_line",
+            "column_a": "po_id",
+            "table_b": "purchase_order",
+            "column_b": "po_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "cross_join",
+            "detail": "buckets"
+          },
+          {
+            "reason": "non_equi",
+            "detail": "NOT col.need_by_date IS NULL AND DATE(col.need_by_date) >= b.b_start AND DATE(col.need_by_date) < b.b_end"
+          },
+          {
+            "reason": "non_equi",
+            "detail": "NOT po.required_date IS NULL AND DATE(po.required_date) >= b.b_start AND DATE(po.required_date) < b.b_end"
+          },
+          {
+            "reason": "non_equi",
+            "detail": "NOT wo.required_date IS NULL AND DATE(wo.required_date) >= b.b_start AND DATE(wo.required_date) < b.b_end"
+          },
+          {
+            "reason": "unresolved_columns",
+            "detail": "d.part_id = p.part_id AND d.idx = b.idx"
+          },
+          {
+            "reason": "unresolved_columns",
+            "detail": "r.part_id = p.part_id AND r.idx = b.idx"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.488662+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.620470+00:00"
       }
     },
     "inventory_allocated_20260703_000005": {
@@ -112,10 +160,27 @@
           "customer_order_line",
           "part"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "customer_order",
+            "column_a": "order_id",
+            "table_b": "customer_order_line",
+            "column_b": "order_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "customer_order_line",
+            "column_a": "part_id",
+            "table_b": "part",
+            "column_b": "part_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.491862+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.629065+00:00"
       }
     },
     "suppliers_supplierscorecard_20260601_000001": {
@@ -134,10 +199,12 @@
         "base_tables": [
           "suppliers"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.494076+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.631449+00:00"
       }
     },
     "suppliers_outsideservicesuppliers_20260601_000002": {
@@ -156,10 +223,12 @@
         "base_tables": [
           "suppliers"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.495912+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.633341+00:00"
       }
     },
     "operations_workorderstatus_20260601_000003": {
@@ -178,10 +247,12 @@
         "base_tables": [
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.498077+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.635907+00:00"
       }
     },
     "operations_workordercostdetail_20260601_000004": {
@@ -200,10 +271,12 @@
         "base_tables": [
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.500245+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.638768+00:00"
       }
     },
     "payables_purchaseorderstatus_20260601_000005": {
@@ -223,10 +296,20 @@
           "purchase_order",
           "suppliers"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "purchase_order",
+            "column_a": "supplier_id",
+            "table_b": "suppliers",
+            "column_b": "supplier_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.502307+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.640677+00:00"
       }
     },
     "payables_openpobysupp_20260601_000006": {
@@ -246,10 +329,20 @@
           "purchase_order",
           "suppliers"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "purchase_order",
+            "column_a": "supplier_id",
+            "table_b": "suppliers",
+            "column_b": "supplier_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.504527+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.643294+00:00"
       }
     },
     "finance_ncm_cost_20260208_150000": {
@@ -533,10 +626,20 @@
           "operation",
           "shop_resource"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "operation",
+            "column_a": "resource_id",
+            "table_b": "shop_resource",
+            "column_b": "resource_id",
+            "join_type": "RIGHT"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.507520+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.647320+00:00"
       }
     },
     "operations_oeestrategic_20260604_000008": {
@@ -556,10 +659,20 @@
           "operation",
           "shop_resource"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "operation",
+            "column_a": "resource_id",
+            "table_b": "shop_resource",
+            "column_b": "resource_id",
+            "join_type": "RIGHT"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.510841+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.651944+00:00"
       }
     },
     "operations_equipmentstatemaintenance_20260604_000009": {
@@ -579,10 +692,20 @@
           "operation",
           "shop_resource"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "operation",
+            "column_a": "resource_id",
+            "table_b": "shop_resource",
+            "column_b": "resource_id",
+            "join_type": "RIGHT"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.515240+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.658622+00:00"
       }
     },
     "operations_equipmentstatecompliance_20260604_000010": {
@@ -605,10 +728,41 @@
           "shop_resource",
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "certification",
+            "column_a": "receipt_id",
+            "table_b": "receiving",
+            "column_b": "receipt_id",
+            "join_type": "RIGHT"
+          },
+          {
+            "table_a": "operation",
+            "column_a": "resource_id",
+            "table_b": "shop_resource",
+            "column_b": "resource_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "operation",
+            "column_a": "wo_id",
+            "table_b": "work_order",
+            "column_b": "wo_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "receiving",
+            "column_a": "part_id",
+            "table_b": "work_order",
+            "column_b": "part_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.517598+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.662369+00:00"
       }
     },
     "operations_equipmentstateproduction_20260604_000011": {
@@ -629,10 +783,27 @@
           "shop_resource",
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "operation",
+            "column_a": "resource_id",
+            "table_b": "shop_resource",
+            "column_b": "resource_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "operation",
+            "column_a": "wo_id",
+            "table_b": "work_order",
+            "column_b": "wo_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.520128+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.666391+00:00"
       }
     },
     "sales_ordercustomerstate_20260604_000012": {
@@ -651,10 +822,12 @@
         "base_tables": [
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.523940+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.670584+00:00"
       }
     },
     "operations_deliveryperformanceops_20260604_000013": {
@@ -675,10 +848,27 @@
           "receiving",
           "suppliers"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "purchase_order",
+            "column_a": "po_id",
+            "table_b": "receiving",
+            "column_b": "po_id",
+            "join_type": "LEFT"
+          },
+          {
+            "table_a": "purchase_order",
+            "column_a": "supplier_id",
+            "table_b": "suppliers",
+            "column_b": "supplier_id",
+            "join_type": "LEFT"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.528808+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.676917+00:00"
       }
     },
     "inventory_safetystock_20260703_000006": {
@@ -700,10 +890,29 @@
           "part",
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "customer_order",
+            "column_a": "order_id",
+            "table_b": "customer_order_line",
+            "column_b": "order_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "cross_join",
+            "detail": "horizon"
+          },
+          {
+            "reason": "unresolved_columns",
+            "detail": "od.part_id = p.part_id"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.565938+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.724050+00:00"
       }
     },
     "inventory_leadtimedemand_20260703_000007": {
@@ -725,10 +934,29 @@
           "part",
           "work_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "customer_order",
+            "column_a": "order_id",
+            "table_b": "customer_order_line",
+            "column_b": "order_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "cross_join",
+            "detail": "horizon"
+          },
+          {
+            "reason": "unresolved_columns",
+            "detail": "od.part_id = p.part_id"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.594413+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.751704+00:00"
       }
     },
     "inventory_minimumstock_20260703_000008": {
@@ -747,10 +975,12 @@
         "base_tables": [
           "part"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.596984+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.755672+00:00"
       }
     },
     "inventory_maximumstock_20260703_000009": {
@@ -771,10 +1001,25 @@
           "po_line",
           "purchase_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "po_line",
+            "column_a": "po_id",
+            "table_b": "purchase_order",
+            "column_b": "po_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "unresolved_columns",
+            "detail": "pol.part_id = p.part_id"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.600989+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.761454+00:00"
       }
     },
     "inventory_eoq_20260703_000010": {
@@ -795,10 +1040,25 @@
           "po_line",
           "purchase_order"
         ],
-        "extractor": "sqlglot-sqlite-base-tables-v1",
+        "join_edges": [
+          {
+            "table_a": "po_line",
+            "column_a": "po_id",
+            "table_b": "purchase_order",
+            "column_b": "po_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "unresolved_columns",
+            "detail": "pol.part_id = p.part_id"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
-        "signed_off_at": "2026-07-04T05:35:48.607932+00:00"
+        "signed_off_at": "2026-07-04T07:51:10.768821+00:00"
       }
     }
   }

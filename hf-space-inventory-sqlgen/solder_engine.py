@@ -50,6 +50,11 @@ class SolderBinding:
     # Structural fingerprint: the SME-approved set of base tables this snippet
     # touches. Empty when the manifest entry has not been fingerprinted yet.
     base_tables: List[str] = field(default_factory=list)
+    # Graph-aware fingerprint (v2): the SME-approved canonical join edges this
+    # snippet uses. ``join_aware`` is True only when the manifest entry carries a
+    # v2 (join-aware) fingerprint; a pre-v2 entry serves without join validation.
+    join_edges: List[dict] = field(default_factory=list)
+    join_aware: bool = False
 
 
 @dataclass
@@ -154,6 +159,8 @@ class SolderEngine:
 
             fingerprint = entry.get("structural_fingerprint") or {}
             base_tables = list(fingerprint.get("base_tables") or [])
+            join_edges = list(fingerprint.get("join_edges") or [])
+            join_aware = fingerprint.get("extractor") == sfp.EXTRACTOR_ID_V2
 
             bindings.append(SolderBinding(
                 binding_key=binding_key,
@@ -165,9 +172,70 @@ class SolderEngine:
                 validation_status=entry.get("validation_status", ""),
                 sql_text=sql_text,
                 base_tables=base_tables,
+                join_edges=join_edges,
+                join_aware=join_aware,
             ))
 
         return bindings
+
+    def _graph_join_edges(self) -> Optional[set]:
+        """Union of known structural relationships from the SQL graph edge tables.
+
+        Reads the ``references``-family edges from ``sql_graph_edges`` and returns
+        them as a set of canonical :data:`structural_fingerprint.JoinEdge` tuples
+        — the graph's recognition set for join validation:
+
+          * ``fk_declared`` edges (and any pre-v22 table with no ``origin`` column)
+            contribute the INNER-joinable relationship — endpoints sorted, type
+            ``INNER`` (an FK always supports an inner join across it);
+          * ``sql_observed`` edges contribute their stored canonical join edge
+            (``_from`` is already the lexicographically smaller endpoint and the
+            join type is oriented relative to it — see structural_fingerprint).
+
+        Returns ``None`` when the edge table is absent so recognition is SKIPPED
+        (drift is still enforced) rather than locking the engine out of a DB that
+        has not yet materialized the graph tables. Read-only.
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+        except sqlite3.Error:
+            return None
+        try:
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(sql_graph_edges)")}
+            if not cols:
+                return None
+            has_origin = "origin" in cols and "join_type" in cols
+            select = (
+                "SELECT _from, references_table, references_column"
+                + (", origin, join_type" if has_origin else "")
+                + " FROM sql_graph_edges WHERE edge_type = 'references'"
+            )
+            rows = conn.execute(select).fetchall()
+        except sqlite3.Error:
+            return None
+        finally:
+            conn.close()
+
+        edges: set = set()
+        for r in rows:
+            tail = (r["_from"] or "").split("/", 1)[-1]
+            parts = tail.split(":")
+            if len(parts) < 2:
+                continue
+            ft, fc = parts[0].lower(), parts[1].lower()
+            tt = (r["references_table"] or "").lower()
+            tc = (r["references_column"] or "").lower()
+            if not (ft and fc and tt and tc):
+                continue
+            origin = r["origin"] if has_origin else None
+            if origin == "sql_observed":
+                jt = (r["join_type"] or "INNER").upper() if has_origin else "INNER"
+                edges.add((ft, fc, tt, tc, jt))
+            else:  # fk_declared / legacy: an FK implies an INNER-joinable pair
+                (a, b) = sorted([(ft, fc), (tt, tc)])
+                edges.add((a[0], a[1], b[0], b[1], "INNER"))
+        return edges
 
     def resolve_by_binding_key(self, binding_key: str, target_dialect: str = "sqlite") -> Dict[str, Any]:
         bindings = self.load_approved_bindings()
@@ -227,6 +295,38 @@ class SolderEngine:
                 f"Binding `{binding_key}` has no approved structural fingerprint; "
                 "serving without base-table validation."
             )
+
+        # Fail-closed condition (4, graph-aware): join-edge validation. The
+        # snippet's canonical join edges (join type included) must match the
+        # SME-approved set (drift) AND every edge must be a relationship the graph
+        # recognizes (recognition). Only enforced for v2 (join-aware) entries; a
+        # pre-v2 entry serves without it. A missing graph skips recognition (drift
+        # still enforced) rather than locking the engine out.
+        if binding.join_aware:
+            graph_join_edges = self._graph_join_edges()
+            je_ok, je_reason, je_warnings = sfp.validate_join_edges(
+                binding.sql_text, binding.join_edges, graph_join_edges
+            )
+            fp_warnings.extend(je_warnings)
+            if not je_ok:
+                return {
+                    "sql": "",
+                    "report": [
+                        f"Binding key `{binding_key}` failed join validation: {je_reason}"
+                    ],
+                    "warnings": [
+                        "Snippet join structure does not match its SME-approved / "
+                        "graph-recognized joins; re-register the snippet if this "
+                        "change is intended."
+                    ],
+                    "fail_closed": True,
+                    "fail_condition": "join_validation_failed",
+                }
+            if graph_join_edges is None:
+                fp_warnings.append(
+                    f"Binding `{binding_key}`: SQL graph edge tables unavailable; "
+                    "served without join-recognition validation."
+                )
 
         sql = binding.sql_text
         if target_dialect and target_dialect != "sqlite":
@@ -648,6 +748,11 @@ class SolderEngine:
         fail_closed_conditions: List[str] = []
         resolved_count = 0
 
+        # Build the graph join-edge recognition set once for the whole assembly
+        # (None when the graph tables are absent → recognition is skipped, drift
+        # still enforced per concept below).
+        graph_join_edges = self._graph_join_edges()
+
         for concept in concepts:
             binding = self.resolve_concept_snippet(perspective, concept, intent)
 
@@ -730,6 +835,35 @@ class SolderEngine:
                     f"Binding `{binding.binding_key}` has no approved structural "
                     f"fingerprint; serving {concept} without base-table validation."
                 )
+
+            # Fail-closed condition (4, graph-aware): join-edge validation. The
+            # snippet's canonical join edges must match the SME-approved set
+            # (drift) AND every edge must be recognized by the graph. Only for v2
+            # (join-aware) entries; a missing graph skips recognition (drift still
+            # enforced). The recognition set is built once per assembly below.
+            if binding.join_aware:
+                je_ok, je_reason, je_warnings = sfp.validate_join_edges(
+                    binding.sql_text, binding.join_edges, graph_join_edges
+                )
+                warnings.extend(je_warnings)
+                if not je_ok:
+                    msg = (
+                        f"{concept}: snippet for binding `{binding.binding_key}` "
+                        f"failed join validation ({je_reason}). Failing closed — "
+                        f"re-register the snippet if this change is intended."
+                    )
+                    report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
+                    warnings.append(msg)
+                    fail_closed_concepts.append(concept)
+                    if "join_validation_failed" not in fail_closed_conditions:
+                        fail_closed_conditions.append("join_validation_failed")
+                    continue
+                if graph_join_edges is None:
+                    warnings.append(
+                        f"Binding `{binding.binding_key}`: SQL graph edge tables "
+                        f"unavailable; serving {concept} without join-recognition "
+                        f"validation."
+                    )
 
             cte_parts.append(f"{concept} AS (\n{snippet_sql}\n)")
             select_refs.append(f"{concept}.*")

@@ -76,8 +76,8 @@ def backfill(manifest_path: str = MANIFEST_PATH, dry_run: bool = False,
     manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
 
     summary = {
-        "added": [], "unchanged": [], "drift": [], "skipped_no_file": [],
-        "skipped_not_approved": [], "parse_error": [],
+        "added": [], "upgraded": [], "unchanged": [], "drift": [],
+        "skipped_no_file": [], "skipped_not_approved": [], "parse_error": [],
     }
     changed = False
 
@@ -100,25 +100,47 @@ def backfill(manifest_path: str = MANIFEST_PATH, dry_run: bool = False,
             summary["parse_error"].append(binding_key)
             continue
 
+        # Join dimension: canonical equi-join edges + warn-only unresolved joins.
+        join_edges, unresolved_joins = sfp.join_edges_from_sql(sql_text)
+        edge_dicts = [sfp.edge_to_dict(e) for e in join_edges]
+        edge_set = set(join_edges)
+
         existing = entry.get("structural_fingerprint")
-        if existing and list(existing.get("base_tables") or []) == base_tables:
-            summary["unchanged"].append(binding_key)
+        existing_base = list(existing.get("base_tables") or []) if existing else None
+
+        # Real base-table drift (the .sql reaches different tables than approved)
+        # is an SME sign-off event, not a silent backfill — leave it untouched.
+        if existing_base is not None and existing_base != base_tables and not force:
+            summary["drift"].append(binding_key)
             continue
 
-        if existing and not force:
-            summary["drift"].append(binding_key)
+        existing_edge_set = {
+            sfp.edge_from_dict(d) for d in (existing.get("join_edges") or [])
+        } if existing else set()
+        already_v2 = bool(
+            existing
+            and existing.get("extractor") == sfp.EXTRACTOR_ID_V2
+            and existing_base == base_tables
+            and existing_edge_set == edge_set
+        )
+        if already_v2:
+            summary["unchanged"].append(binding_key)
             continue
 
         now = datetime.now(timezone.utc).isoformat()
         entry["structural_fingerprint"] = {
             "base_tables": base_tables,
-            "extractor": sfp.EXTRACTOR_ID,
+            "join_edges": edge_dicts,
+            "unresolved_joins": unresolved_joins,
+            "extractor": sfp.EXTRACTOR_ID_V2,
             "dialect": sfp.FINGERPRINT_DIALECT,
             "signed_off_by": "seed_backfill",
             "signed_off_at": now,
         }
         changed = True
-        (summary["drift"] if existing else summary["added"]).append(binding_key)
+        # "upgraded" = had a v1 base-table fingerprint, now gains the join
+        # dimension; "added" = had no fingerprint at all.
+        summary["upgraded" if existing_base is not None else "added"].append(binding_key)
 
     if changed and not dry_run:
         with open(manifest_path, "w", encoding="utf-8") as fh:
@@ -141,6 +163,7 @@ def main() -> int:
 
     print("Structural fingerprint backfill" + (" (dry run)" if args.dry_run else ""))
     print(f"  added     : {len(summary['added'])}  {summary['added']}")
+    print(f"  upgraded  : {len(summary['upgraded'])}  {summary['upgraded']}")
     print(f"  unchanged : {len(summary['unchanged'])}")
     print(f"  drift     : {len(summary['drift'])}  {summary['drift']}")
     print(f"  no file   : {len(summary['skipped_no_file'])}")

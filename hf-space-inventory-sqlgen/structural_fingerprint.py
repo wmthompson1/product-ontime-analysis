@@ -119,3 +119,277 @@ def validate_fingerprint(
             f"approved={approved}, actual={current}",
         )
     return True, None
+
+
+# ---------------------------------------------------------------------------
+# Join-edge fingerprint (the join dimension, added to base-table set)
+# ---------------------------------------------------------------------------
+# The join dimension of the fingerprint is the *set of canonical join edges* a
+# snippet uses. A JoinEdge is a column-qualified, alias-free, type-bearing tuple:
+#
+#     (table_a, column_a, table_b, column_b, join_type)
+#
+# Canonicalization (so one relationship == one edge regardless of authoring
+# style, while optionality stays meaningful):
+#   * alias-free  — equi-join columns are resolved back to their owning base
+#     table via the FROM/JOIN alias map (the graph knows tables, not query
+#     aliases);
+#   * endpoints sorted lexicographically for a stable key;
+#   * ``join_type`` is expressed RELATIVE to that sorted order — when the sort
+#     swaps the two sides, LEFT<->RIGHT are flipped (INNER/FULL/CROSS are
+#     symmetric, unaffected), so "A LEFT JOIN B" and the same relationship
+#     written "B ... A" collapse to one canonical edge with correct optionality.
+#
+# Only equi-joins between two BASE tables produce a validated edge. CROSS joins,
+# non-equi predicates, joins touching a CTE/subquery, and joins whose columns
+# cannot be resolved to a base table are recorded as ``unresolved`` — they warn
+# but never block (the base-table set already bounds which tables they reach).
+#
+# The engine NEVER generates joins from this — it only reads the joins an SME
+# already wrote and compares them to the approved fingerprint and the graph.
+
+# The extractor identifier stored on a v2 (join-aware) manifest fingerprint.
+EXTRACTOR_ID_V2 = "sqlglot-sqlite-base-tables+join-edges-v2"
+
+JoinEdge = Tuple[str, str, str, str, str]
+
+_SYMMETRIC_JOIN_TYPES = {"INNER", "FULL", "CROSS"}
+
+
+def _flip_side(join_type: str) -> str:
+    """LEFT<->RIGHT; INNER/FULL/CROSS unchanged (they are symmetric)."""
+    if join_type == "LEFT":
+        return "RIGHT"
+    if join_type == "RIGHT":
+        return "LEFT"
+    return join_type
+
+
+def _normalize_join_type(side: str, kind: str) -> str:
+    side = (side or "").upper()
+    kind = (kind or "").upper()
+    if "CROSS" in kind:
+        return "CROSS"
+    if side in ("LEFT", "RIGHT", "FULL"):
+        return side
+    if "FULL" in kind:
+        return "FULL"
+    return "INNER"
+
+
+def _alias_to_table_map(select) -> dict:
+    """Map every FROM/JOIN alias AND bare table name in ``select`` to its real
+    base-table name (lowercased). Subqueries map to ``None`` (not a base table).
+    """
+    mapping: dict = {}
+
+    def add(expr):
+        if isinstance(expr, exp.Table):
+            tname = (expr.name or "").lower()
+            if not tname:
+                return
+            alias = (expr.alias or "").lower()
+            if alias:
+                mapping[alias] = tname
+            mapping.setdefault(tname, tname)
+        elif isinstance(expr, exp.Subquery):
+            alias = (expr.alias or "").lower()
+            if alias:
+                mapping[alias] = None
+
+    from_clause = select.args.get("from_")
+    if from_clause is not None and from_clause.this is not None:
+        add(from_clause.this)
+    for join in select.args.get("joins") or []:
+        if join.this is not None:
+            add(join.this)
+    return mapping
+
+
+def _resolve_column(col, alias_map: dict, cte_names: set):
+    """(base_table, column) for a resolvable base-table column, else None.
+
+    Returns None when the column is unqualified, points at a subquery, or
+    resolves to a CTE (virtual table) rather than a real base table.
+    """
+    if not isinstance(col, exp.Column):
+        return None
+    qualifier = (col.table or "").lower()
+    name = (col.name or "").lower()
+    if not qualifier or not name:
+        return None
+    table = alias_map.get(qualifier)
+    if table is None:  # unknown alias, or a subquery
+        return None
+    if table in cte_names:
+        return None
+    return table, name
+
+
+def _canonical_edge(
+    left: Tuple[str, str],
+    right: Tuple[str, str],
+    join_type: str,
+    joined_table: str,
+) -> Optional[JoinEdge]:
+    """Sort the two (table, column) endpoints and orient the join type.
+
+    Canonical convention: ``LEFT`` means endpoint **a** (the lexicographically
+    smaller one) is the PRESERVED side; ``RIGHT`` means endpoint **b** is
+    preserved; INNER/FULL/CROSS are symmetric (no orientation). Optionality is
+    derived from ``joined_table`` (the table introduced by the JOIN clause):
+    in ``X LEFT JOIN Y`` X is preserved, in ``X RIGHT JOIN Y`` Y is preserved.
+    Returns ``None`` when a LEFT/RIGHT join's optionality cannot be oriented
+    (neither endpoint is the joined table) so the caller records it unresolved.
+    """
+    lo, hi = (left, right) if left <= right else (right, left)
+    if join_type in _SYMMETRIC_JOIN_TYPES:
+        return (lo[0], lo[1], hi[0], hi[1], join_type)
+
+    tables = {left[0], right[0]}
+    if joined_table not in tables:
+        return None
+    others = tables - {joined_table}
+    if join_type == "LEFT":
+        if len(others) != 1:
+            return None
+        preserved = next(iter(others))
+    else:  # RIGHT
+        preserved = joined_table
+    canon_type = "LEFT" if lo[0] == preserved else "RIGHT"
+    return (lo[0], lo[1], hi[0], hi[1], canon_type)
+
+
+def join_edges_from_sql(sql_text: str) -> Tuple[List[JoinEdge], List[dict]]:
+    """Extract a snippet's canonical join edges and its unresolved joins.
+
+    Returns ``(edges, unresolved)`` where ``edges`` is the sorted, de-duplicated
+    list of canonical :data:`JoinEdge` tuples (equi-joins between base tables)
+    and ``unresolved`` is a sorted list of ``{"reason", "detail"}`` dicts for
+    CROSS / non-equi / CTE / alias-unresolvable joins (warn, never block).
+    """
+    edges: set = set()
+    unresolved: set = set()
+    try:
+        statements = sqlglot.parse(sql_text, dialect=FINGERPRINT_DIALECT)
+    except Exception:
+        return [], []
+
+    for stmt in statements:
+        if stmt is None:
+            continue
+        cte_names = {c.alias.lower() for c in stmt.find_all(exp.CTE) if c.alias}
+        for select in stmt.find_all(exp.Select):
+            alias_map = _alias_to_table_map(select)
+            for join in select.args.get("joins") or []:
+                side = join.args.get("side") or ""
+                kind = join.args.get("kind") or ""
+                join_type = _normalize_join_type(side, kind)
+                on_expr = join.args.get("on")
+                right_name = ""
+                if isinstance(join.this, (exp.Table, exp.Subquery)):
+                    right_name = (join.this.name or join.this.alias or "").lower()
+
+                if join_type == "CROSS" or on_expr is None:
+                    unresolved.add(("cross_join", right_name or "cross"))
+                    continue
+
+                eqs = list(on_expr.find_all(exp.EQ))
+                if not eqs:
+                    unresolved.add(("non_equi", on_expr.sql(dialect=FINGERPRINT_DIALECT)))
+                    continue
+
+                joined_table = ""
+                if isinstance(join.this, exp.Table):
+                    joined_table = (join.this.name or "").lower()
+
+                matched = False
+                for eq in eqs:
+                    left = _resolve_column(eq.this, alias_map, cte_names)
+                    right = _resolve_column(eq.expression, alias_map, cte_names)
+                    if left is None or right is None:
+                        continue
+                    if left[0] == right[0]:  # self-referential column pair, skip
+                        continue
+                    edge = _canonical_edge(left, right, join_type, joined_table)
+                    if edge is None:  # LEFT/RIGHT optionality could not be oriented
+                        continue
+                    edges.add(edge)
+                    matched = True
+                if not matched:
+                    unresolved.add(("unresolved_columns",
+                                    on_expr.sql(dialect=FINGERPRINT_DIALECT)))
+
+    edge_list = sorted(edges)
+    unresolved_list = [{"reason": r, "detail": d} for r, d in sorted(unresolved)]
+    return edge_list, unresolved_list
+
+
+def edge_to_dict(edge: JoinEdge) -> dict:
+    return {
+        "table_a": edge[0], "column_a": edge[1],
+        "table_b": edge[2], "column_b": edge[3],
+        "join_type": edge[4],
+    }
+
+
+def edge_from_dict(d: dict) -> JoinEdge:
+    return (
+        (d.get("table_a") or "").lower(),
+        (d.get("column_a") or "").lower(),
+        (d.get("table_b") or "").lower(),
+        (d.get("column_b") or "").lower(),
+        (d.get("join_type") or "INNER").upper(),
+    )
+
+
+def validate_join_edges(
+    sql_text: str,
+    approved_join_edges: Optional[List[dict]],
+    graph_join_edges: Optional[set],
+) -> Tuple[bool, Optional[str], List[str]]:
+    """Validate a snippet's join dimension. Returns ``(ok, reason, warnings)``.
+
+    Two blocking checks (equi-joins only):
+      * **drift** — the snippet's current canonical join-edge set (join type
+        included) must equal the approved ``approved_join_edges``;
+      * **recognition** — every current edge must exist in ``graph_join_edges``
+        (the graph's union of known structural relationships).
+
+    ``unresolved`` joins (CROSS / non-equi / CTE / unresolvable) are returned as
+    warnings, never as a failure. A parse failure fails closed (no structure).
+    """
+    warnings: List[str] = []
+    try:
+        base_table_set(sql_text, strict=True)
+    except FingerprintParseError as exc:
+        return False, f"SQLGlot could not parse the snippet: {exc}", warnings
+
+    current_edges, unresolved = join_edges_from_sql(sql_text)
+    current_set = set(current_edges)
+    for u in unresolved:
+        warnings.append(
+            f"unvalidated {u['reason']} join (warn-only): {u['detail']}"
+        )
+
+    approved_set = {edge_from_dict(d) for d in (approved_join_edges or [])}
+    if current_set != approved_set:
+        added = sorted(current_set - approved_set)
+        removed = sorted(approved_set - current_set)
+        parts = []
+        if added:
+            parts.append(f"unexpected join(s): {[edge_to_dict(e) for e in added]}")
+        if removed:
+            parts.append(f"missing approved join(s): {[edge_to_dict(e) for e in removed]}")
+        return False, f"join fingerprint drift ({'; '.join(parts)})", warnings
+
+    if graph_join_edges is not None:
+        unknown = sorted(e for e in current_set if e not in graph_join_edges)
+        if unknown:
+            return (
+                False,
+                f"join(s) not recognized in graph: {[edge_to_dict(e) for e in unknown]}",
+                warnings,
+            )
+
+    return True, None, warnings
