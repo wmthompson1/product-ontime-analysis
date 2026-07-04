@@ -1,9 +1,9 @@
 # Manufacturing SQL Semantic Layer — HF Space
 
 ## Overview
-A production-ready semantic layer for manufacturing business intelligence, built around the "Solder Pattern": all SQL comes from SME-approved ground-truth snippets, never from LLM generation. Natural language questions are routed deterministically through a graph-theoretic semantic layer to pre-approved SQL. The system uses SQLite for schema metadata and ArangoDB for the graph-based semantic layer, with a Gradio interface hosted as a Hugging Face Space.
+A production-ready semantic layer for manufacturing business intelligence, built around the **Solder Pattern**: all SQL comes from SME-approved ground-truth snippets, never from LLM generation. Natural-language questions are routed deterministically through a graph-theoretic semantic layer to pre-approved SQL. SQLite holds the schema metadata and bridge tables (source of truth); ArangoDB holds the graph-based semantic layer. The UI is a Gradio app hosted as a Hugging Face Space.
 
-The project also contains supporting Flask/Astro demos and educational Python scripts from an Advanced RAG study sequence.
+The repo also contains supporting Flask/Astro demos and educational Python scripts from an Advanced RAG study sequence.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -16,105 +16,54 @@ API management: Cost-conscious, prefers demo modes before live API usage.
 Synthetic sources: Always target SQLite (the local `manufacturing.db` dialect) for any synthetic SQL/DDL or synthetic data source. Real-source ground-truth files (e.g. SQL Server `Live.dbo.*` T-SQL) are faithful reference benchmarks only — never the synthetic target dialect.
 Task management: Do NOT auto-create or propose follow-up tasks. Never use proposeFollowUpTasks or create project tasks unless explicitly asked.
 
-## Current System State (May 2026)
+## Runtime & Setup
+- **Python 3.13** (pinned). Do NOT move to 3.14 — it removes `ast.Str`, which SQLGlot/SQLMesh AST handling depends on. Replit runtime module: `python-base-3.13`; virtualenv at `.pythonlibs`.
+- Install deps with `uv pip install` from `requirements.txt` + `hf-space-inventory-sqlgen/requirements.txt`. Do NOT use `uv sync` — `uv.lock` is stale and intentionally unused.
+- `pyproject.toml` sets `requires-python = ">=3.13"`.
 
-### Python runtime baseline (June 2026)
-- **Runtime: Python 3.13.11** — upgraded from 3.11. Pinned to **3.13 specifically**; do NOT move to 3.14 (3.14 removes `ast.Str`, which SQLGlot/SQLMesh AST handling depends on).
-- Replit runtime module: `python-base-3.13` (the old `python-3.11` module was removed). The virtualenv lives at `.pythonlibs`, rebuilt on 3.13.
-- Dependencies are installed with `uv pip install` from `requirements.txt` + `hf-space-inventory-sqlgen/requirements.txt` (not `uv sync` — `uv.lock` is stale and intentionally not used).
-- `pyproject.toml` `requires-python = ">=3.13"`.
-- Verified on 3.13: both apps boot (HF Space on :8080 with the Gradio UI serving, Flask on :5000), every dependency imports, and the full `scripts/post-merge.sh` gate passes.
-
-### HF Space app — fully operational
-- Entry point: `hf-space-inventory-sqlgen/app.py` (FastAPI + Gradio, port 8080)
-- Database: `hf-space-inventory-sqlgen/app_schema/manufacturing.db` (SQLite, 33 tables, WAL mode)
-- ArangoDB: graph `manufacturing_graph` in database `manufacturing_graph` (read from `ARANGO_DB` env var)
-- Workflow: "HF Space Inventory SQL" → `cd hf-space-inventory-sqlgen && python app.py`
-
-### What's been built and is working
-- **Solder Pattern end-to-end**: NL → dispatcher → SolderEngine → SME-approved SQL (never LLM-generated)
-- **ArangoDB graph**: single named graph `manufacturing_graph`, 80 vertices, 41 edges; legacy `semantic_graph` retired
-- **Perspective Bridge Model**: Perspective lives as a property on bridge rows (`Perspective_Intents`, `Perspective_Concepts`) — not as a vertex collection
-- **Define Relationship UI** (mockup panel): live entity search, Add to Graph wired to real endpoints, duplicate-edge protection (AQL UPSERT), undo history (last 5), edge-count badge with per-collection tooltip
-- **Gradio tabs**: Schema browser, Ground Truth SQL browser, Semantic Graph + disambiguation, Bridge Health, Graph Sync, Query Palette, Ask a Question, Masking Matrix, Metrics — all showing live ERP source label
-- **Metric computation templates (M4)**: a metric is an existing concept node identified strictly by **duck typing** (`computation_template IS NOT NULL AND computation_template <> ''`; the `concept_type` column was DEPRECATED & REMOVED from the semantic layer) that stores a dialect-agnostic `computation_template` with named `{variable}` placeholders — **never static SQL**. Each placeholder binds to a physical column via a `resolves_to` edge carrying `variable_name` (SQLite source: `schema_concept_fields.variable_name`). SolderEngine substitutes variables → table-qualified columns and transpiles, so a define-once template yields identical SQL across the perspectives that share it. Showcase 5: `DeliveryPerformanceOps`/`Supplier`/`Finance` (one shared on-time definition, differing only by perspective + meta-context), `OEEOperational`, `OEEStrategic`. **No new perspectives and no new nodes** were created; the 5 templates added 17 `resolves_to` binding edges (canonical: 289 nodes, 299 edges — 223 has_column, 39 references, 37 resolves_to; SCHEMA_VERSION 17).
-- **Masking Matrix tab**: editable grids for the `masking_matrix` DAG and the `masking_type` reference lookup; Save full-replaces SQLite **and** mirrors the SME-facing root CSVs (`masking_matrix.csv`, `masking_type.csv`). Shows salt status (never the value) and a mask preview. The receiving certificate imports only matrix rows whose `status` is `active`.
-- **Sync automation**: SQLite triggers → queue table → polling watcher (`sync_watcher.py`) → ArangoDB sync; GitHub Actions nightly cron
-- **Drift alerts**: 6-hour GitHub Actions drift check with Slack Block Kit alerts (gated on `GRAPH_SYNC_ALERT_WEBHOOK` secret)
-- **CI**: Consolidated `hf-space-ci.yml` runs all 7 test files; ArangoDB smoke test in `arango-legacy-smoke.yml` (nightly + on push)
-
-### MRP demand-supply data foundation (Cycle 1, horizon-aware)
-Groundwork for a time-phased single-level MRP grid over the synthetic SQLite `manufacturing.db`. **Horizon-aware and data-derived** — the anchor is `AS_OF = MAX(work_order.close_date)` (never rewritten; stable across re-runs) with `FALLBACK_AS_OF = 2026-06-12`; `PLAN_START` is the first of the as-of month, and the horizon is that month plus five more (6 monthly buckets, M0–M5).
-- **Engine module** `hf-space-inventory-sqlgen/mrp_engine.py` — read-only, deterministic horizon helpers (`compute_as_of`, `plan_start`, `month_buckets`, `bucket_index_for`, `demand_parts_in_horizon`, `has_scheduled_receipt_in_horizon`) plus `validate_planning_inputs`, which **fails closed** unless every part with open demand in the horizon has a positive lead time AND a real supply basis (on-hand inventory OR a scheduled receipt in the horizon).
-- **Migration** `hf-space-inventory-sqlgen/migrations/backfill_mrp_demand_supply.py` (idempotent, SQLite-only synthetic, crc32-seeded from stable keys) adds and populates: `customer_order_line.need_by_date` + `.desired_release_date` (demand placement); `work_order.service_date` + `.vendor_id` (outside-service header enrichment, **display-only**). It also places supply into the horizon — past-due Open POs and non-closed WOs are rescheduled forward to a deterministic in-horizon due date (their `required_date` is the "PO due date"; only Open POs with no receipts and non-closed WOs with no close_date are touched, so scorecards/on-time metrics are unaffected), and a fallback Open PO (`PO-MRP-<part_id>`, INSERT OR IGNORE) is created for any BUY demand part lacking an in-horizon PO receipt. The migration ends by running the fail-closed validation.
-- **Graph curation**: the 4 physical columns are curated into the canonical graph (exporter is PRAGMA-based, so col-node count must equal PRAGMA). Re-exported to **SCHEMA_VERSION 19** (`mrp_demand_supply_foundation`): canonical 296 nodes, 306 edges (230 has_column, 39 references, 37 resolves_to); `field_descriptions.csv` regenerated to 230 rows (one per graph column node). Seed schema kept in sync: `schema_sqlite.sql` (work_order), `add_wave4_traceability_tables.py` (customer_order_line CREATE), and `app.py` `init_sqlite_db` self-heal widen (work_order).
-
-### MRP schedule grid (Cycle 2, netting engine + UI)
-On the Cycle 1 foundation, `mrp_engine.py` now computes the time-phased grid itself (still read-only, deterministic, data-derived AS_OF). `compute_mrp_grid(conn, part_id)` nets open customer-order demand against on-hand inventory and non-closed WO / open-or-partial PO scheduled receipts across **Past Due + 6 monthly buckets**, producing the six standard MRP rows (Gross Requirements, Scheduled Receipts, Projected Available Balance, Net Requirements, Planned Order Receipts, Planned Order Releases). Planned receipts are **lot-for-lot** (fill each period's net requirement); planned **releases** are those receipts pulled earlier by the part's `lead_time_days` (release = need − lead time), folding into Past Due when the release date is already behind PLAN_START. `list_planning_parts` returns the parts selectable in the UI (all in-horizon demand parts; on a foundation that passed `validate_planning_inputs` these are all plannable, and `compute_mrp_grid` still **fails closed** per-part regardless — on unknown part, missing planning columns, or non-positive/absent lead time — rather than planning against zero). Surfaced in the Gradio **MRP Schedule** tab. No graph, schema, or CSV artifacts change (Cycle 2 is compute + UI only).
-
-### PN-* parts master fold + native planner_code (SCHEMA_VERSION 20)
-Referential-integrity repair: 50 work orders referenced 20 `PN-*` part numbers that were never in the `part` master (20 phantom `work_order.part_id` values). The 20 are folded into the master as planned, fabricated items (`part_class` MAKE — their operations/routings are **retained**, not converted to POs), with `on_hand_qty` baked from the `inventory_transaction` ledger net (receipts type `I` minus issues type `O`, floored at 0 so a stockout shows as zero rather than negative stock) and `reorder_point` trailing on-hand. A native item-master column **`part.planner_code`** (TEXT, DEFAULT `ENGINEERING`) is added and populated for every part (generic owning planner). Seed path stays reproducible: the fold + planner logic lives in `add_purchasing_wip_tables.seed_pn_parts_master` (called from `run()`), `schema_sqlite.sql` gains the `planner_code` column, and `app.py` `init_sqlite_db` self-heals older DBs (`_widen_table_columns` on `part`). One-shot patch of the committed DB: `migrations/backfill_pn_parts_master_and_planner.py` (idempotent; asserts 0 orphaned WO parts, 20 PN-* master rows, 0 parts missing a planner). Re-exported to **SCHEMA_VERSION 20** (`part_planner_code_and_pn_master_fold`): canonical **297 nodes, 314 edges (231 has_column, 39 references, 44 resolves_to)**; `field_descriptions.csv` regenerated to **231 rows**. The `resolves_to` count rose 37→44 because the re-export also picked up 7 MRP/inventory glossary bindings that `seed_elevations.py` already defined but had never been re-exported — the previous canonical graph was stale, not this change. NOTE: the live ArangoDB graph is still on the old key model (legacy `concept_`-prefixed nodes) and was not synced, so the live `sql_aql_parity` check fails independently of this change (pre-existing, out of scope).
-
-### Test suite
-All tests run via `scripts/post-merge.sh` (all passing):
-| File | What it covers |
-|---|---|
-| `tests/test_field_description_pipeline.py` | Drafts (plain-language, no SQL jargon), KB-context selection, CSV round-trip, graph coverage (231/231), overlay-only guardrail (15 tests) |
-| `tests/test_perspective_deprecation.py` | Graph constants, bridge lookups, legacy collection absence (8 tests) |
-| `tests/test_resolution_messages.py` | Bridge-row resolution explanation strings (5 tests) |
-| `tests/test_db_init_self_heal.py` | Older-schema DB self-heal: `init_sqlite_db` widens `schema_concepts` (`domain`/`computation_template`) before seeding so the seed runs to completion and NEVER re-adds the deprecated `concept_type`; resolve endpoint returns 200 (not 500) on a stale DB (2 tests) |
-| `tests/test_sync_triggers.py` | SQLite trigger install/verify/remove, queue firing (21 tests) |
-| `tests/test_mcp_config.py` | /mcp/config ERP name + API key reflection (5 tests) |
-| `tests/test_delete_commit_edge_404.py` | Double-undo, missing edge 404 paths (5 tests) |
-| `tests/test_commit_edge_duplicate.py` | AQL UPSERT idempotency for all 5 predicates (11 tests) |
-| `tests/test_bridge_collection_health.py` | ArangoDB ↔ SQLite count parity (skips if offline) |
-| `tests/test_sql_graph_tables.py` | `sql_graph_nodes`/`sql_graph_edges` round-trip (incl. M4 `computation_template` node + `variable_name` edge columns), ordering, doc-from-tables parity, legacy-DB rebuild (23 tests) |
-| `tests/test_sql_aql_parity.py` | SQL (SQLite tables) vs AQL (live graph) parity via injected fake Arango (8 tests) |
-| `hf-space-inventory-sqlgen/tests/test_metric_assembly.py` | Metric template storage, variable→column binding/lineage, define-once identical SQL, perspective fan-out yields identical SQL, conflicting/missing/static templates fail closed, cross-dialect transpile, table-description overlay round-trip, overlay-never-on-graph-nodes (12 tests) |
-| `hf-space-inventory-sqlgen/tests/test_get_resolves_to.py` | `GET /mcp/tools/get_resolves_to` payload shape (6 cross-repo keys), all 11 M4 bindings present, OEEOperational + DeliveryPerformanceOps bindings + canonical `field_key`, unknown concept → empty (5 tests) |
-| `hf-space-inventory-sqlgen/tests/test_mrp_schedule.py` | MRP netting grid on a fixture DB: full netting math over Past Due + 6 buckets, lot-for-lot receipts, lead-time-offset planned releases, data-derived AS_OF (not wall clock), bucket boundaries, `list_planning_parts` in-horizon filter, fail-closed on unknown part / non-positive-or-absent lead / missing columns, and fractional-qty + release-folds-into-Past-Due (11 tests) |
-
-### Graph parity gates (run by post-merge.sh)
-- **SQL vs file**: `replit_integrations/sql_graph_parity_check.py` — proves `graph_metadata.json` is field-for-field identical to the `sql_graph_*` tables (emission order asserted).
-- **SQL vs AQL**: `replit_integrations/sql_aql_parity_check.py --skip-on-missing` — flattens the live ArangoDB graph (drops server `_rev`) and proves it matches the `sql_graph_*` tables field-for-field (order not asserted; unreachable graph = skip, real drift = fail).
-
-### Field-description coverage gate (run by post-merge.sh)
-- `replit_integrations/field_description_coverage_check.py` — proves `field_descriptions.csv` covers every graph column node in `graph_metadata.json` exactly (231/231), every description non-empty, and no extra rows. File-vs-file (no DB/network needed).
-
-### Grep gates (run by post-merge.sh)
-- No retired perspective graph surfaces (`scripts/check_legacy_perspective_refs.py`)
-- No hardcoded `"semantic_graph"` literals outside `migrations/`
+## How to Run
+- **HF Space app** (primary): workflow `HF Space Inventory SQL` → `cd hf-space-inventory-sqlgen && python app.py`. FastAPI + Gradio on port 8080. Entry point `hf-space-inventory-sqlgen/app.py`.
+- **Flask demo**: workflow `Flask App` → `python main.py` (port 5000).
+- **Database**: `hf-space-inventory-sqlgen/app_schema/manufacturing.db` (SQLite, WAL mode). Gitignored — verify migrations via `sqlite3` dumps, not file copies.
+- **Graph**: ArangoDB graph `manufacturing_graph` in database `manufacturing_graph` (name read from `ARANGO_DB`).
+- **Full gate**: `scripts/post-merge.sh` runs the whole test + parity suite. It exceeds the bash-tool 120s limit — run detached or in the foreground with care.
 
 ## System Architecture
 
 ### Backend
-- **Framework**: FastAPI (ASGI, uvicorn) + Gradio mounted at `/gradio`
-- **Database**: SQLite (`manufacturing.db`, WAL mode) — source of truth for schema metadata and bridge tables
-- **Graph**: ArangoDB — `manufacturing_graph` database, `manufacturing_graph` named graph; populated by `graph_sync.py`
-- **Semantic Layer**: SolderEngine (`solder_engine.py`) — SQLGlot-based assembly of approved SQL snippets; multi-dialect (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery). Also assembles **metric SQL** from a concept's `computation_template` + its `resolves_to` variable bindings: resolves at concept scope, dedups `variable_name`→`table.column`, and fails closed on missing / extra / conflicting / static / unresolvable-join bindings (one distinct binding per placeholder) — guaranteeing define-once → identical SQL.
-- **`GET /mcp/tools/get_resolves_to`**: read-only adapter exposing the M4 metric/template variable bindings for cross-repo (public-fleet) interface parity. Reads binding rows from the SQLite source of truth (`schema_concept_fields` where `variable_name IS NOT NULL`, joined to `schema_concepts`) and enriches each with `field_key` from the live ArangoDB `resolves_to` edges (canonical column-node key, with a deterministic fallback when ArangoDB is offline). Optional `concept_name` filter; each item carries `concept, variable_name, table_name, field_name, field_key, context_hint`. **No `schema_resolves_to` table is introduced** — the existing M4 model is the single source of truth.
-- **Dispatcher**: Production Dispatcher — closed-vocabulary router using HuggingFace Inference API (Mistral-7B-Instruct) as classifier only, routes to SolderEngine
-- **Sync**: `sync_watcher.py` daemon polls `graph_sync_queue` SQLite table (populated by triggers); `scripts/install_sync_triggers.py` installs 9 triggers on 3 bridge tables
+- **Framework**: FastAPI (ASGI, uvicorn) with Gradio mounted at `/gradio`.
+- **Semantic Layer — SolderEngine** (`solder_engine.py`): SQLGlot-based assembly of SME-approved SQL snippets; multi-dialect (SQLite, T-SQL, PostgreSQL, MySQL, BigQuery). Validates each snippet against a **structural fingerprint** (base tables + canonical join edges) and fails closed on drift or unrecognized joins. Also assembles **metric SQL** from a concept's `computation_template` + `resolves_to` variable bindings, failing closed on missing / extra / conflicting / static / unresolvable bindings so a define-once template yields identical SQL across perspectives.
+- **Dispatcher**: closed-vocabulary router using the HuggingFace Inference API (Mistral-7B-Instruct) as a classifier only; routes to SolderEngine (never generates SQL).
+- **Sync**: SQLite triggers populate a `graph_sync_queue` table; the `sync_watcher.py` daemon polls it and syncs bridge rows to ArangoDB. `graph_sync.py` performs the sync; a GitHub Actions nightly cron runs it too.
+- **`GET /mcp/tools/get_resolves_to`**: read-only adapter exposing the metric/template variable bindings for cross-repo interface parity (SQLite is the source of truth; enriched with the canonical column-node key from ArangoDB, with a deterministic offline fallback).
 
-### Frontend (Gradio)
-Tabs: Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix · Metrics · MRP Schedule
+### Frontend (Gradio tabs)
+Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph · Bridge Health · Graph Sync · Query Palette · Ask a Question · Masking Matrix · Metrics · MRP Schedule.
+- **Metrics**: pick a metric concept → plain-language description, dialect-agnostic `computation_template`, variable→column→table lineage, table meta-context, and the assembled SQL for a chosen dialect.
+- **MRP Schedule**: pick a planning part → time-phased MRP grid (open demand netted against on-hand + WO/PO scheduled receipts across Past Due + 6 monthly buckets, lot-for-lot planned receipts, lead-time-offset planned releases). Read-only, deterministic, anchored to a data-derived as-of date (`AS_OF = MAX(work_order.close_date)`).
 
-The **Metrics** tab lets you pick a metric concept and shows its plain-language description, the dialect-agnostic `computation_template`, the variable→column→table lineage, the table-level meta-context, and the SolderEngine-assembled SQL for a chosen dialect.
+### Key Concepts
+- **Metric templates**: a metric is an existing concept node identified by duck typing (`computation_template` is non-empty; the old `concept_type` column is removed). Each `{variable}` placeholder binds to a physical column via a `resolves_to` edge. Never static SQL.
+- **MRP engine** (`mrp_engine.py`): read-only, deterministic horizon + netting helpers. `validate_planning_inputs` and `compute_mrp_grid` fail closed unless every in-horizon demand part has a positive lead time and a real supply basis.
+- **Define Relationship mockup** (React/Vite): `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`, served by the mockup-sandbox Vite server (port 23636), connects to the app at `/mcp/*`.
 
-The **MRP Schedule** tab lets you pick a planning part and shows its time-phased MRP grid — open demand netted against on-hand inventory and existing WO/PO scheduled receipts across Past Due + 6 monthly buckets, with lot-for-lot planned order receipts and lead-time-offset planned order releases. Read-only, deterministic, and anchored to the data-derived as-of date.
+### Approval-copy CSVs (repo root)
+SME-editable CSVs at the repo root mirror into SQLite overlay tables on boot (idempotent upsert, never blocks boot):
+- `masking_matrix.csv` / `masking_type.csv` — masking DAG + reference lookup (`masking_matrix.py` / `masking_type.py`); the receiving certificate imports only `status == active` rows.
+- `field_descriptions.csv` — plain-language description per graph column node (`field_description_pipeline.py`; regenerate via `replit_integrations/seed_field_descriptions.py --build-graph-csv`).
+- `table_descriptions.csv` — table-level meta-context (`table_description_pipeline.py`).
 
-### Masking approval copies (repo root)
-`masking_matrix.csv` and `masking_type.csv` live at the repo root as the SME-facing approval copies (CSV ↔ SQLite, upsert on boot). `masking_matrix.py` / `masking_type.py` manage them; `certificate_for_receiving/generate_certificate.py` reads the root `masking_matrix.csv` and imports only `status == active` rows.
+**Overlay-only by design**: descriptions and meta-context are NEVER written onto graph column nodes, so `graph_metadata.json` stays byte-identical.
 
-### Field-description approval copy (repo root)
-`field_descriptions.csv` lives at the repo root as the SME-editable approval copy of plain-language descriptions for every graph column node (231 rows, one per canonical-graph `table,column`). On boot, `app.py` upserts it into the `api_field_descriptions` overlay table (idempotent, never blocks boot) so descriptions survive a DB rebuild — mirroring the masking pattern. **Overlay-only by design: descriptions are NEVER written onto graph column nodes**, so `graph_metadata.json` stays byte-identical. `field_description_pipeline.py` manages the CSV (read/write/load + coverage helpers); `replit_integrations/seed_field_descriptions.py --build-graph-csv` regenerates it (priority: existing CSV row > curated `FIELD_DESCRIPTIONS` > fresh draft). Drafts are plain-language with no SQL jargon; AI drafting (gpt-4o-mini + KB context) is available via `--ai`, with a deterministic pattern-based fallback used when no working OpenAI key is present.
+### Graph metadata & parity gates (run by `post-merge.sh`)
+- `graph_metadata.json` is serialized FROM the `sql_graph_nodes` / `sql_graph_edges` tables; bump `SCHEMA_VERSION` when re-freezing.
+- **SQL↔file** (`replit_integrations/sql_graph_parity_check.py`): proves `graph_metadata.json` matches the `sql_graph_*` tables field-for-field. This is the authoritative acceptance gate.
+- **SQL↔AQL** (`replit_integrations/sql_aql_parity_check.py --skip-on-missing`): compares the `sql_graph_*` tables to the live ArangoDB graph. NOTE: the live graph is on the legacy `concept_`-prefixed key model and is not synced here, so this check fails independently (pre-existing, out of scope) — it is reachable-but-stale, so `--skip-on-missing` does not skip it.
+- **Field-description coverage** (`replit_integrations/field_description_coverage_check.py`): every graph column node described exactly once, no extras, none empty.
+- **Grep gates**: no retired-perspective graph surfaces (`scripts/check_legacy_perspective_refs.py`); no hardcoded `"semantic_graph"` literals outside `migrations/`.
 
-### Table-description / meta-context approval copy (repo root)
-`table_descriptions.csv` lives at the repo root as the SME-editable approval copy of table-level meta-context (showcase tables: `operation`, `purchase_order`, `receiving`). On boot, `app.py` upserts it into the `api_table_descriptions` overlay table (PK `source_database` + `schema_name` + `table_name`; columns `display_name`, `description`, `ai_context`) — idempotent, never blocks boot — mirroring the field-description and masking patterns. **Overlay-only by design: this AI meta-context is NEVER written onto physical graph column nodes**, so `graph_metadata.json` stays byte-identical. `table_description_pipeline.py` manages the CSV (read/write/load helpers).
-
-### Define Relationship mockup (React/Vite)
-Location: `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`
-Served by mockup sandbox Vite server (port 23636). Connects to Flask app at `/mcp/*`.
+### Tests
+All tests run via `scripts/post-merge.sh` (all passing except the out-of-scope live-AQL parity noted above). Test files live in `tests/` and `hf-space-inventory-sqlgen/tests/`. See `post-merge.sh` for the authoritative list.
 
 ## Key Environment Variables
 | Variable | Default | Purpose |
@@ -124,28 +73,13 @@ Served by mockup sandbox Vite server (port 23636). Connects to Flask app at `/mc
 | `ARANGO_ROOT_PASSWORD` | — | ArangoDB password |
 | `ARANGO_DB` | `manufacturing_graph` | Database and graph name |
 | `ERP_INSTANCE_NAME` | `ERP_Instance_1` | ERP source label shown in UI |
-| `OPENAI_API_KEY` | — | OpenAI embeddings (optional) |
+| `OPENAI_API_KEY` | — | OpenAI embeddings / AI drafting (optional) |
 | `TAVILY_API_KEY` | — | Tavily search for RAG (optional) |
-| `GRAPH_SYNC_ALERT_WEBHOOK` | — | Slack incoming webhook for sync failure alerts (see below) |
+| `GRAPH_SYNC_ALERT_WEBHOOK` | — | Slack webhook for nightly sync-failure alerts |
 | `QUERY_API_KEY` | — | API key guard for SQL generation endpoints |
 
-## Enabling Slack Alerts for Nightly Sync Failures
-
-The nightly graph sync workflow (`.github/workflows/graph-sync-on-change.yml`) posts a Slack Block Kit alert whenever any step fails — including the 2 AM UTC scheduled run. The alert includes the failure timestamp, branch, who triggered the run, and a direct link to the GitHub Actions log. If a bridge health drift report was written, it is included in the alert body.
-
-**To enable alerts:**
-
-1. Create a Slack Incoming Webhook for your workspace:
-   - Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From scratch
-   - Under "Add features", choose **Incoming Webhooks** and activate them
-   - Click **Add New Webhook to Workspace**, pick the channel where alerts should appear, and copy the webhook URL (format: `https://hooks.slack.com/services/…`)
-
-2. Add the URL as a GitHub Actions repository secret:
-   - In your GitHub repo, go to **Settings → Secrets and variables → Actions → New repository secret**
-   - Name: `GRAPH_SYNC_ALERT_WEBHOOK`
-   - Value: the webhook URL copied above
-
-3. That's it. The next time the nightly sync fails (or any push-triggered run fails), a Slack message is posted automatically. If `GRAPH_SYNC_ALERT_WEBHOOK` is not set, the step is skipped silently and a summary is still written to the GitHub Actions step summary tab.
+## Slack Alerts for Nightly Sync Failures
+`.github/workflows/graph-sync-on-change.yml` posts a Slack Block Kit alert whenever a step fails (including the 2 AM UTC scheduled run), gated on `GRAPH_SYNC_ALERT_WEBHOOK`. To enable: create a Slack Incoming Webhook, then add its URL as the GitHub Actions repository secret `GRAPH_SYNC_ALERT_WEBHOOK` (Settings → Secrets and variables → Actions). If the secret is unset, the alert step is skipped silently and a summary is still written to the Actions step-summary tab.
 
 ## External Dependencies
 Flask, FastAPI, SQLAlchemy, sqlite3, LangChain, LangGraph, Gradio, SQLGlot, python-arango, FAISS, pandas, openpyxl, xlrd, requests, httpx, mcp, trafilatura, beautifulsoup4, lxml, Faker, sdv, sdmetrics
