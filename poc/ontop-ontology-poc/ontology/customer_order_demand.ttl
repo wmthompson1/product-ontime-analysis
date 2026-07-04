@@ -14,7 +14,8 @@
 # Unlike the on-time (Showcase 1) and OEE (Showcase 5) showcases, the demand
 # layer has NO semantic-layer computation_template / concept — it was delivered
 # as SME-approved docs + a runnable SQLite grounding query only
-# (docs/my-mrp-kb/03-customer-order-demand/Customer_Order_Demand.sqlite.sql). So the parity check grounds
+# (archived at hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/
+# _archived/manufacturing_customerorderdemand_20260704_000002.sql). So the parity check grounds
 # the SPARQL answers against that DIRECT governed SQL on the same read-only
 # snapshot, not against SolderEngine. The SQL stays the single source of truth;
 # this file only names the terms (see ../mapping/customer_order_demand.obda).

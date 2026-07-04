@@ -1,4 +1,4 @@
-*Source: written for the local synthetic `manufacturing.db` (SQLite) ERP stand-in, framed against the attached Manufacturing Demand Guide and the real Infor VISUAL T-SQL tables (CUST_ORDER_LINE, DEMAND_SUPPLY_LINK, WORK_ORDER). The real ERP and the guide are reference benchmarks only; every runnable example targets SQLite. The companion grounding query lives beside this file as `Customer_Order_Demand.sqlite.sql`.*
+*Source: written for the local synthetic `manufacturing.db` (SQLite) ERP stand-in, framed against the attached Manufacturing Demand Guide and the real Infor VISUAL T-SQL tables (CUST_ORDER_LINE, DEMAND_SUPPLY_LINK, WORK_ORDER). The real ERP and the guide are reference benchmarks only; every runnable example targets SQLite. The companion grounding query is archived as `manufacturing_customerorderdemand_20260704_000002.sql` under `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/`.*
 
 # Customer Order Demand — Aerospace MRP
 
@@ -205,7 +205,7 @@ The synthetic model is intentionally thinner than real Infor VISUAL. The table b
 | Promised ship date / `MRPByReleaseDate` | *none* | No ship-date or release-date logic. |
 | Stock UoM vs. user UoM | single `part.unit_of_measure` | No conversion; order_qty taken as-is. |
 
-Use this document as the framing reference, and `Customer_Order_Demand.sqlite.sql` as the runnable proof.
+Use this document as the framing reference, and the archived `manufacturing_customerorderdemand_20260704_000002.sql` as the runnable proof.
 
 ---
 

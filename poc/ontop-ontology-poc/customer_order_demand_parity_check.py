@@ -13,7 +13,8 @@ WHAT GROUNDS PARITY HERE IS DIFFERENT from the on-time (parity_check.py) and OEE
 each metric has a semantic-layer computation_template. The customer-order demand
 layer has NO computation_template / concept — it was delivered as SME-approved
 docs + a runnable SQLite grounding query only
-(docs/my-mrp-kb/03-customer-order-demand/Customer_Order_Demand.sqlite.sql). So this check grounds the
+(archived at hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/
+manufacturing_customerorderdemand_20260704_000002.sql). So this check grounds the
 SPARQL answers against that DIRECT governed SQL, run on the same snapshot. The
 SQL stays the single source of truth; Ontop is only a publishing layer over it.
 

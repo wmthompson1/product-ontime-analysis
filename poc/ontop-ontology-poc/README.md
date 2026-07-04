@@ -311,7 +311,7 @@ the interoperability layer **also covers governed numbers that live as SME-appro
 docs + a runnable SQL grounding query only** — with no computation template — by
 publishing the **customer-order demand** layer over the virtual graph and proving
 it agrees with that **governed SQL directly** (the grounding query in
-`docs/my-mrp-kb/03-customer-order-demand/Customer_Order_Demand.sqlite.sql`). The SQL stays the single
+`hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/manufacturing_customerorderdemand_20260704_000002.sql`). The SQL stays the single
 source of truth; Ontop is only a standards-based publishing layer over it.
 
 It has its own small vocabulary (`ontology/customer_order_demand.ttl`) and mapping
