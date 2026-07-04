@@ -23,9 +23,10 @@ should trigger a replenishment purchase order?* This is the front door of
 procurement planning — the daily "what do I buy today" question.
 
 We will follow this exact question through five stages, then contrast it with a
-second question ("what's my economic order quantity?") that takes a slightly
-different internal route. Both are grounded in the real approved inventory views
-in this repository — nothing here is invented for the example.
+second, richer question ("what can I promise, and by when?" — available-to-promise)
+that takes a slightly different internal route. Both are grounded in the real
+approved inventory views in this repository — nothing here is invented for the
+example.
 
 ---
 
@@ -125,7 +126,7 @@ routes, and which one runs depends on the intent.
 
 Some intents are pinned directly to one approved snippet via a
 `primary_binding_key` on the intent record. If present, the dispatcher resolves
-that key immediately and skips concept reasoning. (Our contrast question, EOQ,
+that key immediately and skips concept reasoning. (Our contrast question, ATP,
 takes this path — see §6.)
 
 ### 4b. The concept path — perspective, weights, and `resolves_to`
@@ -271,23 +272,53 @@ So the structural guarantee is established once, up front, when the approved vie
 are catalogued — and the request-time path simply parses and transpiles the view
 that governance already blessed.
 
-### A useful contrast — the EOQ question takes the fast path
+### A useful contrast — the ATP question takes the fast path
 
-Ask instead: **"What's my economic order quantity?"**
+Ask instead: **"What can I promise, and by when?"** — the available-to-promise
+(ATP) question. Where the reorder view returns one actionable row per part, ATP
+returns a full **time-phased grid**: one row per (part, monthly bucket) carrying a
+running projected-available balance and an `AVAILABLE`/`SHORT` verdict for each
+bucket. It is a genuine planning view — not a single number inside an aggregate —
+yet it flows through the very same governance.
 
-- **Stage 1:** `"eoq"` → intent `inventory_eoq`, concept `EconomicOrderQuantity`,
-  perspective `Inventory_Transactions`.
-- **Stage 2:** `inventory_eoq` *does* carry a `primary_binding_key`
-  (`inventory_eoq_20260703_000010`), so the engine takes the **fast path** — it
-  resolves that key directly, no concept-weight reasoning needed.
-- **Stages 3–4:** identical governance and assembly. The approved EOQ view joins
-  `po_line` to `purchase_order` (to exclude cancelled POs); its structural
-  fingerprint — catalogued at boot time — records *both* physical tables, again
-  keyed on tables rather than the helper subquery's wording.
+- **Stage 1:** `"atp"` (or "available to promise") → intent `inventory_atp`,
+  concept `AvailableToPromise`, perspective `Inventory_Transactions`.
+- **Stage 2:** `inventory_atp` *does* carry a `primary_binding_key`
+  (`inventory_atp_20260703_000004`), so the engine takes the **fast path** — it
+  resolves that key directly, skipping the concept-weight reasoning the reorder
+  question needed. This is deliberate: the manifest notes *"no single column owns
+  ATP; the approved snippet is the definition,"* so there is no lone `resolves_to`
+  column to reason toward — the whole netting query *is* the concept.
+- **Stages 3–4:** identical governance and assembly.
 
-Same pattern, same guarantees; only Stage 2's entry point differs. This is why
-the architecture is robust: every question converges on an approved, file-backed
-definition.
+**Why this view proves the CTE-vs-table rule.** The ATP snippet is written with
+four CTEs — `h`, `buckets`, `demand`, `receipts`. They read like a table pipeline,
+but **CTEs are not tables**; they are a readable join sequence. SQLGlot's parser
+surfaces all ten `FROM`/`JOIN` names as `exp.Table` nodes, so the extractor first
+collects the CTE names and *subtracts* them, leaving the true physical fingerprint:
+
+```
+  naive AST names (10):  buckets · customer_order · customer_order_line · demand
+                         · h · part · po_line · purchase_order · receipts · work_order
+  minus CTE aliases (4): buckets · demand · h · receipts
+  ─────────────────────────────────────────────────────────────────────────────
+  physical tables (6):   customer_order · customer_order_line · part
+                         · po_line · purchase_order · work_order
+```
+
+A developer may rename those CTEs, reorder them, or refactor the netting math
+entirely; as long as the **6 base tables** and their joins stay intact, the view's
+**physical-table fingerprint** — catalogued at boot in `sql_view_ontology` — is
+unchanged. (This is exactly what `_extract_tables_from_sql` in `solder_engine.py`
+and the `cte_names` filter in `view_ontology_extractor.py` do: gather `exp.CTE`
+names, then exclude them from the `exp.Table` set.) The same catalog also records
+finer detail — state predicates, grain, and selected columns — so *those* facets
+can still differ if the refactor changes the query's logic; it is the table set and
+joins that anchor the view's identity.
+
+Same pattern, same guarantees; only Stage 2's entry point — and the view's
+richness — differs. This is why the architecture scales from a one-line reorder
+trigger to a full time-phased ATP grid without loosening a single governance rule.
 
 ---
 
@@ -367,6 +398,6 @@ This trace corresponds one-to-one with the three-layer architecture diagram:
 - `hf-space-inventory-sqlgen/semantic_reasoning.py` — formal resolution algorithm & ambiguity detection
 - `hf-space-inventory-sqlgen/view_ontology_extractor.py` — AST structural extraction (Stage 4)
 - `hf-space-inventory-sqlgen/app_schema/ground_truth/reviewer_manifest.json` — SME sign-off ledger (Stage 3)
-- `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/inventory_reorderpoint_20260703_000001.sql` — the traced approved view
-- `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/inventory_eoq_20260703_000010.sql` — the fast-path contrast view
+- `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/inventory_reorderpoint_20260703_000001.sql` — the traced approved view (concept-path)
+- `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/inventory_atp_20260703_000004.sql` — the fast-path contrast view (primary-binding, time-phased grid)
 - `docs/mrp_set_semantics_criteria.md` — the set-semantics standard behind the inventory concepts
