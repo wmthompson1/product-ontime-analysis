@@ -645,6 +645,7 @@ class SolderEngine:
         report = []
         warnings = []
         fail_closed_concepts: List[str] = []
+        fail_closed_conditions: List[str] = []
         resolved_count = 0
 
         for concept in concepts:
@@ -665,6 +666,8 @@ class SolderEngine:
                     report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
                     warnings.append(msg)
                     fail_closed_concepts.append(concept)
+                    if "no_perspective_compatible_snippet" not in fail_closed_conditions:
+                        fail_closed_conditions.append("no_perspective_compatible_snippet")
                 else:
                     report.append(f"- **{concept}**: No approved snippet found (skipped)")
                 continue
@@ -677,15 +680,56 @@ class SolderEngine:
 
             snippet_sql = binding.sql_text.strip().rstrip(";")
             if not snippet_sql:
-                report.append(f"- **{concept}**: Binding `{binding.binding_key}` has empty SQL (skipped)")
+                # Fail-closed condition (2): approved binding with no snippet SQL.
+                msg = (
+                    f"{concept}: binding `{binding.binding_key}` has no snippet SQL. "
+                    f"Failing closed — nothing SME-approved to serve."
+                )
+                report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
+                warnings.append(msg)
+                fail_closed_concepts.append(concept)
+                if "missing_snippet_file" not in fail_closed_conditions:
+                    fail_closed_conditions.append("missing_snippet_file")
                 continue
 
             try:
                 sqlglot.parse_one(snippet_sql, read="sqlite")
             except Exception as e:
-                report.append(f"- **{concept}**: Parse error in snippet (skipped)")
-                warnings.append(f"Could not parse snippet for {concept}: {e}")
+                # Fail-closed condition (4): a snippet that will not parse cannot
+                # be structurally validated, so it is never served.
+                msg = (
+                    f"{concept}: snippet for binding `{binding.binding_key}` failed "
+                    f"to parse ({e}). Failing closed — unparseable SQL is never served."
+                )
+                report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
+                warnings.append(msg)
+                fail_closed_concepts.append(concept)
+                if "fingerprint_validation_failed" not in fail_closed_conditions:
+                    fail_closed_conditions.append("fingerprint_validation_failed")
                 continue
+
+            # Fail-closed condition (4): structural fingerprint. The snippet's
+            # base-table set must match the SME-approved fingerprint (style is
+            # deliberately ignored). A binding with no approved fingerprint yet
+            # serves with a warning rather than being locked out.
+            fp_ok, fp_reason = sfp.validate_fingerprint(binding.sql_text, binding.base_tables)
+            if not fp_ok:
+                msg = (
+                    f"{concept}: snippet for binding `{binding.binding_key}` failed "
+                    f"structural fingerprint validation ({fp_reason}). Failing closed — "
+                    f"re-register the snippet if this change is intended."
+                )
+                report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
+                warnings.append(msg)
+                fail_closed_concepts.append(concept)
+                if "fingerprint_validation_failed" not in fail_closed_conditions:
+                    fail_closed_conditions.append("fingerprint_validation_failed")
+                continue
+            if not binding.base_tables:
+                warnings.append(
+                    f"Binding `{binding.binding_key}` has no approved structural "
+                    f"fingerprint; serving {concept} without base-table validation."
+                )
 
             cte_parts.append(f"{concept} AS (\n{snippet_sql}\n)")
             select_refs.append(f"{concept}.*")
@@ -710,9 +754,7 @@ class SolderEngine:
                 "warnings": ([base_warning] + warnings) if warnings else [base_warning],
                 "fail_closed": bool(fail_closed_concepts),
                 "fail_closed_concepts": fail_closed_concepts,
-                "fail_closed_condition": (
-                    "no_perspective_compatible_snippet" if fail_closed_concepts else None
-                ),
+                "fail_closed_condition": self._summarize_fail_condition(fail_closed_conditions),
             }
 
         cte_clause = "WITH " + ",\n".join(cte_parts) + "\n" if cte_parts else ""
@@ -747,10 +789,21 @@ class SolderEngine:
             "base_table": base_table,
             "fail_closed": bool(fail_closed_concepts),
             "fail_closed_concepts": fail_closed_concepts,
-            "fail_closed_condition": (
-                "no_perspective_compatible_snippet" if fail_closed_concepts else None
-            ),
+            "fail_closed_condition": self._summarize_fail_condition(fail_closed_conditions),
         }
+
+    @staticmethod
+    def _summarize_fail_condition(conditions: List[str]) -> Optional[str]:
+        """Collapse the distinct fail-closed condition codes into one label.
+
+        None when nothing failed closed; the single code when only one kind of
+        failure occurred; ``"multiple"`` when different kinds were mixed.
+        """
+        if not conditions:
+            return None
+        if len(conditions) == 1:
+            return conditions[0]
+        return "multiple"
 
     def _generate_base_query(self, edge: ElevationEdge) -> str:
         if edge.table_name and edge.field_name:

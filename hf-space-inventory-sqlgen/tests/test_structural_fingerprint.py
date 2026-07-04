@@ -189,6 +189,79 @@ def test_engine_fail_closed():
     )
     check(not unknown.get("fail_closed"), "unknown concept is not a perspective fail-closed")
 
+    # assemble_query must also fail closed on condition (4): parse failure and
+    # structural-fingerprint drift — never serving unvalidated SQL. We inject a
+    # crafted binding so the check does not depend on manifest contents.
+    from solder_engine import SolderBinding
+
+    def _fake_binding(sql_text, base_tables):
+        return SolderBinding(
+            binding_key="FAKE_KEY", perspective="Operations",
+            concept_anchor="FAKE_CONCEPT", logic_type="AGGREGATE",
+            sql_snippet_path="fake.sql", sme_justification="test",
+            validation_status="APPROVED", sql_text=sql_text,
+            base_tables=base_tables,
+        )
+
+    orig_resolve = eng.resolve_concept_snippet
+    try:
+        eng.resolve_concept_snippet = lambda p, c, i=None: _fake_binding("SELECT FROM (", [])
+        parse_fc = eng.assemble_query(
+            intent=None, perspective="Operations", concepts=["FAKE_CONCEPT"],
+            base_table="stg_manufacturing_flat", target_dialect="sqlite",
+        )
+        check(parse_fc.get("fail_closed") is True, "assemble_query fails closed on parse error")
+        check(parse_fc.get("fail_closed_condition") == "fingerprint_validation_failed",
+              "parse error reported as condition (4)")
+        check(parse_fc.get("sql", "").strip().startswith("--"),
+              "parse-error assembly serves no real SQL")
+
+        eng.resolve_concept_snippet = lambda p, c, i=None: _fake_binding(
+            "SELECT p.part_id FROM part p JOIN work_order w ON w.part_id=p.part_id",
+            ["part"],  # approved fingerprint omits work_order -> drift
+        )
+        fp_fc = eng.assemble_query(
+            intent=None, perspective="Operations", concepts=["FAKE_CONCEPT"],
+            base_table="stg_manufacturing_flat", target_dialect="sqlite",
+        )
+        check(fp_fc.get("fail_closed") is True, "assemble_query fails closed on fingerprint drift")
+        check(fp_fc.get("fail_closed_condition") == "fingerprint_validation_failed",
+              "fingerprint drift reported as condition (4)")
+        check(fp_fc.get("sql", "").strip().startswith("--"),
+              "fingerprint-drift assembly serves no real SQL")
+    finally:
+        eng.resolve_concept_snippet = orig_resolve
+
+
+# ---------------------------------------------------------------------------
+# 3b. Dispatcher must not fall back to assembly when the binding-key path
+#     fails closed (no silent cross-path SQL).
+# ---------------------------------------------------------------------------
+def test_dispatcher_fail_closed_no_fallback():
+    print("test_dispatcher_fail_closed_no_fallback")
+    from production_dispatcher import ProductionDispatcher
+
+    disp = ProductionDispatcher(use_live_api=False)
+    disp.intent_binding_map = {"FAKE_INTENT": "FAKE_KEY"}
+    disp.extract_via_mock = lambda q: {
+        "intent": "FAKE_INTENT", "concepts": ["X"], "perspective": "Operations",
+        "confidence": "high",
+    }
+    disp.solder.resolve_by_binding_key = lambda k, target_dialect="sqlite": {
+        "sql": "", "report": ["boom"], "warnings": ["boom"],
+        "fail_closed": True, "fail_condition": "fingerprint_validation_failed",
+    }
+    called = {"assemble": False}
+    orig_assemble = disp.solder.assemble_query
+    disp.solder.assemble_query = lambda **kw: (called.__setitem__("assemble", True) or orig_assemble(**kw))
+
+    res = disp.dispatch("some question", force_mock=True)
+    check(res.fail_closed is True, "dispatcher surfaces binding-key fail-closed")
+    check(res.fail_closed_condition == "fingerprint_validation_failed",
+          "dispatcher carries the fail-closed condition code")
+    check(not res.assembled_sql, "dispatcher serves no SQL when binding-key fails closed")
+    check(called["assemble"] is False, "dispatcher does NOT fall back to assemble_query")
+
 
 # ---------------------------------------------------------------------------
 # 4. Backfill migration — coverage + idempotency
@@ -338,6 +411,7 @@ if __name__ == "__main__":
     test_extractor()
     test_validate_fingerprint()
     test_engine_fail_closed()
+    test_dispatcher_fail_closed_no_fallback()
     test_backfill_idempotent()
     test_graph_wiring()
     test_registration_flow()

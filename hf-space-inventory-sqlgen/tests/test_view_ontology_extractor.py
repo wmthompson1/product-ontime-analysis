@@ -21,6 +21,7 @@ import json
 import sqlite3
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -105,7 +106,10 @@ def test_semantics_version(simple_vo):
 
 
 def test_extracted_at_is_iso(simple_vo):
-    assert "T" in simple_vo.extracted_at  # ISO-8601
+    # Parse the value rather than substring-matching "T": a genuine ISO-8601
+    # timestamp round-trips through fromisoformat and is timezone-aware (UTC).
+    parsed = datetime.fromisoformat(simple_vo.extracted_at)
+    assert parsed.tzinfo is not None
 
 
 # ── 2. Physical tables exclude CTE names ─────────────────────────────────────
@@ -153,8 +157,28 @@ def test_left_join_type_captured(simple_vo):
 
 
 def test_joins_are_deduped(simple_vo):
-    keys = [(j["left_table"], j["right_table"], j["join_type"]) for j in simple_vo.joins]
+    # Uniqueness is on the FULL relationship (pair + type + ON predicate), which
+    # is the dedup contract: byte-identical repeats collapse, distinct ones stay.
+    keys = [
+        (j["left_table"], j["right_table"], j["join_type"], j["on_condition"])
+        for j in simple_vo.joins
+    ]
     assert len(keys) == len(set(keys))
+
+
+def test_distinct_joins_same_pair_preserved():
+    # Two joins to the same table pair with DIFFERENT ON predicates are distinct
+    # relationships and must both survive — the dedup must not collapse them.
+    sql = """
+        SELECT a.id
+        FROM a
+        JOIN b ON b.x = a.x
+        JOIN b b2 ON b2.y = a.y
+    """
+    vo = extract_view_ontology(sql, "k", "TEST", "f.sql")
+    a_b = [j for j in vo.joins if j["left_table"] == "a" and j["right_table"] == "b"]
+    assert len(a_b) == 2
+    assert len({j["on_condition"] for j in a_b}) == 2
 
 
 # ── 4. State predicates ───────────────────────────────────────────────────────
@@ -319,9 +343,13 @@ def test_seed_is_idempotent(mem_db, all_views):
 # ── 11. Missing file is skipped gracefully ────────────────────────────────────
 
 def test_missing_view_file_skipped(tmp_path):
+    # Use a REAL binding key: extract_all_mrp_views only iterates
+    # MRP_VIEW_BINDING_KEYS, so an arbitrary manifest key would be skipped
+    # before ever reaching the missing-file branch this test means to exercise.
+    real_key = MRP_VIEW_BINDING_KEYS[0]
     manifest = {
         "approved_snippets": {
-            "test_missing": {
+            real_key: {
                 "concept_anchor": "MISSINGCONCEPT",
                 "file_path": "app_schema/ground_truth/sql_snippets/does_not_exist.sql",
             }

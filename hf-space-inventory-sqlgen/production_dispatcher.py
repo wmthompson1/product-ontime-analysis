@@ -450,6 +450,30 @@ RETURN FORMAT (JSON only, no other text):
                     routing_confidence=confidence,
                     binding_key=binding_key
                 )
+            if binding_result.get("fail_closed"):
+                # The primary binding-key path failed closed (missing snippet /
+                # empty snippet / fingerprint mismatch / parse failure). We must
+                # NOT silently fall back to assemble_query and serve different
+                # SQL — surface the fail-closed reason and stop here.
+                report = [f"Resolved via primary_binding_key: `{binding_key}`"]
+                report.extend(binding_result.get("report", []))
+                warnings = binding_result.get("warnings", [])
+                if semantic_map.get("warning"):
+                    warnings.insert(0, semantic_map["warning"])
+                return DispatchResult(
+                    user_query=user_query,
+                    intent=intent,
+                    concepts=concepts,
+                    perspective=perspective,
+                    assembled_sql=binding_result.get("sql", ""),
+                    assembly_report=report,
+                    warnings=warnings,
+                    routing_mode=routing_mode,
+                    routing_confidence=confidence,
+                    binding_key=binding_key,
+                    fail_closed=True,
+                    fail_closed_condition=binding_result.get("fail_condition") or ""
+                )
 
         if not concepts:
             return DispatchResult(

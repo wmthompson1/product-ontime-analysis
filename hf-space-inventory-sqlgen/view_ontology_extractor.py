@@ -126,7 +126,12 @@ def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
             on_expr = join.args.get("on")
             on_str = on_expr.sql(dialect="sqlite") if on_expr else ""
             lk, rk = _extract_equi_keys(on_expr)
-            key = (left_name, right_name, kind)
+            # Dedup on the full relationship, INCLUDING the ON predicate: two
+            # joins between the same table pair but with different ON conditions
+            # (e.g. self-joins with different aliases/keys) are distinct
+            # relationships and must both survive. Only byte-identical repeats
+            # (the same join re-seen across nested SELECT scopes) collapse.
+            key = (left_name, right_name, kind, on_str)
             if key not in seen:
                 seen.add(key)
                 results.append(JoinRelationship(
