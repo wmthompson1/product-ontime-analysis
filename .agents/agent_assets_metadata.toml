@@ -275,7 +275,7 @@ title = "t241_40"
 id = "NTLplaYueDXm9dAgakzb5"
 uri = "file://attached_assets/generated_audio/task241/episode_task241.mp3"
 type = "audio"
-title = "Pilot v3 — Interaction Trace (task-241) with recap checkpoints"
+title = "Pilot v4 — Interaction Trace (task-241), with headline takeaway"
 
 [[outputs]]
 id = "1bkLaBz_0_EYRywouuQxM"
@@ -300,3 +300,9 @@ id = "QqGhjp-uNFrRk35JqWgMz"
 uri = "file://attached_assets/generated_audio/task241/cache/013353a73300335a.mp3"
 type = "audio"
 title = "rev_3"
+
+[[outputs]]
+id = "vIBrZYIB6Ii4jFeMJOp2P"
+uri = "file://attached_assets/generated_audio/task241/cache/9b00ab5e91ecf4ae.mp3"
+type = "audio"
+title = "hl_0"
