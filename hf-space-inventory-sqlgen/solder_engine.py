@@ -24,6 +24,8 @@ from sqlglot import exp
 import re
 from collections import Counter
 
+import structural_fingerprint as sfp
+
 SCHEMA_DIR = os.path.join(os.path.dirname(__file__), "app_schema")
 SQLITE_DB_PATH = os.path.join(SCHEMA_DIR, "manufacturing.db")
 GROUND_TRUTH_DIR = os.path.join(SCHEMA_DIR, "ground_truth")
@@ -45,6 +47,9 @@ class SolderBinding:
     sme_justification: str
     validation_status: str
     sql_text: str = ""
+    # Structural fingerprint: the SME-approved set of base tables this snippet
+    # touches. Empty when the manifest entry has not been fingerprinted yet.
+    base_tables: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -147,6 +152,9 @@ class SolderEngine:
                 except Exception:
                     pass
 
+            fingerprint = entry.get("structural_fingerprint") or {}
+            base_tables = list(fingerprint.get("base_tables") or [])
+
             bindings.append(SolderBinding(
                 binding_key=binding_key,
                 perspective=entry.get("perspective", ""),
@@ -155,7 +163,8 @@ class SolderEngine:
                 sql_snippet_path=sql_path,
                 sme_justification=entry.get("sme_justification", ""),
                 validation_status=entry.get("validation_status", ""),
-                sql_text=sql_text
+                sql_text=sql_text,
+                base_tables=base_tables,
             ))
 
         return bindings
@@ -169,11 +178,55 @@ class SolderEngine:
                 break
 
         if not binding:
+            # Fail-closed condition (1): no binding key in the manifest.
             return {
                 "sql": "",
                 "report": [f"Binding key `{binding_key}` not found or not APPROVED in manifest."],
-                "warnings": [f"Missing ground truth: `{binding_key}.sql`"]
+                "warnings": [f"Missing ground truth: `{binding_key}.sql`"],
+                "fail_closed": True,
+                "fail_condition": "missing_binding_key",
             }
+
+        if not (binding.sql_text or "").strip():
+            # Fail-closed condition (2): the binding exists but its snippet file
+            # is missing or empty, so there is no SME-approved SQL to serve.
+            return {
+                "sql": "",
+                "report": [
+                    f"Binding key `{binding_key}` has no snippet file "
+                    f"(`{binding.sql_snippet_path}`); nothing to serve."
+                ],
+                "warnings": [f"Missing ground truth: `{binding_key}.sql`"],
+                "fail_closed": True,
+                "fail_condition": "missing_snippet_file",
+            }
+
+        # Fail-closed condition (4): structural fingerprint validation. The
+        # snippet's base-table set must match the SME-approved fingerprint (style
+        # — CTE names, join order, windowing/bucketing — is deliberately ignored).
+        # A parse failure also fails closed. A binding with no approved
+        # fingerprint yet serves, with a warning, rather than being locked out.
+        fp_warnings: List[str] = []
+        fp_ok, fp_reason = sfp.validate_fingerprint(binding.sql_text, binding.base_tables)
+        if not fp_ok:
+            return {
+                "sql": "",
+                "report": [
+                    f"Binding key `{binding_key}` failed structural fingerprint "
+                    f"validation: {fp_reason}"
+                ],
+                "warnings": [
+                    "Snippet structure does not match its SME-approved fingerprint; "
+                    "re-register the snippet if this change is intended."
+                ],
+                "fail_closed": True,
+                "fail_condition": "fingerprint_validation_failed",
+            }
+        if not binding.base_tables:
+            fp_warnings.append(
+                f"Binding `{binding_key}` has no approved structural fingerprint; "
+                "serving without base-table validation."
+            )
 
         sql = binding.sql_text
         if target_dialect and target_dialect != "sqlite":
@@ -184,7 +237,7 @@ class SolderEngine:
                 return {
                     "sql": binding.sql_text,
                     "report": [f"Bound via `{binding_key}` (transpilation failed: {e})"],
-                    "warnings": [f"Transpilation to {target_dialect} failed, returning SQLite dialect"]
+                    "warnings": fp_warnings + [f"Transpilation to {target_dialect} failed, returning SQLite dialect"]
                 }
 
         return {
@@ -193,7 +246,7 @@ class SolderEngine:
                 f"**{binding.concept_anchor}**: Bound via `{binding_key}` ({binding.logic_type})",
                 f"Perspective: {binding.perspective}"
             ],
-            "warnings": []
+            "warnings": fp_warnings
         }
 
     def get_elevation_edges(self, intent_name: str) -> List[ElevationEdge]:
@@ -256,13 +309,29 @@ class SolderEngine:
         has_perspective = perspective and perspective.strip()
 
         if has_perspective:
+            # Fail-closed condition (3): when a perspective is explicitly
+            # requested, resolution NEVER falls back to a snippet approved under a
+            # different perspective — serving cross-perspective SQL silently would
+            # violate the manifest's perspective contract. If nothing matches the
+            # requested perspective (exact then partial concept), return None.
+            persp = perspective.lower()
             exact_with_perspective = [
                 b for b in bindings
                 if b.concept_anchor == concept_upper
-                and b.perspective.lower() == perspective.lower()
+                and b.perspective.lower() == persp
             ]
             if exact_with_perspective:
                 return exact_with_perspective[-1]
+
+            partial_with_perspective = [
+                b for b in bindings
+                if b.perspective.lower() == persp
+                and (concept_upper in b.concept_anchor or b.concept_anchor in concept_upper)
+            ]
+            if partial_with_perspective:
+                return partial_with_perspective[-1]
+
+            return None
 
         exact_any_perspective = [
             b for b in bindings
@@ -511,13 +580,10 @@ class SolderEngine:
             and b.validation_status == "APPROVED"
         ]
 
-        if not candidates:
-            candidates = [
-                b for b in all_approved
-                if b.concept_anchor == concept.upper()
-                and b.validation_status == "APPROVED"
-            ]
-
+        # Fail-closed condition (3): when a perspective is explicitly requested and
+        # no APPROVED snippet matches it, do NOT broaden to other perspectives —
+        # serving cross-perspective SQL silently would violate the perspective
+        # contract. Return None so the caller skips (fails closed) instead.
         if not candidates:
             return None
 
@@ -1066,24 +1132,12 @@ class SolderEngine:
         CTE alias names are excluded: SQLGlot surfaces them as ``exp.Table``
         nodes in the outer SELECT's FROM clause, but they are virtual tables
         defined within the same statement, not schema objects.
+
+        Delegates to ``structural_fingerprint.raw_base_tables`` so runtime
+        structural validation and manifest fingerprint backfill share one
+        extraction implementation and can never disagree.
         """
-        tables: List[str] = []
-        try:
-            for stmt in sqlglot.parse(sql_text, dialect="sqlite"):
-                if stmt is None:
-                    continue
-                # Collect CTE alias names so we can ignore them below.
-                cte_names: set = set()
-                for cte in stmt.find_all(exp.CTE):
-                    if cte.alias:
-                        cte_names.add(cte.alias.lower())
-                for node in stmt.find_all(exp.Table):
-                    name = node.name
-                    if name and name.lower() not in cte_names:
-                        tables.append(name.lower())
-        except Exception:
-            pass
-        return tables
+        return sfp.raw_base_tables(sql_text)
 
     def build_table_usage_index(self, verbose: bool = True) -> Dict[str, Any]:
         """Parse every ground-truth SQL file in QUERIES_DIR with SQLGlot,

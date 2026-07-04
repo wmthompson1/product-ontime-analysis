@@ -74,10 +74,15 @@ _HF_DIR = os.path.join(_REPO_ROOT, "hf-space-inventory-sqlgen")
 DB_PATH = os.path.join(_HF_DIR, "app_schema", "manufacturing.db")
 TRIPLES_PATH = os.path.join(_HERE, "graph_triples.tsv")
 JSON_PATH = os.path.join(_HERE, "graph_metadata.json")
+# The living manifest of SME-approved snippets — wired into the canonical graph
+# as binding-key nodes + base-table topology edges (v21).
+MANIFEST_PATH = os.path.join(
+    _HF_DIR, "app_schema", "ground_truth", "reviewer_manifest.json"
+)
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 20
-MILESTONE_NAME = "part_planner_code_and_pn_master_fold"
+SCHEMA_VERSION = 21
+MILESTONE_NAME = "manifest_binding_fingerprint_topology"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).
@@ -87,6 +92,7 @@ EDGE_COLLECTION = "manufacturing_graph_edge"
 # Fixed 6-slot composite-key vocabulary.
 FAMILY_STRUCTURAL = "structural"
 FAMILY_SEMANTIC = "semantic"        # slot 2 family: the meaning layer (concept nodes + resolves_to edges)
+FAMILY_MANIFEST = "manifest"        # slot 2 family: the living-manifest layer (binding nodes + binds_table edges)
 PERSPECTIVE_SYSTEM = "system"       # slot 3, structural-layer scope (tables, columns, FK edges)
 PERSPECTIVE_CANONICAL = "canonical" # slot 3, perspective-agnostic scope for concept nodes
 PLACEHOLDER_ENTITY = "entity"   # slot 1, marks a table or concept node
@@ -97,6 +103,9 @@ EDGE_PREDICATE_REFERENCES = "references"
 # Canonical column->concept predicate. The symbol name is kept stable across the
 # v16 rename; only the stored token changed to ``resolves_to`` (uid abbrev RES).
 EDGE_PREDICATE_ELEVATES = "resolves_to"
+# Living-manifest predicate (v21): a binding-key node -> each base table it
+# touches (its structural fingerprint, as topology edges).
+EDGE_PREDICATE_BINDS_TABLE = "binds_table"
 
 # SQLite graph source tables. These persist the exact node/edge rows that the
 # graph JSON is serialized FROM, so SQLite is the inspectable source of truth and
@@ -118,7 +127,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_nodes (
     ordinal       INTEGER NOT NULL,
     _key          TEXT    NOT NULL PRIMARY KEY,
     _id           TEXT    NOT NULL,
-    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column', 'concept')),
+    node_type     TEXT    NOT NULL CHECK(node_type IN ('table', 'column', 'concept', 'binding')),
     node_family   TEXT    NOT NULL,
     perspective   TEXT    NOT NULL,
     table_name    TEXT,
@@ -130,6 +139,9 @@ CREATE TABLE IF NOT EXISTS sql_graph_nodes (
     synonyms      TEXT,
     tags          TEXT,
     computation_template TEXT,
+    binding_key   TEXT,
+    concept_anchor TEXT,
+    logic_type    TEXT,
     predicate     TEXT    NOT NULL,
     unique_id     TEXT    NOT NULL,
     description   TEXT,
@@ -146,7 +158,7 @@ CREATE TABLE IF NOT EXISTS sql_graph_edges (
     _from             TEXT    NOT NULL,
     _to               TEXT    NOT NULL,
     edge_family       TEXT    NOT NULL,
-    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to')),
+    edge_type         TEXT    NOT NULL CHECK(edge_type IN ('has_column', 'references', 'resolves_to', 'binds_table')),
     perspective       TEXT    NOT NULL,
     unique_id         TEXT    NOT NULL,
     references_table  TEXT,
@@ -401,6 +413,73 @@ def semantic_edge_id(table: str, column: str, perspective: str, unique_id: str) 
     return f"{EDGE_COLLECTION}/{semantic_edge_key(table, column, perspective, unique_id)}"
 
 
+# Reserved perspectives a manifest binding may never claim (they are owned by the
+# structural / concept layers), so fixed-slot parsing stays unambiguous.
+_RESERVED_PERSPECTIVES = frozenset({PERSPECTIVE_SYSTEM, PERSPECTIVE_CANONICAL})
+
+
+def binding_key_node_key(binding_key: str, perspective: str) -> str:
+    """Binding node: ``<binding_key>:entity:manifest:{perspective}:none:none``.
+
+    The manifest binding key anchors slot 0; slot 1 is the ``entity`` placeholder
+    (a binding is an entity with no column). It lives in the ``manifest`` family
+    (slot 2) — the living-manifest layer, distinct from structural / semantic —
+    and carries its real business perspective in slot 3. Slots 4-5 are ``none``,
+    so it is a node, and ``manifest`` + node can only mean a binding node.
+    """
+    _assert_component_safe(binding_key, perspective)
+    _assert_name_not_reserved(perspective, _RESERVED_PERSPECTIVES, "perspective")
+    return _slots(
+        binding_key, PLACEHOLDER_ENTITY, FAMILY_MANIFEST,
+        perspective, NONE_SLOT, NONE_SLOT,
+    )
+
+
+def binding_key_node_id(binding_key: str, perspective: str) -> str:
+    return f"{NODE_COLLECTION}/{binding_key_node_key(binding_key, perspective)}"
+
+
+def binds_table_edge_key(binding_key: str, table_name: str, perspective: str,
+                         unique_id: str) -> str:
+    """Manifest topology edge: ``<binding_key>:<table>:manifest:{perspective}:binds_table:uid``.
+
+    Connects a binding node (``_from``) to a base table node (``_to``) it touches —
+    one edge per table in the snippet's structural fingerprint.
+    """
+    _assert_component_safe(binding_key, table_name, perspective, unique_id)
+    _assert_name_not_reserved(perspective, _RESERVED_PERSPECTIVES, "perspective")
+    return _slots(
+        binding_key, table_name, FAMILY_MANIFEST, perspective,
+        EDGE_PREDICATE_BINDS_TABLE, unique_id,
+    )
+
+
+def binds_table_edge_id(binding_key: str, table_name: str, perspective: str,
+                        unique_id: str) -> str:
+    return f"{EDGE_COLLECTION}/{binds_table_edge_key(binding_key, table_name, perspective, unique_id)}"
+
+
+def allocate_binds_table_uids(binding_table_pairs: list[tuple]) -> dict[tuple, str]:
+    """Deterministically allocate a slot-5 uid to every binds_table edge.
+
+    Pairs ``(binding_key, table_name, perspective)`` are processed in sorted
+    order; within each abbreviated prefix the uniqifier counts up from 001, so
+    re-running the export yields identical uids (no drift). Mirrors
+    ``allocate_containment_uids`` for the structural backbone.
+    """
+    ordered = sorted(binding_table_pairs)
+    counter: dict[str, int] = {}
+    uid_map: dict[tuple, str] = {}
+    for binding_key, table_name, perspective in ordered:
+        prefix = _edge_uid_prefix(
+            perspective, EDGE_PREDICATE_BINDS_TABLE, binding_key, table_name
+        )
+        n = counter.get(prefix, 0) + 1
+        counter[prefix] = n
+        uid_map[(binding_key, table_name, perspective)] = f"{prefix}_{n:03d}"
+    return uid_map
+
+
 # ---------------------------------------------------------------------------
 # Extraction — tables, then columns, then has_column edges
 # ---------------------------------------------------------------------------
@@ -595,6 +674,96 @@ def _fetch_concept_nodes(conn: sqlite3.Connection) -> list[dict]:
             }
         )
     return concept_nodes
+
+
+def _fetch_manifest_bindings(table_names: list[str], integrity: dict,
+                             manifest_path: str = MANIFEST_PATH):
+    """Binding nodes + base-table topology edges from the living manifest (v21).
+
+    Every APPROVED snippet with a signed-off ``structural_fingerprint`` becomes a
+    ``binding`` node (family ``manifest``), and one ``binds_table`` edge is drawn
+    from that node to each canonical table node its fingerprint names. The
+    base-table set is read from the SME-signed fingerprint (not re-parsed from the
+    .sql here), so the graph reflects exactly what was approved. Lowercase
+    fingerprint tables are mapped to canonical table nodes case-insensitively; a
+    fingerprint table that is not an exported table node is recorded in
+    ``integrity['manifest_tables_skipped']`` rather than fabricating a dangling
+    edge. Only APPROVED entries participate; an APPROVED entry lacking a
+    fingerprint is noted in ``integrity['manifest_snippets_skipped']``.
+
+    Returns ``(binding_nodes, binds_table_edges)`` in deterministic order
+    (binding nodes by binding_key; edges by (binding_key, table)).
+    """
+    integrity.setdefault("manifest_tables_skipped", [])
+    integrity.setdefault("manifest_snippets_skipped", [])
+
+    if not os.path.exists(manifest_path):
+        return [], []
+
+    with open(manifest_path, "r", encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    snippets = manifest.get("approved_snippets", {})
+
+    # Case-insensitive map: lowercase table name -> canonical table node name.
+    canonical_by_lower = {t.lower(): t for t in table_names}
+
+    binding_nodes: list[dict] = []
+    pending_edges: list[tuple] = []  # (binding_key, canonical_table, perspective)
+
+    for binding_key in sorted(snippets):
+        entry = snippets[binding_key]
+        if entry.get("validation_status") != "APPROVED":
+            continue
+        fp = entry.get("structural_fingerprint") or {}
+        base_tables = list(fp.get("base_tables") or [])
+        if not base_tables:
+            integrity["manifest_snippets_skipped"].append(binding_key)
+            continue
+
+        perspective = entry.get("perspective") or ""
+        binding_nodes.append(
+            {
+                "_id": binding_key_node_id(binding_key, perspective),
+                "_key": binding_key_node_key(binding_key, perspective),
+                "node_type": "binding",
+                "node_family": FAMILY_MANIFEST,
+                "perspective": perspective,
+                "binding_key": binding_key,
+                "concept_anchor": entry.get("concept_anchor") or "",
+                "logic_type": entry.get("logic_type") or "",
+                "predicate": NONE_SLOT,
+                "unique_id": NONE_SLOT,
+                "description": entry.get("sme_justification") or "",
+            }
+        )
+
+        for base in base_tables:
+            canonical = canonical_by_lower.get(base.lower())
+            if canonical is None:
+                integrity["manifest_tables_skipped"].append(f"{binding_key}:{base}")
+                continue
+            pending_edges.append((binding_key, canonical, perspective))
+
+    uid_map = allocate_binds_table_uids(pending_edges)
+    # Emit edges grouped by binding node (binding_key), then table, for a stable,
+    # readable order that mirrors the node emission order.
+    binds_table_edges: list[dict] = []
+    for binding_key, canonical, perspective in sorted(pending_edges):
+        uid = uid_map[(binding_key, canonical, perspective)]
+        binds_table_edges.append(
+            {
+                "_id": binds_table_edge_id(binding_key, canonical, perspective, uid),
+                "_key": binds_table_edge_key(binding_key, canonical, perspective, uid),
+                "_from": binding_key_node_id(binding_key, perspective),
+                "_to": table_id(canonical),
+                "edge_family": FAMILY_MANIFEST,
+                "edge_type": EDGE_PREDICATE_BINDS_TABLE,
+                "perspective": perspective,
+                "unique_id": uid,
+            }
+        )
+
+    return binding_nodes, binds_table_edges
 
 
 def _build_has_column_edges(column_nodes: list[dict], uid_map: dict[tuple, str]) -> list[dict]:
@@ -948,9 +1117,10 @@ def _key_scheme_spec() -> dict:
         ),
         "parse_by": (
             "fixed slot positions: NODE iff slot[4]=='none' and slot[5]=='none' "
-            "(concept node if slot[2]=='semantic'; else table node if "
-            "slot[1]=='entity'; else column node — both structural); otherwise "
-            "EDGE, whose family is slot[2]."
+            "(concept node if slot[2]=='semantic'; binding node if "
+            "slot[2]=='manifest'; else table node if slot[1]=='entity'; else "
+            "column node — both structural); otherwise EDGE, whose family is "
+            "slot[2] (a manifest edge is binds_table)."
         ),
         "rules": [
             {
@@ -1012,6 +1182,31 @@ def _key_scheme_spec() -> dict:
                     "for categorical / measure elevations)."
                 ),
             },
+            {
+                "kind": "binding_node",
+                "slots": 6,
+                "marker": "slot[2]=='manifest' and slot[1]=='entity' and slot[4:6]==['none','none']",
+                "form": "<binding_key>:entity:manifest:{perspective}:none:none",
+                "example": "inventory_atp_20260703_000004:entity:manifest:Inventory_Transactions:none:none",
+                "payload": (
+                    "v21 living-manifest binding: an SME-approved snippet identity. "
+                    "Carries binding_key, concept_anchor, logic_type, its business "
+                    "perspective, and the sme_justification as description. Its "
+                    "structural fingerprint (base-table set) is expressed as "
+                    "binds_table edges, not stored on the node. Only APPROVED "
+                    "snippets become binding nodes."
+                ),
+                "status": "active",
+            },
+            {
+                "kind": "manifest_edge",
+                "slots": 6,
+                "marker": "slot[2]=='manifest' and slot[4]!='none'",
+                "form": "<binding_key>:<table>:manifest:{perspective}:binds_table:unique_id  (_from=binding node, _to=table node)",
+                "predicates": [EDGE_PREDICATE_BINDS_TABLE],
+                "example": "inventory_atp_20260703_000004:part:manifest:Inventory_Transactions:binds_table:INV_BIN_INV_PAR_001",
+                "status": "active (one edge per base table in the snippet's signed structural fingerprint)",
+            },
         ],
         "unique_id_grammar": {
             "structural": "structural edges (has_column, references) share one COUNTED slot-5 grammar",
@@ -1072,6 +1267,10 @@ def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
     # so the concept round-trip carries it.
     if "computation_template" not in info:
         return True
+    # v21 added the living-manifest binding node columns. Rebuild when any is
+    # absent so the binding round-trip carries them.
+    if any(c not in info for c in ("binding_key", "concept_anchor", "logic_type")):
+        return True
     table_name_col = info.get("table_name")
     if table_name_col is not None and table_name_col[3]:  # PRAGMA "notnull" flag
         return True
@@ -1082,6 +1281,10 @@ def _sql_graph_nodes_is_stale(conn: sqlite3.Connection) -> bool:
     # The modern CHECK literal is the only place ``'concept'`` (quoted) appears;
     # the concept_name column is unquoted, so this marker is unambiguous.
     if "'concept'" not in ddl:
+        return True
+    # v21 widened the node_type CHECK to admit ``'binding'``; a table created
+    # before v21 admits only the older tokens, so a binding insert would fail.
+    if "'binding'" not in ddl:
         return True
     return False
 
@@ -1116,7 +1319,11 @@ def _sql_graph_edges_is_stale(conn: sqlite3.Connection) -> bool:
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='sql_graph_edges'"
     ).fetchone()
     ddl = (ddl_row[0] if ddl_row else "") or ""
-    return "'resolves_to'" not in ddl
+    if "'resolves_to'" not in ddl:
+        return True
+    # v21 widened the edge_type CHECK to admit ``'binds_table'``; rebuild when a
+    # pre-v21 table lacks the token so a binds_table insert does not fail its CHECK.
+    return "'binds_table'" not in ddl
 
 
 def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
@@ -1143,18 +1350,21 @@ def _ensure_sql_graph_tables(conn: sqlite3.Connection) -> None:
 
 def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                            column_nodes: list[dict], edges: list[dict],
-                           concept_nodes: list[dict] | None = None) -> None:
+                           concept_nodes: list[dict] | None = None,
+                           binding_nodes: list[dict] | None = None) -> None:
     """Write the canonical nodes/edges into the SQLite graph source tables.
 
     The tables are emptied and re-filled in a single transaction so the result
     is idempotent (re-running on an unchanged schema yields identical rows). An
     ``ordinal`` column records the exact emission order — table nodes, then
-    column nodes, then concept nodes, then has_column / references / resolves_to
-    edges — so the JSON read back from these tables preserves byte-for-byte
-    ordering.
+    column nodes, then concept nodes, then binding nodes, then has_column /
+    references / resolves_to / binds_table edges — so the JSON read back from
+    these tables preserves byte-for-byte ordering.
     """
     _ensure_sql_graph_tables(conn)
-    all_nodes = table_nodes + column_nodes + (concept_nodes or [])
+    all_nodes = (
+        table_nodes + column_nodes + (concept_nodes or []) + (binding_nodes or [])
+    )
     with conn:
         conn.execute(f"DELETE FROM {SQL_GRAPH_NODES_TABLE}")
         conn.execute(f"DELETE FROM {SQL_GRAPH_EDGES_TABLE}")
@@ -1163,10 +1373,11 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                 f"INSERT INTO {SQL_GRAPH_NODES_TABLE} "
                 "(ordinal, _key, _id, node_type, node_family, perspective, "
                 "table_name, column_name, column_slot, concept_name, concept_type, "
-                "domain, synonyms, tags, computation_template, predicate, "
+                "domain, synonyms, tags, computation_template, binding_key, "
+                "concept_anchor, logic_type, predicate, "
                 "unique_id, description, column_type, \"notnull\", default_value, "
                 "primary_key, foreign_key) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     i, n["_key"], n["_id"], n["node_type"], n["node_family"],
                     n["perspective"], n.get("table_name"),
@@ -1174,6 +1385,8 @@ def _materialize_to_sqlite(conn: sqlite3.Connection, table_nodes: list[dict],
                     n.get("concept_name"), n.get("concept_type"),
                     n.get("domain"), _json_or_none(n.get("synonyms")),
                     _json_or_none(n.get("tags")), n.get("computation_template"),
+                    n.get("binding_key"), n.get("concept_anchor"),
+                    n.get("logic_type"),
                     n["predicate"], n["unique_id"], n.get("description"),
                     n.get("column_type"), _bool_to_int(n.get("notnull")),
                     n.get("default_value"), _bool_to_int(n.get("primary_key")),
@@ -1232,6 +1445,22 @@ def _node_dict_from_row(row: sqlite3.Row) -> dict:
             "unique_id": row["unique_id"],
             "description": row["description"] if row["description"] is not None else "",
         }
+    if row["node_type"] == "binding":
+        # v21 living-manifest binding node: the SME-approved snippet identity. Its
+        # base-table topology lives on binds_table edges, not on the node.
+        return {
+            "_id": row["_id"],
+            "_key": row["_key"],
+            "node_type": "binding",
+            "node_family": row["node_family"],
+            "perspective": row["perspective"],
+            "binding_key": row["binding_key"],
+            "concept_anchor": row["concept_anchor"] if row["concept_anchor"] is not None else "",
+            "logic_type": row["logic_type"] if row["logic_type"] is not None else "",
+            "predicate": row["predicate"],
+            "unique_id": row["unique_id"],
+            "description": row["description"] if row["description"] is not None else "",
+        }
     return {
         "_id": row["_id"],
         "_key": row["_key"],
@@ -1272,6 +1501,7 @@ def _edge_dict_from_row(row: sqlite3.Row) -> dict:
         doc["field_component"] = row["field_component"]
         # M4: metric bindings name a template variable; others round-trip as None.
         doc["variable_name"] = row["variable_name"]
+    # v21 binds_table edges carry no payload beyond the shared fields above.
     return doc
 
 
@@ -1344,6 +1574,7 @@ def _build_graph_document(
                 "table": nodes_by_type.get("table", 0),
                 "column": nodes_by_type.get("column", 0),
                 "concept": nodes_by_type.get("concept", 0),
+                "binding": nodes_by_type.get("binding", 0),
             },
             "edges_by_type": edges_by_type,
         },
@@ -1405,12 +1636,24 @@ def main() -> int:
             elevates_edges = _build_elevates_edges(
                 elevation_rows, node_index, concept_index, integrity
             )
-            edges = has_column_edges + references_edges + elevates_edges
+
+            # v21: fold the living manifest in — binding nodes + base-table
+            # topology edges (the SME-signed structural fingerprints).
+            binding_nodes, binds_table_edges = _fetch_manifest_bindings(
+                table_names, integrity
+            )
+            edges = (
+                has_column_edges + references_edges + elevates_edges
+                + binds_table_edges
+            )
 
             # Persist the graph into the SQLite source tables, then read it back
             # so the JSON we emit is provably a serialization of those tables
             # (SQLite is the source of truth; the JSON is a dump of it).
-            _materialize_to_sqlite(conn, table_nodes, column_nodes, edges, concept_nodes)
+            _materialize_to_sqlite(
+                conn, table_nodes, column_nodes, edges, concept_nodes,
+                binding_nodes,
+            )
             nodes = _load_nodes_from_sqlite(conn)
             edges = _load_edges_from_sqlite(conn)
         finally:
@@ -1438,12 +1681,13 @@ def main() -> int:
     print(f"  triples : {TRIPLES_PATH}  ({len(edges)} rows)")
     print(f"  graph   : {JSON_PATH}")
     print(f"  {snapshot_action}")
-    print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns, {len(concept_nodes)} concepts)")
+    print(f"  nodes   : {doc['counts']['nodes_total']}  ({len(table_nodes)} tables, {len(column_nodes)} columns, {len(concept_nodes)} concepts, {len(binding_nodes)} bindings)")
     print(
         f"  edges   : {doc['counts']['edges_total']}  "
         f"({len(has_column_edges)} {EDGE_PREDICATE_HAS_COLUMN}, "
         f"{len(references_edges)} {EDGE_PREDICATE_REFERENCES}, "
-        f"{len(elevates_edges)} {EDGE_PREDICATE_ELEVATES}) in {EDGE_COLLECTION}"
+        f"{len(elevates_edges)} {EDGE_PREDICATE_ELEVATES}, "
+        f"{len(binds_table_edges)} {EDGE_PREDICATE_BINDS_TABLE}) in {EDGE_COLLECTION}"
     )
     # Report any abbreviation collisions that the uniqifier had to disambiguate.
     bumped = sorted({uid.rsplit("_", 1)[0] for uid in uid_map.values()

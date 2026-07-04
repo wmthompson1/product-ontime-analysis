@@ -115,6 +115,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_mrp_schedule.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_structural_fingerprint.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_structural_fingerprint.py || {
+    echo "post-merge: structural fingerprint tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py ]; then
   python hf-space-inventory-sqlgen/tests/test_mrp_query_palette.py || {
     echo "post-merge: MRP query palette tests failed"
