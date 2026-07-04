@@ -49,3 +49,14 @@ Reversed the earlier "gitignore as runtime artifact" decision: the `.txt`
 reports and the CSVs live tracked in `replit_integrations/` so the private repo
 can compare them. Tradeoff: `post-merge.sh` rewrites them every run, so expect
 churn in the working tree.
+
+## Columnar CSVs go stale across graph re-exports
+A new graph export (bumping SCHEMA_VERSION and writing graph_metadata.json +
+graph_metadata.vN.json) does NOT rewrite the columnar graph_metadata_*.csv
+side artifacts. Those are only regenerated when a parity checker runs with
+--csv-dir (e.g. via scripts/post-merge.sh). So after a version bump the
+committed CSVs can lag the current graph_metadata.json until the next
+post-merge run rewrites them. Seeing graph_metadata_nodes.csv / _edges.csv
+churn in an unrelated diff usually means you just ran the gate and it caught
+up stale artifacts — benign, and leaving them corrected is better than
+re-committing the stale lower-version CSVs.

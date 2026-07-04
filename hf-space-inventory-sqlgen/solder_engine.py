@@ -622,6 +622,21 @@ class SolderEngine:
         except Exception:
             return None
 
+    def _perspectives_for_concept(self, concept: str) -> List[str]:
+        """Distinct perspectives an APPROVED snippet exists under for ``concept``.
+
+        Used to distinguish fail-closed condition (3) — "the concept IS approved,
+        just not for the requested perspective" — from a concept that has no
+        approved snippet at all.
+        """
+        cu = concept.upper()
+        return sorted({
+            b.perspective for b in self.load_approved_bindings()
+            if b.concept_anchor == cu
+            and b.validation_status == "APPROVED"
+            and b.perspective
+        })
+
     def assemble_query(self, intent: str, perspective: str,
                        concepts: List[str], base_table: str,
                        target_dialect: str = "sqlite") -> Dict[str, Any]:
@@ -629,13 +644,29 @@ class SolderEngine:
         select_refs = []
         report = []
         warnings = []
+        fail_closed_concepts: List[str] = []
         resolved_count = 0
 
         for concept in concepts:
             binding = self.resolve_concept_snippet(perspective, concept, intent)
 
             if not binding:
-                report.append(f"- **{concept}**: No approved snippet found (skipped)")
+                # Distinguish fail-closed condition (3) from a genuinely unknown
+                # concept. If the concept IS approved but only under other
+                # perspectives, we fail closed rather than silently serving
+                # cross-perspective SQL — and we surface exactly why.
+                available = self._perspectives_for_concept(concept)
+                if perspective and perspective.strip() and available:
+                    msg = (
+                        f"{concept}: no snippet approved for perspective "
+                        f"'{perspective}'. Approved under: {', '.join(available)}. "
+                        f"Failing closed — cross-perspective SQL is never served."
+                    )
+                    report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
+                    warnings.append(msg)
+                    fail_closed_concepts.append(concept)
+                else:
+                    report.append(f"- **{concept}**: No approved snippet found (skipped)")
                 continue
 
             if binding.logic_type == "SUPPRESSED":
@@ -671,11 +702,17 @@ class SolderEngine:
                 )
 
         if not select_refs:
+            base_warning = "No concepts could be resolved to approved snippets"
             return {
                 "sql": f"-- No projections resolved for intent '{intent}'",
                 "dialect": target_dialect,
                 "report": report,
-                "warnings": ["No concepts could be resolved to approved snippets"]
+                "warnings": ([base_warning] + warnings) if warnings else [base_warning],
+                "fail_closed": bool(fail_closed_concepts),
+                "fail_closed_concepts": fail_closed_concepts,
+                "fail_closed_condition": (
+                    "no_perspective_compatible_snippet" if fail_closed_concepts else None
+                ),
             }
 
         cte_clause = "WITH " + ",\n".join(cte_parts) + "\n" if cte_parts else ""
@@ -707,7 +744,12 @@ class SolderEngine:
             "concept_count": resolved_count,
             "intent": intent,
             "perspective": perspective,
-            "base_table": base_table
+            "base_table": base_table,
+            "fail_closed": bool(fail_closed_concepts),
+            "fail_closed_concepts": fail_closed_concepts,
+            "fail_closed_condition": (
+                "no_perspective_compatible_snippet" if fail_closed_concepts else None
+            ),
         }
 
     def _generate_base_query(self, edge: ElevationEdge) -> str:

@@ -229,6 +229,8 @@ class DispatchResult:
     routing_confidence: str = ""
     out_of_scope: bool = False
     binding_key: str = ""
+    fail_closed: bool = False
+    fail_closed_condition: str = ""
 
 
 class ProductionDispatcher:
@@ -471,6 +473,15 @@ RETURN FORMAT (JSON only, no other text):
         )
 
         warnings = assembly_result.get("warnings", [])
+        assembly_fail_closed = assembly_result.get("fail_closed", False)
+        if assembly_fail_closed:
+            fc_concepts = assembly_result.get("fail_closed_concepts", [])
+            warnings.insert(
+                0,
+                "FAIL-CLOSED: no perspective-compatible snippet for "
+                f"{', '.join(fc_concepts)} under perspective '{perspective}'. "
+                "Cross-perspective SQL is never served."
+            )
         if semantic_map.get("warning"):
             warnings.insert(0, semantic_map["warning"])
 
@@ -483,5 +494,7 @@ RETURN FORMAT (JSON only, no other text):
             assembly_report=assembly_result.get("report", []),
             warnings=warnings,
             routing_mode=routing_mode,
-            routing_confidence=confidence
+            routing_confidence=confidence,
+            fail_closed=assembly_fail_closed,
+            fail_closed_condition=assembly_result.get("fail_closed_condition") or ""
         )

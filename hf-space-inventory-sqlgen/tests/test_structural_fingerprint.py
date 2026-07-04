@@ -167,6 +167,28 @@ def test_engine_fail_closed():
     agnostic = eng.find_binding_for_concept(concept, None)
     check(agnostic is not None, "no-perspective resolution still serves")
 
+    # Condition 3 must be SURFACED by assemble_query, not silently skipped.
+    fc = eng.assemble_query(
+        intent=None, perspective=bogus_persp, concepts=[concept],
+        base_table="stg_manufacturing_flat", target_dialect="sqlite",
+    )
+    check(fc.get("fail_closed") is True, "assemble_query flags fail_closed")
+    check(concept in fc.get("fail_closed_concepts", []),
+          "assemble_query names the fail-closed concept")
+    check(fc.get("fail_closed_condition") == "no_perspective_compatible_snippet",
+          "assemble_query reports the condition-3 code")
+    check(any("FAIL-CLOSED" in line for line in fc.get("report", [])),
+          "assemble_query report surfaces FAIL-CLOSED line")
+    check(any(concept in w for w in fc.get("warnings", [])),
+          "assemble_query warning names the concept")
+
+    # A genuinely unknown concept is NOT a perspective fail-closed (plain skip).
+    unknown = eng.assemble_query(
+        intent=None, perspective=real_persp, concepts=["ZZZ_NOT_A_CONCEPT"],
+        base_table="stg_manufacturing_flat", target_dialect="sqlite",
+    )
+    check(not unknown.get("fail_closed"), "unknown concept is not a perspective fail-closed")
+
 
 # ---------------------------------------------------------------------------
 # 4. Backfill migration — coverage + idempotency

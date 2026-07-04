@@ -5599,6 +5599,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 report_md += f"**Concepts Resolved:** {result.get('concept_count', 0)} / {len(concepts)}\n\n"
                 report_md += f"**Dialect:** {result.get('dialect', 'sqlite')}\n\n"
                 
+                if result.get("fail_closed"):
+                    fc = ", ".join(result.get("fail_closed_concepts", []))
+                    report_md += (
+                        f"> ⛔ **FAIL-CLOSED — no perspective-compatible snippet** "
+                        f"for `{fc}` under perspective **{perspective or '(none)'}**. "
+                        f"Cross-perspective SQL is never served.\n\n"
+                    )
+                
                 if result.get("report"):
                     report_md += "### Concept Resolution\n"
                     for line in result["report"]:
