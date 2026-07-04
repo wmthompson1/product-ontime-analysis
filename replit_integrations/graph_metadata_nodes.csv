@@ -161,6 +161,7 @@ part:on_hand_qty:structural:system:none:none,manufacturing_graph_node/part:on_ha
 part:part_class:structural:system:none:none,manufacturing_graph_node/part:part_class:structural:system:none:none,part_class,,TEXT,,,,,,,false,structural,column,true,system,none,false,,part,,none
 part:part_description:structural:system:none:none,manufacturing_graph_node/part:part_description:structural:system:none:none,part_description,,TEXT,,,,,,,false,structural,column,true,system,none,false,,part,,none
 part:part_id:structural:system:none:none,manufacturing_graph_node/part:part_id:structural:system:none:none,part_id,,TEXT,,,,,,,false,structural,column,false,system,none,true,,part,,none
+part:planner_code:structural:system:none:none,manufacturing_graph_node/part:planner_code:structural:system:none:none,planner_code,,TEXT,,,,'ENGINEERING',,,false,structural,column,false,system,none,false,,part,,none
 part:reorder_point:structural:system:none:none,manufacturing_graph_node/part:reorder_point:structural:system:none:none,reorder_point,,REAL,,,,0.0,,,false,structural,column,false,system,none,false,,part,,none
 part:revision:structural:system:none:none,manufacturing_graph_node/part:revision:structural:system:none:none,revision,,TEXT,,,,'A',,,false,structural,column,false,system,none,false,,part,,none
 part:unit_cost:structural:system:none:none,manufacturing_graph_node/part:unit_cost:structural:system:none:none,unit_cost,,REAL,,,,0.0,,,false,structural,column,false,system,none,false,,part,,none

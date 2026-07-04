@@ -111,6 +111,7 @@ manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manu
 manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:material_spec:structural:system:none:none
 manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:active:structural:system:none:none
 manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:created_at:structural:system:none:none
+manufacturing_graph_node/part:entity:structural:system:none:none	has_column	manufacturing_graph_node/part:planner_code:structural:system:none:none
 manufacturing_graph_node/payable_line:entity:structural:system:none:none	has_column	manufacturing_graph_node/payable_line:payable_line_id:structural:system:none:none
 manufacturing_graph_node/payable_line:entity:structural:system:none:none	has_column	manufacturing_graph_node/payable_line:invoice_id:structural:system:none:none
 manufacturing_graph_node/payable_line:entity:structural:system:none:none	has_column	manufacturing_graph_node/payable_line:line_no:structural:system:none:none
@@ -276,11 +277,18 @@ manufacturing_graph_node/operation:act_atl_lab_cost:structural:system:none:none	
 manufacturing_graph_node/operation:act_run_hrs:structural:system:none:none	resolves_to	manufacturing_graph_node/OEEStrategic:entity:semantic:canonical:none:none
 manufacturing_graph_node/purchase_order:required_date:structural:system:none:none	resolves_to	manufacturing_graph_node/DeliveryPerformanceFinance:entity:semantic:canonical:none:none
 manufacturing_graph_node/receiving:receipt_date:structural:system:none:none	resolves_to	manufacturing_graph_node/DeliveryPerformanceFinance:entity:semantic:canonical:none:none
+manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none	resolves_to	manufacturing_graph_node/AllocatedQuantity:entity:semantic:canonical:none:none
 manufacturing_graph_node/inventory_transaction:site_id:structural:system:none:none	resolves_to	manufacturing_graph_node/WarehouseLocation:entity:semantic:canonical:none:none
 manufacturing_graph_node/inventory_transaction:type:structural:system:none:none	resolves_to	manufacturing_graph_node/StockMovementDirection:entity:semantic:canonical:none:none
 manufacturing_graph_node/part:lead_time_days:structural:system:none:none	resolves_to	manufacturing_graph_node/LeadTime:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:lead_time_days:structural:system:none:none	resolves_to	manufacturing_graph_node/LeadTimeDemand:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:on_hand_qty:structural:system:none:none	resolves_to	manufacturing_graph_node/AvailableToPromise:entity:semantic:canonical:none:none
 manufacturing_graph_node/part:on_hand_qty:structural:system:none:none	resolves_to	manufacturing_graph_node/OnHandQuantity:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:reorder_point:structural:system:none:none	resolves_to	manufacturing_graph_node/MinimumStockQuantity:entity:semantic:canonical:none:none
 manufacturing_graph_node/part:reorder_point:structural:system:none:none	resolves_to	manufacturing_graph_node/ReorderPoint:entity:semantic:canonical:none:none
+manufacturing_graph_node/part:reorder_point:structural:system:none:none	resolves_to	manufacturing_graph_node/SafetyStock:entity:semantic:canonical:none:none
+manufacturing_graph_node/po_line:quantity:structural:system:none:none	resolves_to	manufacturing_graph_node/EconomicOrderQuantity:entity:semantic:canonical:none:none
+manufacturing_graph_node/po_line:quantity:structural:system:none:none	resolves_to	manufacturing_graph_node/MaximumStockQuantity:entity:semantic:canonical:none:none
 manufacturing_graph_node/customer_order_line:order_qty:structural:system:none:none	resolves_to	manufacturing_graph_node/QuantityBasisManufacturing:entity:semantic:canonical:none:none
 manufacturing_graph_node/operation:act_run_hrs:structural:system:none:none	resolves_to	manufacturing_graph_node/OEEOperational:entity:semantic:canonical:none:none
 manufacturing_graph_node/operation:run_hrs:structural:system:none:none	resolves_to	manufacturing_graph_node/OEEOperational:entity:semantic:canonical:none:none

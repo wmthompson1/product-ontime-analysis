@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS part (
     cage_code        TEXT,                        -- 5-char CAGE code (aerospace supplier ID)
     drawing_number   TEXT,
     material_spec    TEXT,                        -- e.g. AMS 4928 / 6061-T6 / 304 SS
+    planner_code     TEXT DEFAULT 'ENGINEERING',  -- owning material planner (item-master native)
     active           INTEGER DEFAULT 1,
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
 );

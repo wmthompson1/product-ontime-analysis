@@ -107,6 +107,7 @@ part,on_hand_qty,On Hand Quantity,Numeric on hand quantity recorded for each par
 part,part_class,Part Class (Make / Buy),"How a part is sourced: manufactured in-house, purchased, raw material, hardware, or outside service. Reflects engineering's make-vs-buy intent.",MAKE
 part,part_description,Part Description,Free-text part description for the part.,Titanium Bulkhead Frame 6Al-4V
 part,part_id,Part ID,Unique identifier for each part record.,P-10010
+part,planner_code,Planner Code,The planner code of each part; one of a small set of values such as: ENGINEERING.,ENGINEERING
 part,reorder_point,Reorder Point,Numeric reorder point recorded for each part.,4467.18
 part,revision,Revision,The revision of each part; one of a small set of values such as: A.,A
 part,unit_cost,Unit Cost,Numeric unit cost recorded for each part.,4250.0

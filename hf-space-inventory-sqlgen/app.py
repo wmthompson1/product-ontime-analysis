@@ -484,6 +484,18 @@ def init_sqlite_db():
                     "vendor_id": "vendor_id TEXT",
                 },
             )
+            # `part` gained a native item-master planner column (the owning
+            # material planner). CREATE TABLE IF NOT EXISTS never widens an
+            # existing table, so add it in place for older databases. The
+            # DEFAULT matches schema_sqlite.sql so graph re-exports stay
+            # reproducible (PRAGMA default_value is identical on both paths).
+            _widen_table_columns(
+                conn,
+                "part",
+                {
+                    "planner_code": "planner_code TEXT DEFAULT 'ENGINEERING'",
+                },
+            )
             conn.commit()
         except Exception as e:
             print(f"Database migration warning: {e}")

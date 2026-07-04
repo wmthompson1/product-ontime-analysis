@@ -9,6 +9,8 @@
 - [Pruning two-endpoint edges](graph-sync-prune-two-endpoint-edges.md) — FK/references edges span 2 tables; prune/count them ONCE over all stale names, not in the per-table loop, or dry-run double-counts.
 - [dab_config.json generation](dab-config-generation.md) — generated from dab_field_definitions (certified=1) by sync; publish auto-creates entity blocks for manufacturing tables absent from config; never hand-edit.
 - [SQL graph source tables](sql-graph-source-tables.md) — graph_metadata.json is serialized FROM sql_graph_nodes/sql_graph_edges (materialize→read-back); parity gated in post-merge; SQLite `notnull` is reserved, must be quoted.
+- [Canonical graph lags seed_elevations](canonical-graph-vs-seed-elevations-drift.md) — re-export can surface resolves_to edges seed_elevations.py already defined but never exported; verify vs the seed.
+- [Inventory ledger stock & rebuild seeding](inventory-ledger-stock-and-rebuild.md) — on_hand = signed net (I minus O), floored at 0, NOT SUM(quantity); rebuild path seeds no ledger, so bake literals.
 - [Masking matrix](masking-matrix.md) — CSV↔SQLite upsert-only mirror; rows target the private SQL Server schema; mask width = per-row `field_length`; salt=GEMIN_SALT env.
 - [Dependency install method](dependency-install-method.md) — install from requirements.txt via `uv pip install`; uv.lock is stale (`uv sync` prunes to ~10 deps); faiss/sdv/sdmetrics are orphan non-deps.
 - [ERP planner vocabulary](wo-status-vocab.md) — real WO statuses unreleased/firmed/released/closed (firmed=first lots/new parts); deferred demand-side shipped/allocated/ATP=on-hand−allocated.

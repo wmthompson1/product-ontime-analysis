@@ -35,7 +35,7 @@ Run once:
 Safe to re-run: CREATE TABLE IF NOT EXISTS + INSERT OR IGNORE.
 """
 
-import sqlite3, os, random
+import sqlite3, os, random, re
 from datetime import date, timedelta, datetime
 from faker import Faker
 
@@ -68,6 +68,110 @@ PARTS = [
     ("PN-10190", "Composite Fairing Panel, Glass/Epoxy 4-ply",        "RM",265.00),
     ("PN-10200", "Phenolic Insulation Block, MIL-I-24768, 2\" thick", "RM", 55.00),
 ]
+
+# ── PN-* parts master fold (referential-integrity repair) ─────────────────────
+# The PN-* namespace above is referenced by work_order / po_line / material_issue
+# but was never inserted into the `part` master, leaving 50 work orders pointing
+# at 20 phantom parts. Fold them into the master (parts-first: the item master is
+# authoritative and everything else references it). Each is kept as a planned,
+# fabricated item (part_class MAKE — the work orders / routings are retained per
+# the planning decision) owned by a generic planner. on_hand_qty is baked from
+# the inventory_transaction ledger NET (receipts type 'I' minus issues type 'O'),
+# floored at 0 so a stockout shows as zero rather than negative physical stock;
+# reorder_point trails on-hand. Values are baked (not computed at seed time)
+# because the minimal rebuild path (migrations/rebuild_clean_db.py) does not seed
+# the ledger — the literals are the ledger net snapshot and are re-verified
+# against the live ledger by the one-shot backfill migration when it is present.
+PLANNER_CODE = "ENGINEERING"
+
+# part_id -> on_hand_qty  (max(receipts_I - issues_O, 0) from inventory_transaction)
+PN_ON_HAND = {
+    "PN-10010": 5.8,  "PN-10020": 0.0,   "PN-10030": 90.0,  "PN-10040": 46.6,
+    "PN-10050": 17.9, "PN-10060": 122.7, "PN-10070": 67.1,  "PN-10080": 33.1,
+    "PN-10090": 97.2, "PN-10100": 21.5,  "PN-10110": 0.0,   "PN-10120": 0.0,
+    "PN-10130": 0.0,  "PN-10140": 15.2,  "PN-10150": 97.0,  "PN-10160": 105.1,
+    "PN-10170": 11.8, "PN-10180": 0.0,   "PN-10190": 84.6,  "PN-10200": 41.2,
+}
+
+_CAGE_POOL = ["81205", "06481", "1LNK7", "3A231", "0V8H7", "55K12"]
+_SPEC_RE = re.compile(
+    r"(AMS\s?\d+|MIL-DTL-\d+|MIL-[A-Z]-\d+|MS\d+|NAS\d+|AN\d+[A-Z0-9-]*|"
+    r"\d{4}-T\d+|ABEC-\d)"
+)
+
+
+def _pn_uom(desc):
+    if "Sheet" in desc or "Panel" in desc:
+        return "SHT"
+    if "Extrusion" in desc:
+        return "FT"
+    return "EA"
+
+
+def _pn_lead(cost):
+    if cost < 10:
+        return 7
+    if cost < 50:
+        return 14
+    if cost < 200:
+        return 21
+    return 30
+
+
+def _pn_spec(desc):
+    m = _SPEC_RE.search(desc)
+    return m.group(1) if m else None
+
+
+def seed_pn_parts_master(cur):
+    """Fold the PN-* namespace into the `part` master (idempotent).
+
+    Ensures the planner_code column exists, INSERT OR IGNOREs the 20 PN-* rows
+    (part_class MAKE, on_hand baked from the ledger), and assigns a generic
+    planner to every part that lacks one. Safe to re-run.
+    """
+    existing = {r[1] for r in cur.execute("PRAGMA table_info(part)")}
+    if "planner_code" not in existing:
+        cur.execute(
+            "ALTER TABLE part ADD COLUMN planner_code TEXT DEFAULT 'ENGINEERING'"
+        )
+
+    rows = []
+    for pid, desc, _cls, cost in PARTS:
+        on_hand = PN_ON_HAND[pid]
+        n = pid.split("-")[1]
+        rows.append((
+            pid, desc, "MAKE", _pn_uom(desc), cost, _pn_lead(cost),
+            round(on_hand * 0.35, 1), on_hand, "A",
+            _CAGE_POOL[int(n) % len(_CAGE_POOL)],
+            f"DWG-{n}-A", _pn_spec(desc), 1, PLANNER_CODE,
+        ))
+    cur.executemany(
+        "INSERT OR IGNORE INTO part "
+        "(part_id, part_description, part_class, unit_of_measure, unit_cost, "
+        "lead_time_days, reorder_point, on_hand_qty, revision, cage_code, "
+        "drawing_number, material_spec, active, planner_code) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        rows,
+    )
+    # Converge the synthetic stock fields on rows that already existed (an earlier
+    # run baked a different value): on_hand/reorder are deterministic from the
+    # baked ledger-net snapshot, so re-asserting them keeps every path identical.
+    cur.executemany(
+        "UPDATE part SET on_hand_qty=?, reorder_point=?, planner_code=? "
+        "WHERE part_id=?",
+        [(oh, round(oh * 0.35, 1), PLANNER_CODE, pid)
+         for pid, _d, _c, _co in PARTS
+         for oh in (PN_ON_HAND[pid],)],
+    )
+    cur.execute(
+        "UPDATE part SET planner_code=? "
+        "WHERE planner_code IS NULL OR planner_code=''",
+        (PLANNER_CODE,),
+    )
+    print(f"  part (PN-* master fold): {len(rows)} rows ensured; "
+          f"planner_code assigned")
+
 
 # ── Suppliers ─────────────────────────────────────────────────────────────────
 SUPPLIERS = [
@@ -389,6 +493,9 @@ def run():
             VALUES (?,?,?,?,?,?,?,1)
         """, (sid, name, cat, cert, terms, lead, int(os_flag)))
     print(f"  suppliers: {len(SUPPLIERS)} rows")
+
+    # ── Fold the PN-* namespace into the parts master (referential integrity) ──
+    seed_pn_parts_master(cur)
 
     # ── Seed work_orders ──────────────────────────────────────────────────────
     wo_rows = []
