@@ -434,7 +434,7 @@ that proof on the **execution side of the shop floor**: how routed work moves
 across the floor — a **work order** and the ordered **operations** (routing steps)
 that build it. Like the demand and capacity layers it has **no SolderEngine
 computation template**, so parity is grounded against the governed SQL directly
-(the grounding query in `docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql`).
+(the grounding query archived at `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/manufacturing_shopfloorrouting_20260704_000003.sql`).
 
 The grounding query is a **strict two-table join** of `work_order` and `operation`
 on `wo_id`. The showcase publishes exactly that — **no third table**. A

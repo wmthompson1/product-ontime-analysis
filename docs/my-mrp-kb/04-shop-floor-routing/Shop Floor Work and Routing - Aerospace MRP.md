@@ -264,7 +264,7 @@ All of the following come straight from the two-table join:
 
 ## 11. The Grounding Query
 
-The companion file `Shop_Floor_Routing.sqlite.sql` holds two runnable SQLite queries, both **strict two-table joins** of `work_order` and `operation`. The core of Query 1:
+The companion file `manufacturing_shopfloorrouting_20260704_000003.sql` (archived under `hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/_archived/`) holds two runnable SQLite queries, both **strict two-table joins** of `work_order` and `operation`. The core of Query 1:
 
 ```sql
 SELECT

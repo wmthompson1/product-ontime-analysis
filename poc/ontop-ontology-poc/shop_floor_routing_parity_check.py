@@ -12,7 +12,8 @@ snapshot.
 LIKE SHOWCASES 6 (customer-order demand) AND 7 (capacity planning), AND UNLIKE
 the on-time / OEE showcases, the routing layer has NO computation_template /
 concept — it was delivered as SME-approved docs + a runnable SQLite grounding
-query only (docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql). So this check grounds
+query only (archived at hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/
+_archived/manufacturing_shopfloorrouting_20260704_000003.sql). So this check grounds
 the SPARQL answers against that DIRECT governed SQL, run on the same snapshot.
 The SQL stays the single source of truth; Ontop is only a publishing layer over
 it.
@@ -84,7 +85,8 @@ def run_sparql(props, query_file, out_csv):
 
 
 # The governed grounding query is a strict two-table join of work_order and
-# operation on wo_id (docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql). The .obda
+# operation on wo_id (archived at hf-space-inventory-sqlgen/app_schema/ground_truth/
+# sql_snippets/_archived/manufacturing_shopfloorrouting_20260704_000003.sql). The .obda
 # mapping restates exactly that join in its source SQL, so the published
 # operation set is exactly this joined set and the SPARQL totals line up.
 _GOVERNED_FROM = "FROM work_order wo JOIN operation op ON op.wo_id = wo.wo_id"

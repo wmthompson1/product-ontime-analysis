@@ -1,4 +1,8 @@
 /*
+ARCHIVED 2026-07-04 — perspective: manufacturing. Moved out of the knowledge
+loop (was docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql);
+POC-era grounding query kept as ground-truth reference only.
+
 Shop Floor Work & Routing — SQLite grounding query (SYNTHETIC).
 
 This is the runnable SQLite query that grounds the companion document

@@ -4,7 +4,8 @@ PREFIX : <http://example.org/manufacturing/routing#>
 # SUM(run_hrs) over every published routing operation. The mapping source SQL is
 # the strict two-table join (operation JOIN work_order on wo_id) the grounding
 # file uses, so this scalar SUM is exactly the horizon-total run hours in
-# docs/my-mrp-kb/04-shop-floor-routing/Shop_Floor_Routing.sqlite.sql. Ontop exposes the per-operation
+# hf-space-inventory-sqlgen/app_schema/ground_truth/sql_snippets/
+# _archived/manufacturing_shopfloorrouting_20260704_000003.sql. Ontop exposes the per-operation
 # run hours; the consumer's SPARQL aggregation sums them. Scalar (no GROUP BY) so
 # it stays SQLite-safe. Compared against the governed SQL aggregate on the same
 # snapshot.
