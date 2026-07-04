@@ -313,14 +313,34 @@ aerospace-manufacturing environment requires.
 
 ## 8. How this maps to the architecture diagram
 
-This trace corresponds one-to-one with the three-pillar architecture diagram on
-the project canvas:
+This trace corresponds one-to-one with the three-layer architecture diagram:
 
-| Diagram box | Stage in this trace |
+```
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 1. STRUCTURAL MAPPING                                        │
+  │  • ArangoDB (tracks edge topologies & 'resolves_to' paths)  │
+  │  • Ontop / SPARQL (defines virtual ontology skeleton views) │
+  └──────────────────────────────┬──────────────────────────────┘
+                                 │
+                                 ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 2. THE COMPILATION HINGE                                     │
+  │  • ProductionDispatcher (closed intent classification)      │
+  │  • SolderEngine (extracts metadata / matches ground-truth)  │
+  └──────────────────────────────┬──────────────────────────────┘
+                                 │
+                                 ▼
+  ┌─────────────────────────────────────────────────────────────┐
+  │ 3. PROCESSING WORKBENCH                                      │
+  │  • SQLGlot (parses AST tables & transpiles target dialect)  │
+  └─────────────────────────────────────────────────────────────┘
+```
+
+| Diagram layer | Stage(s) in this trace |
 |---|---|
-| **Structural Mapping** — ArangoDB + Ontop/SPARQL feeding the SolderEngine | Stage 2: perspective filter, elevate/suppress weights, `resolves_to` edges select the binding. |
-| **"Matches User Intent to Ground-Truth SQL"** (the SolderEngine core) | Stages 1→3: intent determination → binding key → the APPROVED `.sql` file. |
-| **Processing — SQLGlot, "matches on TABLES, not CTE structure"** | Stage 4: runtime AST parse + dialect transpile, keyed on the physical-table fingerprint catalogued at boot. |
+| **1 · Structural Mapping** — ArangoDB edge topologies & `resolves_to` paths; Ontop / SPARQL virtual ontology skeleton | Stage 2's *substrate*: the perspective filter, elevate/suppress weights, and `resolves_to` edges live here as the graph that maps concept → anchor column. |
+| **2 · The Compilation Hinge** — ProductionDispatcher + SolderEngine | Stages 1→3: the dispatcher does closed-vocabulary intent classification, then the SolderEngine matches that intent/concept to a ground-truth binding and loads the APPROVED `.sql` file. This is the pivot where an understood question becomes an approved definition. |
+| **3 · Processing Workbench** — SQLGlot | Stage 4: runtime AST parse + dialect transpile, keyed on the physical-table fingerprint catalogued at boot. |
 
 ---
 
