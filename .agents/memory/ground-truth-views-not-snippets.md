@@ -16,9 +16,13 @@ reconciliation flags). Same semantic family as `graph_metadata.json` and the
 bridge tables, expressed as SQL.
 
 **Why:** User stated this explicitly (2026-07-04): "Snippets is misleading,
-they are full views aka datasets but importantly they are metadata." True
-snippets are the fragment-level SME-approved pieces SolderEngine assembles
-via structural fingerprints — a different thing.
+they are full views aka datasets but importantly they are metadata." And the
+authoring model behind it: "the SMEs are tasked with building full queries in
+their perspective, resulting in a view, entirely metadata." So the unit of
+SME work is a complete query authored FROM a perspective; the output is a
+view; the view's value is the declaration (tables, joins, derivation rules),
+not the rows. True snippets are the fragment-level SME-approved pieces
+SolderEngine assembles via structural fingerprints — a different thing.
 
 **How to apply:** In prose, docs, and new code, call these grounding files
 "governed views" / "datasets" / "grounding queries," never snippets. The
