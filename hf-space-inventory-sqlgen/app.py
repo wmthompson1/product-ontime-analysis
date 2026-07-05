@@ -5901,16 +5901,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mrp_btn.click(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
             mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
 
-        with gr.Tab("🧩 View Ontology"):
+        with gr.Tab("🧩 Query Topology"):
             gr.Markdown("""
-            ### Ground-Truth View Ontology
+            ### Ground-Truth Query Topology (AST)
 
             The ground-truth SQL **IS the view** — it tells the complete story.
             The joins are the relationships, the CTEs provide the hierarchy scaffolding,
             the WHERE predicates encode the set-membership rules, and the ORDER/GROUP BY
             defines the grain.
 
-            This tab surfaces the ontological structure **extracted by SQLGlot** from
+            This tab surfaces the graph topology **extracted by SQLGlot** from
             each of the 7 MRP views — physical tables touched, join relationships,
             set-gating predicates, grain, time-phasing, and output concepts — as
             first-class governed metadata stored in `sql_view_ontology`.
@@ -6098,9 +6098,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[svo_summary, svo_joins, svo_detail, svo_sql],
             )
 
-        with gr.Tab("🦉 Ontop Ontology"):
+        with gr.Tab("🦉 Ontology Mapping"):
             gr.Markdown("""
-            ### Ontop Virtual Knowledge Graph — What the Solder Sees
+            ### Ontop Ontology Mapping (SPARQL/OWL) — What the Solder Sees
 
             The Ontop POC republishes the governed SQL layer as a **virtual
             OWL/SPARQL graph**. Each OBDA mapping pairs a **target** (the RDF
@@ -6108,10 +6108,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
             source SQL is exactly *what the solder sees*: the same tables,
             joins and predicates, viewed through standards-based vocabulary.
 
-            This tab mirrors the View Ontology tab: pick a mapping, and its
-            source SQL is run through the same **pure-AST SQLGlot extraction**
-            — no database is touched, and nothing here is wired into the
-            running app.
+            Where the **Query Topology** tab shows the graph topology of the
+            SQL itself (pure AST), this tab shows the **ontology mapping** —
+            the SPARQL-facing OWL vocabulary and the OBDA target/source pairs
+            that bind it to the governed SQL. No database is touched, and
+            nothing here is wired into the running app.
             """)
 
             try:
@@ -6133,7 +6134,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown(
                 f"**Master selector — all {len(_oo_entries)} OBDA mappings "
                 f"across {len(_oo_modules)} showcase ontologies.** Same "
-                f"fixed-width 6-slot scheme as the View Ontology tab:\n\n"
+                f"fixed-width 6-slot scheme as the Query Topology tab:\n\n"
                 f"{_oo_legend}"
             )
 

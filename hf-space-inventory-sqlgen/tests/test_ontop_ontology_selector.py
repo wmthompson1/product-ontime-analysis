@@ -1,4 +1,4 @@
-"""Tests for the Ontop OBDA mapping selector (mirrors View Ontology selector)."""
+"""Tests for the Ontop OBDA mapping selector (mirrors the Query Topology selector)."""
 
 import os
 import sys
