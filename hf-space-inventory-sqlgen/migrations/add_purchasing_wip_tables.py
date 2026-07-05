@@ -164,6 +164,25 @@ def seed_pn_parts_master(cur):
          for pid, _d, _c, _co in PARTS
          for oh in (PN_ON_HAND[pid],)],
     )
+    # Grounding invariant: PN_ON_HAND is a frozen ledger-net snapshot from bake
+    # time. If later migrations added ledger rows (e.g. the PO-STD-001 stock
+    # receipt), the live ledger net supersedes the snapshot — re-derive on_hand
+    # for any PN-* part that has ledger rows so re-runs stay ledger-grounded.
+    has_ledger = cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' "
+        "AND name='inventory_transaction'"
+    ).fetchone()
+    if has_ledger:
+        cur.execute("""
+            UPDATE part SET on_hand_qty = (
+                SELECT MAX(0, ROUND(SUM(CASE WHEN t.type='I' THEN t.quantity
+                                             ELSE -t.quantity END), 1))
+                FROM inventory_transaction t WHERE t.part_id = part.part_id
+            )
+            WHERE part_id LIKE 'PN-%'
+              AND EXISTS (SELECT 1 FROM inventory_transaction t
+                          WHERE t.part_id = part.part_id)
+        """)
     cur.execute(
         "UPDATE part SET planner_code=? "
         "WHERE planner_code IS NULL OR planner_code=''",

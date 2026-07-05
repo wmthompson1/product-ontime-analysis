@@ -234,8 +234,10 @@ def prune(cur) -> None:
 def validate(cur) -> None:
     failures = []
 
+    # PO band top is 25: add_receiving_line_and_commodities adds 5 POs on top
+    # of the seeded 15 (+ a possible deterministic MRP top-up PO).
     for table, lo, hi in (("customer_order", 10, 20), ("work_order", 10, 20),
-                          ("purchase_order", 10, 20)):
+                          ("purchase_order", 10, 25)):
         n = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         if not (lo <= n <= hi):
             failures.append(f"{table} count {n} outside [{lo}, {hi}]")
@@ -299,13 +301,27 @@ def validate_mrp(con) -> None:
     print(f"MRP planning inputs valid: {summary['demand_parts']} demand parts in horizon")
 
 
+def already_at_demo_scale(cur) -> bool:
+    """True when CO/WO/PO counts are already inside the demo band — a fresh
+    bootstrap seeds directly at demo scale, so the trim would over-prune."""
+    for table, hi in (("customer_order", 20), ("work_order", 20),
+                      ("purchase_order", 25)):
+        n = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        if not (10 <= n <= hi):
+            return False
+    return True
+
+
 def main() -> int:
     con = sqlite3.connect(DB_PATH)
     con.row_factory = sqlite3.Row
     cur = con.cursor()
     try:
         consolidate_cnc(cur)
-        prune(cur)
+        if already_at_demo_scale(cur):
+            print("Counts already within demo band [10, 20] — skipping trim")
+        else:
+            prune(cur)
         validate(cur)
         con.commit()
     except Exception:

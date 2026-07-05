@@ -260,3 +260,16 @@ warehouse,region_id,Region ID,The geographic region of the warehouse.,US-Central
 warehouse,independent,Independent Flag,"Whether the warehouse plans independently (Y) or as part of its site (N).",Y
 warehouse,mrp_exempt,MRP Exempt Flag,"Whether the warehouse's stock is excluded from MRP netting (Y) or included (N).",N
 warehouse,created_at,Created At,Timestamp when the warehouse record was created.,2026-07-04 21:05:36
+receiving_line,receipt_line_id,Receipt Line ID,Unique identifier for each receiving line record.,1
+receiving_line,receipt_id,Receipt ID,Links each receiving line to its receiving header.,1
+receiving_line,line_no,Line Number,Sequential line number within the goods receipt.,1
+receiving_line,po_line_id,PO Line ID,Links each receiving line to the purchase-order line it closes against.,1
+receiving_line,part_id,Part ID,Links each receiving line to its related part.,PN-10010
+receiving_line,quantity_ordered,Quantity Ordered,Numeric quantity ordered recorded for each receiving line.,200.0
+receiving_line,quantity_received,Quantity Received,Numeric quantity received recorded for each receiving line.,200.0
+receiving_line,inspection_status,Inspection Status,"Quality disposition of the received line: pending inspection, passed, or failed / rejected.",Passed
+receiving_line,cert_required,Certification Required,Yes/no flag indicating whether the receiving line requires a certification.,1
+receiving_line,created_at,Created At,Timestamp for when the receiving line record was created.,2026-06-01 00:48:21
+payable_line,po_line_id,PO Line ID,Links each payable line to the purchase-order line it matches (line-level three-way match).,1
+payable_line,receipt_line_id,Receipt Line ID,Links each payable line to the receiving line it matches (line-level three-way match).,1
+part,commodity_code,Commodity Code,"Purchasing commodity category for the part, such as RAW-METAL, HARDWARE, COMPOSITE, TOOLING, SHOP-SUPPLY, or OSP-THERMAL.",HARDWARE

@@ -1,0 +1,143 @@
+"""One-command database bootstrap for a fresh clone.
+
+manufacturing.db is intentionally gitignored, so a fresh clone (or a fresh
+Replit / Hugging Face copy) has no database. This script rebuilds the whole
+thing deterministically:
+
+    cd hf-space-inventory-sqlgen && python scripts/bootstrap_db.py
+
+Steps (all idempotent — safe to re-run on an existing DB):
+  1. Apply app_schema/schema_sqlite.sql if the DB is missing (core ERP +
+     semantic-layer tables and reference seeds).
+  2. Run the structural migrations that own tables/columns NOT in
+     schema_sqlite.sql (wave-4 traceability spine, employees/buyers, ...).
+  3. Seed synthetic ERP data (scripts/seed_erp_synthetic.py).
+  4. Run the documented high-fidelity backfill chain in its required order
+     (see the seed_erp_synthetic.py docstring).
+  5. Build the MRP demand/supply foundation.
+  6. Prune to demo scale (15 CO / 15 WO / 15-20 PO band).
+  7. Split receiving into header + line and broaden the commodity mix.
+  8. Verify the MRP tab has planning parts and can compute a grid —
+     fail closed if not.
+
+Everything is plain SQLite — no ArangoDB, no API keys, no network needed.
+"""
+
+import os
+import sqlite3
+import subprocess
+import sys
+import time
+
+HF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DB_PATH = os.path.join(HF_DIR, "app_schema", "manufacturing.db")
+SCHEMA_SQL = os.path.join(HF_DIR, "app_schema", "schema_sqlite.sql")
+
+# (relative script path, args) — order matters.
+STEPS = [
+    # structural migrations first: tables the seeder writes into
+    ("migrations/add_wave4_traceability_tables.py", []),
+    # synthetic ERP data
+    ("scripts/seed_erp_synthetic.py", []),
+    # structural migrations that ground themselves in seeded data
+    ("migrations/add_employees_and_buyers.py", []),
+    ("migrations/add_warehouse_part_location.py", []),
+    ("migrations/add_supplier_payables_wiring.py", []),
+    ("migrations/add_customer_order_completed_date.py", []),
+    # documented high-fidelity chain (order is mandatory)
+    ("migrations/add_operation_type.py", []),
+    ("migrations/regap_and_seed_requirements.py", []),
+    ("migrations/relabel_work_order_status.py", []),
+    ("migrations/backfill_operation_progress.py", []),
+    ("migrations/backfill_operation_schedule.py", []),
+    ("migrations/backfill_supplier_rating_and_wo_actuals.py", []),
+    ("migrations/backfill_operation_actuals.py", []),
+    ("migrations/backfill_labor_chain.py", []),
+    # planner master data + MRP foundation
+    ("migrations/backfill_pn_parts_master_and_planner.py", []),
+    ("migrations/backfill_mrp_demand_supply.py", []),
+    # demo scale + receiving line split / commodity mix
+    ("migrations/prune_erp_to_demo_scale.py", []),
+    ("migrations/add_receiving_line_and_commodities.py", []),
+]
+
+
+def init_schema_if_missing():
+    if os.path.exists(DB_PATH):
+        print(f"[bootstrap] DB exists at {DB_PATH} — skipping schema init")
+        return
+    print(f"[bootstrap] creating fresh DB from schema_sqlite.sql")
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        with open(SCHEMA_SQL) as f:
+            conn.executescript(f.read())
+        conn.commit()
+        n = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+        ).fetchone()[0]
+        print(f"[bootstrap] schema applied — {n} tables")
+    finally:
+        conn.close()
+
+
+def run_steps():
+    for rel, args in STEPS:
+        path = os.path.join(HF_DIR, rel)
+        if not os.path.exists(path):
+            raise SystemExit(f"[bootstrap] FAIL-CLOSED: missing script {rel}")
+        t0 = time.time()
+        print(f"[bootstrap] → {rel}")
+        r = subprocess.run([sys.executable, path, *args], cwd=HF_DIR)
+        if r.returncode != 0:
+            raise SystemExit(
+                f"[bootstrap] FAIL-CLOSED: {rel} exited {r.returncode} — "
+                "fix the error above and re-run (all steps are idempotent)."
+            )
+        print(f"[bootstrap]   done in {time.time() - t0:.1f}s")
+
+
+def verify_mrp():
+    print("[bootstrap] verifying MRP readiness…")
+    sys.path.insert(0, HF_DIR)
+    import mrp_engine as mrp
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        mrp.validate_planning_inputs(conn)
+        parts = mrp.list_planning_parts(conn)
+        if not parts:
+            raise SystemExit(
+                "[bootstrap] FAIL-CLOSED: MRP has no planning parts "
+                "(no open demand in the horizon)."
+            )
+        p0 = parts[0]
+        if isinstance(p0, dict):
+            first = p0["part_id"]
+        elif isinstance(p0, (tuple, list)):
+            first = p0[0]
+        else:
+            first = p0
+        grid = mrp.compute_mrp_grid(conn, first)
+        if not grid:
+            raise SystemExit(
+                f"[bootstrap] FAIL-CLOSED: empty MRP grid for {first}"
+            )
+        print(f"[bootstrap] MRP OK — {len(parts)} planning part(s); "
+              f"grid computed for {first}")
+    finally:
+        conn.close()
+
+
+def main():
+    t0 = time.time()
+    init_schema_if_missing()
+    run_steps()
+    verify_mrp()
+    print(f"[bootstrap] complete in {time.time() - t0:.1f}s — "
+          "start the app with: PORT=5000 python app.py")
+
+
+if __name__ == "__main__":
+    main()

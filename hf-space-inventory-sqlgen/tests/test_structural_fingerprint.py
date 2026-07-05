@@ -335,7 +335,8 @@ def test_graph_wiring():
           "binding count matches nodes_by_type")
 
     # Binding nodes are NOT column nodes -> field-description coverage unaffected.
-    check(len(column_nodes) == 231, "column node count still 231 (coverage intact)")
+    # Frozen count tracks the committed graph_metadata.json (SCHEMA_VERSION 24).
+    check(len(column_nodes) == 274, "column node count still 274 (coverage intact)")
 
     # Every binding node carries binding_key + manifest family; slots 4-5 none.
     ok_shape = all(

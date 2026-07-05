@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS schema_edges (
     context                TEXT
 );
 
+-- one row per logical relationship; makes INSERT OR IGNORE truly idempotent
+CREATE UNIQUE INDEX IF NOT EXISTS ux_schema_edges_logical
+    ON schema_edges(from_table, to_table, join_column);
+
 CREATE TABLE IF NOT EXISTS schema_nodes (
     table_name TEXT NOT NULL UNIQUE,
     table_type TEXT,
@@ -123,7 +127,7 @@ CREATE TABLE IF NOT EXISTS EMPLOYEE (
 );
 
 CREATE TABLE IF NOT EXISTS suppliers (
-    supplier_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id        TEXT PRIMARY KEY,              -- e.g. S-001
     supplier_name      TEXT NOT NULL,
     contact_email      TEXT,
     phone              TEXT,

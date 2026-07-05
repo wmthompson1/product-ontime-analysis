@@ -96,6 +96,11 @@ PART_CATALOG = [
     ("P-10038", "Hydraulic Fitting AN816-4D",             "HARDWARE", "EA",    12.50,  5, "AN816"),
     ("P-10039", "Aluminum Casting LM Bracket",            "BUY",      "EA",   420.00, 30, "ASTM B85"),
     ("P-10040", "Electrical Harness — Avionics Bay",      "BUY",      "EA",  3600.00, 60, "MIL-W-22759"),
+    # Shop consumables (commodity variety — tooling and shop supplies)
+    ("C-20001", "Carbide End Mill 0.500 4FL TiAlN",          "BUY", "EA",  42.50,  5, "ISO 1832"),
+    ("C-20002", "Coolant Concentrate Semi-Synthetic 55 Gal", "BUY", "DR", 780.00,  7, "MIL-PRF-680"),
+    ("C-20003", "Abrasive Disc 120 Grit 5 in (50 Pack)",     "BUY", "PK",  28.40,  5, "ANSI B74.18"),
+    ("C-20004", "CMM Stylus Ruby 4mm M3",                    "BUY", "EA",  96.00, 10, "ISO 10360"),
 ]
 
 SUPPLIER_CATALOG = [
@@ -668,6 +673,11 @@ def seed_schema_edges(cur):
         (17, "purchase_order","work_order",     "FOREIGN_KEY", "wo_id",         1, "Outside-service PO tied to a work order"),
         (18, "operation",     "service",        "FOREIGN_KEY", "service_id",    1, "Outside-service op uses a service definition"),
         (19, "operation",     "suppliers",      "FOREIGN_KEY", "vendor_id",     1, "Outside-service op dispatched to a supplier"),
+        (20, "receiving_line","receiving",      "FOREIGN_KEY", "receipt_id",    1, "Receipt line belongs to a receiving header"),
+        (21, "receiving_line","po_line",        "FOREIGN_KEY", "po_line_id",    1, "Receipt line closes against a purchase-order line"),
+        (22, "receiving_line","part",           "FOREIGN_KEY", "part_id",       1, "Receipt line records the received part"),
+        (23, "payable_line",  "po_line",        "FOREIGN_KEY", "po_line_id",    1, "Payable line matches a purchase-order line"),
+        (24, "payable_line",  "receiving_line", "FOREIGN_KEY", "receipt_line_id", 1, "Payable line matches a receipt line (three-way match)"),
     ]
     cur.executemany(
         "INSERT OR IGNORE INTO schema_edges "
@@ -683,6 +693,7 @@ def seed_schema_nodes(cur):
         ("part",        "Table", "Part / item master — description, class, UOM, cost, revision, material spec, CAGE code"),
         ("shop_resource","Table","Shop work centers and outside-service buckets (machine, labor, service types)"),
         ("service",     "Table", "Outside service definitions (anodize, heat treat, NDT, plating, painting)"),
+        ("receiving_line", "Table", "Line items on a goods receipt — one row per part received, linked to the PO line for line-level three-way match"),
     ]
     cur.executemany(
         "INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES (?,?,?)",
@@ -911,6 +922,66 @@ def seed_payable_lines(cur):
     print(f"  payable_line: {cur.rowcount} rows inserted")
 
 
+def seed_receiving_lines(cur):
+    """One receiving_line per receiving header row that has none (line_no=1)."""
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS receiving_line (
+            receipt_line_id   INTEGER PRIMARY KEY AUTOINCREMENT,
+            receipt_id        INTEGER NOT NULL REFERENCES receiving(receipt_id),
+            line_no           INTEGER NOT NULL,
+            po_line_id        INTEGER REFERENCES po_line(line_id),
+            part_id           TEXT NOT NULL REFERENCES part(part_id),
+            quantity_ordered  REAL NOT NULL,
+            quantity_received REAL NOT NULL,
+            inspection_status TEXT NOT NULL DEFAULT 'Pending',
+            cert_required     INTEGER DEFAULT 0,
+            created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (receipt_id, line_no)
+        )
+    """)
+    cur.execute("""
+        INSERT INTO receiving_line
+            (receipt_id, line_no, po_line_id, part_id, quantity_ordered,
+             quantity_received, inspection_status, cert_required)
+        SELECT r.receipt_id, 1,
+               (SELECT MIN(pl.line_id) FROM po_line pl
+                 WHERE pl.po_id = r.po_id AND pl.part_id = r.part_id),
+               r.part_id, r.quantity_ordered, r.quantity_received,
+               r.inspection_status, r.cert_required
+        FROM receiving r
+        WHERE NOT EXISTS (SELECT 1 FROM receiving_line rl
+                          WHERE rl.receipt_id = r.receipt_id)
+    """)
+    print(f"  receiving_line: {cur.rowcount} rows inserted")
+
+
+def seed_payable_line_links(cur):
+    """Line-level three-way match: link payables to PO lines and receipt lines."""
+    for col in ("po_line_id", "receipt_line_id"):
+        have = {r[1] for r in cur.execute("PRAGMA table_info(payable_line)")}
+        if col not in have:
+            ref = ("po_line(line_id)" if col == "po_line_id"
+                   else "receiving_line(receipt_line_id)")
+            cur.execute(f"ALTER TABLE payable_line ADD COLUMN {col} INTEGER "
+                        f"REFERENCES {ref}")
+    cur.execute("""
+        UPDATE payable_line SET po_line_id = (
+            SELECT MIN(pl.line_id) FROM po_line pl
+            WHERE pl.po_id = payable_line.po_id
+              AND pl.part_id = payable_line.part_id)
+        WHERE po_line_id IS NULL AND po_id IS NOT NULL AND part_id IS NOT NULL
+    """)
+    cur.execute("""
+        UPDATE payable_line SET receipt_line_id = (
+            SELECT MIN(rl.receipt_line_id)
+            FROM receiving_line rl JOIN receiving r ON r.receipt_id = rl.receipt_id
+            WHERE r.po_id = payable_line.po_id
+              AND rl.part_id = payable_line.part_id)
+        WHERE receipt_line_id IS NULL AND po_id IS NOT NULL AND part_id IS NOT NULL
+    """)
+    print("  payable_line: line-level PO/receipt links backfilled")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -922,6 +993,7 @@ ERP_TABLES = [
     # Wave 4 — traceability spine (topological order)
     "site", "customer_order", "customer_order_line", "inventory_transaction",
     "trace", "trace_inventory_trace", "inv_trans_dist", "payable_line",
+    "receiving_line",
 ]
 
 def clear_erp_tables(cur):
@@ -975,6 +1047,8 @@ def main():
         seed_trace_inventory_trace(cur)
         seed_inv_trans_dist(cur)
         seed_payable_lines(cur)
+        seed_receiving_lines(cur)
+        seed_payable_line_links(cur)
         # metadata
         seed_schema_edges(cur)
         seed_schema_nodes(cur)
