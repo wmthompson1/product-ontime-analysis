@@ -50,9 +50,14 @@ const appPassThroughPlugin = () => {
   const forwardHeaders = (req: import("http").IncomingMessage) => ({
     ...req.headers,
     host: target.host,
-    "x-forwarded-host": req.headers.host || "",
-    "x-forwarded-proto": "https",
-    "x-forwarded-for": req.socket.remoteAddress || "",
+    "x-forwarded-host":
+      (req.headers["x-forwarded-host"] as string) || req.headers.host || "",
+    "x-forwarded-proto":
+      (req.headers["x-forwarded-proto"] as string) || "http",
+    "x-forwarded-for":
+      (req.headers["x-forwarded-for"] as string) ||
+      req.socket.remoteAddress ||
+      "",
   });
 
   return {
