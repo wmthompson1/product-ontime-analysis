@@ -23,6 +23,8 @@
 -- Params:   :start_date (delivery_date lower bound)
 -- Perspectives: Quality (primary) · Finance (vendor payment-term decisions)
 -- ============================================================
+-- Query: Supplier Scorecard
+-- Description: Which suppliers are meeting delivery and quality thresholds? Delivery counts, on-time %, quality score, and late-rate penalty signal per supplier.
 SELECT
     s.supplier_id,
     s.supplier_name,
@@ -53,6 +55,8 @@ ORDER BY avg_ontime_pct ASC, avg_quality_score ASC;
 -- Params:   :start_date
 -- Perspective: Payables — this is the primary payables query
 -- ============================================================
+-- Query: Supplier Cost Penalties
+-- Description: What penalty credits are owed for late deliveries? Estimated penalty credit per supplier (2% of delivery value per late event).
 SELECT
     s.supplier_id,
     s.supplier_name,
@@ -85,6 +89,8 @@ ORDER BY estimated_penalty_credit DESC;
 -- Note:     unit_cost is sourced from product_lines.unit_price as a proxy
 --           until a purchase_orders table is added to this schema.
 -- ============================================================
+-- Query: Supplier Payables Exposure
+-- Description: What is our total AP exposure by supplier for a period? Invoice counts, units received, estimated AP exposure, and payment recommendation.
 SELECT
     s.supplier_id,
     s.supplier_name,

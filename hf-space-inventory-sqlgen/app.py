@@ -4518,42 +4518,31 @@ Check that perspective-concept and intent-concept relationships are seeded.
             get_ddl_btn.click(fn=get_table_ddl_gradio, inputs=table_dropdown, outputs=ddl_output)
             get_all_ddl_btn.click(fn=get_all_ddl_gradio, outputs=ddl_output)
         
-        with gr.Tab("📁 Ground Truth SQL"):
-            gt_erp_header_md = gr.Markdown(
-                "### Validated SQL Query Resources\n\n"
-                "**Active ERP:** loading…\n\n"
-                "Browse ground truth SQL queries organized by category.\n"
-                "These serve as few-shot examples for Copilot context."
-            )
+        with gr.Tab("📁 Ground Truth SQL Queries"):
+            # Query-dropdown VALUES carry "category<US>name" so the chained
+            # .change handler needs exactly ONE input (see the Gradio
+            # chained-event rule used by the Ontology Mosaic cascade).
+            _GT_SEP = "\x1f"
 
-            def _load_gt_erp_header():
-                cfg = _get_erp_config()
-                erp_name = cfg["erp_instance_name"]
-                source = cfg["erp_instance_name_source"]
-                header = (
-                    f"### Validated SQL Query Resources\n\n"
-                    f"**Active ERP:** `{erp_name}` *(source: {source})* — "
-                    f"queries below are scoped to and validated for this ERP instance.\n\n"
-                    f"Browse ground truth SQL queries organized by category.\n"
-                    f"These serve as few-shot examples for Copilot context."
-                )
-                if source == "default":
-                    header += (
-                        "\n\n> ⚠️ Using the default ERP name. "
-                        "Set the `ERP_INSTANCE_NAME` environment variable to configure your system."
-                    )
-                return header
-            
+            def _gt_pack(cat, name):
+                return f"{cat or ''}{_GT_SEP}{name or ''}"
+
+            def _gt_unpack(token):
+                if token and _GT_SEP in token:
+                    cat, name = token.split(_GT_SEP, 1)
+                    return (cat or None, name or None)
+                return (None, token or None)
+
             def load_queries_for_category(category_id: str):
-                print(f"[DEBUG] load_queries_for_category called with: {repr(category_id)}")
                 if not category_id:
-                    print("[DEBUG] category_id is empty, returning empty choices")
-                    return gr.Dropdown(choices=[], value=None), ""
+                    return gr.update(choices=[], value=None), "", "", ""
                 queries = get_saved_queries(category_id)
-                print(f"[DEBUG] Found {len(queries)} queries")
-                choices = [q['name'] for q in queries]
-                print(f"[DEBUG] Returning choices: {choices}")
-                return gr.Dropdown(choices=choices, value=None), ""
+                choices = [
+                    (q['name'], _gt_pack(category_id, q['name']))
+                    for q in queries
+                    if q['name'].strip()
+                ]
+                return gr.update(choices=choices, value=None), "", "", ""
             
             def _find_binding_key_for_sql(sql_text: str) -> str:
                 """Look up binding key from manifest by matching SQL content"""
@@ -4641,7 +4630,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     pass
                 return ""
 
-            def load_query_sql(category_id: str, query_name: str):
+            def load_query_sql(query_token: str):
+                category_id, query_name = _gt_unpack(query_token)
                 if category_id is None or query_name is None:
                     return "", "", ""
                 queries = get_saved_queries(category_id)
@@ -4662,27 +4652,38 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return "", "", ""
             
             with gr.Row():
-                with gr.Column():
-                    saved_category = gr.Dropdown(
-                        choices=get_category_choices(),
-                        label="Query Category",
-                        interactive=True
+                saved_category = gr.Dropdown(
+                    choices=get_category_choices(),
+                    label="Query Category",
+                    interactive=True,
+                    scale=1,
+                )
+                saved_query_dropdown = gr.Dropdown(
+                    choices=[],
+                    label="Query",
+                    interactive=True,
+                    scale=2,
+                )
+
+            saved_sql_output = gr.Code(
+                label="SQL Query",
+                language="sql",
+                lines=24,
+                show_label=True,
+                interactive=True,
+            )
+
+            with gr.Accordion("Details & Save Changes", open=False):
+                saved_description = gr.Textbox(label="Description", interactive=True)
+                saved_binding_key = gr.Textbox(
+                    label="Binding Key (empty = not yet in manifest)",
+                    interactive=False,
+                )
+                with gr.Row():
+                    save_query_btn = gr.Button(
+                        "Save Changes", variant="primary", elem_id="gt_save_btn"
                     )
-                    load_queries_btn = gr.Button("Load Queries", variant="secondary")
-                    saved_query_dropdown = gr.Dropdown(
-                        choices=[],
-                        label="Select Query",
-                        interactive=True
-                    )
-                    saved_description = gr.Textbox(label="Description", interactive=True)
-                    saved_binding_key = gr.Textbox(label="Binding Key (empty = not yet in manifest)", interactive=False)
-                
-                with gr.Column():
-                    saved_sql_output = gr.Code(label="SQL Query", language="sql", lines=15, show_label=True, interactive=True)
-            
-            with gr.Row():
-                save_query_btn = gr.Button("Save Changes", variant="primary", elem_id="gt_save_btn")
-                save_query_status = gr.Textbox(label="Save Status", interactive=False)
+                    save_query_status = gr.Textbox(label="Save Status", interactive=False)
 
             def save_query_edits(category_id, query_name, new_sql, new_description):
                 if not category_id or not query_name:
@@ -4710,22 +4711,25 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     f.write(updated)
                 return f"Saved changes to '{query_name}' in {category['name']}."
 
-            load_queries_btn.click(
+            saved_category.change(
                 fn=load_queries_for_category,
-                inputs=saved_category,
-                outputs=[saved_query_dropdown, saved_sql_output]
+                inputs=[saved_category],
+                outputs=[saved_query_dropdown, saved_sql_output, saved_description, saved_binding_key]
             )
-            load_queries_btn.click(fn=_load_gt_erp_header, outputs=gt_erp_header_md)
-            
+
             saved_query_dropdown.change(
                 fn=load_query_sql,
-                inputs=[saved_category, saved_query_dropdown],
+                inputs=[saved_query_dropdown],
                 outputs=[saved_sql_output, saved_description, saved_binding_key]
             )
 
+            def save_query_edits_from_token(query_token, new_sql, new_description):
+                category_id, query_name = _gt_unpack(query_token)
+                return save_query_edits(category_id, query_name, new_sql, new_description)
+
             save_query_btn.click(
-                fn=save_query_edits,
-                inputs=[saved_category, saved_query_dropdown, saved_sql_output, saved_description],
+                fn=save_query_edits_from_token,
+                inputs=[saved_query_dropdown, saved_sql_output, saved_description],
                 outputs=[save_query_status],
                 api_name="save_ground_truth_edits"
             )
@@ -6316,7 +6320,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             standards-based vocabulary.
 
             Each tab has one concern: the **Ontology Mosaic** holds the AST and
-            semantic views, **Ground Truth SQL** holds the SQL itself, and this tab holds the
+            semantic views, **Ground Truth SQL Queries** holds the SQL itself, and this tab holds the
             **ontology mapping** — the SPARQL-facing OWL vocabulary and the
             OBDA target/source pairs that bind it to the governed SQL. No
             database is touched, and nothing here is wired into the running app.
@@ -7776,10 +7780,22 @@ Check that perspective-concept and intent-concept relationships are seeded.
             demo.load(fn=_mm_load_grid, outputs=[mm_grid, mm_prev_dag, mm_status_md])
             demo.load(fn=_mt_load_grid, outputs=[mt_grid, mt_status_md])
 
+        def _load_erp_note():
+            cfg = _get_erp_config()
+            note = (
+                f"**Active ERP:** `{cfg['erp_instance_name']}` "
+                f"*(source: {cfg['erp_instance_name_source']})*"
+            )
+            if cfg["erp_instance_name_source"] == "default":
+                note += (
+                    "\n\n> ⚠️ Using the default ERP name. "
+                    "Set `ERP_INSTANCE_NAME` to configure your system."
+                )
+            return note
+
         demo.load(fn=_load_erp_header, outputs=schema_header_md)
-        demo.load(fn=_load_gt_erp_header, outputs=gt_erp_header_md)
-        demo.load(fn=_load_gt_erp_header, outputs=copilot_erp_md)
-        demo.load(fn=_load_gt_erp_header, outputs=aaq_erp_md)
+        demo.load(fn=_load_erp_note, outputs=copilot_erp_md)
+        demo.load(fn=_load_erp_note, outputs=aaq_erp_md)
     
     return demo
 
