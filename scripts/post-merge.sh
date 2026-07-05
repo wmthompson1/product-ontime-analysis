@@ -199,6 +199,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_operation_schedule_cost_accrual.py 
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_ontology_mosaic.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_ontology_mosaic.py || {
+    echo "post-merge: ontology mosaic cascade + semantic ontology tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py ]; then
   python hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py || {
     echo "post-merge: labor chain reconciliation tests failed"

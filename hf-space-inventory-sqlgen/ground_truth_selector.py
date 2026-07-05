@@ -22,6 +22,47 @@ label built from a simplified 6-slot scheme (an echo of the graph's fixed
 Because the width of each slot is fixed, every label has an identical length,
 so a monospace dropdown reads as an aligned master table for SMEs.
 
+Cascading selector (Ontology Mosaic)
+------------------------------------
+`SelectorCascade` wraps the flat entry list in a reusable cascading component:
+
+    Category  →  Concept anchor  →  Query / perspective
+
+* **Category** comes from the reviewer manifest's `category` field. Raw labels
+  are normalized for DISPLAY ONLY (near-duplicates such as `Quality` and
+  `quality_control` merge under one clean label) — the manifest itself is
+  never edited.
+* **Concept anchor** shows the concept + table-list style
+  (e.g. ``SAFETYSTOCK  [part, customer_order_line, …]``).
+* **Query** keeps the fixed-width 6-slot summary labels for orientation, and
+  resolves to a single manifest `binding_key`. When an anchor has exactly one
+  query the cascade auto-resolves it.
+
+Extension seam (read this before adding a filter or a second consumer)
+----------------------------------------------------------------------
+The cascade is built from an ordered list of `CascadeFilter` objects — the
+Category cascade is just **filter #1**. Each filter declares:
+
+    name          stable identifier (also the key in the selections dict)
+    choices(entries)             -> [(display_label, value), ...]
+    apply(entries, value)        -> the surviving subset of entries
+
+To add a future filter (say, time-phasing), append one more `CascadeFilter`
+to `default_filters()` (or pass a custom list to `SelectorCascade`) — the
+resolution pipeline `narrow() → anchor_choices() → query_choices() →
+resolve()` applies every filter in order with **no tab-side rewiring**: the
+tabs only ever consume the cascade's choice lists and the resolved
+`binding_key`.
+
+A second consumer (e.g. a metrics ontology mosaic) reuses the component by
+constructing `SelectorCascade(entries, filters=...)` over its OWN entry list
+— any list of dicts carrying `category`, `concept_anchor`, `base_tables`,
+and `binding_key` works; nothing in the cascade is specific to ground-truth
+SQL snippets.
+
+If NO entry carries a category, `has_categories()` is False and callers fall
+back to the flat 6-slot selector (`selector_choices`) unchanged.
+
 Pure metadata — nothing here executes SQL against a database.
 """
 
@@ -30,7 +71,8 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-from typing import List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Callable, List, Optional, Tuple
 
 # Fixed slot widths (characters)
 W_CATEGORY = 3
@@ -160,3 +202,179 @@ def load_selector_entries(
 def selector_choices(entries: List[dict]) -> List[Tuple[str, str]]:
     """(label, binding_key) pairs for a Gradio Dropdown master selector."""
     return [(slot_label(e), e["binding_key"]) for e in entries]
+
+
+# ---------------------------------------------------------------------------
+# Cascading selector component (Ontology Mosaic)
+# ---------------------------------------------------------------------------
+
+# Display-only normalization of near-duplicate raw category labels.
+# Keys are the CANONICAL category key; values are the raw variants that fold
+# into it. The manifest is never edited — this only shapes the dropdown.
+_CATEGORY_ALIASES = {
+    "quality_control": {"quality", "quality_control"},
+}
+
+_ANCHOR_TABLES_SHOWN = 3  # tables displayed in an anchor label before "…"
+
+
+def normalize_category(raw: str) -> str:
+    """Canonical category KEY for a raw manifest label ('' stays '')."""
+    key = "_".join(
+        part for part in "".join(
+            c.lower() if c.isalnum() else " " for c in (raw or "")
+        ).split()
+    )
+    for canonical, variants in _CATEGORY_ALIASES.items():
+        if key in variants:
+            return canonical
+    return key
+
+
+def category_label(key: str) -> str:
+    """Human display label for a canonical category key."""
+    if not key:
+        return "(uncategorized)"
+    return " ".join(w.capitalize() for w in key.split("_"))
+
+
+def has_categories(entries: List[dict]) -> bool:
+    """True when at least one entry carries a non-empty category."""
+    return any((e.get("category") or "").strip() for e in entries)
+
+
+def anchor_label(anchor: str, entries: List[dict]) -> str:
+    """Concept + table-list label, e.g. ``SAFETYSTOCK  [part, work_order, …]``."""
+    tables: List[str] = []
+    seen: set = set()
+    for e in entries:
+        if e.get("concept_anchor") != anchor:
+            continue
+        for t in e.get("base_tables") or []:
+            if t not in seen:
+                seen.add(t)
+                tables.append(t)
+    if not tables:
+        return f"{anchor}  [—]"
+    shown = tables[:_ANCHOR_TABLES_SHOWN]
+    ell = ", …" if len(tables) > len(shown) else ""
+    return f"{anchor}  [{', '.join(shown)}{ell}]"
+
+
+@dataclass
+class CascadeFilter:
+    """One filter stage in the cascade. See the module docstring's
+    "Extension seam" section: append a new CascadeFilter to add a filter —
+    the tabs need no rewiring."""
+    name: str
+    choices: Callable[[List[dict]], List[Tuple[str, str]]]
+    apply: Callable[[List[dict], Optional[str]], List[dict]]
+
+
+def _category_choices(entries: List[dict]) -> List[Tuple[str, str]]:
+    keys: List[str] = []
+    seen: set = set()
+    for e in entries:
+        k = normalize_category(e.get("category") or "")
+        if k not in seen:
+            seen.add(k)
+            keys.append(k)
+    keys.sort(key=lambda k: (k == "", category_label(k)))
+    return [(category_label(k), k) for k in keys]
+
+
+def _category_apply(entries: List[dict], value: Optional[str]) -> List[dict]:
+    if value is None:
+        return list(entries)
+    return [
+        e for e in entries
+        if normalize_category(e.get("category") or "") == value
+    ]
+
+
+def category_filter() -> CascadeFilter:
+    """Filter #1: the Category cascade (normalized, display-only)."""
+    return CascadeFilter(
+        name="category",
+        choices=_category_choices,
+        apply=_category_apply,
+    )
+
+
+def default_filters() -> List[CascadeFilter]:
+    """The shipped filter chain. Future filters append here (see docstring)."""
+    return [category_filter()]
+
+
+@dataclass
+class Selection:
+    """Resolved cascade state the tabs consume."""
+    filters: dict = field(default_factory=dict)   # filter name -> chosen value
+    anchor: Optional[str] = None
+    binding_key: Optional[str] = None
+    auto_resolved: bool = False                   # single-match auto-selection
+
+
+class SelectorCascade:
+    """Reusable Category → Concept anchor → Query cascade over selector
+    entries. State-free per call: every method takes the current selections
+    and returns fresh choice lists, so any UI (or a second consumer such as a
+    metrics mosaic) can drive it."""
+
+    def __init__(self, entries: List[dict], filters: Optional[List[CascadeFilter]] = None):
+        self.entries = list(entries)
+        self.filters = filters if filters is not None else default_filters()
+
+    def filter_choices(self, name: str, selections: Optional[dict] = None) -> List[Tuple[str, str]]:
+        """Choices for one filter, narrowed by every EARLIER filter's pick."""
+        pool = self.entries
+        for f in self.filters:
+            if f.name == name:
+                return f.choices(pool)
+            pool = f.apply(pool, (selections or {}).get(f.name))
+        raise KeyError(f"unknown cascade filter: {name}")
+
+    def narrow(self, selections: Optional[dict] = None) -> List[dict]:
+        """Entries surviving every filter in order."""
+        pool = self.entries
+        for f in self.filters:
+            pool = f.apply(pool, (selections or {}).get(f.name))
+        return pool
+
+    def anchor_choices(self, selections: Optional[dict] = None) -> List[Tuple[str, str]]:
+        pool = self.narrow(selections)
+        anchors: List[str] = []
+        seen: set = set()
+        for e in pool:
+            a = e.get("concept_anchor") or ""
+            if a and a not in seen:
+                seen.add(a)
+                anchors.append(a)
+        anchors.sort()
+        return [(anchor_label(a, pool), a) for a in anchors]
+
+    def query_choices(
+        self, selections: Optional[dict] = None, anchor: Optional[str] = None
+    ) -> List[Tuple[str, str]]:
+        pool = self.narrow(selections)
+        if anchor:
+            pool = [e for e in pool if e.get("concept_anchor") == anchor]
+        return [(slot_label(e), e["binding_key"]) for e in pool]
+
+    def resolve(
+        self,
+        selections: Optional[dict] = None,
+        anchor: Optional[str] = None,
+        binding_key: Optional[str] = None,
+    ) -> Selection:
+        """Resolve the current picks to a Selection. A single surviving query
+        auto-resolves; an explicit binding_key wins when still valid."""
+        sel = Selection(filters=dict(selections or {}), anchor=anchor)
+        choices = self.query_choices(selections, anchor)
+        valid = {bk for _, bk in choices}
+        if binding_key and binding_key in valid:
+            sel.binding_key = binding_key
+        elif len(choices) == 1:
+            sel.binding_key = choices[0][1]
+            sel.auto_resolved = True
+        return sel

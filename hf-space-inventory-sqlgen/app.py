@@ -5916,65 +5916,128 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mrp_btn.click(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
             mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
 
-        with gr.Tab("🧩 Query Topology"):
+        with gr.Tab("🧩 Ontology Mosaic"):
             gr.Markdown("""
-            ### Ground-Truth Query Topology (AST)
+            ### Ontology Mosaic — three lenses, one selector
 
             The ground-truth SQL **IS the view** — it tells the complete story.
-            The joins are the relationships, the CTEs provide the hierarchy scaffolding,
-            the WHERE predicates encode the set-membership rules, and the ORDER/GROUP BY
-            defines the grain.
+            This mosaic shows that story through **three lenses**, all driven by
+            **one shared cascading selector** (Category → Concept anchor →
+            Query/perspective):
 
-            This tab surfaces the graph topology **extracted by SQLGlot** from
-            each of the 7 MRP views — physical tables touched, join relationships,
-            set-gating predicates, grain, time-phasing, and output concepts — as
-            first-class governed metadata stored in `sql_view_ontology`.
+            - **🔗 Join Topology** — the graph topology **extracted by SQLGlot**
+              from the approved SQL: physical tables touched, join relationships,
+              set-gating predicates, grain, and time-phasing — governed metadata
+              in `sql_view_ontology`.
+            - **🧠 Semantic Ontology** — the concept-layer story for the same
+              anchor: the concept node, its `resolves_to` variable→column→table
+              lineage, and its computation template (when it is a metric), read
+              from the governed `sql_graph_nodes` / `sql_graph_edges` tables.
+            - **📜 SQL** — the raw approved ground-truth SQL text.
 
-            Nothing is executed against a database. Extraction is pure AST analysis
-            of the SQL text.
+            Nothing is executed against a database — pure AST analysis and
+            governed metadata, read-only.
             """)
 
             try:
                 from ground_truth_selector import (
                     load_selector_entries, selector_choices, slot_legend,
+                    SelectorCascade, has_categories,
                 )
                 _svo_entries = load_selector_entries(MANIFEST_PATH, SQLITE_DB_PATH)
                 _svo_choices = selector_choices(_svo_entries)
                 _svo_legend = slot_legend()
+                _svo_cascade = SelectorCascade(_svo_entries)
+                _svo_has_cats = has_categories(_svo_entries)
             except Exception as _svo_err:
                 _svo_entries, _svo_choices = [], []
                 _svo_legend = f"Selector unavailable: {_svo_err}"
+                _svo_cascade, _svo_has_cats = None, False
 
             _svo_by_binding = {e["binding_key"]: e for e in _svo_entries}
 
-            gr.Markdown(
-                f"**Master selector — all {len(_svo_entries)} approved ground-truth "
-                f"queries.** Each entry is a same-length 6-slot summary "
-                f"(simplified echo of the graph's fixed 6-slot key scheme):\n\n"
-                f"{_svo_legend}"
-            )
-
-            with gr.Row():
-                svo_picker = gr.Dropdown(
-                    choices=_svo_choices,
-                    label="Ground-truth query (6-slot summary)",
-                    value=_svo_choices[0][1] if _svo_choices else None,
-                    interactive=True,
-                    scale=3,
-                    elem_classes=["gt-slot-select"],
+            if _svo_has_cats and _svo_cascade is not None:
+                # Shared cascading selector — one physical selector drives all
+                # three lens tabs below, so the tabs are in sync by construction.
+                _mo_cat_choices = _svo_cascade.filter_choices("category")
+                _mo_cat0 = _mo_cat_choices[0][1] if _mo_cat_choices else None
+                _mo_anchor_choices = _svo_cascade.anchor_choices({"category": _mo_cat0})
+                _mo_anchor0 = _mo_anchor_choices[0][1] if _mo_anchor_choices else None
+                _mo_query_choices = _svo_cascade.query_choices({"category": _mo_cat0}, _mo_anchor0)
+                _mo_sel0 = _svo_cascade.resolve({"category": _mo_cat0}, _mo_anchor0)
+                _mo_query0 = _mo_sel0.binding_key or (
+                    _mo_query_choices[0][1] if _mo_query_choices else None
                 )
-                svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
 
-            svo_summary = gr.Markdown()
-            svo_joins = gr.Dataframe(
-                headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
-                interactive=False,
-                label="Join relationships",
-                wrap=False,
-            )
-            svo_detail = gr.Markdown()
-            with gr.Accordion("Full ground-truth SQL", open=False):
-                svo_sql = gr.Code(language="sql", interactive=False, label=None)
+                gr.Markdown(
+                    f"**One selector, three lenses — {len(_svo_entries)} approved "
+                    f"ground-truth queries.** Pick a category, then a concept "
+                    f"anchor; the query auto-selects when only one matches. The "
+                    f"final level keeps the fixed-width 6-slot summary for "
+                    f"orientation:\n\n{_svo_legend}"
+                )
+                with gr.Row():
+                    mosaic_cat = gr.Dropdown(
+                        choices=_mo_cat_choices,
+                        value=_mo_cat0,
+                        label="1 · Category",
+                        interactive=True,
+                        scale=1,
+                    )
+                    mosaic_anchor = gr.Dropdown(
+                        choices=_mo_anchor_choices,
+                        value=_mo_anchor0,
+                        label="2 · Concept anchor  [base tables]",
+                        interactive=True,
+                        scale=2,
+                    )
+                    svo_picker = gr.Dropdown(
+                        choices=_mo_query_choices,
+                        value=_mo_query0,
+                        label="3 · Query / perspective (6-slot summary)",
+                        interactive=True,
+                        scale=2,
+                        elem_classes=["gt-slot-select"],
+                    )
+                    svo_btn = gr.Button("Show", variant="primary", scale=0)
+            else:
+                # Flat fallback — the manifest carries no categories, so the
+                # original single 6-slot master selector survives unchanged.
+                mosaic_cat = mosaic_anchor = None
+                gr.Markdown(
+                    f"**Master selector — all {len(_svo_entries)} approved ground-truth "
+                    f"queries.** Each entry is a same-length 6-slot summary "
+                    f"(simplified echo of the graph's fixed 6-slot key scheme):\n\n"
+                    f"{_svo_legend}"
+                )
+                with gr.Row():
+                    svo_picker = gr.Dropdown(
+                        choices=_svo_choices,
+                        label="Ground-truth query (6-slot summary)",
+                        value=_svo_choices[0][1] if _svo_choices else None,
+                        interactive=True,
+                        scale=3,
+                        elem_classes=["gt-slot-select"],
+                    )
+                    svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
+
+            with gr.Tabs():
+                with gr.Tab("🔗 Join Topology"):
+                    svo_summary = gr.Markdown()
+                    svo_joins = gr.Dataframe(
+                        headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
+                        interactive=False,
+                        label="Join relationships",
+                        wrap=False,
+                    )
+                    svo_detail = gr.Markdown()
+                with gr.Tab("🧠 Semantic Ontology"):
+                    svo_semantic = gr.Markdown()
+                with gr.Tab("📜 SQL"):
+                    svo_sql = gr.Code(
+                        language="sql", interactive=False,
+                        label="Approved ground-truth SQL",
+                    )
 
             def _read_gt_sql(entry) -> str:
                 """Load the raw ground-truth SQL text for an entry, '' if missing."""
@@ -5991,6 +6054,20 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 except Exception:
                     return ""
 
+            def _render_semantic_pane(entry) -> str:
+                """Semantic Ontology lens — graceful degradation on any gap."""
+                if not entry:
+                    return "Select a ground-truth query above."
+                anchor = entry.get("concept_anchor") or ""
+                try:
+                    from semantic_ontology import (
+                        get_semantic_ontology, render_semantic_ontology_markdown,
+                    )
+                    onto = get_semantic_ontology(SQLITE_DB_PATH, anchor)
+                    return render_semantic_ontology_markdown(onto, anchor)
+                except Exception as exc:
+                    return f"Semantic layer unavailable: {exc}"
+
             def render_view_ontology(binding_key):
                 import sqlite3 as _r_sqlite
                 from dataclasses import asdict as _r_asdict
@@ -5999,10 +6076,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
 
                 if not binding_key:
-                    return "Select a ground-truth query above.", [], "", ""
+                    _msg = "Select a ground-truth query above."
+                    return _msg, [], "", _msg, ""
 
                 entry = _svo_by_binding.get(binding_key)
                 sql_text = _read_gt_sql(entry)
+                semantic_md = _render_semantic_pane(entry)
 
                 conn = _r_sqlite.connect(SQLITE_DB_PATH)
                 try:
@@ -6036,11 +6115,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     except Exception as exc:
                         return (
                             f"Extraction failed for `{binding_key}`: {exc}",
-                            [], "", sql_text,
+                            [], "", semantic_md, sql_text,
                         )
 
                 if rec is None:
-                    return f"No ontology found for `{binding_key}`.", [], "", sql_text
+                    return (
+                        f"No ontology found for `{binding_key}`.",
+                        [], "", semantic_md, sql_text,
+                    )
 
                 meta = ""
                 if entry:
@@ -6100,18 +6182,55 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
                 detail = "\n\n".join(detail_lines)
 
-                return summary, joins_table, detail, sql_text
+                return summary, joins_table, detail, semantic_md, sql_text
+
+            _mosaic_outputs = [svo_summary, svo_joins, svo_detail, svo_semantic, svo_sql]
 
             svo_btn.click(
                 fn=render_view_ontology,
                 inputs=[svo_picker],
-                outputs=[svo_summary, svo_joins, svo_detail, svo_sql],
+                outputs=_mosaic_outputs,
             )
             svo_picker.change(
                 fn=render_view_ontology,
                 inputs=[svo_picker],
-                outputs=[svo_summary, svo_joins, svo_detail, svo_sql],
+                outputs=_mosaic_outputs,
             )
+
+            if _svo_has_cats and _svo_cascade is not None:
+                # Cascade plumbing: Category narrows anchors, anchor narrows
+                # queries, and a single surviving query auto-selects. The query
+                # dropdown (svo_picker) stays the one source of truth the render
+                # subscribes to, so adding a future filter (see the extension
+                # seam in ground_truth_selector.py) needs no changes here beyond
+                # one more dropdown feeding the same chain.
+                def _mosaic_on_category(cat):
+                    anchors = _svo_cascade.anchor_choices({"category": cat})
+                    anchor = anchors[0][1] if anchors else None
+                    queries = _svo_cascade.query_choices({"category": cat}, anchor)
+                    sel = _svo_cascade.resolve({"category": cat}, anchor)
+                    q = sel.binding_key or (queries[0][1] if queries else None)
+                    return (
+                        gr.update(choices=anchors, value=anchor),
+                        gr.update(choices=queries, value=q),
+                    )
+
+                def _mosaic_on_anchor(cat, anchor):
+                    queries = _svo_cascade.query_choices({"category": cat}, anchor)
+                    sel = _svo_cascade.resolve({"category": cat}, anchor)
+                    q = sel.binding_key or (queries[0][1] if queries else None)
+                    return gr.update(choices=queries, value=q)
+
+                mosaic_cat.change(
+                    fn=_mosaic_on_category,
+                    inputs=[mosaic_cat],
+                    outputs=[mosaic_anchor, svo_picker],
+                )
+                mosaic_anchor.change(
+                    fn=_mosaic_on_anchor,
+                    inputs=[mosaic_cat, mosaic_anchor],
+                    outputs=[svo_picker],
+                )
 
         with gr.Tab("🦉 Ontology Mapping"):
             gr.Markdown("""
@@ -6123,8 +6242,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
             source SQL is exactly *what the solder sees*, viewed through
             standards-based vocabulary.
 
-            Each tab has one concern: **Query Topology** holds the AST view,
-            **Ground Truth SQL** holds the SQL itself, and this tab holds the
+            Each tab has one concern: the **Ontology Mosaic** holds the AST and
+            semantic views, **Ground Truth SQL** holds the SQL itself, and this tab holds the
             **ontology mapping** — the SPARQL-facing OWL vocabulary and the
             OBDA target/source pairs that bind it to the governed SQL. No
             database is touched, and nothing here is wired into the running app.
@@ -6149,7 +6268,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown(
                 f"**Master selector — all {len(_oo_entries)} OBDA mappings "
                 f"across {len(_oo_modules)} showcase ontologies.** Same "
-                f"fixed-width 6-slot scheme as the Query Topology tab:\n\n"
+                f"fixed-width 6-slot scheme as the Ontology Mosaic tab:\n\n"
                 f"{_oo_legend}"
             )
 
@@ -6228,7 +6347,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 detail_lines.append(
                     "\n---\n_Read-only POC · parity proven against the governed SQL "
                     "on a WAL snapshot · for the AST view of governed SQL, see the "
-                    "Query Topology tab_"
+                    "Ontology Mosaic tab_"
                 )
                 detail = "\n\n".join(detail_lines)
 
