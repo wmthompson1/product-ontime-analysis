@@ -3,7 +3,9 @@
 Targets (user-requested):
     - customer_order   : 10-20 rows (from 60)
     - work_order       : 10-20 rows (from 120)
-    - purchase_order   : 10-20 rows (from 202)
+    - purchase_order   : 10-25 rows (from 202; band top is 25 because
+                         add_receiving_line_and_commodities adds 5 POs on top
+                         of the seeded 15, plus a possible MRP top-up PO)
     - CNC machines     : 4-6 (consolidate the legacy routing cells into the
                          canonical MC-xxx machine list -> exactly 5 CNC machines)
 
@@ -36,7 +38,8 @@ Cascades removed with their parents:
     plus trace_inventory_trace / inv_trans_dist rows referencing deleted
     trace or inventory_transaction rows.
 
-Fail-closed postconditions: counts in [10, 20]; zero orphans in every child
+Fail-closed postconditions: CO/WO counts in [10, 20], PO count in [10, 25];
+zero orphans in every child
 table; AS_OF still derivable; zero references to retired resource ids;
 exactly 5 CNC machines; MRP planning inputs still validate.
 
@@ -319,7 +322,7 @@ def main() -> int:
     try:
         consolidate_cnc(cur)
         if already_at_demo_scale(cur):
-            print("Counts already within demo band [10, 20] — skipping trim")
+            print("Counts already within demo band (CO/WO [10, 20], PO [10, 25]) — skipping trim")
         else:
             prune(cur)
         validate(cur)

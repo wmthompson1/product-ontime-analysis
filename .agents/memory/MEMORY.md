@@ -26,6 +26,7 @@
 - [Ontop interoperability POC](ontop-interoperability-poc.md) — SQL layer republished as a virtual OWL/SPARQL graph via Ontop; parity proven over a read-only WAL snapshot.
 - [Synthetic ERP backfill grounding](synthetic-erp-backfill-grounding.md) — fill blank/zero ERP columns from the real PO→receiving→payable flow (supplier scorecard, WO job costing), deterministic, never random.
 - [Ontop ontology annotation layers](ontology-annotation-layers.md) — POC .ttl gates are regex-based & blind to annotations; safe to enrich existing terms; use subClassOf/skos:closeMatch not owl:equivalentClass; no new unmapped terms.
+- [Test suite invocation quirks](test-invocation-quirks.md) — run tests gate-style (`python file.py` per file), never big pytest batches; batch failures are shared-state artifacts, not regressions.
 - [HF suite slow Arango tests](hf-suite-slow-arango-tests.md) — full pytest exceeds 120s bash cap (live Arango calls ~15s/file); run in batches; count-parity fails self-heal after app restart syncs.
 - [Bare domain routing & port map](port-routing-bare-domain.md) — bare dev domain (ext 80) = mockup Vite server by design; app URLs need :5000; Vite root-redirect plugin bounces stray hits to the app.
 - [Ground-truth views, not snippets](ground-truth-views-not-snippets.md) — archived grounding queries are full views/datasets that ARE metadata; call them governed views, never snippets.
