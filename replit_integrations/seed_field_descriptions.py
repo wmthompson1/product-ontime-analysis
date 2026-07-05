@@ -84,7 +84,7 @@ FIELD_DESCRIPTIONS = [
     ("purchase_order", "status", "PO Status",
      "Lifecycle stage of a purchase order: open, approved, partially or fully "
      "received, or closed.", "RECEIVED"),
-    ("invoice_header", "three_way_match_status", "Three-Way Match Status",
+    ("payables", "three_way_match_status", "Three-Way Match Status",
      "Result of matching a supplier invoice against its purchase order and "
      "receiving record before it can be paid: matched, on hold for price / "
      "quantity variance, or unmatched.", "MATCHED"),

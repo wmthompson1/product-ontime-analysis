@@ -1,58 +1,12 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-07-05T20:27:14+00:00
+generated: 2026-07-05T23:44:50+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
 
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
-nodes                366         399 MISMATCH
-edges                423         306 MISMATCH
+nodes                368         368       OK
+edges                427         427       OK
 
-differences:
-  - nodes: count mismatch — SQLite=366 ArangoDB=399
-  - nodes: 70 _key(s) in SQLite but not ArangoDB, e.g. ['EMPLOYEE:active:structural:system:none:none', 'EMPLOYEE:buyer_code:structural:system:none:none', 'EMPLOYEE:created_at:structural:system:none:none', 'EMPLOYEE:department:structural:system:none:none', 'EMPLOYEE:employee_id:structural:system:none:none']
-  - nodes: 103 _key(s) in ArangoDB but not SQLite, e.g. ['manufacturing_graph_node_concept_AllocatedQuantity', 'manufacturing_graph_node_concept_AvailableToPromise', 'manufacturing_graph_node_concept_CertificationStatusState', 'manufacturing_graph_node_concept_CertificationType', 'manufacturing_graph_node_concept_DefectSeverityCost']
-  - edges: count mismatch — SQLite=423 ArangoDB=306
-  - edges: 117 _key(s) in SQLite but not ArangoDB, e.g. ['EMPLOYEE:active:structural:system:has_column:SYS_HAS_EMP_ACT_001', 'EMPLOYEE:buyer_code:structural:system:has_column:SYS_HAS_EMP_BUY_001', 'EMPLOYEE:created_at:structural:system:has_column:SYS_HAS_EMP_CRE_001', 'EMPLOYEE:department:structural:system:has_column:SYS_HAS_EMP_DEP_001', 'EMPLOYEE:employee_id:structural:system:has_column:SYS_HAS_EMP_EMP_001']
-  - edges: field mismatch for 'certification:part_id:structural:system:references:SYS_REF_CER_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'certification:receipt_id:structural:system:references:SYS_REF_CER_REC_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'customer_order:site_id:structural:system:references:SYS_REF_CUS_SIT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'customer_order_line:order_id:structural:system:references:SYS_REF_CUS_ORD_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'customer_order_line:part_id:structural:system:references:SYS_REF_CUS_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'customer_order_line:site_id:structural:system:references:SYS_REF_CUS_SIT_002' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'inv_trans_dist:in_trans_id:structural:system:references:SYS_REF_INV_INT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'inv_trans_dist:out_trans_id:structural:system:references:SYS_REF_INV_OUT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'inventory_transaction:part_id:structural:system:references:SYS_REF_INV_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'inventory_transaction:po_id:structural:system:references:SYS_REF_INV_POI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'inventory_transaction:site_id:structural:system:references:SYS_REF_INV_SIT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'inventory_transaction:wo_id:structural:system:references:SYS_REF_INV_WOI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'invoice_header:po_id:structural:system:references:SYS_REF_INV_POI_002' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'invoice_header:supplier_id:structural:system:references:SYS_REF_INV_SUP_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'labor_ticket:wo_id:structural:system:references:SYS_REF_LAB_WOI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'material_issue:part_id:structural:system:references:SYS_REF_MAT_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'material_issue:wo_id:structural:system:references:SYS_REF_MAT_WOI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'operation:resource_id:structural:system:references:SYS_REF_OPE_RES_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'operation:service_id:structural:system:references:SYS_REF_OPE_SER_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'operation:vendor_id:structural:system:references:SYS_REF_OPE_VEN_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'operation:wo_id:structural:system:references:SYS_REF_OPE_WOI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'payable_line:invoice_id:structural:system:references:SYS_REF_PAY_INV_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'payable_line:part_id:structural:system:references:SYS_REF_PAY_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'payable_line:po_id:structural:system:references:SYS_REF_PAY_POI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'po_line:part_id:structural:system:references:SYS_REF_POL_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'po_line:po_id:structural:system:references:SYS_REF_POL_POI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'purchase_order:supplier_id:structural:system:references:SYS_REF_PUR_SUP_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'purchase_order:wo_id:structural:system:references:SYS_REF_PUR_WOI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'receiving:part_id:structural:system:references:SYS_REF_REC_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'receiving:po_id:structural:system:references:SYS_REF_REC_POI_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'receiving:supplier_id:structural:system:references:SYS_REF_REC_SUP_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'requirement:material_part_id:structural:system:references:SYS_REF_REQ_MAT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'requirement:operation_rowid:structural:system:references:SYS_REF_REQ_OPE_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'trace:part_id:structural:system:references:SYS_REF_TRA_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'trace:site_id:structural:system:references:SYS_REF_TRA_SIT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'trace_inventory_trace:part_id:structural:system:references:SYS_REF_TRA_PAR_002' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'trace_inventory_trace:trace_id:structural:system:references:SYS_REF_TRA_TRA_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'trace_inventory_trace:transaction_id:structural:system:references:SYS_REF_TRA_TRA_002' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-  - edges: field mismatch for 'work_order:part_id:structural:system:references:SYS_REF_WOR_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
-
-[sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph
+[sql_aql_parity] OK — 368 nodes and 427 edges match between SQLite (SQL) and ArangoDB (AQL)

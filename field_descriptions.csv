@@ -39,17 +39,17 @@ inventory_transaction,trans_date,Trans Date,The trans date for the inventory tra
 inventory_transaction,transaction_id,Transaction ID,Unique identifier for each inventory transaction record.,1
 inventory_transaction,type,Transaction Type,Direction of the stock movement: a receipt into stock (in) versus an issue out to a work order or shipment (out).,ISSUE
 inventory_transaction,wo_id,Wo ID,Links each inventory transaction to its related wo.,WO-240003
-invoice_header,amount_dollars,Amount Dollars,Numeric amount dollars recorded for each invoice header.,22502.95
-invoice_header,created_at,Created At,Timestamp for when the invoice header record was created.,2026-06-01 00:48:21
-invoice_header,due_date,Due Date,The due date for the invoice header.,2026-04-02
-invoice_header,invoice_date,Invoice Date,The invoice date for the invoice header.,2026-02-01
-invoice_header,invoice_id,Invoice ID,Unique identifier for each invoice header record.,70
-invoice_header,invoice_number,Invoice Number,The invoice number for each invoice header record.,INV-000070
-invoice_header,payment_date,Payment Date,The payment date for the invoice header.,2026-05-14
-invoice_header,po_id,PO ID,Links each invoice header to its related po.,PO-M240005
-invoice_header,status,Status,"The status of each invoice header; one of a small set of values such as: Disputed, Approved, Paid, Open.",Disputed
-invoice_header,supplier_id,Supplier ID,Links each invoice header to its related supplier.,S-006
-invoice_header,three_way_match_status,Three-Way Match Status,"Result of matching a supplier invoice against its purchase order and receiving record before it can be paid: matched, on hold for price / quantity variance, or unmatched.",MATCHED
+payables,amount_dollars,Amount Dollars,Numeric amount dollars recorded for each payables record.,22502.95
+payables,created_at,Created At,Timestamp for when the payables record was created.,2026-06-01 00:48:21
+payables,due_date,Due Date,The due date for the payables record.,2026-04-02
+payables,invoice_date,Invoice Date,The invoice date for the payables record.,2026-02-01
+payables,invoice_id,Invoice ID,Unique identifier for each payables record.,70
+payables,invoice_number,Invoice Number,The invoice number for each payables record.,INV-000070
+payables,payment_date,Payment Date,The payment date for the payables record.,2026-05-14
+payables,po_id,PO ID,Links each payables record to its related po.,PO-M240005
+payables,status,Status,"The status of each payables record; one of a small set of values such as: Disputed, Approved, Paid, Open.",Disputed
+payables,supplier_id,Supplier ID,Links each payables record to its related supplier.,S-006
+payables,three_way_match_status,Three-Way Match Status,"Result of matching a supplier invoice against its purchase order and receiving record before it can be paid: matched, on hold for price / quantity variance, or unmatched.",MATCHED
 labor_ticket,burden_cost,Burden Cost,Numeric burden cost recorded for each labor ticket.,107.52
 labor_ticket,clock_in,Clock In,The clock in for each labor ticket record.,2026-03-09T12:00:00
 labor_ticket,clock_out,Clock Out,The clock out for each labor ticket record.,2026-03-09T14:33:36
@@ -110,6 +110,7 @@ part,part_id,Part ID,Unique identifier for each part record.,P-10010
 part,planner_code,Planner Code,The planner code of each part; one of a small set of values such as: ENGINEERING.,ENGINEERING
 part,reorder_point,Reorder Point,Numeric reorder point recorded for each part.,4467.18
 part,revision,Revision,The revision of each part; one of a small set of values such as: A.,A
+part,safety_stock,Safety Stock,Minimum on-hand quantity the planner keeps in reserve for this part; MRP plans replenishment so projected inventory never dips below it.,1.0
 part,unit_cost,Unit Cost,Numeric unit cost recorded for each part.,4250.0
 part,unit_of_measure,Unit Of Measure,"The unit of measure of each part; one of a small set of values such as: EA, FT, LB.",EA
 payable_line,amount,Amount,Numeric amount recorded for each payable line.,731.04
@@ -214,6 +215,7 @@ work_order,act_mat_cost,Act Mat Cost,Numeric act mat cost recorded for each work
 work_order,act_ser_cost,Act Ser Cost,Numeric act ser cost recorded for each work order.,0.0
 work_order,close_date,Close Date,The close date for the work order.,2026-04-16
 work_order,created_at,Created At,Timestamp for when the work order record was created.,2026-06-01 00:48:21
+work_order,demand_order_line_id,Demand Order Line ID,Links the work order to the customer-order line whose demand it satisfies; empty when the job was opened without a linked sales demand.,7
 work_order,desired_rls_date,Desired Release Date,The date the planner wants the job released to the floor — on or before its first step begins — so material and capacity are lined up when work starts.,2025-04-09
 work_order,open_date,Open Date,The open date for the work order.,2026-03-05
 work_order,outside_service,Outside Service,Yes/no flag indicating whether the work order outside service.,1

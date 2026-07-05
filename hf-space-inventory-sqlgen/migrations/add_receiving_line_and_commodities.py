@@ -311,13 +311,13 @@ def backfill_receiving_lines(cur):
 def insert_new_invoices(cur, as_of):
     max_num = cur.execute(
         "SELECT COALESCE(MAX(CAST(SUBSTR(invoice_number, 5) AS INTEGER)), 0) "
-        "FROM invoice_header WHERE invoice_number LIKE 'INV-%'"
+        "FROM payables WHERE invoice_number LIKE 'INV-%'"
     ).fetchone()[0]
 
     for po_id in sorted(NEW_INVOICES):
         status, match, inv_off, paid = NEW_INVOICES[po_id]
         if cur.execute(
-            "SELECT 1 FROM invoice_header WHERE po_id=?", (po_id,)
+            "SELECT 1 FROM payables WHERE po_id=?", (po_id,)
         ).fetchone():
             continue
         recv_off, _lines = NEW_RECEIPTS[po_id]
@@ -345,7 +345,7 @@ def insert_new_invoices(cur, as_of):
 
         max_num += 1
         cur.execute(
-            "INSERT INTO invoice_header (po_id, supplier_id, invoice_number, "
+            "INSERT INTO payables (po_id, supplier_id, invoice_number, "
             "invoice_date, due_date, amount_dollars, status, payment_date, "
             "three_way_match_status) VALUES (?,?,?,?,?,?,?,?,?)",
             (po_id, sup, f"INV-{max_num:06d}", fmt(inv_d), fmt(due_d),
@@ -527,12 +527,12 @@ def validate(cur, as_of):
                          "(SELECT line_id FROM po_line)"),
         ("payable_line", "receipt_line_id IS NOT NULL AND receipt_line_id NOT IN "
                          "(SELECT receipt_line_id FROM receiving_line)"),
-        ("payable_line", "invoice_id NOT IN (SELECT invoice_id FROM invoice_header)"),
+        ("payable_line", "invoice_id NOT IN (SELECT invoice_id FROM payables)"),
         ("certification", "receipt_id IS NOT NULL AND receipt_id NOT IN "
                           "(SELECT receipt_id FROM receiving)"),
         ("po_line", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
         ("receiving", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
-        ("invoice_header", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
+        ("payables", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
         ("inventory_transaction", "po_id IS NOT NULL AND po_id NOT IN "
                                   "(SELECT po_id FROM purchase_order)"),
         ("purchase_order", "service_id IS NOT NULL AND service_id NOT IN "

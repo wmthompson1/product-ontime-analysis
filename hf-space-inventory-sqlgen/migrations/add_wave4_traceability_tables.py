@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS customer_order_line (
     FOREIGN KEY (site_id)  REFERENCES site(site_id)
 );
 
--- AP payable detail; extends the existing invoice_header (mirrors RECEIVABLE_LINE)
+-- AP payable detail; extends the existing payables (mirrors RECEIVABLE_LINE)
 CREATE TABLE IF NOT EXISTS payable_line (
     payable_line_id INTEGER PRIMARY KEY AUTOINCREMENT,
     invoice_id      INTEGER NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS payable_line (
     qty             REAL,
     amount          REAL NOT NULL,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (invoice_id) REFERENCES invoice_header(invoice_id),
+    FOREIGN KEY (invoice_id) REFERENCES payables(invoice_id),
     FOREIGN KEY (po_id)      REFERENCES purchase_order(po_id),
     FOREIGN KEY (part_id)    REFERENCES part(part_id)
 );
@@ -153,7 +153,7 @@ WAVE4_REGISTRY = [
     ("inv_trans_dist",        "Inventory transaction distribution — links an IN movement to an OUT movement (lot genealogy)"),
     ("customer_order",        "Customer order header — demand-side sales orders with site and status"),
     ("customer_order_line",   "Customer order line items — part, quantity, unit price per order"),
-    ("payable_line",          "AP payable line detail extending invoice_header — part, PO, quantity, amount"),
+    ("payable_line",          "AP payable line detail extending payables — part, PO, quantity, amount"),
 ]
 
 SCHEMA_NODES_DDL = """

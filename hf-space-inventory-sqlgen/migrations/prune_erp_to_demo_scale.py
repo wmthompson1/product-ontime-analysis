@@ -33,7 +33,7 @@ Cascades removed with their parents:
     CO: customer_order_line
     WO: operation, labor_ticket, material_issue, requirement (WORK_ORDER),
         trace (lot LOT-<wo_id>), inventory_transaction (wo_id)
-    PO: po_line, receiving, invoice_header, payable_line,
+    PO: po_line, receiving, payables, payable_line,
         inventory_transaction (po_id)
     plus trace_inventory_trace / inv_trans_dist rows referencing deleted
     trace or inventory_transaction rows.
@@ -207,7 +207,7 @@ def prune(cur) -> None:
     cur.execute(f"DELETE FROM work_order WHERE wo_id NOT IN ({ph_wo})", kept_wos)
 
     # --- purchase order cascade ---------------------------------------------
-    for table in ("po_line", "receiving", "invoice_header", "payable_line"):
+    for table in ("po_line", "receiving", "payables", "payable_line"):
         cur.execute(f"DELETE FROM {table} WHERE po_id NOT IN ({ph_po})", kept_pos)
     # receiving_line exists only after add_receiving_line_and_commodities ran;
     # cascade it when present so its rows never outlive their receiving header.
@@ -263,7 +263,7 @@ def validate(cur) -> None:
                         "(SELECT wo_id FROM work_order)"),
         ("po_line", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
         ("receiving", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
-        ("invoice_header", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
+        ("payables", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
         ("payable_line", "po_id NOT IN (SELECT po_id FROM purchase_order)"),
         ("inventory_transaction", "wo_id IS NOT NULL AND wo_id NOT IN "
                                   "(SELECT wo_id FROM work_order)"),

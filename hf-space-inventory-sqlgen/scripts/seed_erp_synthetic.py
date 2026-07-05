@@ -3,7 +3,7 @@ seed_erp_synthetic.py — Synthetic aerospace ERP data seed script.
 
 Populates the purchasing / WIP digital twin tables in manufacturing.db:
   part, suppliers (top-up), purchase_order, po_line, receiving,
-  invoice_header, certification, work_order, operation, material_issue,
+  payables, certification, work_order, operation, material_issue,
   labor_ticket, shop_resource, service
 
 Run from repo root:
@@ -501,7 +501,7 @@ def seed_receiving(cur):
 
 def seed_invoices(cur):
     existing_po_ids = {r[0] for r in cur.execute(
-        "SELECT DISTINCT po_id FROM invoice_header").fetchall()}
+        "SELECT DISTINCT po_id FROM payables").fetchall()}
 
     po_rows = cur.execute(
         "SELECT po_id, supplier_id, total_cost, po_date "
@@ -510,7 +510,7 @@ def seed_invoices(cur):
     ).fetchall()
 
     rows = []
-    inv_num = cur.execute("SELECT COUNT(*) FROM invoice_header").fetchone()[0] + 1
+    inv_num = cur.execute("SELECT COUNT(*) FROM payables").fetchone()[0] + 1
     for po_id, sup_id, total, po_date_str in po_rows:
         if po_id in existing_po_ids:
             continue
@@ -528,13 +528,13 @@ def seed_invoices(cur):
 
     if rows:
         cur.executemany(
-            "INSERT INTO invoice_header "
+            "INSERT INTO payables "
             "(po_id, supplier_id, invoice_number, invoice_date, due_date, "
             "amount_dollars, status, payment_date, three_way_match_status) "
             "VALUES (?,?,?,?,?,?,?,?,?)",
             rows,
         )
-    print(f"  invoice_header: {cur.rowcount} rows inserted")
+    print(f"  payables: {cur.rowcount} rows inserted")
 
 
 def seed_certifications(cur):
@@ -659,8 +659,8 @@ def seed_schema_edges(cur):
         (3,  "receiving",     "purchase_order", "FOREIGN_KEY", "po_id",         1, "Receipt closes against a purchase order"),
         (4,  "receiving",     "suppliers",      "FOREIGN_KEY", "supplier_id",   1, "Receipt records the delivering supplier"),
         (5,  "receiving",     "part",           "FOREIGN_KEY", "part_id",       1, "Receipt records the received part"),
-        (6,  "invoice_header","purchase_order", "FOREIGN_KEY", "po_id",         1, "Invoice matches to a purchase order"),
-        (7,  "invoice_header","suppliers",      "FOREIGN_KEY", "supplier_id",   1, "Invoice issued by a supplier"),
+        (6,  "payables","purchase_order", "FOREIGN_KEY", "po_id",         1, "Invoice matches to a purchase order"),
+        (7,  "payables","suppliers",      "FOREIGN_KEY", "supplier_id",   1, "Invoice issued by a supplier"),
         (8,  "purchase_order","suppliers",      "FOREIGN_KEY", "supplier_id",   1, "Purchase order placed with a supplier"),
         (9,  "certification", "receiving",      "FOREIGN_KEY", "receipt_id",    1, "Cert attached to a receiving line"),
         (10, "certification", "part",           "FOREIGN_KEY", "part_id",       1, "Cert covers a specific part"),
@@ -900,7 +900,7 @@ def seed_payable_lines(cur):
     existing_inv = {r[0] for r in cur.execute(
         "SELECT DISTINCT invoice_id FROM payable_line").fetchall()}
     invoices = cur.execute(
-        "SELECT invoice_id, po_id FROM invoice_header"
+        "SELECT invoice_id, po_id FROM payables"
     ).fetchall()
 
     lines = []
@@ -987,7 +987,7 @@ def seed_payable_line_links(cur):
 # ─────────────────────────────────────────────────────────────────────────────
 
 ERP_TABLES = [
-    "part", "certification", "invoice_header", "labor_ticket", "material_issue",
+    "part", "certification", "payables", "labor_ticket", "material_issue",
     "operation", "po_line", "purchase_order", "receiving", "service",
     "shop_resource", "work_order",
     # Wave 4 — traceability spine (topological order)

@@ -76,6 +76,16 @@ APP_METADATA_TABLES: set = {
     "masking_matrix",
 }
 
+
+def _is_app_metadata_table(name: str) -> bool:
+    """True for internal infrastructure tables hidden from the Schema Browser.
+
+    Covers the explicit APP_METADATA_TABLES set plus every semantic-layer
+    bridge table (schema_* prefix: schema_nodes, schema_edges, schema_intents,
+    schema_concepts, …) — none of them are ERP source tables.
+    """
+    return name in APP_METADATA_TABLES or name.startswith("schema_")
+
 from bridge_health import (
     BRIDGE_HEALTH_MAP,
     SCHEMA_NODES_HEALTH_MAP,
@@ -674,8 +684,9 @@ def get_table_create_sql_legacy(table_name: str) -> str:
 def get_all_tables() -> List[str]:
     """Get list of ERP/structural tables in the SQLite database.
 
-    APP_METADATA_TABLES (Plan-009 infrastructure tables) are excluded so they
-    never appear in the Schema Browser or ground-truth table list.
+    Internal infrastructure tables (APP_METADATA_TABLES plus the schema_*
+    bridge tables) are excluded so they never appear in the Schema Browser
+    or ground-truth table list.
     Source: SQLite PRAGMA table_info — same source used by structural
     containment graph sync.
     """
@@ -686,7 +697,7 @@ def get_all_tables() -> List[str]:
     try:
         inspector = inspect(engine)
         inspector.clear_cache()
-        return [t for t in inspector.get_table_names() if t not in APP_METADATA_TABLES]
+        return [t for t in inspector.get_table_names() if not _is_app_metadata_table(t)]
     except Exception:
         return []
 
@@ -695,7 +706,7 @@ def _get_structural_schema_snapshot() -> Dict[str, Dict[str, Any]]:
 
     Built from SQLite PRAGMA table_info — this is the immutable structural
     base used by get_unified_schema().  Only ERP tables are included
-    (APP_METADATA_TABLES are excluded, matching get_all_tables()).
+    (internal infrastructure tables are excluded, matching get_all_tables()).
 
     Shape:
       {
@@ -718,7 +729,7 @@ def _get_structural_schema_snapshot() -> Dict[str, Dict[str, Any]]:
         cur.execute(
             "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
         )
-        tables = [row[0] for row in cur.fetchall() if row[0] not in APP_METADATA_TABLES]
+        tables = [row[0] for row in cur.fetchall() if not _is_app_metadata_table(row[0])]
         for tbl in tables:
             cur.execute(f"PRAGMA table_info({tbl})")
             cols: Dict[str, Any] = {}

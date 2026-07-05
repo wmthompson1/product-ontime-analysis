@@ -187,7 +187,7 @@ ELEVATIONS = [
      "inventory_transaction", "site_id", 3,
      "Inventory move traced to its warehouse site"),
     ("Payables", "ThreeWayMatchState",
-     "invoice_header", "three_way_match_status", 3,
+     "payables", "three_way_match_status", 3,
      "AP three-way match validation state"),
     ("Receivables", "OrderAccountingState",
      "customer_order", "status", 3,

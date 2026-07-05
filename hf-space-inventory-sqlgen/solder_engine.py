@@ -1639,7 +1639,7 @@ class SolderEngine:
         # Payables — supplier side of accounting
         "purchase_order":           ["Payables"],
         "po_line":                  ["Payables"],
-        "invoice_header":           ["Payables"],
+        "payables":           ["Payables"],
         "receiving":                ["Payables", "Inventory_Transactions"],
         "certification":            ["Payables", "Quality"],
         "suppliers":                ["Payables", "Quality"],

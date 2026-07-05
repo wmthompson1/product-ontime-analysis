@@ -37,6 +37,10 @@ SCHEMA_SQL = os.path.join(HF_DIR, "app_schema", "schema_sqlite.sql")
 
 # (relative script path, args) — order matters.
 STEPS = [
+    # rename first: existing DBs still carrying invoice_header get the
+    # payables name before anything downstream reads or writes it
+    # (no-op on a fresh DB built from the updated schema_sqlite.sql)
+    ("migrations/rename_invoice_header_to_payables.py", []),
     # structural migrations first: tables the seeder writes into
     ("migrations/add_wave4_traceability_tables.py", []),
     # synthetic ERP data

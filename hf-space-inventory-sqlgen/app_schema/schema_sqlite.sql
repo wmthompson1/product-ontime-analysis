@@ -49,7 +49,7 @@ INSERT OR IGNORE INTO schema_nodes (table_name, table_type, description) VALUES
 ('purchase_order',  'Table', 'Purchase order headers for material and outside-service buys'),
 ('po_line',         'Table', 'Purchase order line items (part, quantity, unit cost, line total)'),
 ('receiving',       'Table', 'Goods receipts against purchase orders — quantity ordered vs received, inspection status'),
-('invoice_header',  'Table', 'AP invoice headers linked to purchase orders — three-way match and payment status'),
+('payables',  'Table', 'Accounts-payable headers (acts as the invoice header) linked to purchase orders — three-way match and payment status'),
 ('certification',   'Table', 'Supplier certification records (CoC, FAI, PPAP, 8130-3, Material Test Report)'),
 ('work_order',      'Table', 'Work order master — part, quantity, status, routing template, accumulated actual costs'),
 ('operation',       'Table', 'Work order routing steps — sequence, resource, estimated vs actual hours and costs'),
@@ -68,8 +68,8 @@ INSERT OR IGNORE INTO schema_edges
 (3,  'receiving',     'purchase_order', 'FOREIGN_KEY', 'po_id',         1, 'Receipt closes against a purchase order'),
 (4,  'receiving',     'suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Receipt records the delivering supplier'),
 (5,  'receiving',     'part',           'FOREIGN_KEY', 'part_id',       1, 'Receipt records the received part'),
-(6,  'invoice_header','purchase_order', 'FOREIGN_KEY', 'po_id',         1, 'Invoice matches to a purchase order'),
-(7,  'invoice_header','suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Invoice issued by a supplier'),
+(6,  'payables','purchase_order', 'FOREIGN_KEY', 'po_id',         1, 'Invoice matches to a purchase order'),
+(7,  'payables','suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Invoice issued by a supplier'),
 (8,  'purchase_order','suppliers',      'FOREIGN_KEY', 'supplier_id',   1, 'Purchase order placed with a supplier'),
 (9,  'certification', 'receiving',      'FOREIGN_KEY', 'receipt_id',    1, 'Cert attached to a receiving line'),
 (10, 'certification', 'part',           'FOREIGN_KEY', 'part_id',       1, 'Cert covers a specific part'),
@@ -182,7 +182,7 @@ CREATE TABLE IF NOT EXISTS receiving (
     created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS invoice_header (
+CREATE TABLE IF NOT EXISTS payables (
     invoice_id             INTEGER PRIMARY KEY AUTOINCREMENT,
     po_id                  TEXT NOT NULL,        -- FK → purchase_order
     supplier_id            TEXT NOT NULL,        -- FK → suppliers

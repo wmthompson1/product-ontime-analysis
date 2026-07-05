@@ -46,8 +46,8 @@ DEFAULT_DB = os.path.join(_HERE, "..", "app_schema", "manufacturing.db")
 FKS: list[tuple[str, str, str, str]] = [
     ("certification", "part_id", "part", "part_id"),
     ("certification", "receipt_id", "receiving", "receipt_id"),
-    ("invoice_header", "po_id", "purchase_order", "po_id"),
-    ("invoice_header", "supplier_id", "suppliers", "supplier_id"),
+    ("payables", "po_id", "purchase_order", "po_id"),
+    ("payables", "supplier_id", "suppliers", "supplier_id"),
     ("labor_ticket", "wo_id", "work_order", "wo_id"),
     ("material_issue", "part_id", "part", "part_id"),
     ("material_issue", "wo_id", "work_order", "wo_id"),

@@ -258,7 +258,7 @@ def test_kb_context_selective():
         assert "reorder_point" in ctx.lower(), ctx
         assert "shipping schedules" not in ctx, "must not pull unrelated lines"
         # No match -> empty string (prompt stays unchanged / cheap).
-        assert p.kb_context_for("invoice_header", "total", doc_paths=(doc,)) == ""
+        assert p.kb_context_for("payables", "total", doc_paths=(doc,)) == ""
         # Char cap is respected.
         capped = p.kb_context_for("part", "reorder_point", doc_paths=(doc,), max_chars=20)
         assert len(capped) <= 20, capped
