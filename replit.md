@@ -24,8 +24,8 @@ Save to pods: When the user says "save to pods", save the referenced chat respon
 - `pyproject.toml` sets `requires-python = ">=3.13"`.
 
 ## How to Run
-- **HF Space app** (primary): workflow `HF Space Inventory SQL` → `cd hf-space-inventory-sqlgen && python app.py`. FastAPI + Gradio on port 8080. Entry point `hf-space-inventory-sqlgen/app.py`.
-- **Flask demo**: workflow `Flask App` → `python main.py` (port 5000).
+- **HF Space app** (primary): workflow `HF Space Inventory SQL` → `cd hf-space-inventory-sqlgen && PORT=5000 python app.py`. FastAPI + Gradio, **webview on port 5000** (Replit preview default). Code default stays `PORT=8080` for Hugging Face deployment. Entry point `hf-space-inventory-sqlgen/app.py`.
+- **Flask demo**: workflow `Flask App` → `FLASK_PORT=3000 python main.py` (port 3000, console).
 - **Database**: `hf-space-inventory-sqlgen/app_schema/manufacturing.db` (SQLite, WAL mode). Gitignored — verify migrations via `sqlite3` dumps, not file copies.
 - **Graph**: ArangoDB graph `manufacturing_graph` in database `manufacturing_graph` (name read from `ARANGO_DB`).
 - **Full gate**: `scripts/post-merge.sh` runs the whole test + parity suite. It exceeds the bash-tool 120s limit — run detached or in the foreground with care.

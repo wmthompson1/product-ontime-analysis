@@ -65,7 +65,7 @@ export default defineConfig({
     },
     proxy: {
       "/mcp": {
-        target: "http://localhost:8080",
+        target: process.env.APP_BACKEND_URL || "http://localhost:5000",
         changeOrigin: true,
       },
     },

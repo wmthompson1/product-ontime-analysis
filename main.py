@@ -1799,7 +1799,7 @@ def convert_csv_to_schema():
         return jsonify({"error": str(e)}), 500
 
 
-GRADIO_BACKEND = "http://127.0.0.1:8080"
+GRADIO_BACKEND = os.environ.get("GRADIO_BACKEND", "http://127.0.0.1:5000")
 
 
 @app.route('/gradio')
@@ -1916,7 +1916,7 @@ def proxy_mockup(path):
 
 if __name__ == '__main__':
     import os
-    port = int(os.environ.get('FLASK_PORT', 5000))
+    port = int(os.environ.get('FLASK_PORT', 3000))
     use_reloader = os.environ.get('FLASK_NO_RELOAD', '0') != '1'
     app.run(debug=True, host='0.0.0.0', port=port, use_reloader=use_reloader)
 

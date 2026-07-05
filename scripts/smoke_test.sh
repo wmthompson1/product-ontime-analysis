@@ -3,9 +3,9 @@ set -euo pipefail
 
 # Simple smoke test script
 # Usage: ./scripts/smoke_test.sh [BASE_URL]
-# Example: ./scripts/smoke_test.sh http://localhost:8080
+# Example: ./scripts/smoke_test.sh http://localhost:5000
 
-BASE_URL=${1:-http://localhost:8080}
+BASE_URL=${1:-http://localhost:5000}
 TIMEOUT=5
 FAILED=0
 
