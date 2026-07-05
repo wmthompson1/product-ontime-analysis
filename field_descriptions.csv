@@ -56,7 +56,7 @@ labor_ticket,clock_out,Clock Out,The clock out for each labor ticket record.,202
 labor_ticket,created_at,Created At,Timestamp for when the labor ticket record was created.,2026-06-01 00:48:21
 labor_ticket,employee_id,Employee ID,Links each labor ticket to its related employee.,EMP-010
 labor_ticket,labor_cost,Labor Cost,Numeric labor cost recorded for each labor ticket.,243.2
-labor_ticket,resource_id,Resource ID,Links each labor ticket to its related resource.,CNC-MILL-1
+labor_ticket,resource_id,Resource ID,Links each labor ticket to its related resource.,MC-001
 labor_ticket,sequence_no,Sequence No.,Numeric sequence no. recorded for each labor ticket.,30
 labor_ticket,ticket_id,Ticket ID,Unique identifier for each labor ticket record.,1
 labor_ticket,total_hours,Total Hours,Numeric total hours recorded for each labor ticket.,2.56
@@ -236,7 +236,7 @@ EMPLOYEE,job_title,Job Title,"The employee's role on the floor or in the office 
 EMPLOYEE,department,Department,"The department the employee works in — Machining, Welding, Assembly, Quality, or Purchasing.",Machining
 EMPLOYEE,hourly_rate,Hourly Rate,"The employee's hourly labor cost in dollars; plant workers fall in the $40.00–$45.00 band.",42.25
 EMPLOYEE,buyer_code,Buyer Code,"The purchasing code (BUYER-1 through BUYER-10) for employees who are buyers; empty for everyone else. Parts and purchase orders reference this code.",BUYER-3
-EMPLOYEE,home_resource_id,Home Resource ID,The shop resource (machine or work center) this plant worker primarily mans; empty for office staff such as buyers.,CNC-MILL-1
+EMPLOYEE,home_resource_id,Home Resource ID,The shop resource (machine or work center) this plant worker primarily mans; empty for office staff such as buyers.,MC-001
 EMPLOYEE,hire_date,Hire Date,The date the employee was hired; always before their first labor ticket.,2018-06-11
 EMPLOYEE,active,Active Flag,Whether the employee is currently active (1) or inactive (0).,1
 EMPLOYEE,created_at,Created At,Timestamp when the employee record was created.,2026-07-05 00:00:00

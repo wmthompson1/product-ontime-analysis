@@ -295,7 +295,7 @@ def seed_parts(cur):
     print(f"  part: {cur.rowcount} rows inserted")
 
 
-def seed_work_orders(cur, n=120):
+def seed_work_orders(cur, n=15):
     existing_count = cur.execute("SELECT COUNT(*) FROM work_order").fetchone()[0]
     if existing_count >= n:
         print(f"  work_order: already {existing_count} rows — skipping")
@@ -377,7 +377,7 @@ def seed_operations(cur):
     print(f"  operation: {cur.rowcount} rows inserted")
 
 
-def seed_purchase_orders(cur, n=200):
+def seed_purchase_orders(cur, n=15):
     existing_count = cur.execute("SELECT COUNT(*) FROM purchase_order").fetchone()[0]
     if existing_count >= n:
         print(f"  purchase_order: already {existing_count} rows — skipping")
@@ -703,7 +703,7 @@ def seed_sites(cur):
     print(f"  site: {cur.rowcount} rows inserted")
 
 
-def seed_customer_orders(cur, n=60):
+def seed_customer_orders(cur, n=15):
     existing = cur.execute("SELECT COUNT(*) FROM customer_order").fetchone()[0]
     if existing >= n:
         print(f"  customer_order: already {existing} rows — skipping")
