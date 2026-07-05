@@ -1,211 +1,76 @@
 # GitHub Copilot Instructions
 
-## The Single Most Important Rule
+## Build, test, and lint commands
 
-**All SQL in this system comes from SME-approved snippets. The LLM is a classifier only — it never generates SQL.**
+### Main local entry points
 
-Any suggestion that has an LLM writing, constructing, or interpolating SQL is architecturally wrong for this codebase.
-
----
-
-## Project Overview
-
-This is a **Manufacturing SQL Semantic Layer** for aerospace manufacturing business intelligence. It routes natural language questions through a deterministic graph to SME-approved SQL snippets, assembles them via the SolderEngine, and returns governed, auditable query results.
-
-The project is organized as a **monorepo** running on Replit with three services and two SQLite databases as the canonical source of truth.
-
----
-
-## Architecture
-
-### Three-Service Layout
-
-| Service | Entry Point | Port | Role |
-|---|---|---|---|
-| Flask API gateway | `main.py` | 5000 / ext 80 | Public REST API, proxies to HF Space |
-| FastAPI + Gradio | `hf-space-inventory-sqlgen/app.py` | 8080 | Core engine, Gradio UI, MCP endpoints |
-| Astro frontend | `hello-astro/` | 4321 | Frontend shell |
-
-### Routing Chain (the Solder Pattern)
-
-```
-Natural language question
-    → ProductionDispatcher
-        LLM (Mistral-7B-Instruct via HuggingFace Inference API)
-        classifies ONLY → Intent + Concept + Perspective
-        (keyword mock fallback when no API key)
-    → ArangoDB graph traversal
-        Intent --operates_within--> Perspective
-        Intent --elevates(weight=1)--> Concept
-        Intent --bound_to--> Binding (APPROVED only)
-    → Binding resolves to an APPROVED .sql snippet file
-    → SolderEngine (SQLGlot)
-        assembles final SQL: alias renaming, table qualification,
-        CTE construction, multi-dialect transpilation
-    → Result returned — zero LLM-generated SQL ever executed
+```bash
+npm run dev          # Flask + Astro
+npm run dev:all      # Flask + Astro + HF Space
+npm run flask        # Flask gateway (main.py)
+npm run astro        # Astro frontend in astro-sample/
+npm run hf-space     # Core FastAPI/Gradio semantic layer
 ```
 
-### OUT_OF_SCOPE Detection
+### Build and static checks
 
-If the Dispatcher cannot map the question to a known Intent, it returns `OUT_OF_SCOPE` and no SQL is attempted. Do not bypass this check.
+```bash
+npm run astro:build
 
----
+cd artifacts/mockup-sandbox
+npm ci
+npm run typecheck
+npm test
 
-## Key Source Files
-
-```
-hf-space-inventory-sqlgen/
-  app.py                    FastAPI + Gradio app; init_database(); all endpoints
-  solder_engine.py          SQL assembly from approved snippets (SQLGlot)
-  production_dispatcher.py  Semantic router — LLM classifier only, never SQL
-  graph_sync.py             Syncs manufacturing.db → ArangoDB graph
-  arangodb_persistence.py   ArangoDB connection, graph persistence, config
-  semantic_reasoning.py     Graph traversal helpers
-  app_schema/
-    manufacturing.db        Authoritative SQLite — intents, concepts,
-                            perspectives, bindings, concept_fields, seed data
-    schema_sqlite.sql       DDL + seed (CREATE TABLE IF NOT EXISTS throughout)
-    ground_truth/           Approved .sql snippet files (one per binding)
-
-main.py                     Flask gateway; _load_anchored_env() at top
-config.py                   SQLALCHEMY_DATABASE_URI
-
-Utilities/
-  ArangoFixtures/
-    load_fk_edges.py        FK edge loader → ArangoDB (stable, important logic)
-    load_bridge_edges.py    MAPS_TO_CONCEPT table-to-concept bridge edges
-    persist_semantic_graph_to_arango.py
-    verify_graph.py         100% table-to-semantic reachability assertion
-  SQLMesh/analysis/impact/
-    foreign_key_iterator.py Extracts FKs from ERP DDL
-    foreign_key_hierarchy.py BFS hierarchy builder
-    output/schema_catalog.db FK + column catalog (251 columns, 15 FKs)
-
-docs/
-  arango_graph_queries.md   AQL traversal reference — 6 core patterns + health check
+cd Utilities/SQLMesh
+sqlmesh info
+sqlmesh test --verbose
 ```
 
----
+There is no single repo-wide lint command. Existing CI relies on targeted type-checks and test suites instead.
 
-## Data Layer
+### Targeted test commands
 
-### Two Canonical SQLite Databases
+```bash
+# MCP server tests
+./scripts/venv_setup.sh
+.venv/bin/python -m pytest -q mcp_server/tests
+.venv/bin/python -m pytest -q mcp_server/tests/test_app.py
 
-| Database | Path | Purpose |
-|---|---|---|
-| `manufacturing.db` | `hf-space-inventory-sqlgen/app_schema/manufacturing.db` | Production data + semantic layer (intents, concepts, perspectives, bindings) |
-| `schema_catalog.db` | `Utilities/SQLMesh/analysis/impact/output/schema_catalog.db` | ERP FK relationships + DDL column catalog |
+# MCP server smoke run
+./scripts/run_smoke_locally.sh 8000
 
-**There is no other canonical SQLite database.** Do not create or reference a third database.
+# HF Space / semantic-layer tests
+python -m pytest hf-space-inventory-sqlgen/tests/test_sync_triggers.py -k TestFreshDbFromRealSchema -v --tb=short
+python -m pytest hf-space-inventory-sqlgen/tests/test_prune_stale_containment.py -v
+python hf-space-inventory-sqlgen/tests/test_resolution_messages.py
 
-### ArangoDB Graph (`manufacturing_graph`)
-
-- **306 nodes, 431 edges** (current state)
-- **Two graph layers** — do not mix them:
-  - Uppercase collections (`ELEVATES`, `OPERATES_WITHIN`, etc.) — older schema layer, vertex IDs use `manufacturing_graph_node/` prefix
-  - Lowercase collections (`elevates`, `operates_within`, `intents`, `concepts`, `perspectives`, `bindings`) — **active layer**, maintained by `graph_sync.py`, use this for all new development
-- **Synced from** `manufacturing.db` via `graph_sync.py` — ArangoDB is derived, SQLite is the source of truth
-- Connection config lives in `arangodb_persistence.py` (reads `ARANGO_ROOT_PASSWORD`, `ARANGO_USER`, `ARANGO_DB` env vars)
-
-### SQLMesh / DuckDB
-
-- 41 virtual production-layer models under `Utilities/SQLMesh/`
-- DuckDB is the SQLMesh execution engine
-- Models are read-only views over the ERP schema; do not write to them
-
----
-
-## Semantic Graph Model
-
-```
-Intent  --operates_within-->   Perspective
-Intent  --elevates(w=1)-->     Concept        (1=use, 0=neutral, -1=suppress)
-Intent  --bound_to-->          Binding        (→ approved .sql file)
-Perspective --uses_definition--> Concept
-Table   --FOREIGN_KEY-->       Table
-Table   --HAS_COLUMN-->        AtomicColumn
+# SQLMesh single test file or model
+cd Utilities/SQLMesh
+sqlmesh test tests/test_full_model.yaml
 ```
 
-**Elevation weights are binary switches** — 1 means select this concept for this intent, -1 suppresses it. SolderEngine reads SUPPRESSES edges and emits NULL for suppressed concepts. Do not treat weights as scores or rankings.
+## High-level architecture
 
-### Binding States
+This repository is a monorepo with several runnable surfaces, but the governed manufacturing semantic layer lives in `hf-space-inventory-sqlgen/`.
 
-| Status | Behavior |
-|---|---|
-| `APPROVED` | SolderEngine uses this snippet |
-| `PENDING` | Skipped at runtime — awaiting SME review |
-| `REJECTED` | Never used |
+1. `main.py` is the Flask gateway. It loads `.env` by walking upward from the file location, initializes the root SQLite-backed Flask app, and exposes lightweight health/API routes.
+2. `hf-space-inventory-sqlgen/app.py` is the core service. It hosts the FastAPI API, Gradio UI, MCP endpoints, SQLite metadata bootstrap/migrations, masking metadata, and semantic-layer endpoints.
+3. `hf-space-inventory-sqlgen/production_dispatcher.py` classifies a natural-language question into controlled vocabulary only. It does not generate SQL.
+4. `hf-space-inventory-sqlgen/solder_engine.py` resolves APPROVED bindings from `app_schema/ground_truth/reviewer_manifest.json`, loads SME-authored SQL snippets, and assembles final SQL with SQLGlot. Missing bindings or missing snippet text are fail-closed conditions.
+5. `hf-space-inventory-sqlgen/graph_sync.py` derives the active ArangoDB graph from SQLite. SQLite is the source of truth; ArangoDB is a synced projection.
+6. `Utilities/SQLMesh/` is a separate DuckDB/SQLMesh analytics layer. It reuses masking helpers from `hf-space-inventory-sqlgen/` and is validated with `sqlmesh test`, not by hand-written SQL.
+7. `mcp_server/` is a smaller standalone FastAPI scaffold with its own smoke tests. Do not confuse it with the main semantic-layer service in `hf-space-inventory-sqlgen/`.
 
-Currently: 17 APPROVED, 2 PENDING (`quality_ncm_cost_20260209_193816`, `gt_ncm_by_employee_20260210_230752`).
+## Key conventions
 
----
-
-## Environment Variables
-
-Loaded via `_load_anchored_env()` at the top of `main.py` and `app.py`. This function walks up the directory tree (up to 3 levels) looking for a `.env` file, loads it with `override=False` so platform-injected secrets (Replit) are never overwritten.
-
-| Variable | Used By | Notes |
-|---|---|---|
-| `FLASK_PORT` | `main.py` | Defaults to 5000; set to 5002 locally to avoid Kestrel collision |
-| `PORT` | `app.py` (uvicorn) | Defaults to 8080 |
-| `OPENAI_API_KEY` | Embeddings, RAGAS | |
-| `TAVILY_API_KEY` | Advanced RAG | |
-| `ARANGO_ROOT_PASSWORD` | ArangoDB | |
-| `ARANGO_USER` | ArangoDB | |
-| `ARANGO_DB` | ArangoDB | Fail-fast: RuntimeError if missing |
-| `QUERY_API_KEY` | `/api/arango-sync` endpoint | Bearer token for sync endpoint |
-
-**Local triple-port cleanroom** (when running alongside .NET / DAB locally):
-- Kestrel: 5000 (ASP.NET default — do not touch)
-- DAB / MCP server: 5001 (`DAB_PORT=5001` in parent `.env`)
-- Flask: 5002 (`FLASK_PORT=5002` in parent `.env`)
-
----
-
-## SQL Safety Rules
-
-- All SQL is read-only SELECT — no INSERT, UPDATE, DELETE, DROP, or DDL
-- SQL injection prevention is enforced in the semantic layer
-- Use parameterized queries for any direct SQLAlchemy calls
-- The SolderEngine's `execute_sql` endpoint validates operation type before execution
-
----
-
-## Schema Conventions
-
-- All 32 ERP tables use `CREATE TABLE IF NOT EXISTS` — incremental loading is safe by design
-- Seed data uses `INSERT OR IGNORE` — re-running `init_database()` is idempotent
-- Foreign key naming: `{table}_{column}_fk` pattern
-- SQLite WAL mode is enabled on `manufacturing.db` for concurrency
-
----
-
-## File Naming Conventions
-
-- Entry point study scripts: `{number}_Entry_Point_{topic}.py` (Frank Kane Advanced RAG series)
-- Ground truth SQL files: `{binding_key}.sql` in `app_schema/ground_truth/`
-- ArangoDB fixture loaders: `load_{edge_type}.py` in `Utilities/ArangoFixtures/`
-- Test files: `test_` prefix
-
----
-
-## Code Style
-
-- Python >= 3.11
-- Type hints on all function signatures
-- Google-style docstrings
-- snake_case for modules, variables, functions; PascalCase for classes; UPPERCASE for constants
-- Try/except with meaningful error messages — no silent fallbacks
-- Never hardcode API keys, ports, or credentials — always read from environment
-
----
-
-## What Not to Do
-
-- Do not suggest LLM-generated SQL — the entire architecture exists to prevent this
-- Do not write to `schema_catalog.db` — it is a derived artifact from ERP DDL analysis
-- Do not add a third SQLite database without explicit instruction
-- Do not bypass the `APPROVED` binding check in SolderEngine
-- Do not mix the uppercase and lowercase ArangoDB graph layers
-- Do not set `override=True` in `load_dotenv` — platform secrets must not be overwritten
-- Do not hardcode ports — always use the env var with a safe default
+- **Never have the model write SQL.** In this repo, the LLM is only a classifier/router. Executable SQL must come from SME-approved snippets in `hf-space-inventory-sqlgen/app_schema/ground_truth/` and the reviewer manifest.
+- **Treat SQLite as canonical.** The important production database is `hf-space-inventory-sqlgen/app_schema/manufacturing.db`. `Utilities/SQLMesh/analysis/impact/output/schema_catalog.db` is derived metadata, not a place to add new source-of-truth state.
+- **Use the active graph layer, not retired perspective traversals.** New work should follow the bridge-row model (`Perspective_Intents`, `Perspective_Concepts`) and current `graph_sync.py` constants. Tests explicitly guard against reintroducing legacy `perspectives`, `operates_within`, or `uses_definition` surfaces.
+- **Metadata keys are four-part identities.** In `app.py`, metadata tables such as `api_field_descriptions`, `dab_field_definitions`, and masking policy tables use `(source_database, schema_name, table_name, column_name)` keys. Do not regress them to older table/column-only keys.
+- **Startup schema changes are additive and idempotent.** The repo consistently uses `CREATE TABLE IF NOT EXISTS`, `INSERT OR IGNORE`, and self-healing startup migrations so the SQLite schema can be re-initialized safely.
+- **Environment loading must preserve injected secrets.** Both `main.py` and `hf-space-inventory-sqlgen/app.py` use `_load_anchored_env()` with `load_dotenv(..., override=False)`. Do not switch that to `override=True`.
+- **Keyword fallback routing is order-sensitive.** In `production_dispatcher.py`, specific phrases must appear before broader substrings (for example `lead time demand` before `lead time`, and `committed` before `inventory`). Preserve that ordering when editing mock routes.
+- **SQLMesh masking logic is shared, not duplicated.** `Utilities/SQLMesh/models/raw/` imports masking helpers that ultimately reuse canonical logic from `hf-space-inventory-sqlgen/masking_matrix.py` and `masking_type.py`.
+- **Port expectations are historical and inconsistent; follow the active script you are touching.** `hf-space-inventory-sqlgen/app.py` defaults to `PORT=8080`, but root helper scripts and smoke checks often expect `8000`. If you use `hf-space:test`, `test:mcp`, or `run_smoke_locally.sh`, set `PORT=8000` for the HF/MCP service.
+- **When docs disagree, trust active workflows and runnable scripts first.** The root README still describes older PostgreSQL-first flows, while current CI and the main semantic layer are centered on the SQLite-backed HF Space, `mcp_server/`, and SQLMesh utilities.
