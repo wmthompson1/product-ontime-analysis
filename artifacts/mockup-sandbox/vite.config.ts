@@ -27,9 +27,31 @@ if (!basePath) {
   );
 }
 
+const redirectRootToAppPlugin = () => ({
+  name: "redirect-root-to-app",
+  configureServer(server: import("vite").ViteDevServer) {
+    server.middlewares.use((req, res, next) => {
+      const url = req.url || "/";
+      const pathname = url.split("?")[0];
+      if (pathname === "/" || pathname === "/index.html") {
+        const hostHeader = req.headers.host || "";
+        const hostname = hostHeader.split(":")[0];
+        const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+        const scheme = isLocal ? "http" : "https";
+        res.statusCode = 302;
+        res.setHeader("Location", `${scheme}://${hostname}:5000/`);
+        res.end();
+        return;
+      }
+      next();
+    });
+  },
+});
+
 export default defineConfig({
   base: basePath,
   plugins: [
+    redirectRootToAppPlugin(),
     mockupPreviewPlugin(),
     react(),
     tailwindcss(),
