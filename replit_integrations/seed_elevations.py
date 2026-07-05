@@ -366,6 +366,20 @@ METRIC_ELEVATIONS = [
 ]
 
 
+# Perspectives this manifest references that are NOT part of the canonical
+# schema_sqlite.sql seed (which ships the 13 ERP-module perspectives). A fresh
+# bootstrap database therefore lacks them, and _perspective_id would fail
+# closed. Seed them here (INSERT OR IGNORE, keyed by name) so this manifest
+# stays self-contained — mirroring the additive-guard philosophy above.
+NEW_PERSPECTIVES = {
+    "Finance": (
+        "Financial lens over operations: cost, penalty exposure, and capital effectiveness.",
+        "Controller, Finance Analyst",
+        "Cost variances, delivery penalty exposure, capital utilization (OEE strategic)",
+    ),
+}
+
+
 def _concept_id(cur, name: str) -> int:
     row = cur.execute(
         "SELECT concept_id FROM schema_concepts WHERE concept_name = ?", (name,)
@@ -478,6 +492,18 @@ def main() -> int:
                 "synonyms = ?, tags = ? WHERE concept_name = ?",
                 (desc, domain, json.dumps(synonyms), json.dumps(tags), name),
             )
+
+        # Self-seed manifest-referenced perspectives missing from the canonical
+        # schema seed (fresh-bootstrap databases). Idempotent by name.
+        for pname, (pdesc, prole, pfocus) in NEW_PERSPECTIVES.items():
+            cur.execute(
+                "INSERT OR IGNORE INTO schema_perspectives "
+                "(perspective_name, description, stakeholder_role, priority_focus) "
+                "VALUES (?,?,?,?)",
+                (pname, pdesc, prole, pfocus),
+            )
+            if cur.rowcount:
+                print(f"  perspective: {pname} (seeded — missing from schema seed)")
 
         for persp, concept, table, column, weight, hint in ELEVATIONS:
             pid = _perspective_id(cur, persp)

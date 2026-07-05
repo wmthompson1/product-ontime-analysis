@@ -29,6 +29,40 @@ if [ -f "$_app_db" ] \
   && [ -f replit_integrations/export_graph_metadata.py ] \
   && [ -f replit_integrations/sql_graph_parity_check.py ]; then
   if ! python replit_integrations/sql_graph_parity_check.py >/dev/null 2>&1; then
+    # Two distinct failure shapes:
+    #   1. EMPTY tables (fresh-bootstrap DB): the bridge feeds the exporter
+    #      materializes from are not part of the bootstrap chain, so the DB
+    #      cannot re-derive the frozen graph — the committed JSON is the only
+    #      surviving copy. Restore the tables FROM it (import_graph_metadata.py,
+    #      which refuses to overwrite populated tables). seed_elevations still
+    #      runs first so the semantic bridge vocabulary (concepts/elevations the
+    #      app + Query Palette read) is repopulated too.
+    #   2. POPULATED-but-stale tables: re-materialize from the schema as before.
+    _sg_nodes=$(sqlite3 "$_app_db" "SELECT COUNT(*) FROM sql_graph_nodes" 2>/dev/null || echo 0)
+    if [ "${_sg_nodes:-0}" -eq 0 ] && [ -f replit_integrations/import_graph_metadata.py ]; then
+      echo "post-merge: sql_graph_* tables are empty (fresh DB) — restoring from committed graph_metadata.json"
+      python replit_integrations/seed_elevations.py || {
+        echo "post-merge: seed_elevations regeneration failed"
+        exit 1
+      }
+      # Re-apply the schema seed AFTER seed_elevations: its intent->concept link
+      # inserts are name-based INSERT..SELECTs that silently insert zero rows on
+      # a fresh bootstrap (the concepts do not exist yet at that point in the
+      # chain). Same INSERT OR IGNORE transform the app applies on boot.
+      python - <<'PYEOF' || { echo "post-merge: schema seed re-apply failed"; exit 1; }
+import sqlite3
+sql = open("hf-space-inventory-sqlgen/app_schema/schema_sqlite.sql").read()
+sql = sql.replace("INSERT INTO", "INSERT OR IGNORE INTO")
+conn = sqlite3.connect("hf-space-inventory-sqlgen/app_schema/manufacturing.db")
+conn.executescript(sql)
+conn.commit()
+conn.close()
+PYEOF
+      python replit_integrations/import_graph_metadata.py || {
+        echo "post-merge: graph restore from committed JSON failed"
+        exit 1
+      }
+    else
     echo "post-merge: sql_graph_* tables are stale vs committed graph_metadata.json — re-materializing"
     _gm_json="replit_integrations/graph_metadata.json"
     _gm_bak=""
@@ -56,6 +90,7 @@ if [ -f "$_app_db" ] \
       _gm_bak=""
     fi
     trap - EXIT
+    fi
   fi
 fi
 

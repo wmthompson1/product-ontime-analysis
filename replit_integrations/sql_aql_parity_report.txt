@@ -1,20 +1,20 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-07-04T08:13:08+00:00
+generated: 2026-07-05T20:27:14+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
 
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
-nodes                320         399 MISMATCH
-edges                372         306 MISMATCH
+nodes                366         399 MISMATCH
+edges                423         306 MISMATCH
 
 differences:
-  - nodes: count mismatch — SQLite=320 ArangoDB=399
-  - nodes: 24 _key(s) in SQLite but not ArangoDB, e.g. ['inventory_allocated_20260703_000005:entity:manifest:Inventory_Transactions:none:none', 'inventory_atp_20260703_000004:entity:manifest:Inventory_Transactions:none:none', 'inventory_eoq_20260703_000010:entity:manifest:Inventory_Transactions:none:none', 'inventory_leadtime_20260703_000003:entity:manifest:Inventory_Transactions:none:none', 'inventory_leadtimedemand_20260703_000007:entity:manifest:Inventory_Transactions:none:none']
+  - nodes: count mismatch — SQLite=366 ArangoDB=399
+  - nodes: 70 _key(s) in SQLite but not ArangoDB, e.g. ['EMPLOYEE:active:structural:system:none:none', 'EMPLOYEE:buyer_code:structural:system:none:none', 'EMPLOYEE:created_at:structural:system:none:none', 'EMPLOYEE:department:structural:system:none:none', 'EMPLOYEE:employee_id:structural:system:none:none']
   - nodes: 103 _key(s) in ArangoDB but not SQLite, e.g. ['manufacturing_graph_node_concept_AllocatedQuantity', 'manufacturing_graph_node_concept_AvailableToPromise', 'manufacturing_graph_node_concept_CertificationStatusState', 'manufacturing_graph_node_concept_CertificationType', 'manufacturing_graph_node_concept_DefectSeverityCost']
-  - edges: count mismatch — SQLite=372 ArangoDB=306
-  - edges: 66 _key(s) in SQLite but not ArangoDB, e.g. ['certification:receipt_id:structural:system:references:SYS_REF_CER_REC_002', 'customer_order_line:order_qty:semantic:Inventory_Transactions:resolves_to:INV_RES_CUS_ORD_EDED431D', 'inventory_allocated_20260703_000005:customer_order:manifest:Inventory_Transactions:binds_table:INV_BIN_INV_CUS_001', 'inventory_allocated_20260703_000005:customer_order_line:manifest:Inventory_Transactions:binds_table:INV_BIN_INV_CUS_002', 'inventory_allocated_20260703_000005:part:manifest:Inventory_Transactions:binds_table:INV_BIN_INV_PAR_001']
+  - edges: count mismatch — SQLite=423 ArangoDB=306
+  - edges: 117 _key(s) in SQLite but not ArangoDB, e.g. ['EMPLOYEE:active:structural:system:has_column:SYS_HAS_EMP_ACT_001', 'EMPLOYEE:buyer_code:structural:system:has_column:SYS_HAS_EMP_BUY_001', 'EMPLOYEE:created_at:structural:system:has_column:SYS_HAS_EMP_CRE_001', 'EMPLOYEE:department:structural:system:has_column:SYS_HAS_EMP_DEP_001', 'EMPLOYEE:employee_id:structural:system:has_column:SYS_HAS_EMP_EMP_001']
   - edges: field mismatch for 'certification:part_id:structural:system:references:SYS_REF_CER_PAR_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
   - edges: field mismatch for 'certification:receipt_id:structural:system:references:SYS_REF_CER_REC_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}
   - edges: field mismatch for 'customer_order:site_id:structural:system:references:SYS_REF_CUS_SIT_001' on ['origin']: sqlite={'origin': 'fk_declared'} arangodb={'origin': None}

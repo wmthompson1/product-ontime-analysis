@@ -25,6 +25,7 @@
 - [OpenAI key auth fallback](openai-key-auth-fallback.md) — repl's OPENAI_API_KEY fails auth; default to deterministic drafting (also user's cost pref), re-verify key before any live AI call.
 - [Ontop interoperability POC](ontop-interoperability-poc.md) — SQL layer republished as a virtual OWL/SPARQL graph via Ontop; parity proven over a read-only WAL snapshot.
 - [Synthetic ERP backfill grounding](synthetic-erp-backfill-grounding.md) — fill blank/zero ERP columns from the real PO→receiving→payable flow (supplier scorecard, WO job costing), deterministic, never random.
+- [Fresh-DB graph restore path](fresh-db-graph-restore.md) — fresh bootstrap DB can't re-derive the frozen graph; restore sql_graph_* FROM committed JSON, reseed elevations, then re-apply schema seed (OR IGNORE) for intent links.
 - [Ontop ontology annotation layers](ontology-annotation-layers.md) — POC .ttl gates are regex-based & blind to annotations; safe to enrich existing terms; use subClassOf/skos:closeMatch not owl:equivalentClass; no new unmapped terms.
 - [Test suite invocation quirks](test-invocation-quirks.md) — run tests gate-style (`python file.py` per file), never big pytest batches; batch failures are shared-state artifacts, not regressions.
 - [HF suite slow Arango tests](hf-suite-slow-arango-tests.md) — full pytest exceeds 120s bash cap (live Arango calls ~15s/file); run in batches; count-parity fails self-heal after app restart syncs.

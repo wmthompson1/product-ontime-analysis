@@ -62,6 +62,10 @@ STEPS = [
     # 100+ plannable parts for the MRP dropdown (runs LAST: after the prune so
     # the demo-scale trim never sees — or removes — the expansion rows)
     ("migrations/expand_mrp_part_universe.py", []),
+    # re-declare structural FKs the frozen graph records but fresh DDL lacks
+    # (declared-FK-only consumers like metric assembly fail closed without them;
+    # runs last so every table in the graph already exists)
+    ("migrations/declare_structural_fks.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least
