@@ -6253,35 +6253,53 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 from ontop_ontology_selector import (
                     load_ontop_entries,
                     selector_choices as _oo_choices_fn,
+                    selector_choices_for_module as _oo_mod_choices_fn,
+                    module_choices as _oo_cat_fn,
                     slot_legend as _oo_legend_fn,
                 )
                 _oo_entries = load_ontop_entries()
                 _oo_choices = _oo_choices_fn(_oo_entries)
+                _oo_cat_choices = _oo_cat_fn(_oo_entries)
                 _oo_legend = _oo_legend_fn()
             except Exception as _oo_err:
-                _oo_entries, _oo_choices = [], []
+                _oo_entries, _oo_choices, _oo_cat_choices = [], [], []
+                _oo_mod_choices_fn = None
                 _oo_legend = f"Selector unavailable: {_oo_err}"
 
             _oo_by_key = {e["entry_key"]: e for e in _oo_entries}
             _oo_modules = sorted({e["module"] for e in _oo_entries})
 
+            _oo_cat0 = _oo_cat_choices[0][1] if _oo_cat_choices else None
+            _oo_map0_choices = (
+                _oo_mod_choices_fn(_oo_entries, _oo_cat0)
+                if _oo_mod_choices_fn else _oo_choices
+            )
+
             gr.Markdown(
-                f"**Master selector — all {len(_oo_entries)} OBDA mappings "
-                f"across {len(_oo_modules)} showcase ontologies.** Same "
-                f"fixed-width 6-slot scheme as the Ontology Mosaic tab:\n\n"
+                f"**{len(_oo_entries)} OBDA mappings across "
+                f"{len(_oo_modules)} showcase ontologies.** Pick a category "
+                f"(showcase ontology), then the mapping — same fixed-width "
+                f"6-slot scheme as the Ontology Mosaic tab:\n\n"
                 f"{_oo_legend}"
             )
 
             with gr.Row():
-                oo_picker = gr.Dropdown(
-                    choices=_oo_choices,
-                    label="OBDA mapping (6-slot summary)",
-                    value=_oo_choices[0][1] if _oo_choices else None,
+                oo_cat = gr.Dropdown(
+                    choices=_oo_cat_choices,
+                    value=_oo_cat0,
+                    label="1 · Category (showcase ontology)",
                     interactive=True,
-                    scale=3,
+                    scale=1,
+                )
+                oo_picker = gr.Dropdown(
+                    choices=_oo_map0_choices,
+                    label="2 · OBDA mapping (6-slot summary)",
+                    value=_oo_map0_choices[0][1] if _oo_map0_choices else None,
+                    interactive=True,
+                    scale=2,
                     elem_classes=["gt-slot-select"],
                 )
-                oo_btn = gr.Button("Show Mapping", variant="primary", scale=1)
+                oo_btn = gr.Button("Show Mapping", variant="primary", scale=0)
 
             oo_summary = gr.Markdown()
             oo_detail = gr.Markdown()
@@ -6364,6 +6382,21 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 inputs=[oo_picker],
                 outputs=[oo_summary, oo_detail, oo_target, oo_sql],
             )
+
+            if _oo_mod_choices_fn is not None:
+                # Category cascade: picking a showcase ontology narrows the
+                # mapping dropdown and selects its first entry; the picker's
+                # own .change then re-renders the panes below.
+                def _oo_on_category(module):
+                    choices = _oo_mod_choices_fn(_oo_entries, module)
+                    value = choices[0][1] if choices else None
+                    return gr.update(choices=choices, value=value)
+
+                oo_cat.change(
+                    fn=_oo_on_category,
+                    inputs=[oo_cat],
+                    outputs=[oo_picker],
+                )
 
         with gr.Tab("🗳️ Term Review"):
             import sys as _tr_sys, pathlib as _tr_pl

@@ -281,3 +281,28 @@ def _fallback_tables(source_sql: str) -> List[str]:
 def selector_choices(entries: List[dict]) -> List[Tuple[str, str]]:
     """(label, entry_key) pairs for a Gradio Dropdown master selector."""
     return [(slot_label(e), e["entry_key"]) for e in entries]
+
+
+# ── category level (showcase ontology) ───────────────────────────────────────
+
+def module_choices(entries: List[dict]) -> List[Tuple[str, str]]:
+    """(display, module) per showcase ontology — the concrete category level.
+
+    Display is the plain module title plus its mapping count, e.g.
+    ``Customer Order  (4)`` — nothing abstract, exactly one choice per
+    .obda showcase file.
+    """
+    out: List[Tuple[str, str]] = []
+    for module in sorted({e["module"] for e in entries}):
+        pool = [e for e in entries if e["module"] == module]
+        out.append((f"{pool[0]['module_title']}  ({len(pool)})", module))
+    return out
+
+
+def selector_choices_for_module(
+    entries: List[dict], module: Optional[str]
+) -> List[Tuple[str, str]]:
+    """Selector choices narrowed to one showcase module (None = all)."""
+    if module is None:
+        return selector_choices(entries)
+    return selector_choices([e for e in entries if e["module"] == module])
