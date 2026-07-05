@@ -5956,15 +5956,36 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
             _svo_by_binding = {e["binding_key"]: e for e in _svo_entries}
 
+            # The anchor dropdown's VALUE carries "category<US>anchor" so every
+            # event handler needs exactly ONE input — Gradio's chained
+            # programmatic .change events only deliver the trigger component's
+            # own value, so multi-input handlers break in the cascade chain.
+            _MO_SEP = "\x1f"
+
+            def _mo_pack(cat, anchor):
+                return f"{cat or ''}{_MO_SEP}{anchor or ''}"
+
+            def _mo_unpack(token):
+                if token and _MO_SEP in token:
+                    cat, anchor = token.split(_MO_SEP, 1)
+                    return (cat or None, anchor or None)
+                return (None, token or None)
+
             if _svo_has_cats and _svo_cascade is not None:
                 # Shared cascading selector — one physical selector drives all
                 # three lens tabs below, so the tabs are in sync by construction.
                 _mo_cat_choices = _svo_cascade.filter_choices("category")
                 _mo_cat0 = _mo_cat_choices[0][1] if _mo_cat_choices else None
-                _mo_anchor_choices = _svo_cascade.anchor_choices({"category": _mo_cat0})
-                _mo_anchor0 = _mo_anchor_choices[0][1] if _mo_anchor_choices else None
-                _mo_query_choices = _svo_cascade.query_choices({"category": _mo_cat0}, _mo_anchor0)
-                _mo_sel0 = _svo_cascade.resolve({"category": _mo_cat0}, _mo_anchor0)
+                _mo_anchor_pairs = _svo_cascade.anchor_choices({"category": _mo_cat0})
+                _mo_anchor_raw0 = _mo_anchor_pairs[0][1] if _mo_anchor_pairs else None
+                _mo_anchor_choices = [
+                    (lbl, _mo_pack(_mo_cat0, a)) for lbl, a in _mo_anchor_pairs
+                ]
+                _mo_anchor0 = (
+                    _mo_pack(_mo_cat0, _mo_anchor_raw0) if _mo_anchor_raw0 else None
+                )
+                _mo_query_choices = _svo_cascade.query_choices({"category": _mo_cat0}, _mo_anchor_raw0)
+                _mo_sel0 = _svo_cascade.resolve({"category": _mo_cat0}, _mo_anchor_raw0)
                 _mo_query0 = _mo_sel0.binding_key or (
                     _mo_query_choices[0][1] if _mo_query_choices else None
                 )
@@ -6205,17 +6226,22 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 # seam in ground_truth_selector.py) needs no changes here beyond
                 # one more dropdown feeding the same chain.
                 def _mosaic_on_category(cat):
-                    anchors = _svo_cascade.anchor_choices({"category": cat})
-                    anchor = anchors[0][1] if anchors else None
+                    pairs = _svo_cascade.anchor_choices({"category": cat})
+                    anchor = pairs[0][1] if pairs else None
+                    anchors = [(lbl, _mo_pack(cat, a)) for lbl, a in pairs]
                     queries = _svo_cascade.query_choices({"category": cat}, anchor)
                     sel = _svo_cascade.resolve({"category": cat}, anchor)
                     q = sel.binding_key or (queries[0][1] if queries else None)
                     return (
-                        gr.update(choices=anchors, value=anchor),
+                        gr.update(
+                            choices=anchors,
+                            value=_mo_pack(cat, anchor) if anchor else None,
+                        ),
                         gr.update(choices=queries, value=q),
                     )
 
-                def _mosaic_on_anchor(cat, anchor):
+                def _mosaic_on_anchor(token):
+                    cat, anchor = _mo_unpack(token)
                     queries = _svo_cascade.query_choices({"category": cat}, anchor)
                     sel = _svo_cascade.resolve({"category": cat}, anchor)
                     q = sel.binding_key or (queries[0][1] if queries else None)
@@ -6228,7 +6254,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
                 mosaic_anchor.change(
                     fn=_mosaic_on_anchor,
-                    inputs=[mosaic_cat, mosaic_anchor],
+                    inputs=[mosaic_anchor],
                     outputs=[svo_picker],
                 )
 
