@@ -6105,14 +6105,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
             The Ontop POC republishes the governed SQL layer as a **virtual
             OWL/SPARQL graph**. Each OBDA mapping pairs a **target** (the RDF
             triples it mints) with a **source** — a governed SQL query. That
-            source SQL is exactly *what the solder sees*: the same tables,
-            joins and predicates, viewed through standards-based vocabulary.
+            source SQL is exactly *what the solder sees*, viewed through
+            standards-based vocabulary.
 
-            Where the **Query Topology** tab shows the graph topology of the
-            SQL itself (pure AST), this tab shows the **ontology mapping** —
-            the SPARQL-facing OWL vocabulary and the OBDA target/source pairs
-            that bind it to the governed SQL. No database is touched, and
-            nothing here is wired into the running app.
+            Each tab has one concern: **Query Topology** holds the AST view,
+            **Ground Truth SQL** holds the SQL itself, and this tab holds the
+            **ontology mapping** — the SPARQL-facing OWL vocabulary and the
+            OBDA target/source pairs that bind it to the governed SQL. No
+            database is touched, and nothing here is wired into the running app.
             """)
 
             try:
@@ -6150,26 +6150,18 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 oo_btn = gr.Button("Show Mapping", variant="primary", scale=1)
 
             oo_summary = gr.Markdown()
-            oo_joins = gr.Dataframe(
-                headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
-                interactive=False,
-                label="Join relationships (source SQL)",
-                wrap=False,
-            )
             oo_detail = gr.Markdown()
             with gr.Accordion("Target triples + source SQL (what the solder sees)", open=False):
                 oo_target = gr.Code(language=None, interactive=False, label="Target (RDF triple template)")
                 oo_sql = gr.Code(language="sql", interactive=False, label="Source (governed SQL)")
 
             def render_ontop_ontology(entry_key):
-                from view_ontology_extractor import extract_view_ontology
-
                 if not entry_key:
-                    return "Select an OBDA mapping above.", [], "", "", ""
+                    return "Select an OBDA mapping above.", "", "", ""
 
                 entry = _oo_by_key.get(entry_key)
                 if entry is None:
-                    return f"No mapping found for `{entry_key}`.", [], "", "", ""
+                    return f"No mapping found for `{entry_key}`.", "", "", ""
 
                 target = entry["target"]
                 source_sql = entry["source_sql"]
@@ -6199,35 +6191,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     + cls_line
                 )
 
-                # Pure-AST extraction of the source SQL — what the solder sees
-                joins_table = []
                 detail_lines = []
-                try:
-                    vo = extract_view_ontology(
-                        source_sql, entry_key, entry["mapping_id"].upper(), "obda"
-                    )
-                    joins_table = [
-                        [
-                            j["left_table"], j["join_type"], j["right_table"],
-                            j.get("left_key") or "", j.get("right_key") or "",
-                        ]
-                        for j in vo.joins
-                    ]
-                    summary += (
-                        f"**Physical tables** ({len(vo.physical_tables)}):"
-                        f"  `{'` · `'.join(vo.physical_tables)}`"
-                    )
-                    if vo.state_predicates:
-                        detail_lines.append("#### Set-membership predicates (WHERE)")
-                        for p in vo.state_predicates:
-                            detail_lines.append(f"```sql\n{p}\n```")
-                    if vo.selected_columns:
-                        detail_lines.append(
-                            f"#### Published columns ({len(vo.selected_columns)})\n"
-                            + "  ".join(f"`{c}`" for c in vo.selected_columns)
-                        )
-                except Exception as exc:
-                    detail_lines.append(f"_Source-SQL extraction failed: {exc}_")
 
                 # Minted vocabulary with ontology annotations
                 minted = entry["datatype_terms"] + entry["object_terms"]
@@ -6247,23 +6211,24 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     detail_lines.append("\n".join(rows))
 
                 detail_lines.append(
-                    "\n---\n_Source SQL analyzed by SQLGlot (pure AST) · read-only "
-                    "POC · parity proven against the governed SQL on a WAL snapshot_"
+                    "\n---\n_Read-only POC · parity proven against the governed SQL "
+                    "on a WAL snapshot · for the AST view of governed SQL, see the "
+                    "Query Topology tab_"
                 )
                 detail = "\n\n".join(detail_lines)
 
                 pretty_target = target.replace(" ; ", " ;\n    ").replace(" .", " .")
-                return summary, joins_table, detail, pretty_target, source_sql
+                return summary, detail, pretty_target, source_sql
 
             oo_btn.click(
                 fn=render_ontop_ontology,
                 inputs=[oo_picker],
-                outputs=[oo_summary, oo_joins, oo_detail, oo_target, oo_sql],
+                outputs=[oo_summary, oo_detail, oo_target, oo_sql],
             )
             oo_picker.change(
                 fn=render_ontop_ontology,
                 inputs=[oo_picker],
-                outputs=[oo_summary, oo_joins, oo_detail, oo_target, oo_sql],
+                outputs=[oo_summary, oo_detail, oo_target, oo_sql],
             )
 
         with gr.Tab("🗳️ Term Review"):
