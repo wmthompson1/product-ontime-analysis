@@ -209,6 +209,15 @@ def prune(cur) -> None:
     # --- purchase order cascade ---------------------------------------------
     for table in ("po_line", "receiving", "invoice_header", "payable_line"):
         cur.execute(f"DELETE FROM {table} WHERE po_id NOT IN ({ph_po})", kept_pos)
+    # receiving_line exists only after add_receiving_line_and_commodities ran;
+    # cascade it when present so its rows never outlive their receiving header.
+    if cur.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='receiving_line'"
+    ).fetchone():
+        cur.execute(
+            "DELETE FROM receiving_line "
+            "WHERE receipt_id NOT IN (SELECT receipt_id FROM receiving)"
+        )
     cur.execute(
         "DELETE FROM certification WHERE receipt_id IS NOT NULL "
         "AND receipt_id NOT IN (SELECT receipt_id FROM receiving)"

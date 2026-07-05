@@ -614,6 +614,39 @@ def validate(cur, as_of):
         sys.exit(1)
 
 
+def heal_orphan_receiving_lines(cur):
+    """Self-heal receiving_line rows orphaned by earlier runs.
+
+    Older DBs can carry receiving_line rows whose parents were later removed by
+    prune_erp_to_demo_scale (which historically did not cascade receiving_line).
+    Deleting them here is safe and idempotent: backfill_receiving_lines
+    regenerates lines for every surviving receiving header, and payable_line
+    receipt refs are re-pointed by backfill_payable_line_links.
+    """
+    counts = {}
+    for label, cond in (
+        ("missing receiving header", "receipt_id NOT IN (SELECT receipt_id FROM receiving)"),
+        ("missing po_line", "po_line_id IS NOT NULL AND po_line_id NOT IN "
+                            "(SELECT line_id FROM po_line)"),
+        ("missing part", "part_id NOT IN (SELECT part_id FROM part)"),
+    ):
+        cur.execute(f"DELETE FROM receiving_line WHERE {cond}")
+        if cur.rowcount:
+            counts[label] = cur.rowcount
+    # payable_line rows may now point at deleted receipt lines — unlink so the
+    # re-link backfill can re-point them against the regenerated lines.
+    cur.execute(
+        "UPDATE payable_line SET receipt_line_id = NULL "
+        "WHERE receipt_line_id IS NOT NULL AND receipt_line_id NOT IN "
+        "(SELECT receipt_line_id FROM receiving_line)"
+    )
+    if cur.rowcount:
+        counts["payable_line receipt refs unlinked"] = cur.rowcount
+    if counts:
+        detail = ", ".join(f"{v} ({k})" for k, v in counts.items())
+        print(f"self-heal: removed orphaned receiving_line rows — {detail}")
+
+
 def main():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -624,6 +657,7 @@ def main():
         create_receiving_line(cur)
         alter_payable_line(cur)
         alter_part(cur)
+        heal_orphan_receiving_lines(cur)
 
         insert_supplier_and_parts(cur)
         n_comm = backfill_commodity_codes(cur)
