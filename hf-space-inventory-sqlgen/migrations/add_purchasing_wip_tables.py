@@ -35,13 +35,19 @@ Run once:
 Safe to re-run: CREATE TABLE IF NOT EXISTS + INSERT OR IGNORE.
 """
 
+import hashlib
 import sqlite3, os, random, re
 from datetime import date, timedelta, datetime
-from faker import Faker
 
-fake = Faker()
 random.seed(42)
-Faker.seed(42)
+
+
+def _invoice_number(po_id: str) -> str:
+    """Deterministic INV-??#### derived from the PO id (no faker dependency)."""
+    digest = hashlib.md5(po_id.encode("utf-8")).hexdigest()
+    letters = "".join(chr(ord("A") + int(digest[i:i + 2], 16) % 26) for i in (0, 2))
+    digits = int(digest[4:12], 16) % 10000
+    return f"INV-{letters}{digits:04d}"
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "app_schema", "manufacturing.db")
 
@@ -723,7 +729,7 @@ def run():
     for po_id, sid, po_type, po_date, req_dt, status, total, *_ in po_list:
         if status not in ("Received", "Closed"):
             continue
-        inv_no   = f"INV-{fake.bothify('??####').upper()}"
+        inv_no   = _invoice_number(po_id)
         inv_date = (date.fromisoformat(po_date) + timedelta(days=random.randint(5,20))).isoformat()
         # Payment terms from supplier
         sup      = next((s for s in SUPPLIERS if s[0]==sid), None)
