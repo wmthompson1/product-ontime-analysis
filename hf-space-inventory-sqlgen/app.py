@@ -5121,7 +5121,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown("""
             ### SME Semantic SQL Submission
             
-            Submit SQL snippets with semantic metadata for review. Each submission generates:
+            Submit ground-truth SQL queries with semantic metadata for review. Each submission generates:
             - A **deterministic filename** binding SQL to its semantic context
             - A **Reviewer Manifest** entry for approval workflow
             
@@ -5291,7 +5291,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             Ask a **natural language question** about your manufacturing data. The system:
             1. Routes your question to the correct **Intent** and **Concepts** (closed vocabulary)
             2. Passes those to the **SolderEngine** to assemble governed SQL
-            3. Returns perspective-aware SQL built entirely from **SME-approved snippets**
+            3. Returns perspective-aware SQL built entirely from **SME-approved queries**
             
             The LLM acts as a **Semantic Router**, not a SQL generator. All SQL is governed.
             """)
@@ -5423,11 +5423,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
             
             The **Solder Pattern** assembles final executable SQL by combining:
             - **Elevation Weights** from the semantic graph (which concepts are relevant)
-            - **Approved SQL Snippets** from SME submissions (governed ground truth)
+            - **Approved SQL Queries** from SME submissions (governed ground truth)
             - **SQLGlot AST Manipulation** for alias renaming, table qualification, and dialect transpilation
             
             ```
-            Intent → ELEVATES → Concept → Approved Snippet → SQLGlot AST → Final SQL
+            Intent → ELEVATES → Concept → Approved Query → SQLGlot AST → Final SQL
             ```
             """)
             
@@ -5539,7 +5539,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             ### Preview Solder (Multi-Concept Assembly)
             
             Combine **multiple concepts** into a single cohesive query. The engine resolves 
-            each concept's approved snippet, applies elevation weights, and assembles them 
+            each concept's approved query, applies elevation weights, and assembles them 
             as projections from a base table. Suppressed concepts become `NULL`.
             """)
             
@@ -5556,7 +5556,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     assemble_perspective = gr.Dropdown(
                         choices=perspective_choices,
                         label="Perspective",
-                        info="SME perspective for snippet resolution",
+                        info="SME perspective for query resolution",
                         interactive=True
                     )
                     
@@ -5619,12 +5619,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     fc_condition = result.get("fail_closed_condition") or ""
                     reason = {
                         "no_perspective_compatible_snippet": (
-                            f"no perspective-compatible snippet under perspective "
+                            f"no perspective-compatible query under perspective "
                             f"**{perspective or '(none)'}**. Cross-perspective SQL is never served."
                         ),
-                        "missing_snippet_file": "the approved binding has no snippet SQL to serve.",
+                        "missing_snippet_file": "the approved binding has no ground-truth SQL to serve.",
                         "fingerprint_validation_failed": (
-                            "the snippet failed structural-fingerprint validation "
+                            "the query failed structural-fingerprint validation "
                             "(unparseable or drifted from its SME-approved base tables)."
                         ),
                         "multiple": "multiple fail-closed conditions were triggered.",
@@ -6030,7 +6030,6 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 meta = ""
                 if entry:
                     meta = (
-                        f"**Category:** `{entry['category']}` · "
                         f"**Perspective:** `{entry['perspective']}` · "
                         f"**Logic:** `{entry['logic_type']}`\n\n"
                         f"_{entry['sme_justification']}_\n\n"
@@ -6528,7 +6527,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
 
             coverage_detail = gr.Code(
-                label="Concepts Without an Approved SQL Snippet",
+                label="Concepts Without an Approved SQL Query",
                 language=None,
                 lines=12,
             )
@@ -6571,7 +6570,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
                 lines.append("")
                 lines.append(
-                    "Add an APPROVED SQL snippet for each concept above to the reviewer manifest, "
+                    "Add an APPROVED SQL query for each concept above to the reviewer manifest, "
                     "then re-run graph_sync.py."
                 )
                 return "\n".join(lines)
@@ -6588,7 +6587,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 if status == "ok":
                     badge = f"✅  All triples covered — {coverage_result.get('pass_count', 0)} approved binding(s)"
                 elif status == "gaps":
-                    badge = f"⚠️  {len(gap_concepts)} concept(s) without an approved SQL snippet"
+                    badge = f"⚠️  {len(gap_concepts)} concept(s) without an approved SQL query"
                 elif status == "skip":
                     badge = "—  Skipped (ArangoDB not configured)"
                 else:

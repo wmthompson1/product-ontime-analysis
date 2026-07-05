@@ -7,10 +7,12 @@ Every approved snippet in the reviewer manifest is rendered as a SAME-LENGTH
 label built from a simplified 6-slot scheme (an echo of the graph's fixed
 6-slot composite key convention):
 
-    CAT:CONCEPT_ANCHOR      :PERSPECTIVE   :LOG:BASE_TABLE  +N:T
+    PER:CONCEPT_ANCHOR      :PERSPECTIVE   :LOG:BASE_TABLE  +N:T
      0        1                   2          3       4        5
 
-    slot 0  category, 3-char abbreviation (INV, QUA, OPE, FIN, CUS ...)
+    slot 0  perspective, 3-char abbreviation (INV, QUA, OPE, PAY ...) — a
+            fast-scan grouping prefix for slot 2 (category and perspective
+            are the same axis; only the perspective is used)
     slot 1  concept_anchor, fixed width, '…' when truncated
     slot 2  perspective, fixed width, '…' when truncated
     slot 3  logic_type, 3-char abbreviation (DIR, AGG ...)
@@ -80,7 +82,7 @@ def slot_label(entry: dict) -> str:
     """Build the fixed-width 6-slot label for one selector entry."""
     return ":".join(
         [
-            _abbrev3(entry.get("category", "")),
+            _abbrev3(entry.get("perspective", "")),
             _fit(entry.get("concept_anchor", ""), W_CONCEPT),
             _fit(entry.get("perspective", ""), W_PERSPECTIVE),
             _abbrev3(entry.get("logic_type", "")),
@@ -93,7 +95,7 @@ def slot_label(entry: dict) -> str:
 def slot_legend() -> str:
     """One-line legend describing the 6 slots, for display above the selector."""
     return (
-        "`CAT : CONCEPT : PERSPECTIVE : LOGIC : TABLES+N : TIME`  —  "
+        "`PER : CONCEPT : PERSPECTIVE : LOGIC : TABLES+N : TIME`  —  "
         f"time slot: `{TIME_PHASED_MARK}` time-phased · `{POINT_IN_TIME_MARK}` "
         f"point-in-time · `{UNKNOWN_MARK}` not yet extracted"
     )
@@ -151,9 +153,7 @@ def load_selector_entries(
             }
         )
 
-    entries.sort(
-        key=lambda e: (e["category"], e["perspective"], e["concept_anchor"])
-    )
+    entries.sort(key=lambda e: (e["perspective"], e["concept_anchor"]))
     return entries
 
 

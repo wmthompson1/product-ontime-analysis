@@ -63,10 +63,16 @@ def test_seeded_mrp_views_have_known_time_phase():
     assert len(seeded) >= 7, "the 7 seeded MRP views should resolve time_phased"
 
 
-def test_entries_sorted_by_category_then_perspective():
+def test_entries_sorted_by_perspective_then_concept():
     entries = load_selector_entries(MANIFEST, DB_PATH)
-    keys = [(e["category"], e["perspective"], e["concept_anchor"]) for e in entries]
+    keys = [(e["perspective"], e["concept_anchor"]) for e in entries]
     assert keys == sorted(keys)
+
+
+def test_slot0_is_perspective_abbrev():
+    entries = load_selector_entries(MANIFEST, DB_PATH)
+    for e in entries:
+        assert slot_label(e).split(":")[0] == _abbrev3(e["perspective"])
 
 
 if __name__ == "__main__":
