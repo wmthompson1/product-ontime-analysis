@@ -6098,6 +6098,173 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[svo_summary, svo_joins, svo_detail, svo_sql],
             )
 
+        with gr.Tab("🦉 Ontop Ontology"):
+            gr.Markdown("""
+            ### Ontop Virtual Knowledge Graph — What the Solder Sees
+
+            The Ontop POC republishes the governed SQL layer as a **virtual
+            OWL/SPARQL graph**. Each OBDA mapping pairs a **target** (the RDF
+            triples it mints) with a **source** — a governed SQL query. That
+            source SQL is exactly *what the solder sees*: the same tables,
+            joins and predicates, viewed through standards-based vocabulary.
+
+            This tab mirrors the View Ontology tab: pick a mapping, and its
+            source SQL is run through the same **pure-AST SQLGlot extraction**
+            — no database is touched, and nothing here is wired into the
+            running app.
+            """)
+
+            try:
+                from ontop_ontology_selector import (
+                    load_ontop_entries,
+                    selector_choices as _oo_choices_fn,
+                    slot_legend as _oo_legend_fn,
+                )
+                _oo_entries = load_ontop_entries()
+                _oo_choices = _oo_choices_fn(_oo_entries)
+                _oo_legend = _oo_legend_fn()
+            except Exception as _oo_err:
+                _oo_entries, _oo_choices = [], []
+                _oo_legend = f"Selector unavailable: {_oo_err}"
+
+            _oo_by_key = {e["entry_key"]: e for e in _oo_entries}
+            _oo_modules = sorted({e["module"] for e in _oo_entries})
+
+            gr.Markdown(
+                f"**Master selector — all {len(_oo_entries)} OBDA mappings "
+                f"across {len(_oo_modules)} showcase ontologies.** Same "
+                f"fixed-width 6-slot scheme as the View Ontology tab:\n\n"
+                f"{_oo_legend}"
+            )
+
+            with gr.Row():
+                oo_picker = gr.Dropdown(
+                    choices=_oo_choices,
+                    label="OBDA mapping (6-slot summary)",
+                    value=_oo_choices[0][1] if _oo_choices else None,
+                    interactive=True,
+                    scale=3,
+                    elem_classes=["gt-slot-select"],
+                )
+                oo_btn = gr.Button("Show Mapping", variant="primary", scale=1)
+
+            oo_summary = gr.Markdown()
+            oo_joins = gr.Dataframe(
+                headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
+                interactive=False,
+                label="Join relationships (source SQL)",
+                wrap=False,
+            )
+            oo_detail = gr.Markdown()
+            with gr.Accordion("Target triples + source SQL (what the solder sees)", open=False):
+                oo_target = gr.Code(language=None, interactive=False, label="Target (RDF triple template)")
+                oo_sql = gr.Code(language="sql", interactive=False, label="Source (governed SQL)")
+
+            def render_ontop_ontology(entry_key):
+                from view_ontology_extractor import extract_view_ontology
+
+                if not entry_key:
+                    return "Select an OBDA mapping above.", [], "", "", ""
+
+                entry = _oo_by_key.get(entry_key)
+                if entry is None:
+                    return f"No mapping found for `{entry_key}`.", [], "", "", ""
+
+                target = entry["target"]
+                source_sql = entry["source_sql"]
+
+                # Ontology header + minted-class annotation
+                terms = entry.get("terms") or {}
+                cls = entry["subject_class"].strip("()")
+                cls_info = terms.get(cls) or {}
+                cls_line = ""
+                if entry["subject_class"] and not entry["subject_class"].startswith("("):
+                    cls_line = (
+                        f"**Mints class** `:{cls}`"
+                        + (f" — *{cls_info.get('label', '')}*" if cls_info.get("label") else "")
+                        + (f"\n\n> {cls_info['comment']}" if cls_info.get("comment") else "")
+                        + "\n\n"
+                    )
+                elif entry["subject_class"]:
+                    cls_line = (
+                        f"**Fact-only mapping** — attaches properties to existing "
+                        f"`:{cls}/…` individuals (no class mint).\n\n"
+                    )
+
+                summary = (
+                    f"**{entry['mapping_id']}**  —  `{entry['module']}`\n\n"
+                    f"**Showcase:** {entry['ontology_label'] or entry['module_title']}\n\n"
+                    + (f"_{entry['ontology_comment']}_\n\n" if entry["ontology_comment"] else "")
+                    + cls_line
+                )
+
+                # Pure-AST extraction of the source SQL — what the solder sees
+                joins_table = []
+                detail_lines = []
+                try:
+                    vo = extract_view_ontology(
+                        source_sql, entry_key, entry["mapping_id"].upper(), "obda"
+                    )
+                    joins_table = [
+                        [
+                            j["left_table"], j["join_type"], j["right_table"],
+                            j.get("left_key") or "", j.get("right_key") or "",
+                        ]
+                        for j in vo.joins
+                    ]
+                    summary += (
+                        f"**Physical tables** ({len(vo.physical_tables)}):"
+                        f"  `{'` · `'.join(vo.physical_tables)}`"
+                    )
+                    if vo.state_predicates:
+                        detail_lines.append("#### Set-membership predicates (WHERE)")
+                        for p in vo.state_predicates:
+                            detail_lines.append(f"```sql\n{p}\n```")
+                    if vo.selected_columns:
+                        detail_lines.append(
+                            f"#### Published columns ({len(vo.selected_columns)})\n"
+                            + "  ".join(f"`{c}`" for c in vo.selected_columns)
+                        )
+                except Exception as exc:
+                    detail_lines.append(f"_Source-SQL extraction failed: {exc}_")
+
+                # Minted vocabulary with ontology annotations
+                minted = entry["datatype_terms"] + entry["object_terms"]
+                if minted:
+                    detail_lines.append("#### Minted vocabulary (from the ontology)")
+                    rows = []
+                    for t in minted:
+                        info = terms.get(t) or {}
+                        kind = "🔗 link" if t in entry["object_terms"] else "· fact"
+                        label = info.get("label", "")
+                        comment = info.get("comment", "")
+                        rows.append(
+                            f"- {kind} `:{t}`"
+                            + (f" — *{label}*" if label else "")
+                            + (f"<br/>&nbsp;&nbsp;{comment}" if comment else "")
+                        )
+                    detail_lines.append("\n".join(rows))
+
+                detail_lines.append(
+                    "\n---\n_Source SQL analyzed by SQLGlot (pure AST) · read-only "
+                    "POC · parity proven against the governed SQL on a WAL snapshot_"
+                )
+                detail = "\n\n".join(detail_lines)
+
+                pretty_target = target.replace(" ; ", " ;\n    ").replace(" .", " .")
+                return summary, joins_table, detail, pretty_target, source_sql
+
+            oo_btn.click(
+                fn=render_ontop_ontology,
+                inputs=[oo_picker],
+                outputs=[oo_summary, oo_joins, oo_detail, oo_target, oo_sql],
+            )
+            oo_picker.change(
+                fn=render_ontop_ontology,
+                inputs=[oo_picker],
+                outputs=[oo_summary, oo_joins, oo_detail, oo_target, oo_sql],
+            )
+
         with gr.Tab("🗳️ Term Review"):
             import sys as _tr_sys, pathlib as _tr_pl
             _tr_repo_scripts = str(_tr_pl.Path(__file__).parent.parent / "scripts")
