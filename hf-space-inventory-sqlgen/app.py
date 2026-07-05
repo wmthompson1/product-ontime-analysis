@@ -5832,7 +5832,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
             else:
                 _mrp_hdr = (
                     "_MRP data foundation not found — run "
-                    "`migrations/backfill_mrp_demand_supply.py` first._"
+                    "`python scripts/bootstrap_db.py` (one-command rebuild), "
+                    "then restart the app._"
                 )
             gr.Markdown(_mrp_hdr)
 
