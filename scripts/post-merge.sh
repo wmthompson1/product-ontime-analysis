@@ -150,6 +150,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_mrp_schedule.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_demand_linkage.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_demand_linkage.py || {
+    echo "post-merge: demand linkage + forecast tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_structural_fingerprint.py ]; then
   python hf-space-inventory-sqlgen/tests/test_structural_fingerprint.py || {
     echo "post-merge: structural fingerprint tests failed"

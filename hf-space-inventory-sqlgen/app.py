@@ -482,6 +482,12 @@ def init_sqlite_db():
                     # Display-only; set by migrations/backfill_mrp_demand_supply.py.
                     "service_date": "service_date DATE",
                     "vendor_id": "vendor_id TEXT",
+                    # Demand-source linkage (Task #244): nullable declared FK to
+                    # customer_order_line.order_line_id; values set by
+                    # migrations/add_demand_linkage_and_forecast.py.
+                    "demand_order_line_id":
+                        "demand_order_line_id INTEGER "
+                        "REFERENCES customer_order_line (order_line_id)",
                 },
             )
             # `part` gained a native item-master planner column (the owning
@@ -498,6 +504,10 @@ def init_sqlite_db():
                     # in-house MAKE parts are not bought by anyone. Values are
                     # backfilled by migrations/add_employees_and_buyers.py.
                     "buyer_code": "buyer_code TEXT",
+                    # SME rule (Task #244): safety stock is exactly 1 for
+                    # planning parts. ADD COLUMN with DEFAULT fills existing
+                    # rows with 1 on older databases.
+                    "safety_stock": "safety_stock REAL DEFAULT 1",
                 },
             )
             conn.commit()
@@ -5809,10 +5819,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
             ### MRP Demand-Supply Schedule Grid
 
             A classic **time-phased MRP grid** for a selected part: open customer-order
-            demand is netted against on-hand inventory and existing work-order /
-            purchase-order scheduled receipts across a rolling **6-month horizon**, and
-            lot-for-lot **planned orders** fill the gaps. Planned order *releases* are the
-            planned *receipts* pulled earlier by the part's lead time.
+            demand **plus forecast demand** (customer orders consume the forecast per
+            bucket, so nothing is double-counted) is netted against on-hand inventory and
+            existing work-order / purchase-order scheduled receipts across a rolling
+            **9-month horizon**, and lot-for-lot **planned orders** fill the gaps while
+            keeping the projected balance at or above **safety stock (1)**. Planned order
+            *releases* are the planned *receipts* pulled earlier by the part's lead time.
 
             Everything is **deterministic** and computed **read-only** against SQLite. The
             horizon is anchored to a **data-derived as-of date** (the latest work-order
@@ -5889,7 +5901,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 detail = (
                     f"**Part:** `{grid['part_id']}`  ·  class **{grid['part_class']}**  ·  "
                     f"lead time **{grid['lead_time_days']} days**  ·  "
-                    f"on-hand **{grid['on_hand_qty']}**\n\n"
+                    f"on-hand **{grid['on_hand_qty']}**  ·  "
+                    f"safety stock **{grid['safety_stock']:g}**  ·  "
+                    f"in-horizon demand: CO **{grid['co_demand_qty']:g}** / "
+                    f"forecast **{grid['forecast_qty']:g}**\n\n"
                     f"**As-of (data-derived):** {grid['as_of'].strftime('%Y-%m-%d')}  ·  "
                     f"**Horizon:** {grid['columns'][1]} … {grid['columns'][-1]}\n\n"
                     "*Planned Order Releases = Planned Order Receipts pulled earlier by the "

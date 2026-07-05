@@ -7,9 +7,9 @@ and (in later cycles) suggests lead-time-offset planned orders.
 Design invariants (shared by the migration and the Gradio tab):
   * **Data-derived AS_OF, never wall-clock.** The anchor is MAX(work_order.close_date)
     with a stable fallback, mirroring the operation-schedule backfill convention.
-  * **PLAN_START = first day of the AS_OF month.** Buckets are that month plus the
-    following five (six monthly buckets, "M0..M5"). Anything before PLAN_START is
-    "Past Due".
+  * **PLAN_START = first day of the AS_OF month.** Buckets are that month plus
+    the following HORIZON_MONTHS-1 (monthly buckets "M0..M{N-1}"; 9 months since
+    the Task-244 horizon extension). Anything before PLAN_START is "Past Due".
   * **Deterministic.** No wall-clock, no per-run randomness.
   * **Fail closed.** Missing planning inputs raise a clear error instead of
     silently defaulting to zero.
@@ -30,7 +30,12 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "app_schema", "manufacturing.d
 
 ISO = "%Y-%m-%d"
 FALLBACK_AS_OF = date(2026, 6, 12)
-HORIZON_MONTHS = 6
+HORIZON_MONTHS = 9
+
+# SME data-design rule: safety stock is exactly 1 for planning parts (not 0,
+# not a computed buffer). part.safety_stock (seeded 1) is honored when present;
+# an absent column (older fixture DB) falls back to this constant.
+SAFETY_STOCK = 1
 
 # Demand / supply status vocabularies (see replit.md "ERP planner vocabulary").
 OPEN_CO_STATUS = "Open"
@@ -77,6 +82,13 @@ def connect(db_path: str = None) -> sqlite3.Connection:
 def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
     rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
     return any(r[1] == column for r in rows)
+
+
+def _has_table(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone()
+    return bool(row)
 
 
 def _require_columns(conn: sqlite3.Connection, table: str, columns) -> None:
@@ -184,9 +196,40 @@ def has_scheduled_receipt_in_horizon(conn, part_id, buckets) -> bool:
     return bool(po)
 
 
+def forecast_qty_in_horizon(conn, buckets):
+    """Total in-horizon forecast quantity per part: ``{part_id: qty}``.
+
+    The ``forecast`` table is an ADDITIVE demand source owned by
+    migrations/add_demand_linkage_and_forecast.py. On an older database where
+    the table does not exist yet there simply are no forecast rows, so this
+    returns ``{}`` (that is data absence, not a broken planning input — the
+    fail-closed guards protect dated customer-order demand, which predates it).
+    """
+    if not _has_table(conn, "forecast"):
+        return {}
+    hs, he = horizon_bounds(buckets)
+    rows = conn.execute(
+        """
+        SELECT part_id, SUM(forecast_qty)
+        FROM forecast
+        WHERE forecast_date IS NOT NULL
+          AND date(forecast_date) >= ? AND date(forecast_date) < ?
+          AND forecast_qty > 0
+        GROUP BY part_id
+        """,
+        (hs.isoformat(), he.isoformat()),
+    ).fetchall()
+    return {r[0]: r[1] for r in rows}
+
+
 def demand_parts_in_horizon(conn, buckets):
-    """Parts (with lead time + on-hand) that have open customer-order demand whose
-    need_by_date lands inside the horizon. Returns list of dict rows."""
+    """Parts (with lead time + on-hand) that have open customer-order demand
+    and/or forecast demand inside the horizon. Returns list of dict rows.
+
+    ``demand_qty`` is the combined display quantity (customer-order + forecast);
+    the netting grid applies the per-bucket consumption rule, so this total is
+    an upper bound on gross requirements, never an understatement.
+    """
     _require_columns(conn, "customer_order_line", ["need_by_date"])
     hs, he = horizon_bounds(buckets)
     rows = conn.execute(
@@ -204,12 +247,11 @@ def demand_parts_in_horizon(conn, buckets):
           AND l.need_by_date IS NOT NULL
           AND date(l.need_by_date) >= ? AND date(l.need_by_date) < ?
         GROUP BY l.part_id
-        ORDER BY p.part_class, l.part_id
         """,
         (OPEN_CO_STATUS, hs.isoformat(), he.isoformat()),
     ).fetchall()
-    return [
-        {
+    out = {
+        r[0]: {
             "part_id": r[0],
             "part_class": r[1],
             "lead_time_days": r[2],
@@ -218,7 +260,29 @@ def demand_parts_in_horizon(conn, buckets):
             "demand_qty": r[5],
         }
         for r in rows
-    ]
+    }
+
+    forecast = forecast_qty_in_horizon(conn, buckets)
+    for part_id, fqty in forecast.items():
+        if part_id in out:
+            out[part_id]["demand_qty"] = (out[part_id]["demand_qty"] or 0) + fqty
+            continue
+        p = conn.execute(
+            "SELECT part_class, lead_time_days, on_hand_qty FROM part WHERE part_id=?",
+            (part_id,),
+        ).fetchone()
+        if p is None:
+            continue  # orphan forecast row; validation surfaces real gaps
+        out[part_id] = {
+            "part_id": part_id,
+            "part_class": p[0],
+            "lead_time_days": p[1],
+            "on_hand_qty": p[2],
+            "demand_lines": 0,
+            "demand_qty": fqty,
+        }
+
+    return sorted(out.values(), key=lambda r: (r["part_class"] or "", r["part_id"]))
 
 
 # --------------------------------------------------------------------------- #
@@ -316,14 +380,34 @@ def _fetch_part(conn, part_id):
     ).fetchone()
 
 
+def _fetch_safety_stock(conn, part_id):
+    """The part's safety stock (SME rule: exactly 1 for planning parts).
+
+    part.safety_stock is honored when the column exists and holds a value;
+    otherwise the SAFETY_STOCK constant (1) applies — never 0, never computed.
+    """
+    if _has_column(conn, "part", "safety_stock"):
+        row = conn.execute(
+            "SELECT safety_stock FROM part WHERE part_id = ?", (part_id,)
+        ).fetchone()
+        if row is not None and row[0] is not None:
+            return row[0]
+    return SAFETY_STOCK
+
+
 def compute_mrp_grid(conn, part_id):
     """Compute the single-level, lot-for-lot MRP grid for one part.
 
-    Columns: 'Past Due' + six monthly buckets (M0..M5). Rows: the six standard MRP
-    lines (see ``MRP_ROWS``). Planned order receipts fill each period's net
-    requirement (lot-for-lot); planned order releases are the same quantities
-    offset earlier by the part's lead time (release = need − lead_time_days),
-    folding into 'Past Due' when the release date is already behind the plan start.
+    Columns: 'Past Due' + HORIZON_MONTHS monthly buckets (M0..M{N-1}). Rows: the
+    six standard MRP lines (see ``MRP_ROWS``). Gross requirements combine open
+    customer-order demand with forecast demand under a per-bucket consumption
+    rule (orders consume forecast — gross = co + max(0, forecast − co)), so a
+    demand covered by a linked order is never double-counted. Planned order
+    receipts fill each period's net requirement plus safety stock (lot-for-lot,
+    safety stock = 1 per SME rule); planned order releases are the same
+    quantities offset earlier by the part's lead time (release = need −
+    lead_time_days), folding into 'Past Due' when the release date is already
+    behind the plan start.
 
     Fail closed: unknown part, missing planning columns, or a non-positive lead
     time raise ``ValueError`` rather than planning against zero. Read-only.
@@ -347,6 +431,8 @@ def compute_mrp_grid(conn, part_id):
 
     gross = [0] * n
     sched = [0] * n
+    co_demand = [0] * n
+    forecast = [0] * n
 
     # Gross requirements — open customer-order demand by need_by_date.
     for need_by, qty in conn.execute(
@@ -360,7 +446,26 @@ def compute_mrp_grid(conn, part_id):
     ):
         idx = _period_index(_parse(need_by), ps, buckets)
         if idx is not None:
-            gross[idx] += qty or 0
+            co_demand[idx] += qty or 0
+
+    # Forecast demand by forecast_date (additive source; table owned by
+    # migrations/add_demand_linkage_and_forecast.py — absent table = no rows).
+    if _has_table(conn, "forecast"):
+        for fdate, qty in conn.execute(
+            "SELECT forecast_date, forecast_qty FROM forecast "
+            "WHERE part_id = ? AND forecast_date IS NOT NULL",
+            (part_id,),
+        ):
+            idx = _period_index(_parse(fdate), ps, buckets)
+            if idx is not None:
+                forecast[idx] += qty or 0
+
+    # Deterministic consumption rule (no double count): per bucket, customer
+    # orders CONSUME the forecast — gross = co + max(0, forecast - co), i.e.
+    # max(co, forecast). A bucket whose orders already cover the forecast adds
+    # nothing; only unconsumed forecast beyond the ordered quantity adds demand.
+    for i in range(n):
+        gross[i] = co_demand[i] + max(0, forecast[i] - co_demand[i])
 
     # Scheduled receipts — non-closed work orders due in period.
     for req, qty in conn.execute(
@@ -390,7 +495,10 @@ def compute_mrp_grid(conn, part_id):
         if idx is not None:
             sched[idx] += qty or 0
 
-    # Left-to-right netting (lot-for-lot planned receipts).
+    # Left-to-right netting (lot-for-lot planned receipts). Safety stock (SME
+    # rule: 1) is consumed by the netting: a bucket with demand plans enough to
+    # keep the projected available balance at/above safety stock, never below.
+    safety = _fetch_safety_stock(conn, part_id)
     pab = [0] * n
     net = [0] * n
     receipts = [0] * n
@@ -398,7 +506,7 @@ def compute_mrp_grid(conn, part_id):
     prev = on_hand
     for i in range(n):
         available = prev + sched[i]
-        shortfall = gross[i] - available
+        shortfall = (gross[i] + safety - available) if gross[i] > 0 else 0
         nr = shortfall if shortfall > 0 else 0
         net[i] = nr
         receipts[i] = nr  # lot-for-lot
@@ -433,6 +541,9 @@ def compute_mrp_grid(conn, part_id):
         "part_class": part_class,
         "lead_time_days": lead,
         "on_hand_qty": on_hand,
+        "safety_stock": safety,
+        "forecast_qty": sum(forecast),
+        "co_demand_qty": sum(co_demand),
         "as_of": as_of,
         "plan_start": ps,
         "columns": columns,

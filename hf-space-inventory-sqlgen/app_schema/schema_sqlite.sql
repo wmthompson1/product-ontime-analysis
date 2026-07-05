@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS part (
     material_spec    TEXT,                        -- e.g. AMS 4928 / 6061-T6 / 304 SS
     planner_code     TEXT DEFAULT 'ENGINEERING',  -- owning material planner (item-master native)
     buyer_code       TEXT,                        -- owning buyer (EMPLOYEE.buyer_code); NULL = in-house part
+    safety_stock     REAL DEFAULT 1,              -- SME rule: exactly 1 for planning parts (never 0, never computed)
     active           INTEGER DEFAULT 1,
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -249,6 +250,10 @@ CREATE TABLE IF NOT EXISTS work_order (
     service_date     DATE,                       -- outside-service due date (display-only), set by migrations/backfill_mrp_demand_supply.py
     vendor_id        TEXT,                       -- outside-service vendor → suppliers (display-only), set by migrations/backfill_mrp_demand_supply.py
     site_id          TEXT DEFAULT 'SITE-1',
+    demand_order_line_id INTEGER REFERENCES customer_order_line (order_line_id),
+                                                 -- demand-source linkage (Release Order → MO); NULL = unlinked MO
+                                                 -- (ships from stock / forecast). Set by
+                                                 -- migrations/add_demand_linkage_and_forecast.py.
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -17,7 +17,9 @@ Steps (all idempotent — safe to re-run on an existing DB):
   5. Build the MRP demand/supply foundation.
   6. Prune to demo scale (15 CO / 15 WO / 15-20 PO band).
   7. Split receiving into header + line and broaden the commodity mix.
-  8. Verify the MRP tab has planning parts and can compute a grid —
+  8. Link work orders to their customer-order demand lines (>= 50%), set
+     safety stock (= 1), and seed the forecast demand source.
+  9. Verify the MRP tab has planning parts and can compute a grid —
      fail closed if not.
 
 Everything is plain SQLite — no ArangoDB, no API keys, no network needed.
@@ -62,6 +64,9 @@ STEPS = [
     # 100+ plannable parts for the MRP dropdown (runs LAST: after the prune so
     # the demo-scale trim never sees — or removes — the expansion rows)
     ("migrations/expand_mrp_part_universe.py", []),
+    # demand linkage (WO -> customer_order_line, >=50%), safety stock, forecast
+    # demand source (runs after the expansion so its WOs/CO lines participate)
+    ("migrations/add_demand_linkage_and_forecast.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)

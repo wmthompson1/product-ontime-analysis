@@ -4,7 +4,12 @@ These are pure, deterministic unit tests over a small in-memory-style fixture DB
 (temp file) seeded with controlled demand + supply. They lock in:
 
   * the netting math (gross / scheduled / projected-available / net / planned
-    receipts / planned releases) across Past Due + 6 monthly buckets,
+    receipts / planned releases) across Past Due + 9 monthly buckets,
+  * safety stock (SME rule: 1) consumed by the netting — planned receipts keep
+    the projected balance at/above safety stock in demand buckets,
+  * forecast demand feeding gross requirements with the per-bucket consumption
+    rule (orders consume forecast: gross = co + max(0, forecast − co)),
+  * planning across the extended buckets (M6..M8) added by Task #244,
   * the lead-time offset (a planned receipt in one bucket releases earlier),
   * the DATA-DERIVED as-of anchor (MAX(work_order.close_date)) — never wall clock,
   * bucket boundaries, and
@@ -39,19 +44,24 @@ EXPECTED_COLUMNS = [
     "Aug 2026",
     "Sep 2026",
     "Oct 2026",
+    "Nov 2026",
+    "Dec 2026",
+    "Jan 2027",
 ]
 
-# Hand-computed grid for part P1 (lead 30d, on-hand 10):
+# Hand-computed grid for part P1 (lead 30d, on-hand 10, safety stock 1):
 #   demand:  3 @ 2026-04-01 (Past Due), 5 @ 2026-05-15 (M0), 20 @ 2026-06-15 (M1)
 #   supply:  PO 4 @ 2026-05-20 (M0), WO 8 @ 2026-06-10 (M1)
+# Netting: nr = max(0, gross + SS − available) in demand buckets, so Jun plans
+# 20 + 1 − (6 + 8) = 7, leaving PAB at exactly the safety stock (1).
 EXPECTED = {
-    "Gross Requirements":            [3, 5, 20, 0, 0, 0, 0],
-    "Scheduled Receipts":            [0, 4, 8, 0, 0, 0, 0],
-    "Projected Available Balance":   [7, 6, 0, 0, 0, 0, 0],
-    "Net Requirements":              [0, 0, 6, 0, 0, 0, 0],
-    "Planned Order Receipts":        [0, 0, 6, 0, 0, 0, 0],
+    "Gross Requirements":            [3, 5, 20, 0, 0, 0, 0, 0, 0, 0],
+    "Scheduled Receipts":            [0, 4, 8, 0, 0, 0, 0, 0, 0, 0],
+    "Projected Available Balance":   [7, 6, 1, 1, 1, 1, 1, 1, 1, 1],
+    "Net Requirements":              [0, 0, 7, 0, 0, 0, 0, 0, 0, 0],
+    "Planned Order Receipts":        [0, 0, 7, 0, 0, 0, 0, 0, 0, 0],
     # release of the Jun (M1) receipt is pulled 30 days earlier into May (M0)
-    "Planned Order Releases":        [0, 6, 0, 0, 0, 0, 0],
+    "Planned Order Releases":        [0, 7, 0, 0, 0, 0, 0, 0, 0, 0],
 }
 
 
@@ -181,13 +191,15 @@ def test_data_derived_anchor_not_wall_clock():
 
 def test_bucket_boundaries():
     buckets = mrp.month_buckets(date(2026, 5, 31))
-    assert len(buckets) == 6, f"expected 6 buckets, got {len(buckets)}"
+    assert len(buckets) == 9, f"expected 9 buckets, got {len(buckets)}"
     assert [b[0] for b in buckets] == EXPECTED_COLUMNS[1:]
     # membership is [start, end)
     assert mrp.bucket_index_for(date(2026, 5, 1), buckets) == 0
     assert mrp.bucket_index_for(date(2026, 6, 1), buckets) == 1
+    assert mrp.bucket_index_for(date(2026, 11, 1), buckets) == 6  # extended bucket
+    assert mrp.bucket_index_for(date(2027, 1, 31), buckets) == 8  # last bucket
     assert mrp.bucket_index_for(date(2026, 4, 30), buckets) is None  # before horizon
-    assert mrp.bucket_index_for(date(2026, 11, 1), buckets) is None  # after horizon
+    assert mrp.bucket_index_for(date(2027, 2, 1), buckets) is None  # after horizon
 
 
 def test_grid_netting_math():
@@ -215,11 +227,11 @@ def test_lead_time_offset_pulls_release_earlier():
         receipts = rows["Planned Order Receipts"]
         releases = rows["Planned Order Releases"]
         # The single planned receipt lands in Jun (index 2)...
-        assert receipts.index(6) == 2
+        assert receipts.index(7) == 2
         # ...but its release is pulled 30 days earlier into May (index 1).
-        assert releases.index(6) == 1
+        assert releases.index(7) == 1
         # releases conserve the total receipts
-        assert sum(releases) == sum(receipts) == 6
+        assert sum(releases) == sum(receipts) == 7
     finally:
         _cleanup(conn)
 
@@ -314,12 +326,150 @@ def test_fractional_qty_and_release_folds_into_past_due():
 
         grid = mrp.compute_mrp_grid(conn, "FX")
         rows = dict(grid["rows"])
-        assert rows["Gross Requirements"] == [0, 10.5, 0, 0, 0, 0, 0]
-        assert rows["Net Requirements"] == [0, 5.0, 0, 0, 0, 0, 0]
-        assert rows["Projected Available Balance"] == [5.5, 0.0, 0, 0, 0, 0, 0]
+        # SS = 1: nr = 10.5 + 1 − 5.5 = 6.0, leaving PAB at safety stock.
+        assert rows["Gross Requirements"] == [0, 10.5, 0, 0, 0, 0, 0, 0, 0, 0]
+        assert rows["Net Requirements"] == [0, 6.0, 0, 0, 0, 0, 0, 0, 0, 0]
+        assert rows["Projected Available Balance"] == [5.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         # 45-day lead pulls the May (M0) receipt's release before PLAN_START → Past Due
-        assert rows["Planned Order Releases"] == [5.0, 0, 0, 0, 0, 0, 0]
-        assert sum(rows["Planned Order Releases"]) == sum(rows["Planned Order Receipts"]) == 5.0
+        assert rows["Planned Order Releases"] == [6.0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        assert sum(rows["Planned Order Releases"]) == sum(rows["Planned Order Receipts"]) == 6.0
+    finally:
+        _cleanup(conn)
+
+
+def _forecast_fixture() -> sqlite3.Connection:
+    """Fixture with a forecast table: part PF (lead 30, on-hand 1 — the
+    minimal supply basis the fail-closed validation requires).
+
+    CO demand: 5 @ M0 (2026-05-15), 2 @ M2 (2026-07-10).
+    Forecast:  3 @ M0 (fully consumed by the 5 ordered),
+               4 @ M1 (no orders — pure forecast demand),
+               6 @ M2 (orders cover 2, unconsumed remainder adds 4).
+    """
+    conn = _fixture()
+    conn.executescript(
+        """
+        CREATE TABLE forecast (
+            forecast_id TEXT PRIMARY KEY, part_id TEXT NOT NULL,
+            site_id TEXT NOT NULL DEFAULT 'SITE-1',
+            forecast_date DATE NOT NULL, forecast_qty REAL NOT NULL
+        );
+        INSERT INTO part (part_id, part_class, lead_time_days, on_hand_qty)
+            VALUES ('PF', 'MAKE', 30, 1);
+        INSERT INTO customer_order_line
+            (order_line_id, order_id, part_id, order_qty, need_by_date, desired_release_date)
+            VALUES (10, 'CO1', 'PF', 5, '2026-05-15', NULL),
+                   (11, 'CO1', 'PF', 2, '2026-07-10', NULL);
+        INSERT INTO forecast (forecast_id, part_id, forecast_date, forecast_qty)
+            VALUES ('FC-PF-202605', 'PF', '2026-05-20', 3),
+                   ('FC-PF-202606', 'PF', '2026-06-10', 4),
+                   ('FC-PF-202607', 'PF', '2026-07-15', 6);
+        """
+    )
+    conn.commit()
+    return conn
+
+
+def test_forecast_consumed_by_orders_no_double_count():
+    conn = _forecast_fixture()
+    try:
+        grid = mrp.compute_mrp_grid(conn, "PF")
+        rows = dict(grid["rows"])
+        # gross = co + max(0, forecast − co) per bucket:
+        #   M0: co 5, fc 3 → 5 (forecast fully consumed, NOT 8)
+        #   M1: co 0, fc 4 → 4 (pure forecast)
+        #   M2: co 2, fc 6 → 6 (max, NOT 8)
+        assert rows["Gross Requirements"] == [0, 5, 4, 6, 0, 0, 0, 0, 0, 0], (
+            rows["Gross Requirements"]
+        )
+        assert grid["forecast_qty"] == 13
+        assert grid["co_demand_qty"] == 7
+        # planning parts view combines both sources for PF
+        parts = {p["part_id"]: p for p in mrp.list_planning_parts(conn)}
+        assert "PF" in parts and "P1" in parts
+        assert parts["PF"]["demand_qty"] == 7 + 13  # display total (upper bound)
+    finally:
+        _cleanup(conn)
+
+
+def test_forecast_only_part_is_plannable():
+    conn = _forecast_fixture()
+    try:
+        conn.executescript(
+            """
+            INSERT INTO part (part_id, part_class, lead_time_days, on_hand_qty)
+                VALUES ('PO-ONLY', 'BUY', 15, 2);
+            INSERT INTO forecast (forecast_id, part_id, forecast_date, forecast_qty)
+                VALUES ('FC-PO-ONLY-202606', 'PO-ONLY', '2026-06-20', 5);
+            """
+        )
+        conn.commit()
+        parts = {p["part_id"]: p for p in mrp.list_planning_parts(conn)}
+        assert "PO-ONLY" in parts, "forecast-only demand must surface the part"
+        assert parts["PO-ONLY"]["demand_lines"] == 0
+        assert parts["PO-ONLY"]["demand_qty"] == 5
+        summary = mrp.validate_planning_inputs(conn)
+        assert summary["demand_parts"] == len(parts)
+    finally:
+        _cleanup(conn)
+
+
+def test_extended_bucket_planned_orders():
+    """Demand landing in the extended buckets (M6..M8) is planned, and its
+    release is pulled earlier by the lead time — proving the 9-month horizon
+    is a live planning surface, not display-only."""
+    conn = _forecast_fixture()
+    try:
+        conn.executescript(
+            """
+            INSERT INTO part (part_id, part_class, lead_time_days, on_hand_qty)
+                VALUES ('PE', 'MAKE', 30, 0);
+            INSERT INTO forecast (forecast_id, part_id, forecast_date, forecast_qty)
+                VALUES ('FC-PE-202612', 'PE', '2026-12-15', 5);
+            """
+        )
+        conn.commit()
+        grid = mrp.compute_mrp_grid(conn, "PE")
+        rows = dict(grid["rows"])
+        # Dec 2026 = bucket M7 = grid index 8; SS 1 → plan 6.
+        assert rows["Gross Requirements"][8] == 5
+        assert rows["Planned Order Receipts"][8] == 6
+        # 30-day lead pulls the release into Nov 2026 (index 7).
+        assert rows["Planned Order Releases"][7] == 6
+    finally:
+        _cleanup(conn)
+
+
+def test_safety_stock_column_honored():
+    """A part.safety_stock value overrides the fallback constant (which itself
+    covers fixtures without the column — every other test in this file)."""
+    conn = _blank_conn()
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE part (part_id TEXT PRIMARY KEY, part_class TEXT,
+                lead_time_days INTEGER, on_hand_qty REAL, safety_stock REAL);
+            CREATE TABLE customer_order (order_id TEXT PRIMARY KEY, status TEXT);
+            CREATE TABLE customer_order_line (order_line_id INTEGER PRIMARY KEY,
+                order_id TEXT, part_id TEXT, order_qty REAL, need_by_date TEXT,
+                desired_release_date TEXT);
+            CREATE TABLE work_order (wo_id TEXT PRIMARY KEY, part_id TEXT, status TEXT,
+                required_date TEXT, close_date TEXT, quantity REAL);
+            CREATE TABLE purchase_order (po_id TEXT PRIMARY KEY, status TEXT, required_date TEXT);
+            CREATE TABLE po_line (line_id INTEGER PRIMARY KEY, po_id TEXT, part_id TEXT, quantity REAL);
+            INSERT INTO part VALUES ('SSX', 'BUY', 10, 4, 2);
+            INSERT INTO work_order VALUES ('WO-CLOSED', 'PX', 'closed', NULL, '2026-05-31', 1);
+            INSERT INTO customer_order VALUES ('CO1', 'Open');
+            INSERT INTO customer_order_line VALUES (1, 'CO1', 'SSX', 10, '2026-06-15', NULL);
+            """
+        )
+        conn.commit()
+        grid = mrp.compute_mrp_grid(conn, "SSX")
+        assert grid["safety_stock"] == 2
+        rows = dict(grid["rows"])
+        # nr = 10 + SS(2) − 4 = 8; PAB rests at the part's own safety stock.
+        assert rows["Net Requirements"][2] == 8
+        assert rows["Projected Available Balance"][2] == 2
     finally:
         _cleanup(conn)
 
