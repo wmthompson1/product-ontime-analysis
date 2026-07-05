@@ -59,7 +59,14 @@ STEPS = [
     # demo scale + receiving line split / commodity mix
     ("migrations/prune_erp_to_demo_scale.py", []),
     ("migrations/add_receiving_line_and_commodities.py", []),
+    # 100+ plannable parts for the MRP dropdown (runs LAST: after the prune so
+    # the demo-scale trim never sees — or removes — the expansion rows)
+    ("migrations/expand_mrp_part_universe.py", []),
 ]
+
+# The MRP Schedule dropdown (open in-horizon demand parts) must list at least
+# this many parts after a full bootstrap (expand_mrp_part_universe.py).
+MIN_MRP_PLANNING_PARTS = 100
 
 
 def init_schema_if_missing():
@@ -111,6 +118,12 @@ def verify_mrp():
             raise SystemExit(
                 "[bootstrap] FAIL-CLOSED: MRP has no planning parts "
                 "(no open demand in the horizon)."
+            )
+        if len(parts) < MIN_MRP_PLANNING_PARTS:
+            raise SystemExit(
+                f"[bootstrap] FAIL-CLOSED: MRP dropdown must list at least "
+                f"{MIN_MRP_PLANNING_PARTS} planning parts, got {len(parts)} "
+                "(expand_mrp_part_universe.py did not take effect)."
             )
         p0 = parts[0]
         if isinstance(p0, dict):
