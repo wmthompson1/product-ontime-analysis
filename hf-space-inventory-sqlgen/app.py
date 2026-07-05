@@ -5130,56 +5130,103 @@ Check that perspective-concept and intent-concept relationships are seeded.
         with gr.Tab("📝 SME SQL Entry"):
             gr.Markdown("""
             ### SME Semantic SQL Submission
-            
-            Submit ground-truth SQL queries with semantic metadata for review. Each submission generates:
-            - A **deterministic filename** binding SQL to its semantic context
-            - A **Reviewer Manifest** entry for approval workflow
-            
-            ```
-            Flow: SME Submit → Binding Key → Manifest → Approver Review → ArangoDB Solder
-            ```
+
+            Pick the semantic context, write the SQL, submit for review.
+            Each submission gets a **deterministic filename** and a
+            **Reviewer Manifest** entry
+            (SME Submit → Binding Key → Manifest → Approver Review → Solder).
             """)
-            
+
+            # Same cascade source as the Ontology Mosaic: real manifest
+            # categories and approved concept anchors drive the selector.
+            try:
+                from ground_truth_selector import (
+                    SelectorCascade as _SmeCascade,
+                    load_selector_entries as _sme_load_entries,
+                )
+                _sme_cascade = _SmeCascade(
+                    _sme_load_entries(MANIFEST_PATH, SQLITE_DB_PATH)
+                )
+                _sme_cat_choices = _sme_cascade.filter_choices("category")
+            except Exception:
+                _sme_cascade = None
+                _sme_cat_choices = []
+            if not _sme_cat_choices:
+                _sme_cat_choices = [
+                    ("Inventory Management", "inventory_management"),
+                    ("Quality Control", "quality_control"),
+                    ("Delivery Performance", "delivery_performance"),
+                    ("Production Analytics", "production_analytics"),
+                    ("Supplier Performance", "supplier_performance"),
+                ]
+            _sme_cat0 = _sme_cat_choices[0][1]
+
+            def _sme_concept_choices(cat):
+                if _sme_cascade is None:
+                    return []
+                return _sme_cascade.anchor_choices({"category": cat})
+
+            gr.Markdown("#### 1. Semantic Context")
             with gr.Row():
-                with gr.Column():
-                    gr.Markdown("#### 1. Semantic Context")
-                    sme_perspective = gr.Dropdown(
-                        choices=get_perspectives_list(),
-                        label="Perspective",
-                        info="The organizational lens for this SQL",
-                        interactive=True
+                sme_category = gr.Dropdown(
+                    choices=_sme_cat_choices,
+                    label="Category",
+                    value=_sme_cat0,
+                    interactive=True,
+                    scale=1,
+                )
+                sme_perspective = gr.Dropdown(
+                    choices=get_perspectives_list(),
+                    label="Perspective",
+                    info="Organizational lens for this SQL",
+                    interactive=True,
+                    scale=1,
+                )
+                sme_concept = gr.Dropdown(
+                    choices=_sme_concept_choices(_sme_cat0),
+                    label="Concept",
+                    info="Pick an existing anchor or type a new one",
+                    value=None,
+                    allow_custom_value=True,
+                    interactive=True,
+                    scale=2,
+                )
+
+            def _sme_on_category(cat):
+                return gr.update(
+                    choices=_sme_concept_choices(cat), value=None
+                )
+
+            sme_category.change(
+                fn=_sme_on_category,
+                inputs=[sme_category],
+                outputs=[sme_concept],
+            )
+
+            gr.Markdown("#### 2. SQL Statement")
+            sme_sql = gr.Code(
+                label="SQL Statement",
+                language="sql",
+                lines=16,
+                value="-- Enter your SQL here\nSELECT ",
+            )
+
+            with gr.Row():
+                sme_justification = gr.Textbox(
+                    label="SME Justification / Notes",
+                    placeholder="Why does this SQL represent the concept from this perspective?",
+                    lines=2,
+                    scale=4,
+                )
+                with gr.Column(scale=1, min_width=180):
+                    sme_submit_btn = gr.Button(
+                        "Submit for Review", variant="primary", size="lg"
                     )
-                    sme_concept = gr.Textbox(
-                        label="Concept (e.g., LOT, NCM_COST, DELIVERY_RATE)",
-                        placeholder="Enter the concept this SQL defines"
-                    )
-                    sme_category = gr.Dropdown(
-                        choices=["Inventory", "Quality", "Delivery", "Financial", "Production"],
-                        label="Category",
-                        value="Inventory",
-                        interactive=True
-                    )
-                    
-                    gr.Markdown("#### 2. SQL Statement")
-                    sme_sql = gr.Code(
-                        label="SQL Statement",
-                        language="sql",
-                        lines=8,
-                        value="-- Enter your SQL here\nSELECT "
-                    )
-                    
-                    sme_justification = gr.Textbox(
-                        label="SME Justification / Notes",
-                        placeholder="Why does this SQL represent the concept from this perspective?",
-                        lines=3
-                    )
-                    
-                    sme_submit_btn = gr.Button("Submit for Review", variant="primary", size="lg")
-                    sme_status = gr.Textbox(label="Submission Status", interactive=False, value="")
-                
-                with gr.Column():
-                    gr.Markdown("#### Reviewer's Decision Table")
-                    
+            sme_status = gr.Textbox(
+                label="Submission Status", interactive=False, value=""
+            )
+
+            with gr.Accordion("Reviewer Console — decision table & approvals", open=False):
                     def _friendly_name(binding_key: str, concept: str, perspective: str) -> str:
                         """Convert binding key to human-readable name for reviewer."""
                         if concept and concept != "UNKNOWN":
@@ -5195,7 +5242,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     def load_reviewer_table() -> str:
                         bindings = resolve_sql_bindings()
                         if not bindings:
-                            return "No submissions yet. Use the form on the left to submit SQL."
+                            return "No submissions yet. Use the form above to submit SQL."
                         
                         output = "| Name | Perspective | Concept | Status |\n"
                         output += "|------|-------------|---------|--------|\n"
@@ -5261,7 +5308,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 if not concept or not concept.strip():
                     concept = _auto_concept_from_sql(cleaned_sql)
                 
-                result = save_sme_submission(cleaned_sql, category or "Inventory", perspective, concept.strip(), justification or "")
+                result = save_sme_submission(cleaned_sql, category or _sme_cat0, perspective, concept.strip(), justification or "")
                 keys = get_pending_binding_keys()
                 return result, load_reviewer_table(), gr.update(choices=keys, value=keys[0] if keys else None)
             
