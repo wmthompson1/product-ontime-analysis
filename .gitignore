@@ -44,7 +44,7 @@ mcp.json
 
 # notes unnumbered only
 000index.md
-#hf-space-inventory-sqlgen/app_schema/manufacturing.db
+hf-space-inventory-sqlgen/app_schema/manufacturing.db
 
 # SQLite transient runtime files
 *.db-shm
