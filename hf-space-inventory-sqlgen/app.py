@@ -494,6 +494,10 @@ def init_sqlite_db():
                 "part",
                 {
                     "planner_code": "planner_code TEXT DEFAULT 'ENGINEERING'",
+                    # Owning buyer (EMPLOYEE.buyer_code). Nullable, no default:
+                    # in-house MAKE parts are not bought by anyone. Values are
+                    # backfilled by migrations/add_employees_and_buyers.py.
+                    "buyer_code": "buyer_code TEXT",
                 },
             )
             conn.commit()

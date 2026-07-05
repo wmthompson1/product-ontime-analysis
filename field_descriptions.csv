@@ -230,3 +230,33 @@ work_order,status,Work Order Status,"Shop-floor lifecycle stage of the work orde
 work_order,vendor_id,Vendor ID,The outside-service vendor that performs work for this work order.,S-010
 work_order,wo_id,Wo ID,Unique identifier for each work order record.,WO-00051
 work_order,workorder_type,Workorder Type,"The workorder type of each work order; one of a small set of values such as: M, W.",M
+EMPLOYEE,employee_id,Employee ID,Unique identifier for each employee (e.g. EMP-001). Labor tickets reference this ID.,EMP-001
+EMPLOYEE,employee_name,Employee Name,The employee's full name.,James Smith
+EMPLOYEE,job_title,Job Title,"The employee's role on the floor or in the office — e.g. CNC Machinist, Welder, Assembly Technician, Quality Inspector, or Buyer.",CNC Machinist
+EMPLOYEE,department,Department,"The department the employee works in — Machining, Welding, Assembly, Quality, or Purchasing.",Machining
+EMPLOYEE,hourly_rate,Hourly Rate,"The employee's hourly labor cost in dollars; plant workers fall in the $40.00–$45.00 band.",42.25
+EMPLOYEE,buyer_code,Buyer Code,"The purchasing code (BUYER-1 through BUYER-10) for employees who are buyers; empty for everyone else. Parts and purchase orders reference this code.",BUYER-3
+EMPLOYEE,home_resource_id,Home Resource ID,The shop resource (machine or work center) this plant worker primarily mans; empty for office staff such as buyers.,CNC-MILL-1
+EMPLOYEE,hire_date,Hire Date,The date the employee was hired; always before their first labor ticket.,2018-06-11
+EMPLOYEE,active,Active Flag,Whether the employee is currently active (1) or inactive (0).,1
+EMPLOYEE,created_at,Created At,Timestamp when the employee record was created.,2026-07-05 00:00:00
+part,buyer_code,Buyer Code,"The buyer (EMPLOYEE.buyer_code) who owns purchasing for this part, derived from the supplier the part is most purchased from; empty for in-house parts nobody buys.",BUYER-5
+customer_order,completed_date,Completed Date,"The date the order was completed, projected from the order date plus the longest part lead time on the order; empty for orders that never completed (Open or Cancelled).",2026-01-01
+part_location,part_location_id,Part Location ID,Unique identifier for each part-location stock record.,1
+part_location,part_id,Part ID,The part held at this warehouse location.,P-10010
+part_location,warehouse_id,Warehouse ID,The warehouse holding this stock.,WH-1A
+part_location,location_id,Location ID,"The bin or area within the warehouse, e.g. STORES.",STORES
+part_location,description,Location Part Description,The description of the part held at this location.,Titanium Bulkhead Frame 6Al-4V
+part_location,qty,Quantity On Hand,The quantity of the part physically on hand at this location.,225.0
+part_location,committed_qty,Committed Quantity,The portion of on-hand quantity already committed (allocated) to demand.,0.0
+part_location,status,Location Status,"Status of the stock record; A means active.",A
+part_location,last_count_date,Last Count Date,The date this location's stock was last cycle-counted.,2025-11-12
+part_location,created_at,Created At,Timestamp when the part-location record was created.,2026-07-04 21:05:36
+warehouse,warehouse_id,Warehouse ID,Unique identifier for each warehouse (e.g. WH-1A).,WH-1A
+warehouse,description,Warehouse Description,"Plain-language description of the warehouse — its role, plant, and city.",Main Stores — Main Assembly Plant — Wichita KS
+warehouse,name,Warehouse Name,Short display name of the warehouse.,SITE-1 Main Stores
+warehouse,site_id,Site ID,The manufacturing site this warehouse belongs to.,SITE-1
+warehouse,region_id,Region ID,The geographic region of the warehouse.,US-Central
+warehouse,independent,Independent Flag,"Whether the warehouse plans independently (Y) or as part of its site (N).",Y
+warehouse,mrp_exempt,MRP Exempt Flag,"Whether the warehouse's stock is excluded from MRP netting (Y) or included (N).",N
+warehouse,created_at,Created At,Timestamp when the warehouse record was created.,2026-07-04 21:05:36

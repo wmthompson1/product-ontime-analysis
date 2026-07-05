@@ -104,6 +104,20 @@ CREATE TABLE IF NOT EXISTS part (
     drawing_number   TEXT,
     material_spec    TEXT,                        -- e.g. AMS 4928 / 6061-T6 / 304 SS
     planner_code     TEXT DEFAULT 'ENGINEERING',  -- owning material planner (item-master native)
+    buyer_code       TEXT,                        -- owning buyer (EMPLOYEE.buyer_code); NULL = in-house part
+    active           INTEGER DEFAULT 1,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS EMPLOYEE (
+    employee_id      TEXT PRIMARY KEY,            -- e.g. EMP-001
+    employee_name    TEXT NOT NULL,
+    job_title        TEXT NOT NULL,               -- CNC Machinist / Welder / Assembler / Inspector / Buyer
+    department       TEXT NOT NULL,               -- Machining / Welding / Assembly / Quality / Purchasing
+    hourly_rate      REAL NOT NULL DEFAULT 0.0,   -- plant workers $40.00-$45.00
+    buyer_code       TEXT UNIQUE,                 -- BUYER-1..BUYER-10; NULL for non-buyers
+    home_resource_id TEXT,                        -- shop_resource the worker mans (NULL for buyers)
+    hire_date        DATE,
     active           INTEGER DEFAULT 1,
     created_at       DATETIME DEFAULT CURRENT_TIMESTAMP
 );

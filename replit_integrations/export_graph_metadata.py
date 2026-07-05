@@ -81,7 +81,7 @@ MANIFEST_PATH = os.path.join(
 )
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 23
 MILESTONE_NAME = "graph_aware_join_edge_topology"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
