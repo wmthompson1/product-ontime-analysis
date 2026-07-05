@@ -365,6 +365,20 @@ def get_view_ontology(conn: sqlite3.Connection, concept_anchor: str) -> Optional
     return record
 
 
+def get_view_ontology_by_binding_key(
+    conn: sqlite3.Connection, binding_key: str
+) -> Optional[dict]:
+    """Return one ViewOntology (decoded dict) looked up by binding_key, or None."""
+    cur = conn.execute(
+        "SELECT concept_anchor FROM sql_view_ontology WHERE binding_key = ?",
+        (binding_key,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+    return get_view_ontology(conn, row[0])
+
+
 def list_view_ontologies(conn: sqlite3.Connection) -> List[dict]:
     """Return all seeded view ontologies as decoded dicts (summary fields only)."""
     cur = conn.execute(

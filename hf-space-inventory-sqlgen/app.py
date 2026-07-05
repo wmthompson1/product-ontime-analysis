@@ -4304,7 +4304,18 @@ Check that perspective-concept and intent-concept relationships are seeded.
         
         return table_output, stats
     
+    _GT_SLOT_CSS = """
+    <style>
+    .gt-slot-select input, .gt-slot-select ul li, .gt-slot-select span {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+        white-space: pre !important;
+        font-size: 13px !important;
+    }
+    </style>
+    """
+
     with gr.Blocks() as demo:
+        gr.HTML(_GT_SLOT_CSS, visible=True)
         gr.Markdown("""
         # 🏭 Manufacturing SQL Semantic Layer
         
@@ -5909,28 +5920,33 @@ Check that perspective-concept and intent-concept relationships are seeded.
             """)
 
             try:
-                import sqlite3 as _svo_sqlite
-                from view_ontology_extractor import list_view_ontologies, get_view_ontology
-                _svo_conn = _svo_sqlite.connect(SQLITE_DB_PATH)
-                _svo_all = list_view_ontologies(_svo_conn)
-                _svo_conn.close()
-            except Exception:
-                _svo_all = []
+                from ground_truth_selector import (
+                    load_selector_entries, selector_choices, slot_legend,
+                )
+                _svo_entries = load_selector_entries(MANIFEST_PATH, SQLITE_DB_PATH)
+                _svo_choices = selector_choices(_svo_entries)
+                _svo_legend = slot_legend()
+            except Exception as _svo_err:
+                _svo_entries, _svo_choices = [], []
+                _svo_legend = f"Selector unavailable: {_svo_err}"
 
-            _svo_choices = [
-                (f"{r['concept_anchor']}  {'⏱' if r['time_phased'] else '·'}"
-                 f"  [{', '.join(r['physical_tables_json'][:3])}{'…' if len(r['physical_tables_json']) > 3 else ''}]",
-                 r["concept_anchor"])
-                for r in _svo_all
-            ]
+            _svo_by_binding = {e["binding_key"]: e for e in _svo_entries}
+
+            gr.Markdown(
+                f"**Master selector — all {len(_svo_entries)} approved ground-truth "
+                f"queries.** Each entry is a same-length 6-slot summary "
+                f"(simplified echo of the graph's fixed 6-slot key scheme):\n\n"
+                f"{_svo_legend}"
+            )
 
             with gr.Row():
                 svo_picker = gr.Dropdown(
                     choices=_svo_choices,
-                    label="View (concept anchor)",
+                    label="Ground-truth query (6-slot summary)",
                     value=_svo_choices[0][1] if _svo_choices else None,
                     interactive=True,
                     scale=3,
+                    elem_classes=["gt-slot-select"],
                 )
                 svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
 
@@ -5942,22 +5958,83 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 wrap=False,
             )
             svo_detail = gr.Markdown()
+            with gr.Accordion("Full ground-truth SQL", open=False):
+                svo_sql = gr.Code(language="sql", interactive=False, label=None)
 
-            def render_view_ontology(concept_anchor):
+            def _read_gt_sql(entry) -> str:
+                """Load the raw ground-truth SQL text for an entry, '' if missing."""
+                if not entry or not entry.get("file_path"):
+                    return ""
+                sql_path = os.path.normpath(
+                    os.path.join(SCHEMA_DIR, "..", entry["file_path"])
+                )
+                if not os.path.exists(sql_path):
+                    return ""
+                try:
+                    with open(sql_path, "r", encoding="utf-8") as f:
+                        return f.read()
+                except Exception:
+                    return ""
+
+            def render_view_ontology(binding_key):
                 import sqlite3 as _r_sqlite
-                from view_ontology_extractor import get_view_ontology
+                from dataclasses import asdict as _r_asdict
+                from view_ontology_extractor import (
+                    extract_view_ontology, get_view_ontology_by_binding_key,
+                )
 
-                if not concept_anchor:
-                    return "Select a view above.", [], ""
+                if not binding_key:
+                    return "Select a ground-truth query above.", [], "", ""
+
+                entry = _svo_by_binding.get(binding_key)
+                sql_text = _read_gt_sql(entry)
 
                 conn = _r_sqlite.connect(SQLITE_DB_PATH)
                 try:
-                    rec = get_view_ontology(conn, concept_anchor)
+                    rec = get_view_ontology_by_binding_key(conn, binding_key)
                 finally:
                     conn.close()
 
+                extracted_live = False
+                if rec is None and entry and sql_text:
+                    try:
+                        vo = extract_view_ontology(
+                            sql_text, binding_key,
+                            entry["concept_anchor"], entry["file_path"],
+                        )
+                        d = _r_asdict(vo)
+                        rec = {
+                            "concept_anchor": d["concept_anchor"],
+                            "binding_key": d["binding_key"],
+                            "physical_tables_json": d["physical_tables"],
+                            "cte_names_json": d["cte_names"],
+                            "joins_json": d["joins"],
+                            "state_predicates_json": d["state_predicates"],
+                            "grain_columns_json": d["grain_columns"],
+                            "time_phased": d["time_phased"],
+                            "temporal_keys_json": d["temporal_keys"],
+                            "selected_columns_json": d["selected_columns"],
+                            "semantics_version": d["semantics_version"],
+                            "extracted_at": d["extracted_at"],
+                        }
+                        extracted_live = True
+                    except Exception as exc:
+                        return (
+                            f"Extraction failed for `{binding_key}`: {exc}",
+                            [], "", sql_text,
+                        )
+
                 if rec is None:
-                    return f"No ontology found for `{concept_anchor}`.", [], ""
+                    return f"No ontology found for `{binding_key}`.", [], "", sql_text
+
+                meta = ""
+                if entry:
+                    meta = (
+                        f"**Category:** `{entry['category']}` · "
+                        f"**Perspective:** `{entry['perspective']}` · "
+                        f"**Logic:** `{entry['logic_type']}`\n\n"
+                        f"_{entry['sme_justification']}_\n\n"
+                    )
 
                 tp = "⏱ **Time-phased**" if rec["time_phased"] else "· Single-point-in-time"
                 tk = (
@@ -5967,6 +6044,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
                 summary = (
                     f"**{rec['concept_anchor']}**  —  `{rec['binding_key']}`\n\n"
+                    f"{meta}"
                     f"{tp}{tk}\n\n"
                     f"**Physical tables** ({len(rec['physical_tables_json'])}):"
                     f"  `{'` · `'.join(rec['physical_tables_json'])}`\n\n"
@@ -5998,23 +6076,27 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         f"#### Output columns ({len(outcols)})\n"
                         + "  ".join(f"`{c}`" for c in outcols)
                     )
+                _src = (
+                    "extracted live from the SQL text (pure AST, not yet seeded)"
+                    if extracted_live else "seeded in `sql_view_ontology`"
+                )
                 detail_lines.append(
                     f"\n---\n_Extracted by SQLGlot · semantics version `{rec['semantics_version']}`"
-                    f" · as of {rec['extracted_at'][:10]}_"
+                    f" · as of {rec['extracted_at'][:10]} · {_src}_"
                 )
                 detail = "\n\n".join(detail_lines)
 
-                return summary, joins_table, detail
+                return summary, joins_table, detail, sql_text
 
             svo_btn.click(
                 fn=render_view_ontology,
                 inputs=[svo_picker],
-                outputs=[svo_summary, svo_joins, svo_detail],
+                outputs=[svo_summary, svo_joins, svo_detail, svo_sql],
             )
             svo_picker.change(
                 fn=render_view_ontology,
                 inputs=[svo_picker],
-                outputs=[svo_summary, svo_joins, svo_detail],
+                outputs=[svo_summary, svo_joins, svo_detail, svo_sql],
             )
 
         with gr.Tab("🗳️ Term Review"):
