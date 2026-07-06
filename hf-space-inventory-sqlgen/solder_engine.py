@@ -237,6 +237,114 @@ class SolderEngine:
                 edges.add((a[0], a[1], b[0], b[1], "INNER"))
         return edges
 
+    def validate_temporal_contract(
+        self, sql_text: str, binding_key: str = ""
+    ) -> Tuple[bool, str, List[str]]:
+        """Passive fail-closed check that every tokenized (:named) parameter
+        baked into a snippet is a recognized member of its Temporal Parameter
+        Contract.
+
+        A snippet may carry named placeholders (``:start_date``, ``:end_date``,
+        ``:supplier_id``). Each one must appear in the machine-readable contract
+        produced by :mod:`view_ontology_extractor` — i.e. it must sit in a
+        comparison that binds it to a physical column and classifies it
+        (``horizon`` / ``netting`` / ``filter``). A placeholder the extractor
+        cannot resolve to a contract entry (e.g. one used in ``LIMIT``, a
+        function call, or an ``IN`` / ``BETWEEN`` list) is unrecognized drift and
+        is never served (fail closed).
+
+        Pure SQLGlot AST analysis — nothing is executed and no value is bound.
+        Snippets with no placeholders pass trivially. Returns
+        ``(ok, reason, warnings)``.
+        """
+        text = (sql_text or "").strip()
+        if not text:
+            return True, "", []
+        try:
+            ast = sqlglot.parse_one(text, read="sqlite")
+        except Exception:
+            # A parse failure is already caught (and failed closed) by the
+            # parse / fingerprint guards on the serve path; do not double-report.
+            return True, "", []
+
+        # Mirror the extractor's recognition rule (view_ontology_extractor.
+        # _extract_temporal_parameters), but check it per OCCURRENCE — not per
+        # token name — so the same token used once in a valid guard and again in
+        # an invalid context (e.g. `LIMIT :end_date`) is still caught. The
+        # SME-approved idiom is `(:param IS NULL OR <column> <op> :param)`, so a
+        # placeholder occurrence is valid in exactly two shapes:
+        #   1. a comparison (EQ / NEQ / range) that carries a physical column, or
+        #   2. the `:param IS NULL` guard arm (a bare null check — the extractor
+        #      skips it, and it carries no injection / semantic risk).
+        # Anything else (LIMIT, function arg, `:a = :b` with no column) is drift.
+        range_ops = (exp.LT, exp.LTE, exp.GT, exp.GTE)
+        comparison_types = (exp.EQ, exp.NEQ) + range_ops
+
+        def _occurrence_is_valid(placeholder) -> bool:
+            node = placeholder.parent
+            while node is not None:
+                if isinstance(node, comparison_types):
+                    # The column-bearing arm must exist to bind the parameter.
+                    return bool(list(node.find_all(exp.Column)))
+                if isinstance(node, exp.Is):
+                    # Accept ONLY the exact positive `:param IS NULL` guard arm:
+                    # the right side must be NULL and it must not be negated
+                    # (`IS NOT NULL`, `IS TRUE`, etc. are not the approved idiom).
+                    return isinstance(node.expression, exp.Null) and not isinstance(
+                        node.parent, exp.Not
+                    )
+                if isinstance(node, (exp.Where, exp.Select)):
+                    return False
+                node = node.parent
+            return False
+
+        occurrences = 0
+        unrecognized: set = set()
+        for ph in ast.find_all(exp.Placeholder):
+            name = ph.name or (ph.this if isinstance(ph.this, str) else "")
+            if not name:
+                continue
+            occurrences += 1
+            if not _occurrence_is_valid(ph):
+                unrecognized.add(f":{name}")
+        if occurrences == 0:
+            return True, "", []
+
+        # Authoritative cross-check: the surviving tokens must also appear in the
+        # machine-readable contract the extractor emits (the single source of
+        # truth for what actually resolved to a governed column / classification).
+        from view_ontology_extractor import extract_view_ontology
+        try:
+            contract = extract_view_ontology(
+                text, binding_key or "", "", ""
+            ).temporal_parameters
+        except Exception as exc:
+            # Placeholders exist but the contract could not be derived, so their
+            # safety cannot be proven — fail closed rather than serve blindly.
+            return (
+                False,
+                f"could not derive a Temporal Parameter Contract to validate the "
+                f"baked-in parameter(s) ({exc})",
+                [],
+            )
+        recognized = {p["token"] for p in contract}
+        bound_tokens = {
+            f":{(ph.name or (ph.this if isinstance(ph.this, str) else ''))}"
+            for ph in ast.find_all(exp.Placeholder)
+            if (ph.name or (ph.this if isinstance(ph.this, str) else ""))
+        } - unrecognized
+        unrecognized |= (bound_tokens - recognized)
+
+        if unrecognized:
+            reason = (
+                "tokenized parameter(s) "
+                + ", ".join(f"`{t}`" for t in sorted(unrecognized))
+                + " are not part of the snippet's Temporal Parameter Contract "
+                "(each must be a column-bound, classifiable guarded predicate)"
+            )
+            return False, reason, []
+        return True, "", []
+
     def resolve_by_binding_key(self, binding_key: str, target_dialect: str = "sqlite") -> Dict[str, Any]:
         bindings = self.load_approved_bindings()
         binding = None
@@ -327,6 +435,30 @@ class SolderEngine:
                     f"Binding `{binding_key}`: SQL graph edge tables unavailable; "
                     "served without join-recognition validation."
                 )
+
+        # Fail-closed: any tokenized (:named) parameter baked into the snippet
+        # must be a recognized member of its Temporal Parameter Contract; an
+        # unrecognized placeholder is drift and is never served. Passive —
+        # nothing is executed and no value is bound.
+        tc_ok, tc_reason, tc_warnings = self.validate_temporal_contract(
+            binding.sql_text, binding_key
+        )
+        fp_warnings.extend(tc_warnings)
+        if not tc_ok:
+            return {
+                "sql": "",
+                "report": [
+                    f"Binding key `{binding_key}` failed temporal-parameter "
+                    f"contract validation: {tc_reason}"
+                ],
+                "warnings": fp_warnings + [
+                    "Snippet carries a tokenized parameter that is not part of "
+                    "its Temporal Parameter Contract; re-register the snippet if "
+                    "this change is intended."
+                ],
+                "fail_closed": True,
+                "fail_condition": "temporal_contract_validation_failed",
+            }
 
         sql = binding.sql_text
         if target_dialect and target_dialect != "sqlite":
@@ -864,6 +996,29 @@ class SolderEngine:
                         f"unavailable; serving {concept} without join-recognition "
                         f"validation."
                     )
+
+            # Fail-closed condition (5): temporal-parameter contract (see
+            # resolve_by_binding_key). Any tokenized (:named) parameter baked into
+            # the snippet must be a recognized member of its Temporal Parameter
+            # Contract; an unrecognized placeholder is drift and is never served.
+            # Passive — nothing is executed and no value is bound.
+            tc_ok, tc_reason, tc_warnings = self.validate_temporal_contract(
+                binding.sql_text, binding.binding_key
+            )
+            warnings.extend(tc_warnings)
+            if not tc_ok:
+                msg = (
+                    f"{concept}: snippet for binding `{binding.binding_key}` "
+                    f"failed temporal-parameter contract validation ({tc_reason}). "
+                    f"Failing closed — re-register the snippet if this change is "
+                    f"intended."
+                )
+                report.append(f"- **{concept}**: ⛔ FAIL-CLOSED — {msg}")
+                warnings.append(msg)
+                fail_closed_concepts.append(concept)
+                if "temporal_contract_validation_failed" not in fail_closed_conditions:
+                    fail_closed_conditions.append("temporal_contract_validation_failed")
+                continue
 
             cte_parts.append(f"{concept} AS (\n{snippet_sql}\n)")
             select_refs.append(f"{concept}.*")

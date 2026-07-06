@@ -91,3 +91,40 @@
     rdfs:comment "The site the movement was booked at (inventory_transaction.site_id); inventory transactions are entered on a site-by-site basis, so a per-part net is scoped to a site to match the grounding query." ;
     rdfs:domain :InventoryTransaction ;
     rdfs:range  xsd:string .
+
+# ── Semantic-weight complement rule (owl:complementOf) ────────────────────────
+#
+# Formal flag for UNELEVATED field contexts — fields that carry ZERO semantic
+# weight during inventory-transaction logging. The governed ledger facts above
+# (:transactionType, :transactionQty, :siteId and the :forPart link) are the
+# elevated, weight-bearing set that the SME-approved grounding query and the OBDA
+# mapping expose. By construction, everything OUTSIDE that set is its complement.
+#
+# This rule is authored in a dedicated `wgt:` (semantic-weight) vocabulary rather
+# than the governed `:` showcase namespace, so it is a read-only annotation layer:
+# it introduces NO new governed term and adds NOTHING to the OBDA mapping (the SQL
+# stays the single source of truth). owl:complementOf makes the zero-weight set
+# formally the complement of the elevated ledger-fact set.
+#
+# lot_id is the worked example: it is a lot-traceability attribute (trace.lot_id),
+# NOT a column of the inventory_transaction ledger. Because the ledger deliberately
+# does not carry it, during inventory-transaction logging lot_id has zero semantic
+# weight and is a member of the complement — it is ignored by design, not omitted
+# by accident.
+@prefix wgt: <http://example.org/manufacturing/weight#> .
+
+wgt:ElevatedLedgerContext
+    a owl:Class ;
+    rdfs:label "Elevated ledger-fact context" ;
+    rdfs:comment "The weight-bearing inventory-transaction facts the governed mapping exposes: transaction type, quantity, site, and the part link." .
+
+wgt:ZeroSemanticWeightContext
+    a owl:Class ;
+    rdfs:label "Zero semantic weight context" ;
+    rdfs:comment "Field contexts that carry no semantic weight during inventory-transaction logging — formally the complement of the elevated ledger-fact set." ;
+    owl:complementOf wgt:ElevatedLedgerContext .
+
+wgt:lot_id
+    a wgt:ZeroSemanticWeightContext ;
+    rdfs:label "inventory-transaction lot_id (unelevated)" ;
+    rdfs:comment "Lot-traceability attribute (trace.lot_id). Not part of the inventory_transaction ledger, so during inventory-transaction logging it has zero semantic weight — a member of the owl:complementOf zero-weight context." .
