@@ -4337,7 +4337,6 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
     with gr.Blocks() as demo:
         gr.HTML(_GT_SLOT_CSS, visible=True)
-        gr.Markdown("<small>🎛️ <b>Selector v 1.0</b></small>")
         gr.Markdown("""
         # 🏭 Manufacturing SQL Semantic Layer
         
@@ -6490,27 +6489,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mrp_part.change(fn=render_mrp, inputs=[mrp_part], outputs=[mrp_grid, mrp_detail])
 
         with gr.Tab("🧩 Ontology Mosaic"):
-            gr.Markdown("""
-            ### Ontology Mosaic — three lenses, one selector
-
-            The ground-truth SQL **IS the view** — it tells the complete story.
-            This mosaic shows that story through **three lenses**, all driven by
-            **one shared cascading selector** (Category → Concept anchor →
-            Query/perspective):
-
-            - **🔗 Join Topology** — the graph topology **extracted by SQLGlot**
-              from the approved SQL: physical tables touched, join relationships,
-              set-gating predicates, grain, and time-phasing — governed metadata
-              in `sql_view_ontology`.
-            - **🧠 Semantic Ontology** — the concept-layer story for the same
-              anchor: the concept node, its `resolves_to` variable→column→table
-              lineage, and its computation template (when it is a metric), read
-              from the governed `sql_graph_nodes` / `sql_graph_edges` tables.
-            - **📜 SQL** — the raw approved ground-truth SQL text.
-
-            Nothing is executed against a database — pure AST analysis and
-            governed metadata, read-only.
-            """)
+            gr.Markdown("<small>🎛️ <b>Selector v 1.0</b></small>")
 
             try:
                 from ground_truth_selector import (
@@ -6614,6 +6593,28 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         elem_classes=["gt-slot-select"],
                     )
                     svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
+
+            gr.Markdown("""
+            ### Ontology Mosaic — three lenses, one selector
+
+            The ground-truth SQL **IS the view** — it tells the complete story.
+            This mosaic shows that story through **three lenses**, all driven by
+            **one shared cascading selector** (Category → Concept anchor →
+            Query/perspective):
+
+            - **🔗 Join Topology** — the graph topology **extracted by SQLGlot**
+              from the approved SQL: physical tables touched, join relationships,
+              set-gating predicates, grain, and time-phasing — governed metadata
+              in `sql_view_ontology`.
+            - **🧠 Semantic Ontology** — the concept-layer story for the same
+              anchor: the concept node, its `resolves_to` variable→column→table
+              lineage, and its computation template (when it is a metric), read
+              from the governed `sql_graph_nodes` / `sql_graph_edges` tables.
+            - **📜 SQL** — the raw approved ground-truth SQL text.
+
+            Nothing is executed against a database — pure AST analysis and
+            governed metadata, read-only.
+            """)
 
             with gr.Tabs():
                 with gr.Tab("🔗 Join Topology"):
