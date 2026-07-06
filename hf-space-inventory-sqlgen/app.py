@@ -4427,6 +4427,298 @@ Check that perspective-concept and intent-concept relationships are seeded.
             return [(f"{c['name']} ({c['query_count']} queries)", c['id']) 
                     for c in index.get("categories", [])]
         
+        # ---------- Selector tab helpers (shared selection pane) ----------
+        _SEL_SEP = "||"
+
+        def _sel_db():
+            import sqlite3
+            return sqlite3.connect(SQLITE_DB_PATH)
+
+        def _sel_categories():
+            conn = _sel_db()
+            try:
+                return [r[0] for r in conn.execute(
+                    "SELECT DISTINCT intent_category FROM schema_intents ORDER BY 1")]
+            finally:
+                conn.close()
+
+        def _sel_tables(tags):
+            """Physical tables; if tags picked, only tables whose columns
+            resolve to a concept elevated by an intent in those categories."""
+            conn = _sel_db()
+            try:
+                if not tags:
+                    return [r[0] for r in conn.execute(
+                        "SELECT DISTINCT table_name FROM sql_graph_nodes "
+                        "WHERE node_type='table' ORDER BY 1")]
+                ph = ",".join("?" * len(tags))
+                return [r[0] for r in conn.execute(
+                    f"""
+                    SELECT DISTINCT n.table_name
+                    FROM sql_graph_edges e
+                    JOIN sql_graph_nodes n  ON n._id = e._from
+                    JOIN sql_graph_nodes cn ON cn._id = e._to
+                    JOIN schema_concepts sc ON sc.concept_name = cn.concept_name
+                    JOIN schema_intent_concepts ic
+                         ON ic.concept_id = sc.concept_id
+                        AND ic.intent_factor_weight = 1
+                    JOIN schema_intents i ON i.intent_id = ic.intent_id
+                    WHERE e.edge_type = 'resolves_to'
+                      AND i.intent_category IN ({ph})
+                    ORDER BY 1
+                    """, list(tags))]
+            finally:
+                conn.close()
+
+        def _sel_columns(table):
+            """All columns of the table; mapped columns get a ✦ marker."""
+            conn = _sel_db()
+            try:
+                mapped = {r[0] for r in conn.execute(
+                    """
+                    SELECT DISTINCT n.column_name
+                    FROM sql_graph_edges e
+                    JOIN sql_graph_nodes n ON n._id = e._from
+                    WHERE e.edge_type = 'resolves_to' AND n.table_name = ?
+                    """, (table,))}
+                cols = [r[0] for r in conn.execute(
+                    "SELECT column_name FROM sql_graph_nodes "
+                    "WHERE node_type='column' AND table_name=? ORDER BY 1",
+                    (table,))]
+                return [(f"{c} ✦" if c in mapped else c, c) for c in cols]
+            finally:
+                conn.close()
+
+        def _sel_concepts(table, column, tags):
+            """Concepts the column (or any column of the table) resolves to,
+            optionally narrowed to the tag categories."""
+            conn = _sel_db()
+            try:
+                sql = """
+                    SELECT DISTINCT cn.concept_name
+                    FROM sql_graph_edges e
+                    JOIN sql_graph_nodes n  ON n._id = e._from
+                    JOIN sql_graph_nodes cn ON cn._id = e._to
+                    WHERE e.edge_type = 'resolves_to' AND n.table_name = ?
+                """
+                params = [table]
+                if column:
+                    sql += " AND n.column_name = ?"
+                    params.append(column)
+                if tags:
+                    ph = ",".join("?" * len(tags))
+                    sql += f"""
+                      AND cn.concept_name IN (
+                        SELECT sc.concept_name FROM schema_concepts sc
+                        JOIN schema_intent_concepts ic
+                             ON ic.concept_id = sc.concept_id
+                            AND ic.intent_factor_weight = 1
+                        JOIN schema_intents i ON i.intent_id = ic.intent_id
+                        WHERE i.intent_category IN ({ph}))
+                    """
+                    params.extend(tags)
+                sql += " ORDER BY 1"
+                return [r[0] for r in conn.execute(sql, params)]
+            finally:
+                conn.close()
+
+        def _sel_intents(concept, tags):
+            conn = _sel_db()
+            try:
+                sql = """
+                    SELECT DISTINCT i.intent_name
+                    FROM schema_intent_concepts ic
+                    JOIN schema_concepts c ON c.concept_id = ic.concept_id
+                    JOIN schema_intents i  ON i.intent_id = ic.intent_id
+                    WHERE c.concept_name = ? AND ic.intent_factor_weight = 1
+                """
+                params = [concept]
+                if tags:
+                    ph = ",".join("?" * len(tags))
+                    sql += f" AND i.intent_category IN ({ph})"
+                    params.extend(tags)
+                sql += " ORDER BY 1"
+                return [r[0] for r in conn.execute(sql, params)]
+            finally:
+                conn.close()
+
+        def _sel_queries(intent):
+            conn = _sel_db()
+            try:
+                return [r[0] for r in conn.execute(
+                    """
+                    SELECT q.query_name
+                    FROM schema_intent_queries q
+                    JOIN schema_intents i ON i.intent_id = q.intent_id
+                    WHERE i.intent_name = ?
+                    ORDER BY q.query_index
+                    """, (intent,))]
+            finally:
+                conn.close()
+
+        def _sel_summary(tags, table=None, column=None, concept=None,
+                         intent=None, query=None):
+            lines = ["### Selection context"]
+            lines.append(f"- **Tags:** {', '.join(tags) if tags else '(all)'}")
+            if table:
+                col_txt = f" · **Column:** `{column}`" if column else ""
+                lines.append(f"- **Table:** `{table}`{col_txt}")
+            if concept:
+                lines.append(f"- **Concept:** {concept}")
+            if intent:
+                lines.append(f"- **Intent:** {intent}")
+            if query:
+                lines.append(f"- **Ground-truth query:** {query}")
+            if not table:
+                lines.append("\n*Pick a table to start the concrete chain.*")
+            return "\n".join(lines)
+
+        def _sel_parse(value, n):
+            """Split a packed choice value into exactly n parts.
+
+            Uses maxsplit so the last part (e.g. a free-text query name)
+            keeps any literal separator characters intact.
+            """
+            parts = (value or "").split(_SEL_SEP, n - 1)
+            parts += [""] * (n - len(parts))
+            return parts[:n]
+
+        with gr.Tab("🎛️ Selector"):
+            gr.Markdown(
+                "### One selection pane: abstract tags + concrete chain\n"
+                "Tags are a lightweight filter. The chain below is fully "
+                "concrete: physical table → column (✦ = semantically mapped) "
+                "→ concept → analytical intent → ground-truth query."
+            )
+            sel_tags = gr.CheckboxGroup(
+                choices=_sel_categories(), label="Perspective tags (filter)",
+                value=[],
+            )
+            with gr.Row():
+                sel_table = gr.Dropdown(
+                    choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
+                    label="Table", value=None, scale=1)
+                sel_column = gr.Dropdown(choices=[], label="Column",
+                                         value=None, scale=1)
+                sel_concept = gr.Dropdown(choices=[], label="Concept",
+                                          value=None, scale=1)
+                sel_intent = gr.Dropdown(choices=[], label="Intent",
+                                         value=None, scale=1)
+                sel_query = gr.Dropdown(choices=[], label="Ground-truth query",
+                                        value=None, scale=1)
+            sel_summary = gr.Markdown(_sel_summary([]))
+
+            _SEL_CLEAR = gr.update(choices=[], value=None)
+
+            def _sel_on_tags(tags):
+                tags = tags or []
+                csv = ",".join(tags)
+                tables = _sel_tables(tags)
+                summary = _sel_summary(tags)
+                if tags and not tables:
+                    summary += (
+                        "\n\n> ⚠️ No tables have semantically mapped columns "
+                        "for these tags yet — clear a tag to widen the list."
+                    )
+                return (
+                    gr.update(choices=[(t, csv + _SEL_SEP + t) for t in tables],
+                              value=None),
+                    _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR,
+                    summary,
+                )
+
+            def _sel_on_table(val):
+                if not val:
+                    return (gr.update(),) * 5
+                csv, table = _sel_parse(val, 2)
+                tags = [t for t in csv.split(",") if t]
+                prefix = csv + _SEL_SEP + table + _SEL_SEP
+                choices = [("(all columns)", prefix)]
+                choices += [(label, prefix + c)
+                            for label, c in _sel_columns(table)]
+                return (
+                    gr.update(choices=choices, value=None),
+                    _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR,
+                    _sel_summary(tags, table),
+                )
+
+            def _sel_on_column(val):
+                if not val:
+                    return (gr.update(),) * 4
+                csv, table, column = _sel_parse(val, 3)
+                tags = [t for t in csv.split(",") if t]
+                concepts = _sel_concepts(table, column or None, tags)
+                prefix = val + _SEL_SEP
+                return (
+                    gr.update(choices=[(c, prefix + c) for c in concepts],
+                              value=None),
+                    _SEL_CLEAR, _SEL_CLEAR,
+                    _sel_summary(tags, table, column or None),
+                )
+
+            def _sel_on_concept(val):
+                if not val:
+                    return (gr.update(),) * 3
+                csv, table, column, concept = _sel_parse(val, 4)
+                tags = [t for t in csv.split(",") if t]
+                intents = _sel_intents(concept, tags)
+                prefix = val + _SEL_SEP
+                return (
+                    gr.update(choices=[(i, prefix + i) for i in intents],
+                              value=None),
+                    _SEL_CLEAR,
+                    _sel_summary(tags, table, column or None, concept),
+                )
+
+            def _sel_on_intent(val):
+                if not val:
+                    return (gr.update(),) * 2
+                csv, table, column, concept, intent = _sel_parse(val, 5)
+                tags = [t for t in csv.split(",") if t]
+                queries = _sel_queries(intent)
+                prefix = val + _SEL_SEP
+                summary = _sel_summary(tags, table, column or None, concept,
+                                       intent)
+                if not queries:
+                    summary += (
+                        "\n\n> ⚠️ No ground-truth queries are mapped to this "
+                        "intent yet — the chain ends here."
+                    )
+                return (
+                    gr.update(choices=[(q, prefix + q) for q in queries],
+                              value=None),
+                    summary,
+                )
+
+            def _sel_on_query(val):
+                if not val:
+                    return gr.update()
+                csv, table, column, concept, intent, query = _sel_parse(val, 6)
+                tags = [t for t in csv.split(",") if t]
+                return _sel_summary(tags, table, column or None, concept,
+                                    intent, query)
+
+            sel_tags.change(
+                _sel_on_tags, inputs=[sel_tags],
+                outputs=[sel_table, sel_column, sel_concept, sel_intent,
+                         sel_query, sel_summary])
+            sel_table.change(
+                _sel_on_table, inputs=[sel_table],
+                outputs=[sel_column, sel_concept, sel_intent, sel_query,
+                         sel_summary])
+            sel_column.change(
+                _sel_on_column, inputs=[sel_column],
+                outputs=[sel_concept, sel_intent, sel_query, sel_summary])
+            sel_concept.change(
+                _sel_on_concept, inputs=[sel_concept],
+                outputs=[sel_intent, sel_query, sel_summary])
+            sel_intent.change(
+                _sel_on_intent, inputs=[sel_intent],
+                outputs=[sel_query, sel_summary])
+            sel_query.change(
+                _sel_on_query, inputs=[sel_query],
+                outputs=[sel_summary])
+
         with gr.Tab("🚀 Copilot Context"):
             gr.Markdown("### Build MCP Context Package")
             _cfg_cc = _get_erp_config()

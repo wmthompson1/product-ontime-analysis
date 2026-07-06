@@ -40,4 +40,5 @@
 - [WO/operation cost accrual reconciliation](wo-cost-accrual-reconciliation.md) — op actuals top-down from the WO truth, then labor_ticket rebuilt bottom-up to match (burden=hours×rate so WO burden moves, labor anchored); migration fails closed on any layer drift.
 - [Live graph concept-node drift](live-graph-concept-node-drift.md) — sql_aql_parity fails (live Arango 399 vs canonical 296) from extra concept_* nodes in the live graph; sql_graph_parity (SQLite↔graph_metadata) is the authoritative gate for snippet/graph work.
 - [MRP expansion vs prune bands](mrp-demo-scale-expansion.md) — synthetic header adds must run after prune and stay inside CO/WO [10,20] / PO [10,25], scale via CO/PO lines not headers.
+- [Shared selector pane design](selector-pane-design.md) — abstract categories are tag filters only, never cascade levels; concrete 5-dropdown chain Table→Column→Concept→Intent→Query; surface coverage gaps honestly.
 - [Live references edges never load](arango-references-edge-key-illegal.md) — fk:: key contains `->`, illegal in Arango; live `references` is always empty (test SKIPs); full graph_sync live run exceeds 120s cap — use targeted upserts + prune.
