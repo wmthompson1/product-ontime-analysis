@@ -6209,6 +6209,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             "the query failed structural-fingerprint validation "
                             "(unparseable or drifted from its SME-approved base tables)."
                         ),
+                        "join_validation_failed": (
+                            "the query failed join-edge validation (a join drifted "
+                            "from its SME-approved / graph-recognized set)."
+                        ),
+                        "temporal_contract_validation_failed": (
+                            "a baked-in tokenized (:named) parameter is not part of "
+                            "the snippet's Temporal Parameter Contract. See the "
+                            "Concept Resolution / Warnings below for the exact "
+                            "parameter and reason."
+                        ),
                         "multiple": "multiple fail-closed conditions were triggered.",
                     }.get(fc_condition, "one or more concepts could not be served.")
                     report_md += (
@@ -6621,6 +6631,40 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 except Exception as exc:
                     return f"Semantic layer unavailable: {exc}"
 
+            def _temporal_validation_md(sql_text, binding_key, has_params):
+                """Show SMEs exactly why a snippet would be blocked (or is safe)
+                by the passive temporal-parameter contract check. Purely
+                surfaces the existing fail-closed reason — nothing is executed
+                and no value is bound."""
+                if not (sql_text or "").strip():
+                    return ""
+                try:
+                    ok, reason, _ = solder.validate_temporal_contract(
+                        sql_text, binding_key or ""
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    ok, reason = False, (
+                        f"the contract could not be derived to validate this "
+                        f"snippet ({type(exc).__name__}: {exc})"
+                    )
+                if not ok:
+                    return (
+                        "#### ⛔ Temporal-parameter contract: BLOCKED "
+                        "(fail-closed)\n"
+                        f"> This snippet would **not** be served — {reason}.\n\n"
+                        "> **Fix:** bind each named parameter to a physical "
+                        "column inside a `(:param IS NULL OR <column> <op> "
+                        ":param)` guarded predicate, then re-register the "
+                        "snippet."
+                    )
+                if has_params:
+                    return (
+                        "#### ✅ Temporal-parameter contract: OK\n"
+                        "> Every named parameter is a column-bound, classifiable "
+                        "guarded predicate."
+                    )
+                return ""
+
             def render_view_ontology(binding_key):
                 import sqlite3 as _r_sqlite
                 from dataclasses import asdict as _r_asdict
@@ -6752,6 +6796,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             "**Temporal trait:** "
                             + " · ".join(f"`{t}`" for t in _trait))
                     detail_lines.append("\n".join(_tc))
+                _tv_md = _temporal_validation_md(
+                    sql_text, binding_key, bool(_tparams)
+                )
+                if _tv_md:
+                    detail_lines.append(_tv_md)
                 _src = (
                     "extracted live from the SQL text (pure AST, not yet seeded)"
                     if extracted_live else "seeded in `sql_view_ontology`"
@@ -6873,6 +6922,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             "**Temporal trait:** "
                             + " · ".join(f"`{t}`" for t in d["temporal_trait"]))
                     detail_lines.append("\n".join(_tc))
+                _tv_md = _temporal_validation_md(
+                    sql_text, bk or f"chain::{query}",
+                    bool(d.get("temporal_parameters")),
+                )
+                if _tv_md:
+                    detail_lines.append(_tv_md)
                 detail_lines.append(
                     f"\n---\n_Extracted live by SQLGlot (pure AST, not yet seeded)"
                     f" · semantics version `{d['semantics_version']}`"

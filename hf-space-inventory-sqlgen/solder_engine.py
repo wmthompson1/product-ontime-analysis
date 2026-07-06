@@ -280,33 +280,70 @@ class SolderEngine:
         range_ops = (exp.LT, exp.LTE, exp.GT, exp.GTE)
         comparison_types = (exp.EQ, exp.NEQ) + range_ops
 
-        def _occurrence_is_valid(placeholder) -> bool:
+        def _occurrence_reason(placeholder) -> Optional[str]:
+            """Return ``None`` when this occurrence is a valid contract member,
+            otherwise a short, SME-actionable reason naming the exact context
+            that broke the contract (e.g. ``used in a LIMIT clause``). Mirrors
+            the accept rules in ``_occurrence_is_valid`` — the accept outcomes
+            are byte-identical; only the reject path is enriched with a reason.
+            """
             node = placeholder.parent
             while node is not None:
                 if isinstance(node, comparison_types):
                     # The column-bearing arm must exist to bind the parameter.
-                    return bool(list(node.find_all(exp.Column)))
+                    if list(node.find_all(exp.Column)):
+                        return None
+                    return (
+                        "compared to another parameter with no physical column "
+                        "to bind it to"
+                    )
                 if isinstance(node, exp.Is):
                     # Accept ONLY the exact positive `:param IS NULL` guard arm:
                     # the right side must be NULL and it must not be negated
                     # (`IS NOT NULL`, `IS TRUE`, etc. are not the approved idiom).
-                    return isinstance(node.expression, exp.Null) and not isinstance(
+                    if isinstance(node.expression, exp.Null) and not isinstance(
                         node.parent, exp.Not
+                    ):
+                        return None
+                    return (
+                        "used in an `IS NOT NULL` / non-`IS NULL` check (only the "
+                        "`:param IS NULL` guard arm is allowed)"
                     )
+                if isinstance(node, exp.Limit):
+                    return "used in a LIMIT clause (not a column-bound comparison)"
+                if isinstance(node, exp.In):
+                    return "used in an IN list (not a column-bound comparison)"
+                if isinstance(node, exp.Between):
+                    return (
+                        "used in a BETWEEN range (not the approved guarded "
+                        "comparison idiom)"
+                    )
+                if isinstance(node, (exp.Func, exp.Anonymous)):
+                    return "used as a function argument (not a column-bound comparison)"
                 if isinstance(node, (exp.Where, exp.Select)):
-                    return False
+                    return "not used inside a column-bound comparison predicate"
                 node = node.parent
-            return False
+            return "not used inside a column-bound comparison predicate"
 
         occurrences = 0
         unrecognized: set = set()
+        # token -> ordered list of distinct human reasons it broke the contract.
+        details: Dict[str, List[str]] = {}
+
+        def _record(token: str, why: str) -> None:
+            unrecognized.add(token)
+            reasons = details.setdefault(token, [])
+            if why not in reasons:
+                reasons.append(why)
+
         for ph in ast.find_all(exp.Placeholder):
             name = ph.name or (ph.this if isinstance(ph.this, str) else "")
             if not name:
                 continue
             occurrences += 1
-            if not _occurrence_is_valid(ph):
-                unrecognized.add(f":{name}")
+            why = _occurrence_reason(ph)
+            if why is not None:
+                _record(f":{name}", why)
         if occurrences == 0:
             return True, "", []
 
@@ -333,14 +370,26 @@ class SolderEngine:
             for ph in ast.find_all(exp.Placeholder)
             if (ph.name or (ph.this if isinstance(ph.this, str) else ""))
         } - unrecognized
-        unrecognized |= (bound_tokens - recognized)
+        # Tokens that survived the per-occurrence check but the extractor's
+        # contract never recognized (e.g. bound to a column the graph does not
+        # classify) — record a distinct, actionable reason for each.
+        for token in sorted(bound_tokens - recognized):
+            _record(
+                token,
+                "resolved to a predicate but is absent from the machine-readable "
+                "Temporal Parameter Contract (not classified as horizon / netting "
+                "/ filter)",
+            )
 
         if unrecognized:
+            per_token = "; ".join(
+                f"`{token}` {' and '.join(details.get(token, ['unrecognized parameter']))}"
+                for token in sorted(unrecognized)
+            )
             reason = (
-                "tokenized parameter(s) "
-                + ", ".join(f"`{t}`" for t in sorted(unrecognized))
-                + " are not part of the snippet's Temporal Parameter Contract "
-                "(each must be a column-bound, classifiable guarded predicate)"
+                "tokenized parameter(s) not part of the snippet's Temporal "
+                "Parameter Contract (each must be a column-bound, classifiable "
+                "guarded predicate) — " + per_token
             )
             return False, reason, []
         return True, "", []
