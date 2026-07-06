@@ -49,6 +49,7 @@ STEPS = [
     ("migrations/add_employees_and_buyers.py", []),
     ("migrations/add_warehouse_part_location.py", []),
     ("migrations/add_supplier_payables_wiring.py", []),
+    ("migrations/add_receivables_wiring.py", []),
     ("migrations/add_customer_order_completed_date.py", []),
     # documented high-fidelity chain (order is mandatory)
     ("migrations/add_operation_type.py", []),

@@ -120,3 +120,105 @@ WHERE d.delivery_date >= :start_date
   AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
 GROUP BY s.supplier_id, s.supplier_name, s.certification_level, s.performance_rating
 ORDER BY estimated_ap_exposure DESC;
+
+-- ============================================================
+-- Query 4 — supplier_payables_exposure (total due)
+-- Intent:   What is our AP exposure by supplier? (exposure = total due)
+-- Typical:  "What do we owe each supplier right now?"
+--           "Total AP due by vendor"
+-- Params:   :supplier_id (optional)
+-- Perspective: Payables — exposure defined as TOTAL DUE: the sum of all
+--           unpaid (Open or Disputed) invoice amounts from the payables
+--           ledger. No estimates or cost proxies.
+-- ============================================================
+-- Query: Supplier AP Total Due
+-- Description: What is our AP exposure by supplier, defined as total due — the sum of all unpaid (Open or Disputed) invoice amounts, with overdue split.
+SELECT
+    s.supplier_id,
+    s.supplier_name,
+    COUNT(p.invoice_id)                                         AS open_invoices,
+    ROUND(SUM(p.amount_dollars), 2)                             AS total_due,
+    ROUND(SUM(CASE WHEN p.status = 'Disputed'
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS disputed_amount,
+    ROUND(SUM(CASE WHEN p.due_date <
+                        (SELECT MAX(invoice_date) FROM payables)
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS overdue_amount,
+    MIN(p.due_date)                                             AS earliest_due,
+    MAX(p.due_date)                                             AS latest_due
+FROM suppliers s
+JOIN payables p
+    ON p.supplier_id = s.supplier_id
+WHERE p.status IN ('Open', 'Disputed')
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+GROUP BY s.supplier_id, s.supplier_name
+ORDER BY total_due DESC;
+
+-- ============================================================
+-- Query 5 — supplier_payables_exposure (aging)
+-- Intent:   How old is our unpaid AP, bucketed by days past due?
+-- Typical:  "AP aging report by supplier"
+--           "Which invoices are 90+ days past due?"
+-- Params:   :supplier_id (optional)
+-- Perspective: Payables — aging is computed against a data-derived
+--           as-of date (MAX invoice_date in the ledger), so the report
+--           is deterministic and never depends on the wall clock.
+-- ============================================================
+-- Query: AP Aging by Supplier
+-- Description: How old is our unpaid AP? Unpaid (Open or Disputed) amounts bucketed by days past due — current, 1-30, 31-60, 61-90, and 90+ — per supplier.
+WITH as_of AS (
+    SELECT MAX(invoice_date) AS as_of_date FROM payables
+)
+SELECT
+    s.supplier_id,
+    s.supplier_name,
+    ROUND(SUM(CASE WHEN p.due_date >= a.as_of_date
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS current_not_due,
+    ROUND(SUM(CASE WHEN julianday(a.as_of_date) - julianday(p.due_date)
+                        BETWEEN 1 AND 30
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS past_due_1_30,
+    ROUND(SUM(CASE WHEN julianday(a.as_of_date) - julianday(p.due_date)
+                        BETWEEN 31 AND 60
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS past_due_31_60,
+    ROUND(SUM(CASE WHEN julianday(a.as_of_date) - julianday(p.due_date)
+                        BETWEEN 61 AND 90
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS past_due_61_90,
+    ROUND(SUM(CASE WHEN julianday(a.as_of_date) - julianday(p.due_date) > 90
+                   THEN p.amount_dollars ELSE 0 END), 2)        AS past_due_over_90,
+    ROUND(SUM(p.amount_dollars), 2)                             AS total_due
+FROM suppliers s
+JOIN payables p
+    ON p.supplier_id = s.supplier_id
+CROSS JOIN as_of a
+WHERE p.status IN ('Open', 'Disputed')
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+GROUP BY s.supplier_id, s.supplier_name
+ORDER BY past_due_over_90 DESC, total_due DESC;
+
+-- ============================================================
+-- Query 6 — supplier_payables_exposure (match exceptions)
+-- Intent:   Which unpaid invoices failed three-way match?
+-- Typical:  "Show invoices on match exception hold"
+--           "What AP is blocked by three-way match failures?"
+-- Params:   :supplier_id (optional)
+-- Perspective: Payables — unpaid invoices whose three_way_match_status
+--           is Exception (PO / receipt / invoice disagree). These should
+--           be held from payment until resolved.
+-- ============================================================
+-- Query: Three-Way Match Exceptions
+-- Description: Which unpaid invoices failed three-way match? Exception-status invoices per supplier with amounts at risk and the linked PO.
+SELECT
+    s.supplier_id,
+    s.supplier_name,
+    p.invoice_number,
+    p.po_id,
+    p.invoice_date,
+    p.due_date,
+    ROUND(p.amount_dollars, 2)                                  AS amount_on_hold,
+    p.status                                                    AS invoice_status
+FROM payables p
+JOIN suppliers s
+    ON s.supplier_id = p.supplier_id
+WHERE p.three_way_match_status = 'Exception'
+  AND p.status IN ('Open', 'Disputed')
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+ORDER BY p.amount_dollars DESC;

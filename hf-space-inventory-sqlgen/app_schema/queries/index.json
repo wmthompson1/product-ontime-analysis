@@ -82,8 +82,8 @@
               "daily_deliveries": 1
             },
             "select_counts": {
-              "daily_deliveries": 1,
-              "suppliers": 1
+              "suppliers": 1,
+              "daily_deliveries": 1
             }
           },
           {
@@ -93,8 +93,8 @@
               "daily_deliveries": 1
             },
             "select_counts": {
-              "daily_deliveries": 1,
-              "suppliers": 1
+              "suppliers": 1,
+              "daily_deliveries": 1
             }
           },
           {
@@ -105,16 +105,50 @@
               "product_lines": 1
             },
             "select_counts": {
-              "daily_deliveries": 1,
               "suppliers": 1,
+              "daily_deliveries": 1,
               "product_lines": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "suppliers": 1,
+              "payables": 2
+            },
+            "select_counts": {
+              "payables": 2,
+              "suppliers": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "suppliers": 1,
+              "payables": 2
+            },
+            "select_counts": {
+              "payables": 2,
+              "suppliers": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "payables": 1,
+              "suppliers": 1
+            },
+            "select_counts": {
+              "payables": 1,
+              "suppliers": 1
             }
           }
         ],
         "totals": {
-          "suppliers": 3,
+          "suppliers": 6,
           "daily_deliveries": 3,
-          "product_lines": 1
+          "product_lines": 1,
+          "payables": 5
         }
       }
     },
@@ -177,6 +211,55 @@
           "quality_costs": 1
         }
       }
+    },
+    {
+      "id": "receivables",
+      "name": "Receivables",
+      "file": "receivables.sql",
+      "query_count": 3,
+      "description": "Customer order revenue recognition, AR exposure, and backlog aging",
+      "table_usage": {
+        "file": "receivables.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "customer_order": 1,
+              "customer_order_line": 1
+            },
+            "select_counts": {
+              "customer_order": 1,
+              "customer_order_line": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "customer_order": 1,
+              "customer_order_line": 1
+            },
+            "select_counts": {
+              "customer_order": 1,
+              "customer_order_line": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "customer_order": 2,
+              "customer_order_line": 1
+            },
+            "select_counts": {
+              "customer_order": 2,
+              "customer_order_line": 1
+            }
+          }
+        ],
+        "totals": {
+          "customer_order": 4,
+          "customer_order_line": 3
+        }
+      }
     }
   ],
   "tables_referenced": [
@@ -184,6 +267,8 @@
     "corrective_actions",
     "customer",
     "customer_address",
+    "customer_order",
+    "customer_order_line",
     "daily_deliveries",
     "downtime_events",
     "employee",
@@ -191,6 +276,9 @@
     "failure_events",
     "non_conformant_materials",
     "operation",
+    "part",
+    "payables",
+    "po_line",
     "product_defects",
     "product_lines",
     "production_lines",
@@ -205,17 +293,22 @@
     "work_order"
   ],
   "table_reference_counts": {
-    "suppliers": 9,
+    "suppliers": 12,
+    "work_order": 11,
+    "part": 10,
+    "customer_order": 8,
     "daily_deliveries": 7,
+    "customer_order_line": 7,
+    "purchase_order": 6,
     "product_lines": 5,
-    "work_order": 5,
+    "payables": 5,
     "shop_resource": 5,
     "operation": 5,
     "customer": 3,
     "customer_address": 3,
     "production_schedule": 3,
     "non_conformant_materials": 3,
-    "purchase_order": 3,
+    "po_line": 3,
     "product_defects": 2,
     "equipment_metrics": 2,
     "corrective_actions": 2,

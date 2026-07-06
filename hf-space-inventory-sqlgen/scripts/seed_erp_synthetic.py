@@ -519,8 +519,13 @@ def seed_invoices(cur):
         due_d   = inv_d + timedelta(days=30)
         status  = random.choices(["Open", "Paid", "Disputed"], weights=[20, 70, 10])[0]
         pay_d   = rand_date(inv_d, due_d + timedelta(days=15)) if status == "Paid" else None
-        match   = random.choices(
-            ["Matched", "Pending", "Exception"], weights=[65, 25, 10])[0]
+        # Deterministic rule: a Disputed invoice is disputed BECAUSE the
+        # three-way match failed — always carries an Exception match status.
+        if status == "Disputed":
+            match = "Exception"
+        else:
+            match = random.choices(
+                ["Matched", "Pending", "Exception"], weights=[65, 25, 10])[0]
         rows.append((po_id, str(sup_id), f"INV-{inv_num:06d}",
                      fmt(inv_d), fmt(due_d), round(total, 2),
                      status, fmt(pay_d), match))
