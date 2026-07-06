@@ -176,7 +176,10 @@ CREATE TABLE IF NOT EXISTS receiving (
     part_id           TEXT NOT NULL,             -- FK → part
     quantity_ordered  REAL NOT NULL,
     quantity_received REAL NOT NULL,
-    receipt_date      DATE NOT NULL,
+    receipt_date      DATE NOT NULL,             -- date the receipt transaction was posted
+    received_date     DATE,                       -- date goods physically arrived (dock date);
+                                                  -- distinct noun mirroring the real source
+                                                  -- R.RECEIVED_DATE — the temporal filter column
     inspection_status TEXT NOT NULL DEFAULT 'Pending',  -- Pending / Passed / Failed / Waived
     cert_required     INTEGER DEFAULT 0,         -- 1 = CoC / FAI / 8130-3 required
     created_at        DATETIME DEFAULT CURRENT_TIMESTAMP

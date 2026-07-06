@@ -207,37 +207,52 @@ ORDER BY past_due_over_90 DESC, total_due DESC;
 -- Query: Uninvoiced Receipts
 -- Description: Which receipts have goods in the door but no matching supplier invoice? Receipt lines whose non-cancelled payable coverage is short or missing entirely (three-way match leg 2 vs leg 3).
 -- Binding: payables_uninvoicedreceipts_20260706_000003
-SELECT DISTINCT
+-- Temporal Parameter Contract: named, NULL-guarded placeholders baked in by the
+-- SME (SolderEngine serves verbatim). :start_date/:end_date = Horizon Filter on
+-- receiving.received_date; :end_date also = Netting Snapshot on
+-- payables.invoice_date inside both coverage subqueries; :supplier_id restricts
+-- to one vendor. Bind all three NULL for the full unfiltered population.
+-- Grain: one row per receipt HEADER with >=1 unmatched line. EXISTS semi-join
+-- (not header->line JOIN + DISTINCT) keeps the receipt grain without a fan-out.
+SELECT
     'Uninvoiced Receipts' AS query_name,
     r.receipt_id          AS receiver_id,
-    r.receipt_date        AS received_date,
+    r.received_date       AS received_date,
     r.po_id               AS purc_order_id,
     s.supplier_id         AS vendor_id,
     s.supplier_name       AS vendor_name,
     po.site_id            AS site_id
 FROM receiving r
-JOIN receiving_line rl ON rl.receipt_id = r.receipt_id
 JOIN purchase_order po ON po.po_id = r.po_id
 JOIN suppliers s       ON s.supplier_id = po.supplier_id
-WHERE (
-        rl.quantity_received > (
-            SELECT COALESCE(SUM(ABS(pl.qty)), 0)
-            FROM payable_line pl
-            JOIN payables pay ON pay.invoice_id = pl.invoice_id
-            WHERE pl.receipt_line_id = rl.receipt_line_id
-              AND pay.status <> 'Cancelled'
-        )
-        OR rl.receipt_line_id NOT IN (
-            SELECT pl.receipt_line_id
-            FROM payable_line pl
-            JOIN payables pay ON pay.invoice_id = pl.invoice_id
-            WHERE pl.receipt_line_id IS NOT NULL
-              AND pay.status <> 'Cancelled'
-        )
-      )
-  AND po.site_id = 'SITE-1'
+WHERE po.site_id = 'SITE-1'
   AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
-ORDER BY s.supplier_id, po.site_id, r.receipt_date ASC;
+  AND (:start_date IS NULL OR r.received_date >= :start_date)
+  AND (:end_date IS NULL OR r.received_date <= :end_date)
+  AND EXISTS (
+        SELECT 1
+        FROM receiving_line rl
+        WHERE rl.receipt_id = r.receipt_id
+          AND (
+                rl.quantity_received > (
+                    SELECT COALESCE(SUM(ABS(pl.qty)), 0)
+                    FROM payable_line pl
+                    JOIN payables pay ON pay.invoice_id = pl.invoice_id
+                    WHERE pl.receipt_line_id = rl.receipt_line_id
+                      AND pay.status <> 'Cancelled'
+                      AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+                )
+                OR rl.receipt_line_id NOT IN (
+                    SELECT pl.receipt_line_id
+                    FROM payable_line pl
+                    JOIN payables pay ON pay.invoice_id = pl.invoice_id
+                    WHERE pl.receipt_line_id IS NOT NULL
+                      AND pay.status <> 'Cancelled'
+                      AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+                )
+          )
+      )
+ORDER BY s.supplier_id, po.site_id, r.received_date ASC;
 
 -- Query: Three-Way Match Exceptions
 -- Description: Which unpaid invoices failed three-way match? Exception-status invoices per supplier with amounts at risk and the linked PO.

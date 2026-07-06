@@ -108,9 +108,10 @@ def main():
             cur.execute(
                 """INSERT INTO receiving (po_id, supplier_id, part_id,
                          quantity_ordered, quantity_received, receipt_date,
-                         inspection_status, cert_required)
-                   VALUES (?, ?, ?, ?, ?, ?, 'Passed', 0)""",
-                (po_id, supplier_id, part_id, qty, qty, fmt(rcpt_date)))
+                         received_date, inspection_status, cert_required)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, 'Passed', 0)""",
+                (po_id, supplier_id, part_id, qty, qty,
+                 fmt(rcpt_date), fmt(rcpt_date)))
             receipt_id = cur.lastrowid
             cur.execute(
                 """INSERT INTO receiving_line (receipt_id, line_no, po_line_id,
@@ -195,7 +196,12 @@ def main():
         "sql_snippets", "payables_uninvoicedreceipts_20260706_000003.sql")
     with open(view_path, encoding="utf-8") as fh:
         view_sql = fh.read()
-    rows = cur.execute(view_sql).fetchall()
+    # The governed view now carries the Temporal Parameter Contract's named
+    # placeholders (:start_date / :end_date / :supplier_id). They are all
+    # NULL-guarded, so binding every one to NULL reproduces the unfiltered
+    # exception population this verify asserts on.
+    view_params = {"start_date": None, "end_date": None, "supplier_id": None}
+    rows = cur.execute(view_sql, view_params).fetchall()
     reported_pos = {r[3] for r in rows}
     missing = [po for po, _ in POPULATIONS if po not in reported_pos]
     if missing:

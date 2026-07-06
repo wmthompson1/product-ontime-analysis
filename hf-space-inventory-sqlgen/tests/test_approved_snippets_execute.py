@@ -109,7 +109,14 @@ def test_every_approved_snippet_executes() -> None:
                 failures.append(f"{key}: SQL file is empty")
                 continue
             try:
-                conn.execute(sql).fetchall()
+                # Temporal-contract snippets carry NULL-guarded named params
+                # (:start_date / :end_date / :supplier_id). Binding them all to
+                # NULL reproduces the full unfiltered population; snippets that
+                # don't reference these keys ignore the extra dict entries.
+                conn.execute(
+                    sql,
+                    {"start_date": None, "end_date": None, "supplier_id": None},
+                ).fetchall()
                 executed += 1
             except Exception as exc:  # noqa: BLE001 - report any execution error
                 failures.append(f"{key}: {type(exc).__name__}: {exc}")

@@ -82,6 +82,12 @@ STEPS = [
     # part a planning part (runs after the three-way match completion so
     # received service POs accrue onto their operations)
     ("migrations/expand_demand_and_completions.py", []),
+    # add the physical receiving.received_date column (dock-arrival date, the
+    # noun the Temporal Parameter Contract's Horizon Filter binds to) and
+    # backfill it = receipt_date. Runs BEFORE the uninvoiced-receipts demo so
+    # its governed-view verify (which now filters on received_date) resolves the
+    # column, and AFTER every earlier receiving insert so the backfill is total.
+    ("migrations/add_received_date.py", []),
     # uninvoiced-receipts exception populations for the governed 3WM view
     # payables_uninvoicedreceipts (runs after the match completion so the
     # engineered exceptions are never "repaired" back into a clean ledger)

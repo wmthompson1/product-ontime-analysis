@@ -6,7 +6,7 @@
 --
 -- Refactored for the synthetic twin (SQLite manufacturing.db) from the
 -- private-repo ground truth "203 3WM Uninvoiced Receipts" (SQL Server):
---   RECEIVER            -> receiving            (header: receipt_id, receipt_date, po_id)
+--   RECEIVER            -> receiving            (header: receipt_id, received_date, po_id)
 --   RECEIVER_LINE       -> receiving_line       (line: receipt_line_id, quantity_received)
 --   PURCHASE_ORDER      -> purchase_order       (vendor + site enrichment)
 --   VENDOR              -> suppliers            (supplier_id, supplier_name)
@@ -19,16 +19,23 @@
 --                                                   (receiving carries no site; site
 --                                                   lives on the purchase order)
 --
--- Lineage (solder-engine structural fingerprint mirrors this):
---   Receipt header:      purchase_order -> receiving -> receiving_line
+-- Lineage:
+--   Receipt header:      purchase_order -> receiving   (validated join edges)
+--   Vendor enrichment:   purchase_order -> suppliers   (validated join edge)
 --   Payable match check: receiving_line -> payable_line -> payables
---   Vendor enrichment:   purchase_order -> suppliers
+--     (receiving_line is reached via an EXISTS semi-join correlated on
+--      receipt_id, not a top-level header->line JOIN, so the solder-engine
+--      fingerprint carries it as a base table + the payable_line->payables edge,
+--      not as a receiving->receiving_line join edge)
 --
 -- Field descriptions (from the governed field_descriptions overlay):
 --   query_name      Report label for this exception extract.
 --   receiver_id     Receipt header identifier (receiving.receipt_id — unique
 --                   identifier for each receiving record).
---   received_date   The receipt date for the receiving (receiving.receipt_date).
+--   received_date   The date goods physically arrived at the dock
+--                   (receiving.received_date — the noun mirroring the real
+--                   source R.RECEIVED_DATE; distinct from receipt_date, the
+--                   date the receipt transaction was posted).
 --   purc_order_id   Links each receiving to its related po (receiving.po_id).
 --   vendor_id       Unique identifier for each suppliers record (suppliers.supplier_id).
 --   vendor_name     Human-readable name of the supplier (suppliers.supplier_name).
@@ -46,33 +53,60 @@
 --                                     vouchers are excluded from match coverage.
 --   payables.invoice_id               Voucher key anchoring the payable header/line
 --                                     relationship (payable_line.invoice_id joins here).
-SELECT DISTINCT
+--
+-- Temporal Parameter Contract (named, NULL-guarded placeholders — baked in by
+-- the SME; SolderEngine serves this verbatim, it does not generate them):
+--   :start_date  Horizon Filter — lower bound on receiving.received_date. NULL
+--                = unbounded start.
+--   :end_date    Dual role: (1) Horizon Filter upper bound on
+--                receiving.received_date; (2) Netting Snapshot — a point-in-time
+--                cutoff applied to payables.invoice_date INSIDE both payable
+--                coverage subqueries, so coverage reflects only vouchers on file
+--                as of :end_date. NULL = unbounded / no snapshot.
+--   :supplier_id Restrict to a single vendor (suppliers.supplier_id). NULL = all.
+-- Every guard is "(:param IS NULL OR <predicate>)", so binding all three to
+-- NULL reproduces the full unfiltered exception population.
+-- Grain: one row per receipt HEADER that has at least one unmatched receiving
+-- line. The line-level exception test lives in an EXISTS semi-join (not a
+-- header->line JOIN + DISTINCT): joining receiving_line at the top level fans a
+-- receipt out to one row per line and then needs DISTINCT to collapse it — a
+-- style SME SQL treats as bad form. EXISTS keeps the receipt grain natively.
+SELECT
     'Uninvoiced Receipts' AS query_name,
     r.receipt_id          AS receiver_id,
-    r.receipt_date        AS received_date,
+    r.received_date       AS received_date,
     r.po_id               AS purc_order_id,
     s.supplier_id         AS vendor_id,
     s.supplier_name       AS vendor_name,
     po.site_id            AS site_id
 FROM receiving r
-JOIN receiving_line rl ON rl.receipt_id = r.receipt_id
 JOIN purchase_order po ON po.po_id = r.po_id
 JOIN suppliers s       ON s.supplier_id = po.supplier_id
-WHERE (
-        rl.quantity_received > (
-            SELECT COALESCE(SUM(ABS(pl.qty)), 0)
-            FROM payable_line pl
-            JOIN payables pay ON pay.invoice_id = pl.invoice_id
-            WHERE pl.receipt_line_id = rl.receipt_line_id
-              AND pay.status <> 'Cancelled'
-        )
-        OR rl.receipt_line_id NOT IN (
-            SELECT pl.receipt_line_id
-            FROM payable_line pl
-            JOIN payables pay ON pay.invoice_id = pl.invoice_id
-            WHERE pl.receipt_line_id IS NOT NULL
-              AND pay.status <> 'Cancelled'
-        )
+WHERE po.site_id = 'SITE-1'
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+  AND (:start_date IS NULL OR r.received_date >= :start_date)
+  AND (:end_date IS NULL OR r.received_date <= :end_date)
+  AND EXISTS (
+        SELECT 1
+        FROM receiving_line rl
+        WHERE rl.receipt_id = r.receipt_id
+          AND (
+                rl.quantity_received > (
+                    SELECT COALESCE(SUM(ABS(pl.qty)), 0)
+                    FROM payable_line pl
+                    JOIN payables pay ON pay.invoice_id = pl.invoice_id
+                    WHERE pl.receipt_line_id = rl.receipt_line_id
+                      AND pay.status <> 'Cancelled'
+                      AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+                )
+                OR rl.receipt_line_id NOT IN (
+                    SELECT pl.receipt_line_id
+                    FROM payable_line pl
+                    JOIN payables pay ON pay.invoice_id = pl.invoice_id
+                    WHERE pl.receipt_line_id IS NOT NULL
+                      AND pay.status <> 'Cancelled'
+                      AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+                )
+          )
       )
-  AND po.site_id = 'SITE-1'
-ORDER BY s.supplier_id, po.site_id, r.receipt_date ASC
+ORDER BY s.supplier_id, po.site_id, r.received_date ASC
