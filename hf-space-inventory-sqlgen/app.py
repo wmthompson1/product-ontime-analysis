@@ -4675,8 +4675,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
         with gr.Tab("🎛️ Selector"):
             gr.Markdown(
-                "<small style='color: var(--body-text-color-subdued);'>"
-                "Selector v 1.0</small>\n\n"
+                "<small>🎛️ <b>Selector v 1.0</b></small>\n\n"
                 "### One selection pane: abstract tags + concrete chain\n"
                 "Tags are a lightweight filter. The chain below is fully "
                 "concrete: physical table → column (✦ = semantically mapped) "
