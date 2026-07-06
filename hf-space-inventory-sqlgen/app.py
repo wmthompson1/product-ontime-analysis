@@ -6492,115 +6492,46 @@ Check that perspective-concept and intent-concept relationships are seeded.
             gr.Markdown("<small>🎛️ <b>Selector v 1.0</b></small>")
 
             try:
-                from ground_truth_selector import (
-                    load_selector_entries, selector_choices, slot_legend,
-                    SelectorCascade, has_categories,
-                )
+                from ground_truth_selector import load_selector_entries
                 _svo_entries = load_selector_entries(MANIFEST_PATH, SQLITE_DB_PATH)
-                _svo_choices = selector_choices(_svo_entries)
-                _svo_legend = slot_legend()
-                _svo_cascade = SelectorCascade(_svo_entries)
-                _svo_has_cats = has_categories(_svo_entries)
-            except Exception as _svo_err:
-                _svo_entries, _svo_choices = [], []
-                _svo_legend = f"Selector unavailable: {_svo_err}"
-                _svo_cascade, _svo_has_cats = None, False
+            except Exception:
+                _svo_entries = []
 
             _svo_by_binding = {e["binding_key"]: e for e in _svo_entries}
 
-            # The anchor dropdown's VALUE carries "category<US>anchor" so every
-            # event handler needs exactly ONE input — Gradio's chained
-            # programmatic .change events only deliver the trigger component's
-            # own value, so multi-input handlers break in the cascade chain.
-            _MO_SEP = "\x1f"
-
-            def _mo_pack(cat, anchor):
-                return f"{cat or ''}{_MO_SEP}{anchor or ''}"
-
-            def _mo_unpack(token):
-                if token and _MO_SEP in token:
-                    cat, anchor = token.split(_MO_SEP, 1)
-                    return (cat or None, anchor or None)
-                return (None, token or None)
-
-            if _svo_has_cats and _svo_cascade is not None:
-                # Shared cascading selector — one physical selector drives all
-                # three lens tabs below, so the tabs are in sync by construction.
-                _mo_cat_choices = _svo_cascade.filter_choices("category")
-                _mo_cat0 = _mo_cat_choices[0][1] if _mo_cat_choices else None
-                _mo_anchor_pairs = _svo_cascade.anchor_choices({"category": _mo_cat0})
-                _mo_anchor_raw0 = _mo_anchor_pairs[0][1] if _mo_anchor_pairs else None
-                _mo_anchor_choices = [
-                    (lbl, _mo_pack(_mo_cat0, a)) for lbl, a in _mo_anchor_pairs
-                ]
-                _mo_anchor0 = (
-                    _mo_pack(_mo_cat0, _mo_anchor_raw0) if _mo_anchor_raw0 else None
-                )
-                _mo_query_choices = _svo_cascade.query_choices({"category": _mo_cat0}, _mo_anchor_raw0)
-                _mo_sel0 = _svo_cascade.resolve({"category": _mo_cat0}, _mo_anchor_raw0)
-                _mo_query0 = _mo_sel0.binding_key or (
-                    _mo_query_choices[0][1] if _mo_query_choices else None
-                )
-
-                gr.Markdown(
-                    f"**One selector, three lenses — {len(_svo_entries)} approved "
-                    f"ground-truth queries.** Pick a category, then a concept "
-                    f"anchor; the query auto-selects when only one matches. The "
-                    f"final level keeps the fixed-width 6-slot summary for "
-                    f"orientation:\n\n{_svo_legend}"
-                )
-                with gr.Row():
-                    mosaic_cat = gr.Dropdown(
-                        choices=_mo_cat_choices,
-                        value=_mo_cat0,
-                        label="1 · Category",
-                        interactive=True,
-                        scale=1,
-                    )
-                    mosaic_anchor = gr.Dropdown(
-                        choices=_mo_anchor_choices,
-                        value=_mo_anchor0,
-                        label="2 · Concept anchor  [base tables]",
-                        interactive=True,
-                        scale=2,
-                    )
-                    svo_picker = gr.Dropdown(
-                        choices=_mo_query_choices,
-                        value=_mo_query0,
-                        label="3 · Query / perspective (6-slot summary)",
-                        interactive=True,
-                        scale=2,
-                        elem_classes=["gt-slot-select"],
-                    )
-                    svo_btn = gr.Button("Show", variant="primary", scale=0)
-            else:
-                # Flat fallback — the manifest carries no categories, so the
-                # original single 6-slot master selector survives unchanged.
-                mosaic_cat = mosaic_anchor = None
-                gr.Markdown(
-                    f"**Master selector — all {len(_svo_entries)} approved ground-truth "
-                    f"queries.** Each entry is a same-length 6-slot summary "
-                    f"(simplified echo of the graph's fixed 6-slot key scheme):\n\n"
-                    f"{_svo_legend}"
-                )
-                with gr.Row():
-                    svo_picker = gr.Dropdown(
-                        choices=_svo_choices,
-                        label="Ground-truth query (6-slot summary)",
-                        value=_svo_choices[0][1] if _svo_choices else None,
-                        interactive=True,
-                        scale=3,
-                        elem_classes=["gt-slot-select"],
-                    )
-                    svo_btn = gr.Button("Show Ontology", variant="primary", scale=1)
+            # Selector v 1.0 chain — the same filters as the 🎛️ Selector tab
+            # (Perspective filter → Table → Column → Concept → Intent →
+            # Ground-truth query), reusing the shared _sel_* helpers and
+            # single-input packed-token handlers. The final query pick drives
+            # the three lens tabs below.
+            with gr.Row():
+                mo_tags = gr.Dropdown(
+                    choices=_sel_categories(),
+                    label="Perspective filter (type to search, multi-select)",
+                    value=[], multiselect=True, filterable=True, scale=1)
+                gr.Markdown("", scale=2)  # spacer keeps the filter narrow
+            with gr.Row():
+                mo_table = gr.Dropdown(
+                    choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
+                    label="Table", value=None, scale=1)
+                mo_column = gr.Dropdown(choices=[], label="Column",
+                                        value=None, scale=1)
+                mo_concept = gr.Dropdown(choices=[], label="Concept",
+                                         value=None, scale=1)
+                mo_intent = gr.Dropdown(choices=[], label="Intent",
+                                        value=None, scale=1)
+                mo_query = gr.Dropdown(choices=_sel_query_choices([]),
+                                       label="Ground-truth query",
+                                       value=None, scale=1)
+            mo_summary = gr.Markdown(_sel_summary([]))
 
             gr.Markdown("""
             ### Ontology Mosaic — three lenses, one selector
 
             The ground-truth SQL **IS the view** — it tells the complete story.
             This mosaic shows that story through **three lenses**, all driven by
-            **one shared cascading selector** (Category → Concept anchor →
-            Query/perspective):
+            the **Selector v 1.0 chain above** (Perspective filter → Table →
+            Column → Concept → Intent → Ground-truth query):
 
             - **🔗 Join Topology** — the graph topology **extracted by SQLGlot**
               from the approved SQL: physical tables touched, join relationships,
@@ -6781,56 +6712,132 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
             _mosaic_outputs = [svo_summary, svo_joins, svo_detail, svo_semantic, svo_sql]
 
-            svo_btn.click(
-                fn=render_view_ontology,
-                inputs=[svo_picker],
-                outputs=_mosaic_outputs,
-            )
-            svo_picker.change(
-                fn=render_view_ontology,
-                inputs=[svo_picker],
-                outputs=_mosaic_outputs,
-            )
+            def _find_gt_query(name):
+                """Locate a governed query by its '-- Query:' marker name."""
+                idx = get_query_categories()
+                for _cat in idx.get("categories", []):
+                    for _q in get_saved_queries(_cat["id"]):
+                        if _q["name"] == name:
+                            return _q
+                return None
 
-            if _svo_has_cats and _svo_cascade is not None:
-                # Cascade plumbing: Category narrows anchors, anchor narrows
-                # queries, and a single surviving query auto-selects. The query
-                # dropdown (svo_picker) stays the one source of truth the render
-                # subscribes to, so adding a future filter (see the extension
-                # seam in ground_truth_selector.py) needs no changes here beyond
-                # one more dropdown feeding the same chain.
-                def _mosaic_on_category(cat):
-                    pairs = _svo_cascade.anchor_choices({"category": cat})
-                    anchor = pairs[0][1] if pairs else None
-                    anchors = [(lbl, _mo_pack(cat, a)) for lbl, a in pairs]
-                    queries = _svo_cascade.query_choices({"category": cat}, anchor)
-                    sel = _svo_cascade.resolve({"category": cat}, anchor)
-                    q = sel.binding_key or (queries[0][1] if queries else None)
+            def _mosaic_render_chain(val):
+                """Render the three lenses from the Selector v 1.0 query pick.
+
+                If the governed query carries a '-- Binding:' marker that maps
+                to a seeded ontology entry, reuse the seeded render path;
+                otherwise extract the ontology live from the SQL text
+                (pure AST, fail-visible).
+                """
+                _msg = "Pick a ground-truth query in the selector above."
+                _csv, _t, _c, concept, _i, query = _sel_parse(val or "", 6)
+                if not query:
+                    return _msg, [], "", _msg, ""
+                q = _find_gt_query(query)
+                if q is None:
+                    _err = f"Ground-truth query `{query}` not found in the governed files."
+                    return _err, [], "", _err, ""
+                bk = (q.get("binding_key") or "").strip()
+                if bk and bk in _svo_by_binding:
+                    return render_view_ontology(bk)
+
+                sql_text = q["sql"].strip()
+                semantic_md = (
+                    _render_semantic_pane({"concept_anchor": concept})
+                    if concept else
+                    "Pick a concept in the selector above to see its semantic-layer story."
+                )
+                try:
+                    from dataclasses import asdict as _mrc_asdict
+                    from view_ontology_extractor import extract_view_ontology
+                    d = _mrc_asdict(extract_view_ontology(
+                        sql_text, bk or f"chain::{query}",
+                        concept or query, "",
+                    ))
+                except Exception as exc:
                     return (
-                        gr.update(
-                            choices=anchors,
-                            value=_mo_pack(cat, anchor) if anchor else None,
-                        ),
-                        gr.update(choices=queries, value=q),
+                        f"Extraction failed for `{query}`: {exc}",
+                        [], "", semantic_md, sql_text,
                     )
 
-                def _mosaic_on_anchor(token):
-                    cat, anchor = _mo_unpack(token)
-                    queries = _svo_cascade.query_choices({"category": cat}, anchor)
-                    sel = _svo_cascade.resolve({"category": cat}, anchor)
-                    q = sel.binding_key or (queries[0][1] if queries else None)
-                    return gr.update(choices=queries, value=q)
+                tp = "⏱ **Time-phased**" if d["time_phased"] else "· Single-point-in-time"
+                tk = (
+                    f"  Temporal keys: `{'`, `'.join(d['temporal_keys'])}`"
+                    if d["temporal_keys"] else ""
+                )
+                desc = q.get("description") or ""
+                summary = (
+                    f"**{query}**\n\n"
+                    + (f"_{desc}_\n\n" if desc else "")
+                    + f"{tp}{tk}\n\n"
+                    f"**Physical tables** ({len(d['physical_tables'])}):"
+                    f"  `{'` · `'.join(d['physical_tables'])}`\n\n"
+                    f"**CTE scaffolding** ({len(d['cte_names'])}):"
+                    + (f"  `{'` · `'.join(d['cte_names'])}`" if d["cte_names"] else "  _(none)_")
+                )
+                joins_table = [
+                    [
+                        j["left_table"], j["join_type"], j["right_table"],
+                        j["left_key"] or "", j["right_key"] or "",
+                    ]
+                    for j in d["joins"]
+                ]
+                detail_lines = []
+                if d["state_predicates"]:
+                    detail_lines.append("#### Set-membership predicates (WHERE)")
+                    for p in d["state_predicates"]:
+                        detail_lines.append(f"```sql\n{p}\n```")
+                if d["grain_columns"]:
+                    detail_lines.append(
+                        f"#### Grain  (GROUP BY / ORDER BY keys)\n`{'` · `'.join(d['grain_columns'])}`"
+                    )
+                if d["selected_columns"]:
+                    detail_lines.append(
+                        f"#### Output columns ({len(d['selected_columns'])})\n"
+                        + "  ".join(f"`{c}`" for c in d["selected_columns"])
+                    )
+                detail_lines.append(
+                    f"\n---\n_Extracted live by SQLGlot (pure AST, not yet seeded)"
+                    f" · semantics version `{d['semantics_version']}`"
+                    f" · as of {d['extracted_at'][:10]}_"
+                )
+                detail = "\n\n".join(detail_lines)
 
-                mosaic_cat.change(
-                    fn=_mosaic_on_category,
-                    inputs=[mosaic_cat],
-                    outputs=[mosaic_anchor, svo_picker],
-                )
-                mosaic_anchor.change(
-                    fn=_mosaic_on_anchor,
-                    inputs=[mosaic_anchor],
-                    outputs=[svo_picker],
-                )
+                return summary, joins_table, detail, semantic_md, sql_text
+
+            # Chain wiring — identical to the 🎛️ Selector tab: every handler
+            # takes ONLY its trigger's packed value (Gradio's programmatic
+            # .change events deliver just the trigger component's own value).
+            mo_tags.change(
+                fn=_sel_on_tags, inputs=[mo_tags],
+                outputs=[mo_table, mo_column, mo_concept, mo_intent,
+                         mo_query, mo_summary],
+            )
+            mo_table.change(
+                fn=_sel_on_table, inputs=[mo_table],
+                outputs=[mo_column, mo_concept, mo_intent, mo_query,
+                         mo_summary],
+            )
+            mo_column.change(
+                fn=_sel_on_column, inputs=[mo_column],
+                outputs=[mo_concept, mo_intent, mo_query, mo_summary],
+            )
+            mo_concept.change(
+                fn=_sel_on_concept, inputs=[mo_concept],
+                outputs=[mo_intent, mo_query, mo_summary],
+            )
+            mo_intent.change(
+                fn=_sel_on_intent, inputs=[mo_intent],
+                outputs=[mo_query, mo_summary],
+            )
+            mo_query.change(
+                fn=_sel_on_query, inputs=[mo_query],
+                outputs=[mo_summary],
+            )
+            mo_query.change(
+                fn=_mosaic_render_chain, inputs=[mo_query],
+                outputs=_mosaic_outputs,
+            )
 
         with gr.Tab("🦉 Ontology Mapping"):
             gr.Markdown("""
