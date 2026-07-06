@@ -4337,6 +4337,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
     with gr.Blocks() as demo:
         gr.HTML(_GT_SLOT_CSS, visible=True)
+        gr.Markdown("<small>🎛️ <b>Selector v 1.0</b></small>")
         gr.Markdown("""
         # 🏭 Manufacturing SQL Semantic Layer
         
@@ -4675,7 +4676,6 @@ Check that perspective-concept and intent-concept relationships are seeded.
 
         with gr.Tab("🎛️ Selector"):
             gr.Markdown(
-                "<small>🎛️ <b>Selector v 1.0</b></small>\n\n"
                 "### One selection pane: abstract tags + concrete chain\n"
                 "Tags are a lightweight filter. The chain below is fully "
                 "concrete: physical table → column (✦ = semantically mapped) "
