@@ -5,7 +5,7 @@ description: Design contract for the app-wide Selector tab / shared selection pa
 
 # Shared selector pane design
 
-Rule: abstract vocabulary (intent categories like `inventory_management`) is a **lightweight tag filter** (CheckboxGroup), never a cascade level. The cascade itself is fully concrete: physical Table → Column (✦ marks columns with a `resolves_to` edge) → Concept → Intent (weight=1 elevations) → Ground-truth query — exactly 5 dropdowns in one row.
+Rule: the tag filter (CheckboxGroup) uses the 15 **stakeholder perspectives** from `schema_perspectives` — the same vocabulary as the Define Relationship category chips (Quality, Payables, Work_Orders, …), ordered by `perspective_id`. Never use abstract intent categories as tags or cascade levels; the user rejected them. The cascade itself is fully concrete: physical Table → Column (✦ marks columns with a `resolves_to` edge) → Concept → Intent (weight=1 elevations) → Ground-truth query — exactly 5 dropdowns in one row. Tag filtering flows through `schema_perspective_concepts` (concepts/tables) and `schema_intent_perspectives` (intents).
 
 **Why:** user explicitly said abstract terms are "best used for lightweight tag filtering" and their standing pref is concrete filter levels, max 5 per selector row, narrow dropdowns. The Selector tab is meant to become the shared selection pane merged into the majority of tabs.
 

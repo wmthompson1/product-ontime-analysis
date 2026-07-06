@@ -4435,16 +4435,19 @@ Check that perspective-concept and intent-concept relationships are seeded.
             return sqlite3.connect(SQLITE_DB_PATH)
 
         def _sel_categories():
+            """Stakeholder perspectives — same vocabulary as the
+            Define Relationship category chips."""
             conn = _sel_db()
             try:
                 return [r[0] for r in conn.execute(
-                    "SELECT DISTINCT intent_category FROM schema_intents ORDER BY 1")]
+                    "SELECT perspective_name FROM schema_perspectives "
+                    "ORDER BY perspective_id")]
             finally:
                 conn.close()
 
         def _sel_tables(tags):
             """Physical tables; if tags picked, only tables whose columns
-            resolve to a concept elevated by an intent in those categories."""
+            resolve to a concept used by those perspectives."""
             conn = _sel_db()
             try:
                 if not tags:
@@ -4459,12 +4462,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     JOIN sql_graph_nodes n  ON n._id = e._from
                     JOIN sql_graph_nodes cn ON cn._id = e._to
                     JOIN schema_concepts sc ON sc.concept_name = cn.concept_name
-                    JOIN schema_intent_concepts ic
-                         ON ic.concept_id = sc.concept_id
-                        AND ic.intent_factor_weight = 1
-                    JOIN schema_intents i ON i.intent_id = ic.intent_id
+                    JOIN schema_perspective_concepts pc
+                         ON pc.concept_id = sc.concept_id
+                    JOIN schema_perspectives p
+                         ON p.perspective_id = pc.perspective_id
                     WHERE e.edge_type = 'resolves_to'
-                      AND i.intent_category IN ({ph})
+                      AND p.perspective_name IN ({ph})
                     ORDER BY 1
                     """, list(tags))]
             finally:
@@ -4510,11 +4513,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     sql += f"""
                       AND cn.concept_name IN (
                         SELECT sc.concept_name FROM schema_concepts sc
-                        JOIN schema_intent_concepts ic
-                             ON ic.concept_id = sc.concept_id
-                            AND ic.intent_factor_weight = 1
-                        JOIN schema_intents i ON i.intent_id = ic.intent_id
-                        WHERE i.intent_category IN ({ph}))
+                        JOIN schema_perspective_concepts pc
+                             ON pc.concept_id = sc.concept_id
+                        JOIN schema_perspectives p
+                             ON p.perspective_id = pc.perspective_id
+                        WHERE p.perspective_name IN ({ph}))
                     """
                     params.extend(tags)
                 sql += " ORDER BY 1"
@@ -4535,7 +4538,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 params = [concept]
                 if tags:
                     ph = ",".join("?" * len(tags))
-                    sql += f" AND i.intent_category IN ({ph})"
+                    sql += f"""
+                      AND i.intent_id IN (
+                        SELECT ip.intent_id FROM schema_intent_perspectives ip
+                        JOIN schema_perspectives p
+                             ON p.perspective_id = ip.perspective_id
+                        WHERE ip.intent_factor_weight = 1
+                          AND p.perspective_name IN ({ph}))
+                    """
                     params.extend(tags)
                 sql += " ORDER BY 1"
                 return [r[0] for r in conn.execute(sql, params)]
@@ -4670,11 +4680,19 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 tags = [t for t in csv.split(",") if t]
                 intents = _sel_intents(concept, tags)
                 prefix = val + _SEL_SEP
+                summary = _sel_summary(tags, table, column or None, concept)
+                if not intents:
+                    summary += (
+                        "\n\n> ⚠️ No analytical intent elevates this concept"
+                        + (" within the selected tags — clear a tag to widen "
+                           "the list." if tags else " yet — the chain ends "
+                           "here.")
+                    )
                 return (
                     gr.update(choices=[(i, prefix + i) for i in intents],
                               value=None),
                     _SEL_CLEAR,
-                    _sel_summary(tags, table, column or None, concept),
+                    summary,
                 )
 
             def _sel_on_intent(val):
