@@ -157,6 +157,20 @@ if [ -f hf-space-inventory-sqlgen/tests/test_demand_linkage.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_three_way_match_data.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_three_way_match_data.py || {
+    echo "post-merge: three-way match data tests failed"
+    exit 1
+  }
+fi
+
+if [ -f hf-space-inventory-sqlgen/tests/test_demand_expansion.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_demand_expansion.py || {
+    echo "post-merge: demand expansion tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_structural_fingerprint.py ]; then
   python hf-space-inventory-sqlgen/tests/test_structural_fingerprint.py || {
     echo "post-merge: structural fingerprint tests failed"

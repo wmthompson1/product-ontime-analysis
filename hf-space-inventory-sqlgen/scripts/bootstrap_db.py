@@ -72,6 +72,16 @@ STEPS = [
     # demand linkage (WO -> customer_order_line, >=50%), safety stock, forecast
     # demand source (runs after the expansion so its WOs/CO lines participate)
     ("migrations/add_demand_linkage_and_forecast.py", []),
+    # complete the PO <-> receiver <-> payable three-way match chain (runs
+    # after the prune + receiving-line split so it sees the final PO set;
+    # never touches MRP-critical POs)
+    ("migrations/complete_three_way_match.py", []),
+    # demand-side expansion: close three shop orders (finished goods to
+    # stock), repair outside-service op keys, re-run the cost cascade, and
+    # add three Open customer orders whose lines make every stocked MAKE
+    # part a planning part (runs after the three-way match completion so
+    # received service POs accrue onto their operations)
+    ("migrations/expand_demand_and_completions.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)
