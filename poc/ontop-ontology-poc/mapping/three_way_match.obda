@@ -27,4 +27,24 @@ mappingId       map-twm-invoiced-qty
 target          :invoiceLine/{payable_line_id} :invoicedQty {qty}^^xsd:double .
 source          SELECT payable_line_id, qty FROM payable_line WHERE receipt_line_id IS NOT NULL AND qty IS NOT NULL
 
+mappingId       map-twm-voucher-status
+target          :invoiceLine/{payable_line_id} :voucherStatus {status}^^xsd:string .
+source          SELECT pl.payable_line_id, pay.status FROM payable_line pl JOIN payables pay ON pay.invoice_id = pl.invoice_id WHERE pay.status IS NOT NULL
+
+mappingId       map-twm-receipt
+target          :receipt/{receipt_id} a :Receipt ; :receiptDate {receipt_date}^^xsd:date ; :receivedFrom :vendor/{supplier_id} .
+source          SELECT receipt_id, receipt_date, supplier_id FROM receiving
+
+mappingId       map-twm-receipt-site
+target          :receipt/{receipt_id} :siteId {site_id}^^xsd:string .
+source          SELECT r.receipt_id, po.site_id FROM receiving r JOIN purchase_order po ON po.po_id = r.po_id WHERE po.site_id IS NOT NULL
+
+mappingId       map-twm-receipt-line-header
+target          :receiptLine/{receipt_line_id} :onReceipt :receipt/{receipt_id} .
+source          SELECT receipt_line_id, receipt_id FROM receiving_line
+
+mappingId       map-twm-vendor
+target          :vendor/{supplier_id} a :Vendor ; :vendorName {supplier_name}^^xsd:string .
+source          SELECT supplier_id, supplier_name FROM suppliers
+
 ]]

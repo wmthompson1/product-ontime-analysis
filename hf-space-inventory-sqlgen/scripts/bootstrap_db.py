@@ -82,6 +82,10 @@ STEPS = [
     # part a planning part (runs after the three-way match completion so
     # received service POs accrue onto their operations)
     ("migrations/expand_demand_and_completions.py", []),
+    # uninvoiced-receipts exception populations for the governed 3WM view
+    # payables_uninvoicedreceipts (runs after the match completion so the
+    # engineered exceptions are never "repaired" back into a clean ledger)
+    ("migrations/add_uninvoiced_receipts_demo.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)

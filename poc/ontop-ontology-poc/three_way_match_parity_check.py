@@ -9,19 +9,24 @@ virtual knowledge graph (Ontop rewriting SPARQL -> SQL over manufacturing.db)
 matches, to floating-point tolerance, the numbers direct governed SQL produces
 over the SAME read-only snapshot.
 
-Grounding. The match is governed by TWO SME-approved views in the Ground Truth
-SQL layer (perspective Payables, category delivery_performance):
+Grounding. The match is governed by THREE SME-approved views in the Ground
+Truth SQL layer (perspective Payables, category delivery_performance):
 
-  * payables_ordersreceived_20260706_000001   — POs fully received (legs 1-2)
-  * payables_ordersunreceived_20260706_000002 — POs unreceived / short
+  * payables_ordersreceived_20260706_000001      — POs fully received (legs 1-2)
+  * payables_ordersunreceived_20260706_000002    — POs unreceived / short
+  * payables_uninvoicedreceipts_20260706_000003  — receipt lines not fully
+    covered by non-cancelled payable lines (the receipt <-> invoice leg 3,
+    refactored from the private-repo "203 3WM Uninvoiced Receipts")
 
 plus the SME doc set in docs/my-mrp-kb/07-three-way-match/ ("Uninvoiced
-Receivers Report - Detailed" — the receipt <-> invoice leg 3). The scalar
-per-leg aggregates checked here are restated directly from those governed
-surfaces' base tables (po_line / receiving_line / payable_line), and the two
-governed views themselves are executed on the same snapshot as a cross-check
-(their PO sets must stay disjoint — the invariant the ground-truth gate
-tests/test_procurement_views.py locks in).
+Receivers Report - Detailed"). The scalar per-leg aggregates checked here are
+restated directly from those governed surfaces' base tables (po_line /
+receiving_line / payable_line), and the governed views themselves are executed
+on the same snapshot as cross-checks: the received/unreceived PO sets must
+stay disjoint (the invariant the ground-truth gate
+tests/test_procurement_views.py locks in), and the uninvoiced-receipts view
+must report exactly the receipt set an independent grouped-LEFT-JOIN
+restatement finds.
 
 Invoiced-link semantics (aligned end-to-end, SPARQL <-> SQL):
 
@@ -85,6 +90,7 @@ GROUND_TRUTH_DIR = os.path.join(
 MANIFEST = os.path.join(GROUND_TRUTH_DIR, "reviewer_manifest.json")
 RECEIVED_KEY = "payables_ordersreceived_20260706_000001"
 UNRECEIVED_KEY = "payables_ordersunreceived_20260706_000002"
+UNINVOICED_KEY = "payables_uninvoicedreceipts_20260706_000003"
 
 # The governed SQL definitions — module-level constants so the semantics
 # regression below exercises the EXACT SQL the parity comparison runs.
@@ -106,6 +112,27 @@ SQL_UNINVOICED = (
     "SELECT COUNT(*) FROM receiving_line rl "
     "LEFT JOIN payable_line pll ON pll.receipt_line_id = rl.receipt_line_id "
     "WHERE pll.payable_line_id IS NULL")
+# Independent restatement of the governed Uninvoiced Receipts view
+# (payables_uninvoicedreceipts_20260706_000003): receipt headers (SITE-1
+# scope) with at least one line whose NON-cancelled payable coverage is
+# absent or below the received quantity. Stated with a grouped LEFT JOIN
+# instead of the view's correlated subqueries, so agreement between the two
+# is a real cross-check rather than a restated tautology. A receipt-pointing
+# payable line whose qty is NULL yields coverage 0 here (SUM over NULLs ->
+# NULL -> COALESCE 0) and trips the view's quantity branch the same way.
+SQL_UNINVOICED_RECEIPT_IDS = (
+    "SELECT DISTINCT r.receipt_id FROM receiving r "
+    "JOIN receiving_line rl ON rl.receipt_id = r.receipt_id "
+    "JOIN purchase_order po ON po.po_id = r.po_id "
+    "LEFT JOIN (SELECT pl.receipt_line_id AS rlid, SUM(ABS(pl.qty)) AS covered "
+    "           FROM payable_line pl "
+    "           JOIN payables pay ON pay.invoice_id = pl.invoice_id "
+    "           WHERE pl.receipt_line_id IS NOT NULL "
+    "             AND pay.status <> 'Cancelled' "
+    "           GROUP BY pl.receipt_line_id) cov "
+    "  ON cov.rlid = rl.receipt_line_id "
+    "WHERE po.site_id = 'SITE-1' "
+    "  AND (cov.rlid IS NULL OR rl.quantity_received > COALESCE(cov.covered, 0))")
 
 
 def semantics_regression():
@@ -234,6 +261,14 @@ def main():
         received_pos = {r[0] for r in conn.execute(load_governed_view_sql(RECEIVED_KEY))}
         unreceived_pos = {r[0] for r in conn.execute(load_governed_view_sql(UNRECEIVED_KEY))}
         view_overlap = received_pos & unreceived_pos
+
+        # Cross-check: the governed Uninvoiced Receipts view must report
+        # exactly the receipts the independent grouped-LEFT-JOIN restatement
+        # finds on the same snapshot (receipt_id is column 2 of the view).
+        uninvoiced_view_receipts = {
+            r[1] for r in conn.execute(load_governed_view_sql(UNINVOICED_KEY))}
+        uninvoiced_restated_receipts = {
+            r[0] for r in conn.execute(SQL_UNINVOICED_RECEIPT_IDS)}
     finally:
         conn.close()
 
@@ -252,6 +287,8 @@ def main():
     print("-" * 68)
     print(f"    governed views on the same snapshot: {len(received_pos)} POs fully "
           f"received, {len(unreceived_pos)} unreceived/short, overlap {len(view_overlap)}")
+    print(f"    uninvoiced receipts (governed view / restated SQL): "
+          f"{len(uninvoiced_view_receipts)} / {len(uninvoiced_restated_receipts)}")
     print("=" * 68)
 
     recv_ok = (sparql_recv_lines == sql_recv_lines
@@ -263,8 +300,12 @@ def main():
               and abs(sparql_ord_qty - sql_ord_qty) <= QTY_TOLERANCE)
     uninvoiced_ok = (sparql_uninvoiced == sql_uninvoiced)
     views_ok = (not view_overlap and received_pos and unreceived_pos)
+    uninvoiced_view_ok = (
+        uninvoiced_view_receipts == uninvoiced_restated_receipts
+        and bool(uninvoiced_view_receipts))
 
-    ok = recv_ok and links_ok and qty_ok and ord_ok and uninvoiced_ok and views_ok
+    ok = (recv_ok and links_ok and qty_ok and ord_ok and uninvoiced_ok
+          and views_ok and uninvoiced_view_ok)
     if ok:
         print("  RESULT: PARITY CONFIRMED \u2014 the virtual SPARQL graph and the")
         print("          governed SQL return the same per-leg populations and")
@@ -287,6 +328,10 @@ def main():
         if not views_ok:
             print(f"    governed view cross-check failed (overlap {sorted(view_overlap)!r}, "
                   f"received {len(received_pos)}, unreceived {len(unreceived_pos)})")
+        if not uninvoiced_view_ok:
+            print("    uninvoiced-receipts view cross-check failed: view "
+                  f"{sorted(uninvoiced_view_receipts)!r} vs restated "
+                  f"{sorted(uninvoiced_restated_receipts)!r}")
     print("=" * 68)
 
     return 0 if ok else 1

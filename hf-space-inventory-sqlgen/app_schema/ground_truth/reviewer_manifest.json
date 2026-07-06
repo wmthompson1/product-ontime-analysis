@@ -1146,6 +1146,64 @@
         "signed_off_by": "seed_backfill",
         "signed_off_at": "2026-07-06T05:13:07.077220+00:00"
       }
+    },
+    "payables_uninvoicedreceipts_20260706_000003": {
+      "concept_anchor": "UNINVOICEDRECEIPTS",
+      "perspective": "Payables",
+      "category": "delivery_performance",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/payables_uninvoicedreceipts_20260706_000003.sql",
+      "sme_justification": "Uninvoiced receipts exception report (three-way match): receipts with at least one receiving line whose non-cancelled payable coverage is below the received quantity or absent entirely \u2014 refactored from the private-repo ground truth '203 3WM Uninvoiced Receipts'",
+      "validation_status": "APPROVED",
+      "binding_key": "payables_uninvoicedreceipts_20260706_000003",
+      "created_at": "2026-07-06T00:00:03Z",
+      "approved_by": "seed_data",
+      "approved_at": "2026-07-06T00:00:03Z",
+      "structural_fingerprint": {
+        "base_tables": [
+          "payable_line",
+          "payables",
+          "purchase_order",
+          "receiving",
+          "receiving_line",
+          "suppliers"
+        ],
+        "join_edges": [
+          {
+            "table_a": "payable_line",
+            "column_a": "invoice_id",
+            "table_b": "payables",
+            "column_b": "invoice_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "purchase_order",
+            "column_a": "po_id",
+            "table_b": "receiving",
+            "column_b": "po_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "purchase_order",
+            "column_a": "supplier_id",
+            "table_b": "suppliers",
+            "column_b": "supplier_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "receiving",
+            "column_a": "receipt_id",
+            "table_b": "receiving_line",
+            "column_b": "receipt_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "seed_backfill",
+        "signed_off_at": "2026-07-06T15:02:51.319558+00:00"
+      }
     }
   }
 }

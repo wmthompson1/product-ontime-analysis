@@ -204,6 +204,41 @@ ORDER BY past_due_over_90 DESC, total_due DESC;
 --           is Exception (PO / receipt / invoice disagree). These should
 --           be held from payment until resolved.
 -- ============================================================
+-- Query: Uninvoiced Receipts
+-- Description: Which receipts have goods in the door but no matching supplier invoice? Receipt lines whose non-cancelled payable coverage is short or missing entirely (three-way match leg 2 vs leg 3).
+-- Binding: payables_uninvoicedreceipts_20260706_000003
+SELECT DISTINCT
+    'Uninvoiced Receipts' AS query_name,
+    r.receipt_id          AS receiver_id,
+    r.receipt_date        AS received_date,
+    r.po_id               AS purc_order_id,
+    s.supplier_id         AS vendor_id,
+    s.supplier_name       AS vendor_name,
+    po.site_id            AS site_id
+FROM receiving r
+JOIN receiving_line rl ON rl.receipt_id = r.receipt_id
+JOIN purchase_order po ON po.po_id = r.po_id
+JOIN suppliers s       ON s.supplier_id = po.supplier_id
+WHERE (
+        rl.quantity_received > (
+            SELECT COALESCE(SUM(ABS(pl.qty)), 0)
+            FROM payable_line pl
+            JOIN payables pay ON pay.invoice_id = pl.invoice_id
+            WHERE pl.receipt_line_id = rl.receipt_line_id
+              AND pay.status <> 'Cancelled'
+        )
+        OR rl.receipt_line_id NOT IN (
+            SELECT pl.receipt_line_id
+            FROM payable_line pl
+            JOIN payables pay ON pay.invoice_id = pl.invoice_id
+            WHERE pl.receipt_line_id IS NOT NULL
+              AND pay.status <> 'Cancelled'
+        )
+      )
+  AND po.site_id = 'SITE-1'
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+ORDER BY s.supplier_id, po.site_id, r.receipt_date ASC;
+
 -- Query: Three-Way Match Exceptions
 -- Description: Which unpaid invoices failed three-way match? Exception-status invoices per supplier with amounts at risk and the linked PO.
 SELECT

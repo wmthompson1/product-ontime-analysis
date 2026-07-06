@@ -28,7 +28,8 @@
     "suppliers_supplierscorecard_20260601_000001": ["on_time_delivery"],
     "operations_oeeoperational_20260604_000007": ["operational_efficiency"],
     "payables_ordersreceived_20260706_000001": ["three_way_match"],
-    "payables_ordersunreceived_20260706_000002": ["three_way_match"]
+    "payables_ordersunreceived_20260706_000002": ["three_way_match"],
+    "payables_uninvoicedreceipts_20260706_000003": ["three_way_match"]
   },
   "query_bindings": {
     "Three-Way Match Exceptions": [
