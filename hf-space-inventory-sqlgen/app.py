@@ -4535,20 +4535,39 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     JOIN schema_intents i  ON i.intent_id = ic.intent_id
                     WHERE c.concept_name = ? AND ic.intent_factor_weight = 1
                 """
-                params = [concept]
-                if tags:
-                    ph = ",".join("?" * len(tags))
-                    sql += f"""
-                      AND i.intent_id IN (
-                        SELECT ip.intent_id FROM schema_intent_perspectives ip
-                        JOIN schema_perspectives p
-                             ON p.perspective_id = ip.perspective_id
-                        WHERE ip.intent_factor_weight = 1
-                          AND p.perspective_name IN ({ph}))
-                    """
-                    params.extend(tags)
+                # NOTE: tags intentionally do NOT filter intents. The concept
+                # is already perspective-filtered upstream; the sparse
+                # intent<->perspective links would cut off valid chains
+                # (e.g. Finance concepts elevate to query-bearing intents
+                # that lack a Finance link).
                 sql += " ORDER BY 1"
-                return [r[0] for r in conn.execute(sql, params)]
+                return [r[0] for r in conn.execute(sql, [concept])]
+            finally:
+                conn.close()
+
+        def _sel_query_count(tags):
+            """How many ground-truth queries are reachable under these tags
+            (via perspective concepts -> weight-1 intents -> queries)."""
+            conn = _sel_db()
+            try:
+                if not tags:
+                    return conn.execute(
+                        "SELECT COUNT(*) FROM schema_intent_queries"
+                    ).fetchone()[0]
+                ph = ",".join("?" * len(tags))
+                return conn.execute(
+                    f"""
+                    SELECT COUNT(DISTINCT q.id)
+                    FROM schema_perspectives sp
+                    JOIN schema_perspective_concepts pc
+                         ON pc.perspective_id = sp.perspective_id
+                    JOIN schema_intent_concepts ic
+                         ON ic.concept_id = pc.concept_id
+                        AND ic.intent_factor_weight = 1
+                    JOIN schema_intent_queries q
+                         ON q.intent_id = ic.intent_id
+                    WHERE sp.perspective_name IN ({ph})
+                    """, list(tags)).fetchone()[0]
             finally:
                 conn.close()
 
@@ -4627,6 +4646,23 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 csv = ",".join(tags)
                 tables = _sel_tables(tags)
                 summary = _sel_summary(tags)
+                n_q = _sel_query_count(tags)
+                if tags:
+                    summary += (
+                        f"\n\n**Ground-truth query coverage:** {n_q} "
+                        "quer" + ("y" if n_q == 1 else "ies")
+                        + " reachable under these tags."
+                    )
+                    if n_q == 0:
+                        covered = [p for p in _sel_categories()
+                                   if _sel_query_count([p]) > 0]
+                        summary += (
+                            "\n\n> ⚠️ No ground-truth queries are wired to "
+                            "these perspectives yet — you can still browse "
+                            "tables → columns → concepts → intents, but the "
+                            "chain will end before a query. Perspectives with "
+                            "coverage today: " + ", ".join(covered) + "."
+                        )
                 if tags and not tables:
                     summary += (
                         "\n\n> ⚠️ No tables have semantically mapped columns "
