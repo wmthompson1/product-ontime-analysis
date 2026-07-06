@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-03T00:00:00.000000",
+  "last_updated": "2026-07-06T00:00:02Z",
   "approved_snippets": {
     "inventory_reorderpoint_20260703_000001": {
       "concept_anchor": "REORDERPOINT",
@@ -1059,6 +1059,92 @@
         "dialect": "sqlite",
         "signed_off_by": "seed_backfill",
         "signed_off_at": "2026-07-04T07:51:10.768821+00:00"
+      }
+    },
+    "payables_ordersreceived_20260706_000001": {
+      "concept_anchor": "ORDERSRECEIVED",
+      "perspective": "Payables",
+      "category": "delivery_performance",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/payables_ordersreceived_20260706_000001.sql",
+      "sme_justification": "Purchase orders fully received \u2014 every po_line has receipt coverage >= ordered quantity, computed line-by-line via receiving_line.po_line_id; core receiving-completion procurement view",
+      "validation_status": "APPROVED",
+      "binding_key": "payables_ordersreceived_20260706_000001",
+      "created_at": "2026-07-06T00:00:01Z",
+      "approved_by": "seed_data",
+      "approved_at": "2026-07-06T00:00:01Z",
+      "structural_fingerprint": {
+        "base_tables": [
+          "po_line",
+          "purchase_order",
+          "receiving",
+          "receiving_line"
+        ],
+        "join_edges": [
+          {
+            "table_a": "po_line",
+            "column_a": "po_id",
+            "table_b": "purchase_order",
+            "column_b": "po_id",
+            "join_type": "INNER"
+          },
+          {
+            "table_a": "receiving",
+            "column_a": "receipt_id",
+            "table_b": "receiving_line",
+            "column_b": "receipt_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "unresolved_columns",
+            "detail": "r.po_line_id = pl.line_id"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "seed_backfill",
+        "signed_off_at": "2026-07-06T05:13:07.070810+00:00"
+      }
+    },
+    "payables_ordersunreceived_20260706_000002": {
+      "concept_anchor": "ORDERSUNRECEIVED",
+      "perspective": "Payables",
+      "category": "delivery_performance",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/payables_ordersunreceived_20260706_000002.sql",
+      "sme_justification": "Purchase orders unreceived or short \u2014 at least one po_line not fully received, with unreceived vs short line counts and outstanding quantity; core expediting / open-order procurement view",
+      "validation_status": "APPROVED",
+      "binding_key": "payables_ordersunreceived_20260706_000002",
+      "created_at": "2026-07-06T00:00:02Z",
+      "approved_by": "seed_data",
+      "approved_at": "2026-07-06T00:00:02Z",
+      "structural_fingerprint": {
+        "base_tables": [
+          "po_line",
+          "purchase_order",
+          "receiving_line"
+        ],
+        "join_edges": [
+          {
+            "table_a": "po_line",
+            "column_a": "po_id",
+            "table_b": "purchase_order",
+            "column_b": "po_id",
+            "join_type": "INNER"
+          }
+        ],
+        "unresolved_joins": [
+          {
+            "reason": "unresolved_columns",
+            "detail": "r.po_line_id = pl.line_id"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "seed_backfill",
+        "signed_off_at": "2026-07-06T05:13:07.077220+00:00"
       }
     }
   }
