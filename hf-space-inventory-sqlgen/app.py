@@ -6586,6 +6586,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         language="sql", interactive=False,
                         label="Approved ground-truth SQL (copy/paste)",
                     )
+            # Stash the Selector v 1.0 query pick the moment it happens —
+            # the button reads this State instead of the dropdown, because
+            # dynamically re-choiced dropdowns don't reliably deliver their
+            # packed value at click time.
+            sem_sel = gr.State("")
 
             def _read_gt_sql(entry) -> str:
                 """Load the raw ground-truth SQL text for an entry, '' if missing."""
@@ -6860,6 +6865,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 fn=_mosaic_render_chain, inputs=[mo_query],
                 outputs=_mosaic_outputs,
             )
+            mo_query.change(
+                fn=lambda v: v or "", inputs=[mo_query],
+                outputs=[sem_sel],
+            )
 
             def _sql_semantics_contract(val):
                 """🧾 SQL Semantics call to action — metadata as the deliverable.
@@ -6990,7 +6999,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return "\n".join(lines), sql_text
 
             sem_btn.click(
-                fn=_sql_semantics_contract, inputs=[mo_query],
+                fn=_sql_semantics_contract, inputs=[sem_sel],
                 outputs=[sem_contract, sem_sql],
             )
 
