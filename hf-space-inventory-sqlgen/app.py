@@ -5503,24 +5503,90 @@ Check that perspective-concept and intent-concept relationships are seeded.
             ```
             """)
             
+            _SOLDER_CONCEPT_BLANK = ("(primary elevated concept)", "")
+
+            def _solder_intents_for_category(category=None):
+                """Intent names, optionally filtered to one intent_category."""
+                return [
+                    i["intent_name"]
+                    for i in solder.get_available_intents()
+                    if not category or i["intent_category"] == category
+                ]
+
+            def _solder_elevated_concepts(intent_name):
+                """Concept names ELEVATED (weight = 1) by this intent."""
+                import sqlite3
+                if not intent_name:
+                    return []
+                conn = sqlite3.connect(SQLITE_DB_PATH)
+                try:
+                    rows = conn.execute(
+                        """
+                        SELECT c.concept_name
+                        FROM schema_intent_concepts ic
+                        JOIN schema_intents i ON i.intent_id = ic.intent_id
+                        JOIN schema_concepts c ON c.concept_id = ic.concept_id
+                        WHERE i.intent_name = ? AND ic.intent_factor_weight = 1
+                        ORDER BY c.concept_name
+                        """,
+                        (intent_name,),
+                    ).fetchall()
+                finally:
+                    conn.close()
+                return [r[0] for r in rows]
+
             with gr.Row():
                 with gr.Column():
                     gr.Markdown("#### 1. Select Intent")
                     available_intents = solder.get_available_intents()
-                    intent_choices = [(f"{i['intent_name']} ({i['intent_category']})", i['intent_name']) for i in available_intents]
-                    
-                    solder_intent = gr.Dropdown(
-                        choices=intent_choices,
-                        label="Analytical Intent",
-                        info="Determines which concepts are ELEVATED vs SUPPRESSED",
-                        interactive=True
-                    )
-                    
+                    solder_categories = sorted({i["intent_category"] for i in available_intents})
+
+                    with gr.Row():
+                        solder_category = gr.Dropdown(
+                            choices=solder_categories,
+                            label="Perspective",
+                            info="Business area — narrows the intent list",
+                            interactive=True,
+                        )
+                        solder_intent = gr.Dropdown(
+                            choices=_solder_intents_for_category(),
+                            label="Analytical Intent",
+                            info="Determines which concepts are ELEVATED vs SUPPRESSED",
+                            interactive=True,
+                        )
+
                     gr.Markdown("#### 2. Target Concept (optional)")
-                    solder_concept = gr.Textbox(
+                    solder_concept = gr.Dropdown(
+                        choices=[_SOLDER_CONCEPT_BLANK],
+                        value="",
                         label="Target Concept",
-                        placeholder="Leave blank to use primary elevated concept",
-                        info="e.g., DefectSeverityCost, NCM_COST"
+                        info="Only concepts ELEVATED by the selected intent",
+                        interactive=True,
+                    )
+
+                    def _on_solder_category_change(category):
+                        # Single-input handler: a programmatic gr.update-triggered
+                        # .change only delivers the trigger's own value.
+                        return (
+                            gr.update(choices=_solder_intents_for_category(category), value=None),
+                            gr.update(choices=[_SOLDER_CONCEPT_BLANK], value=""),
+                        )
+
+                    def _on_solder_intent_change(intent_name):
+                        opts = [_SOLDER_CONCEPT_BLANK] + [
+                            (c, c) for c in _solder_elevated_concepts(intent_name)
+                        ]
+                        return gr.update(choices=opts, value="")
+
+                    solder_category.change(
+                        fn=_on_solder_category_change,
+                        inputs=[solder_category],
+                        outputs=[solder_intent, solder_concept],
+                    )
+                    solder_intent.change(
+                        fn=_on_solder_intent_change,
+                        inputs=[solder_intent],
+                        outputs=[solder_concept],
                     )
                     
                     gr.Markdown("#### 3. Output Dialect")
@@ -5618,7 +5684,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
             with gr.Row():
                 with gr.Column():
                     assemble_intent = gr.Dropdown(
-                        choices=intent_choices,
+                        choices=[
+                            (f"{i['intent_name']} ({i['intent_category']})", i['intent_name'])
+                            for i in available_intents
+                        ],
                         label="Intent",
                         info="Controls which concepts are elevated vs suppressed",
                         interactive=True
