@@ -4649,11 +4649,18 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 tags = [t for t in csv.split(",") if t]
                 concepts = _sel_concepts(table, column or None, tags)
                 prefix = val + _SEL_SEP
+                summary = _sel_summary(tags, table, column or None)
+                if not concepts:
+                    target = f"`{table}.{column}`" if column else f"`{table}`"
+                    summary += (
+                        f"\n\n> ⚠️ {target} has no semantic concept mapping "
+                        "yet — pick a ✦-marked column to continue the chain."
+                    )
                 return (
                     gr.update(choices=[(c, prefix + c) for c in concepts],
                               value=None),
                     _SEL_CLEAR, _SEL_CLEAR,
-                    _sel_summary(tags, table, column or None),
+                    summary,
                 )
 
             def _sel_on_concept(val):
