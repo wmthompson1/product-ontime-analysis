@@ -1,12 +1,19 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-07-05T23:44:50+00:00
+generated: 2026-07-06T23:21:01+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
 
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
-nodes                368         368       OK
-edges                427         427       OK
+nodes                372         368 MISMATCH
+edges                441         427 MISMATCH
 
-[sql_aql_parity] OK — 368 nodes and 427 edges match between SQLite (SQL) and ArangoDB (AQL)
+differences:
+  - nodes: count mismatch — SQLite=372 ArangoDB=368
+  - nodes: 4 _key(s) in SQLite but not ArangoDB, e.g. ['payables_ordersreceived_20260706_000001:entity:manifest:Payables:none:none', 'payables_ordersunreceived_20260706_000002:entity:manifest:Payables:none:none', 'payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none', 'receiving:received_date:structural:system:none:none']
+  - edges: count mismatch — SQLite=441 ArangoDB=427
+  - edges: 17 _key(s) in SQLite but not ArangoDB, e.g. ['payables_ordersreceived_20260706_000001:po_line:manifest:Payables:binds_table:PAY_BIN_PAY_POL_001', 'payables_ordersreceived_20260706_000001:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_002', 'payables_ordersreceived_20260706_000001:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_001', 'payables_ordersreceived_20260706_000001:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_002', 'payables_ordersunreceived_20260706_000002:po_line:manifest:Payables:binds_table:PAY_BIN_PAY_POL_002']
+  - edges: 3 _key(s) in ArangoDB but not SQLite, e.g. ['payables_purchaseorderstatus_20260601_000005:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_002', 'receiving_line:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_003', 'receiving_line:receipt_line_id:structural:system:has_column:SYS_HAS_REC_REC_004']
+
+[sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph
