@@ -183,6 +183,10 @@ def test_init_self_heals_work_order_schedule_columns():
     schema_file = os.path.join(HF_DIR, "app_schema", "schema_sqlite.sql")
     with open(schema_file) as f:
         sql = f.read()
+    # Strip -- line comments before matching: a comment may contain ");" (e.g.
+    # "-- ... (Release Order -> MO); NULL = unlinked MO"), which would otherwise
+    # make the non-greedy regex terminate mid-statement -> "incomplete input".
+    sql = re.sub(r"--[^\n]*", "", sql)
     m = re.search(r"(CREATE TABLE IF NOT EXISTS work_order\s*\(.*?\);)", sql, re.S)
     assert m, "work_order CREATE TABLE not found"
     stale_ddl = "\n".join(
