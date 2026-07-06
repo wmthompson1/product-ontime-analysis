@@ -4747,8 +4747,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 choices = [("(all columns)", prefix)]
                 choices += [(label, prefix + c)
                             for label, c in _sel_columns(table)]
+                # Default to "(all columns)": its .change fires and fills
+                # the concept dropdown for the whole table immediately.
                 return (
-                    gr.update(choices=choices, value=None),
+                    gr.update(choices=choices, value=prefix),
                     _SEL_CLEAR, _SEL_CLEAR,
                     gr.update(choices=_sel_query_choices(tags, table),
                               value=None),
@@ -4793,9 +4795,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
                            "the list." if tags else " yet — the chain ends "
                            "here.")
                     )
+                intent_choices = [(i, prefix + i) for i in intents]
+                if intents:
+                    # "(any intent)" wildcard first and pre-selected: its
+                    # .change fires with an empty intent segment and lists
+                    # every query reachable from this concept.
+                    intent_choices = [("(any intent)", prefix)] + intent_choices
                 return (
-                    gr.update(choices=[(i, prefix + i) for i in intents],
-                              value=None),
+                    gr.update(choices=intent_choices,
+                              value=(prefix if intents else None)),
                     gr.update(choices=_sel_query_choices(tags, table, column,
                                                          concept),
                               value=None),
@@ -4807,6 +4815,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     return (gr.update(),) * 2
                 csv, table, column, concept, intent = _sel_parse(val, 5)
                 tags = [t for t in csv.split(",") if t]
+                if not intent:
+                    # "(any intent)" wildcard — every query reachable from
+                    # the concept, without forcing an intent pick.
+                    return (
+                        gr.update(choices=_sel_query_choices(
+                            tags, table, column, concept), value=None),
+                        _sel_summary(tags, table, column or None,
+                                     concept or None),
+                    )
                 queries = _sel_queries(intent)
                 prefix = val + _SEL_SEP
                 summary = _sel_summary(tags, table, column or None, concept,
