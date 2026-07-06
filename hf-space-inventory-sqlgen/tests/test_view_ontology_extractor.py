@@ -381,3 +381,106 @@ def test_missing_view_file_skipped(tmp_path):
 def test_get_unknown_returns_none(mem_db, all_views):
     seed_view_ontology_table(mem_db, all_views)
     assert get_view_ontology(mem_db, "DOESNOTEXIST") is None
+
+
+# ── 13. Temporal Parameter Contract detection & classification ────────────────
+
+UNINVOICED_TEMPORAL_SQL = """
+SELECT r.receipt_id AS receiver_id, r.received_date AS received_date
+FROM receiving r
+JOIN purchase_order po ON po.po_id = r.po_id
+JOIN suppliers s ON s.supplier_id = po.supplier_id
+WHERE po.site_id = 'SITE-1'
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+  AND (:start_date IS NULL OR r.received_date >= :start_date)
+  AND (:end_date IS NULL OR r.received_date <= :end_date)
+  AND EXISTS (
+        SELECT 1
+        FROM receiving_line rl
+        WHERE rl.receipt_id = r.receipt_id
+          AND rl.receipt_line_id NOT IN (
+                SELECT pl.receipt_line_id
+                FROM payable_line pl
+                JOIN payables pay ON pay.invoice_id = pl.invoice_id
+                WHERE pl.receipt_line_id IS NOT NULL
+                  AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+          )
+      )
+ORDER BY s.supplier_id, r.received_date
+"""
+
+
+@pytest.fixture
+def temporal_vo():
+    return extract_view_ontology(
+        UNINVOICED_TEMPORAL_SQL,
+        binding_key="test_temporal_000",
+        concept_anchor="UNINVOICEDRECEIPTS",
+        view_file="app_schema/ground_truth/sql_snippets/test_temporal.sql",
+    )
+
+
+def test_temporal_parameters_detected(temporal_vo):
+    tokens = {p["token"] for p in temporal_vo.temporal_parameters}
+    assert tokens == {":start_date", ":end_date", ":supplier_id"}
+
+
+def test_start_date_is_horizon(temporal_vo):
+    p = next(x for x in temporal_vo.temporal_parameters
+             if x["token"] == ":start_date")
+    assert p["classification"] == "horizon"
+    assert p["column"] == "receiving.received_date"
+
+
+def test_end_date_dual_role_horizon_and_netting(temporal_vo):
+    ends = [x for x in temporal_vo.temporal_parameters
+            if x["token"] == ":end_date"]
+    assert {p["classification"] for p in ends} == {"horizon", "netting"}
+    assert {p["column"] for p in ends} == {
+        "receiving.received_date", "payables.invoice_date"}
+
+
+def test_netting_cutoff_on_invoice_date(temporal_vo):
+    netting = [x for x in temporal_vo.temporal_parameters
+               if x["classification"] == "netting"]
+    assert netting
+    assert all(p["column"] == "payables.invoice_date" for p in netting)
+
+
+def test_supplier_id_is_entity_filter(temporal_vo):
+    p = next(x for x in temporal_vo.temporal_parameters
+             if x["token"] == ":supplier_id")
+    assert p["classification"] == "filter"
+    assert p["column"] == "suppliers.supplier_id"
+
+
+def test_temporal_trait_range_bounded_and_point_in_time(temporal_vo):
+    assert set(temporal_vo.temporal_trait) == {
+        "range-bounded", "point-in-time"}
+
+
+def test_plain_view_has_no_temporal_parameters(simple_vo):
+    assert simple_vo.temporal_parameters == []
+    assert simple_vo.temporal_trait == []
+
+
+def test_governed_uninvoiced_snippet_carries_temporal_contract():
+    # Regression for the bound (binding-key) render path: the real SME-approved
+    # snippet must yield a machine-readable Temporal Contract straight from disk.
+    snippet = (
+        HF_DIR / "app_schema" / "ground_truth" / "sql_snippets"
+        / "payables_uninvoicedreceipts_20260706_000003.sql"
+    )
+    vo = extract_view_ontology(
+        snippet.read_text(encoding="utf-8"),
+        binding_key="payables_uninvoicedreceipts_20260706_000003",
+        concept_anchor="UNINVOICEDRECEIPTS",
+        view_file=str(snippet),
+    )
+    by_token = {}
+    for p in vo.temporal_parameters:
+        by_token.setdefault(p["token"], set()).add(p["classification"])
+    assert by_token.get(":start_date") == {"horizon"}
+    assert by_token.get(":end_date") == {"horizon", "netting"}
+    assert by_token.get(":supplier_id") == {"filter"}
+    assert set(vo.temporal_trait) == {"range-bounded", "point-in-time"}

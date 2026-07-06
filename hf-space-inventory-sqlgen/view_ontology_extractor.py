@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
@@ -86,6 +86,8 @@ class ViewOntology:
     selected_columns: List[str]
     semantics_version: str
     extracted_at: str
+    temporal_parameters: List[dict] = field(default_factory=list)
+    temporal_trait: List[str] = field(default_factory=list)
 
 
 def _expr_table_name(expr) -> str:
@@ -230,6 +232,97 @@ def _detect_time_phasing(cte_names: List[str], ast) -> tuple:
     return time_phased, temporal_keys
 
 
+def _extract_temporal_parameters(ast) -> List[dict]:
+    """Detect baked-in named placeholder parameters (:name) and classify each
+    guarded predicate by its structural position in the AST.
+
+    Every SME-approved temporal parameter is a NULL-guarded pair
+    ``(:param IS NULL OR <column> <op> :param)``. We resolve the physical
+    column each placeholder guards (table aliases mapped back to real tables)
+    and label the guard:
+
+      * ``horizon`` — a range comparison (>=, <=, >, <) on a base-table column
+        in the main query body: a transaction-window / horizon filter.
+      * ``netting`` — any guard nested inside a subquery or EXISTS: a
+        point-in-time snapshot cutoff applied inside the exception predicate.
+      * ``filter``  — an equality guard on a non-temporal entity column
+        (e.g. a single supplier id).
+
+    Pure AST analysis — nothing is executed. The ``:param IS NULL`` arm of each
+    guard carries no column and is skipped; only the column-bearing arm counts.
+    """
+    alias_map: dict = {}
+    for t in ast.find_all(exp.Table):
+        if t.alias:
+            alias_map[t.alias] = t.name
+        if t.name:
+            alias_map.setdefault(t.name, t.name)
+
+    range_ops = (exp.LT, exp.LTE, exp.GT, exp.GTE)
+    results: List[dict] = []
+    seen: set = set()
+    for ph in ast.find_all(exp.Placeholder):
+        name = ph.name or (ph.this if isinstance(ph.this, str) else "")
+        if not name:
+            continue
+        # Climb to the comparison that binds this placeholder to a column;
+        # stop at the predicate boundary so the "IS NULL" arm resolves to None.
+        comp = None
+        node = ph.parent
+        while node is not None:
+            if isinstance(node, (exp.EQ, exp.NEQ) + range_ops):
+                comp = node
+                break
+            if isinstance(node, (exp.Where, exp.Select)):
+                break
+            node = node.parent
+        if comp is None:
+            continue
+        cols = list(comp.find_all(exp.Column))
+        if not cols:
+            continue
+        col = cols[0]
+        column = (
+            f"{alias_map.get(col.table, col.table)}.{col.name}"
+            if col.table else col.name
+        )
+        classification = "horizon" if isinstance(comp, range_ops) else "filter"
+        anc = comp.parent
+        while anc is not None:
+            if isinstance(anc, (exp.Subquery, exp.Exists)):
+                classification = "netting"
+                break
+            anc = anc.parent
+        key = (f":{name}", column, classification)
+        if key in seen:
+            continue
+        seen.add(key)
+        results.append({
+            "token": f":{name}",
+            "column": column,
+            "operator": comp.key.upper(),
+            "classification": classification,
+        })
+    results.sort(key=lambda r: (r["token"], r["classification"], r["column"]))
+    return results
+
+
+def _derive_temporal_trait(temporal_parameters: List[dict]) -> List[str]:
+    """Summarize the binding's temporal orientation from its parameters.
+
+    A ``horizon`` guard makes the key range-bounded; a ``netting`` guard makes
+    it point-in-time. A key can be both. Non-temporal ``filter`` params add no
+    trait. Empty when the snippet declares no temporal parameters.
+    """
+    kinds = {p["classification"] for p in temporal_parameters}
+    trait: List[str] = []
+    if "horizon" in kinds:
+        trait.append("range-bounded")
+    if "netting" in kinds:
+        trait.append("point-in-time")
+    return trait
+
+
 def extract_view_ontology(
     sql_text: str,
     binding_key: str,
@@ -260,6 +353,8 @@ def extract_view_ontology(
     grain_columns = _extract_grain(main_select) if main_select else []
     selected_columns = _extract_selected_columns(main_select) if main_select else []
     time_phased, temporal_keys = _detect_time_phasing(cte_names, ast)
+    temporal_parameters = _extract_temporal_parameters(ast)
+    temporal_trait = _derive_temporal_trait(temporal_parameters)
 
     return ViewOntology(
         concept_anchor=concept_anchor,
@@ -275,6 +370,8 @@ def extract_view_ontology(
         selected_columns=selected_columns,
         semantics_version=SEMANTICS_VERSION,
         extracted_at=datetime.now(timezone.utc).isoformat(),
+        temporal_parameters=temporal_parameters,
+        temporal_trait=temporal_trait,
     )
 
 

@@ -6663,6 +6663,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             "selected_columns_json": d["selected_columns"],
                             "semantics_version": d["semantics_version"],
                             "extracted_at": d["extracted_at"],
+                            "temporal_parameters_json": d["temporal_parameters"],
+                            "temporal_trait_json": d["temporal_trait"],
                         }
                         extracted_live = True
                     except Exception as exc:
@@ -6690,11 +6692,17 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     f"  Temporal keys: `{'`, `'.join(rec['temporal_keys_json'])}`"
                     if rec["temporal_keys_json"] else ""
                 )
+                _trait = rec.get("temporal_trait_json") or []
+                trait_bits = (
+                    "\n\n**Temporal trait:** "
+                    + " · ".join(f"`{t}`" for t in _trait)
+                    if _trait else ""
+                )
 
                 summary = (
                     f"**{rec['concept_anchor']}**  —  `{rec['binding_key']}`\n\n"
                     f"{meta}"
-                    f"{tp}{tk}\n\n"
+                    f"{tp}{tk}{trait_bits}\n\n"
                     f"**Physical tables** ({len(rec['physical_tables_json'])}):"
                     f"  `{'` · `'.join(rec['physical_tables_json'])}`\n\n"
                     f"**CTE scaffolding** ({len(rec['cte_names_json'])}):"
@@ -6725,6 +6733,25 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         f"#### Output columns ({len(outcols)})\n"
                         + "  ".join(f"`{c}`" for c in outcols)
                     )
+                _tparams = rec.get("temporal_parameters_json") or []
+                if _tparams:
+                    _ml = {"horizon": "Horizon window",
+                           "netting": "Netting snapshot",
+                           "filter": "Entity filter"}
+                    _tc = ["#### Temporal Contract (named, NULL-guarded parameters)",
+                           "| Parameter | Guards physical column | Op | Mode |",
+                           "|---|---|---|---|"]
+                    for _pm in _tparams:
+                        _tc.append(
+                            f"| `{_pm['token']}` | `{_pm['column']}` "
+                            f"| `{_pm['operator']}` "
+                            f"| {_ml.get(_pm['classification'], _pm['classification'])} |")
+                    if _trait:
+                        _tc.append("")
+                        _tc.append(
+                            "**Temporal trait:** "
+                            + " · ".join(f"`{t}`" for t in _trait))
+                    detail_lines.append("\n".join(_tc))
                 _src = (
                     "extracted live from the SQL text (pure AST, not yet seeded)"
                     if extracted_live else "seeded in `sql_view_ontology`"
@@ -6792,11 +6819,16 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     f"  Temporal keys: `{'`, `'.join(d['temporal_keys'])}`"
                     if d["temporal_keys"] else ""
                 )
+                trait_bits = (
+                    "\n\n**Temporal trait:** "
+                    + " · ".join(f"`{t}`" for t in d["temporal_trait"])
+                    if d.get("temporal_trait") else ""
+                )
                 desc = q.get("description") or ""
                 summary = (
                     f"**{query}**\n\n"
                     + (f"_{desc}_\n\n" if desc else "")
-                    + f"{tp}{tk}\n\n"
+                    + f"{tp}{tk}{trait_bits}\n\n"
                     f"**Physical tables** ({len(d['physical_tables'])}):"
                     f"  `{'` · `'.join(d['physical_tables'])}`\n\n"
                     f"**CTE scaffolding** ({len(d['cte_names'])}):"
@@ -6823,6 +6855,24 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         f"#### Output columns ({len(d['selected_columns'])})\n"
                         + "  ".join(f"`{c}`" for c in d["selected_columns"])
                     )
+                if d.get("temporal_parameters"):
+                    _ml = {"horizon": "Horizon window",
+                           "netting": "Netting snapshot",
+                           "filter": "Entity filter"}
+                    _tc = ["#### Temporal Contract (named, NULL-guarded parameters)",
+                           "| Parameter | Guards physical column | Op | Mode |",
+                           "|---|---|---|---|"]
+                    for _pm in d["temporal_parameters"]:
+                        _tc.append(
+                            f"| `{_pm['token']}` | `{_pm['column']}` "
+                            f"| `{_pm['operator']}` "
+                            f"| {_ml.get(_pm['classification'], _pm['classification'])} |")
+                    if d.get("temporal_trait"):
+                        _tc.append("")
+                        _tc.append(
+                            "**Temporal trait:** "
+                            + " · ".join(f"`{t}`" for t in d["temporal_trait"]))
+                    detail_lines.append("\n".join(_tc))
                 detail_lines.append(
                     f"\n---\n_Extracted live by SQLGlot (pure AST, not yet seeded)"
                     f" · semantics version `{d['semantics_version']}`"
@@ -6986,6 +7036,33 @@ Check that perspective-concept and intent-concept relationships are seeded.
                        if d["time_phased"] else "single-point-in-time")
                 lines.append(f"**Temporal shape:** {_tp}")
                 lines.append("")
+                if d.get("temporal_parameters"):
+                    _mode_label = {
+                        "horizon": "Horizon window",
+                        "netting": "Netting snapshot",
+                        "filter": "Entity filter",
+                    }
+                    lines.append(
+                        f"**Temporal Contract** ({len(d['temporal_parameters'])} "
+                        "named, NULL-guarded parameters — baked into the "
+                        "SME-approved snippet, served verbatim; nothing is "
+                        "generated):")
+                    lines.append("")
+                    lines.append("| Parameter | Guards physical column | Op | Mode |")
+                    lines.append("|---|---|---|---|")
+                    for _pm in d["temporal_parameters"]:
+                        lines.append(
+                            f"| `{_pm['token']}` | `{_pm['column']}` "
+                            f"| `{_pm['operator']}` "
+                            f"| {_mode_label.get(_pm['classification'], _pm['classification'])} |")
+                    if d.get("temporal_trait"):
+                        lines.append("")
+                        lines.append(
+                            "**Temporal trait:** "
+                            + " · ".join(f"`{t}`" for t in d["temporal_trait"])
+                            + "  _(declares this binding key supports temporal"
+                            " constraints)_")
+                    lines.append("")
                 if d["selected_columns"]:
                     lines.append(
                         f"**Output columns** ({len(d['selected_columns'])}):  "
