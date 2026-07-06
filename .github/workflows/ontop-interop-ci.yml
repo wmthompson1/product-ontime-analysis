@@ -30,6 +30,11 @@ name: Ontop interoperability POC
 #                            — Showcase 9 inventory-transactions ledger SPARQL vs
 #                              the governed SQL grounding query (no SolderEngine
 #                              template exists for the inventory-transactions layer)
+#   * three_way_match_parity_check.py
+#                            — Showcase 10 procure-to-pay three-way match SPARQL
+#                              vs direct governed SQL, cross-checked against the
+#                              two governed procurement views (received /
+#                              unreceived) on the same snapshot
 #   * endpoint_smoke_test.py — boots the live read-only SPARQL HTTP endpoint,
 #                              answers the governed number over the wire, and
 #                              confirms a clean teardown (no orphan process)
@@ -141,6 +146,11 @@ jobs:
       - name: Inventory transactions parity check (Showcase 9)
         run: |
           python poc/ontop-ontology-poc/inventory_transactions_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
+          exit ${PIPESTATUS[0]}
+
+      - name: Three-way match parity check (Showcase 10)
+        run: |
+          python poc/ontop-ontology-poc/three_way_match_parity_check.py 2>&1 | tee -a "$ONTOP_CI_LOG"
           exit ${PIPESTATUS[0]}
 
       - name: Live SPARQL HTTP endpoint smoke test

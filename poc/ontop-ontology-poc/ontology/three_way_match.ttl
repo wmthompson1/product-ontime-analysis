@@ -1,0 +1,108 @@
+@prefix :     <http://example.org/manufacturing/threewaymatch#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Procurement Three-Way Match — minimal OWL ontology (OWL 2 QL profile)
+# ===============================================================================
+# This is the standards-based VOCABULARY for the TENTH governed showcase: the
+# procure-to-pay three-way match (PO line <-> receipt line <-> invoice line),
+# published over the existing governed SQL layer via Ontop (virtual OBDA).
+#
+# Grounding. The three-way match is governed by TWO SME-approved views in the
+# Ground Truth SQL layer (perspective Payables, category delivery_performance):
+#   * payables_ordersreceived_20260706_000001   — POs fully received (legs 1-2)
+#   * payables_ordersunreceived_20260706_000002 — POs unreceived / short
+# plus the SME doc set in docs/my-mrp-kb/07-three-way-match/ ("Uninvoiced
+# Receivers Report - Detailed", the receipt <-> invoice leg 3). Like the
+# demand / capacity / routing / inventory showcases, the parity check grounds
+# the SPARQL answers against DIRECT governed SQL on the same read-only
+# snapshot; SQL stays the single source of truth and this file only names the
+# terms (see ../mapping/three_way_match.obda).
+#
+# The match picture restated here mirrors the governed schema:
+#   * po_line        -> :PurchaseOrderLine  (leg 1: what was ordered, :orderedQty)
+#   * receiving_line -> :ReceiptLine        (leg 2: what arrived, :receivedQty,
+#                        linked to its PO line by :onPurchaseOrderLine)
+#   * payable_line   -> :InvoiceLine        (leg 3: what was billed,
+#                        :invoiceAmount; when the line is tied to a receipt it
+#                        carries :invoicesReceipt + :invoicedQty)
+# The headline "Uninvoiced Receivers" number (receipt lines nobody has billed
+# yet) is NOT expressed as SPARQL negation (FILTER NOT EXISTS is outside the
+# Ontop+SQLite shapes that serialize cleanly here); instead the parity check
+# counts ALL receipt lines and the INVOICED receipt links as two scalar
+# queries and subtracts in Python — same convention as the inventory showcase
+# nets In/Out in Python.
+#
+# Link properties are minted with a range only and NO rdfs:domain: an
+# rdfs:domain on a link property makes Ontop infer the subject class from two
+# sources and emit invalid UNION/LEFT-JOIN SQL on SQLite.
+#
+
+<http://example.org/manufacturing/threewaymatch>
+    a owl:Ontology ;
+    rdfs:label "Procurement Three-Way Match Showcase Ontology" ;
+    rdfs:comment "Interoperability POC vocabulary for the procure-to-pay three-way match (purchase-order line vs receipt line vs invoice line), published over the existing SQL semantic layer via Ontop (virtual OBDA). Read-only; not wired into the running app. Parity is proven against direct governed SQL on the same snapshot, cross-checked with the two governed procurement views (orders received / orders unreceived)." .
+
+# ── Classes ────────────────────────────────────────────────────────────────
+
+:PurchaseOrderLine
+    a owl:Class ;
+    rdfs:label "Purchase Order Line" ;
+    rdfs:comment "Leg 1 of the match: one ordered line of a purchase order (one row of po_line) — what was ordered and how much." .
+
+:ReceiptLine
+    a owl:Class ;
+    rdfs:label "Receipt Line" ;
+    rdfs:comment "Leg 2 of the match: one received line of a receiver (one row of receiving_line) — what physically arrived against a PO line." .
+
+:InvoiceLine
+    a owl:Class ;
+    rdfs:label "Invoice Line" ;
+    rdfs:comment "Leg 3 of the match: one billed line of a supplier invoice (one row of payable_line) — what the supplier charged. When it is tied to a specific receipt line it carries :invoicesReceipt; a receipt line with no such incoming link is an Uninvoiced Receiver." .
+
+# ── Object properties: the two match links (range only, NO rdfs:domain) ──────
+
+:onPurchaseOrderLine
+    a owl:ObjectProperty ;
+    rdfs:label "on purchase order line" ;
+    rdfs:comment "Links a receipt line to the PO line it fulfils (receiving_line.po_line_id -> po_line.line_id) — the leg 1 <-> leg 2 join of the match." ;
+    rdfs:range  :PurchaseOrderLine .
+
+:invoicesReceipt
+    a owl:ObjectProperty ;
+    rdfs:label "invoices receipt" ;
+    rdfs:comment "Links an invoice line to the receipt line it bills (payable_line.receipt_line_id -> receiving_line.receipt_line_id) — the leg 2 <-> leg 3 join of the match. The link is defined by the receipt pointer ALONE (independent of qty), matching the SQL LEFT-JOIN negation exactly. Receipt lines with no incoming :invoicesReceipt link are the Uninvoiced Receivers of the SME report." ;
+    rdfs:range  :ReceiptLine .
+
+# ── Datatype properties: the governed quantities of each leg ─────────────────
+
+:orderedQty
+    a owl:DatatypeProperty ;
+    rdfs:label "ordered quantity" ;
+    rdfs:comment "The quantity ordered on the PO line (po_line.quantity) — the leg-1 baseline the governed received/unreceived views compare receipt coverage against." ;
+    rdfs:domain :PurchaseOrderLine ;
+    rdfs:range  xsd:double .
+
+:receivedQty
+    a owl:DatatypeProperty ;
+    rdfs:label "received quantity" ;
+    rdfs:comment "The quantity received on this receipt line (receiving_line.quantity_received) — the leg-2 actual." ;
+    rdfs:domain :ReceiptLine ;
+    rdfs:range  xsd:double .
+
+:invoicedQty
+    a owl:DatatypeProperty ;
+    rdfs:label "invoiced quantity" ;
+    rdfs:comment "The quantity billed by this invoice line (payable_line.qty) — the leg-3 actual the match compares against :receivedQty. Published only on invoice lines that BOTH point at a receipt line AND carry a non-null qty; deliberately a (possibly) smaller population than the :invoicesReceipt link itself, which requires only the receipt pointer (a payable line pointing at a receipt IS an invoicing of that receipt even if its qty column is unpopulated)." ;
+    rdfs:domain :InvoiceLine ;
+    rdfs:range  xsd:double .
+
+:invoiceAmount
+    a owl:DatatypeProperty ;
+    rdfs:label "invoice amount" ;
+    rdfs:comment "The billed dollar amount of this invoice line (payable_line.amount)." ;
+    rdfs:domain :InvoiceLine ;
+    rdfs:range  xsd:double .

@@ -1,0 +1,13 @@
+PREFIX : <http://example.org/manufacturing/threewaymatch#>
+
+# Leg 2 population: every receipt line, with the total received quantity.
+# One half of the Uninvoiced Receivers math: the parity check subtracts the
+# invoiced-receipt-link count (twm_invoiced_receipt_lines.rq) from this count
+# in Python, keeping each SPARQL query scalar (no GROUP BY, no OPTIONAL, no
+# FILTER NOT EXISTS) so it stays within the Ontop+SQLite shapes that serialize
+# cleanly. Compared against the governed SQL aggregate on the same snapshot.
+SELECT (COUNT(?rl) AS ?receiptLines) (SUM(?qty) AS ?receivedQty)
+WHERE {
+  ?rl a :ReceiptLine ;
+      :receivedQty ?qty .
+}

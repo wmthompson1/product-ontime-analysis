@@ -81,6 +81,11 @@ DEFAULT_SHOWCASES = [
         os.path.join(POC_DIR, "mapping", "inventory_transactions.obda"),
         os.path.join(POC_DIR, "ontology", "inventory_transactions.ttl"),
     ),
+    (
+        "three-way match",
+        os.path.join(POC_DIR, "mapping", "three_way_match.obda"),
+        os.path.join(POC_DIR, "ontology", "three_way_match.ttl"),
+    ),
 ]
 
 # Ontology vocabulary terms live in the empty-prefix (``:``) ontime namespace.

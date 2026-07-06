@@ -550,6 +550,76 @@ automatically, and it runs in CI (see below).
 
 ---
 
+### Showcase 10 — procurement three-way match (grounded on governed views)
+
+Showcase 10 publishes the **procure-to-pay three-way match** — purchase-order
+line ↔ receipt line ↔ invoice line — as a virtual graph. Unlike Showcases 6–9
+(docs + an archived grounding query), this layer is governed by **two
+SME-approved views live in the Ground Truth SQL layer** (perspective Payables,
+category delivery_performance):
+
+- `payables_ordersreceived_20260706_000001` — POs fully received (legs 1–2)
+- `payables_ordersunreceived_20260706_000002` — POs unreceived / short
+
+plus the SME doc set in `docs/my-mrp-kb/07-three-way-match/` (the "Uninvoiced
+Receivers Report – Detailed" — the receipt ↔ invoice leg 3). It is minted in
+its **own namespace with its own files**:
+
+- `:PurchaseOrderLine` (from `po_line`, carrying `:orderedQty`),
+  `:ReceiptLine` (from `receiving_line`, carrying `:receivedQty`), and
+  `:InvoiceLine` (from `payable_line`, carrying `:invoiceAmount`).
+- Two links, each minted with a **range only, no `rdfs:domain`** (the same
+  Ontop+SQLite rule as the other showcases): `:onPurchaseOrderLine`
+  (receipt line → PO line, the leg 1↔2 join) and `:invoicesReceipt`
+  (invoice line → receipt line, the leg 2↔3 join). The **link is defined by
+  the receipt pointer alone** — a payable line with `receipt_line_id`
+  populated invoices that receipt whether or not its `qty` column is — so the
+  SPARQL link count and the SQL `LEFT JOIN … IS NULL` negation agree exactly.
+  `:invoicedQty` is a **separate mapping** published only where both the
+  pointer AND `qty` are non-null, checked by row count and sum against the
+  identically-filtered SQL.
+
+The headline **Uninvoiced Receivers** number (receipt lines nobody has billed
+yet) is a *negation* — receipt lines with **no** incoming `:invoicesReceipt`
+link. `FILTER NOT EXISTS` is outside the Ontop+SQLite shapes this POC keeps to,
+so — exactly like Showcase 9 nets In/Out in Python — two scalar queries are
+subtracted in Python:
+
+```
+uninvoiced receivers = COUNT(all receipt lines) − COUNT(invoiced receipt links)
+```
+
+`three_way_match_parity_check.py` proves the per-leg populations and quantities
+answered through SPARQL equal the governed SQL aggregates on the same read-only
+snapshot, states Uninvoiced Receivers directly in SQL (`LEFT JOIN … IS NULL`)
+to check the subtraction, and — as a cross-check — executes **both governed
+views on the same snapshot** and asserts their PO sets stay disjoint (the same
+invariant the ground-truth gate `tests/test_procurement_views.py` locks in). A
+built-in **semantics regression** (in-memory fixture DB, run first, using the
+same SQL constants) locks in the qty-null edge case: a receipt-pointing payable
+line with `qty NULL` still counts as an invoiced link, and never enters the
+invoiced-qty population:
+
+```
+Semantics regression (qty-null invoiced link fixture): OK
+Uninvoiced receivers    (SQL / SPARQL): 1 / 1
+  receipt lines  (SQL / SPARQL): 29 / 29  [qty 2058.0 / 2058.0]
+  invoiced links (SQL / SPARQL): 28 / 28
+  invoiced qty   (SQL / SPARQL): 1960.0 / 1960.0  [28 / 28 qty rows]
+PO lines / ordered qty  (SQL / SPARQL): 122 / 122  [qty 8106.0 / 8106.0]
+governed views on the same snapshot: 8 POs fully received, 14 unreceived/short, overlap 0
+RESULT: PARITY CONFIRMED
+```
+
+```bash
+python3 poc/ontop-ontology-poc/three_way_match_parity_check.py
+```
+
+Like the other parity checks it is **standalone** (Java + a JVM boot), not
+wired into `scripts/post-merge.sh`.
+
+---
+
 ## Artifacts
 
 | Path | What it is |
@@ -597,6 +667,14 @@ automatically, and it runs in CI (see below).
 | `queries/inv_part_in_qty.rq` | Inbound movement quantity for `P-10011` at `SITE-1`, pinned by `:forPart` + `:siteId` (the fully-reconciled per-part case — Showcase 9). |
 | `queries/inv_part_out_qty.rq` | Outbound movement quantity for `P-10011` at `SITE-1`; the check computes the per-part net `= In − Out` (a Showcase 9 parity number). |
 | `inventory_transactions_parity_check.py` | Runs the inventory-transactions SPARQL queries + the governed SQL grounding aggregates on the same snapshot and proves the net movement, directional quantities, transaction counts, and per-part net match (Showcase 9 — no SolderEngine template exists for the inventory-transactions layer). |
+| `ontology/three_way_match.ttl` | The OWL ontology for Showcase 10 (the procure-to-pay three-way-match layer: `:PurchaseOrderLine` / `:ReceiptLine` / `:InvoiceLine`). |
+| `mapping/three_way_match.obda` | The Ontop OBDA mapping for Showcase 10 (per-leg match facts ↔ ontology terms; the two match links minted on the receipt line and the invoice line). |
+| `mapping/three_way_match.properties` | JDBC connection for **manual** three-way-match runs. |
+| `queries/twm_receipt_lines.rq` | Leg-2 population: receipt-line count + total received qty (one half of the Uninvoiced Receivers math — Showcase 10). |
+| `queries/twm_invoiced_receipt_lines.rq` | Leg-2↔3 links: invoiced-receipt-link count, defined by the receipt pointer alone (the other half; the check subtracts in Python — Showcase 10). |
+| `queries/twm_invoiced_qty.rq` | Total invoiced qty + row count over receipt-linked, qty-non-null invoice lines (checked row-for-row against the identically-filtered SQL — Showcase 10). |
+| `queries/twm_ordered_qty.rq` | Leg-1 baseline: PO-line count + total ordered qty (a Showcase 10 parity number). |
+| `three_way_match_parity_check.py` | Runs the three-way-match SPARQL queries + the governed SQL aggregates on the same snapshot, proves the per-leg populations/quantities and the Uninvoiced Receivers count match, and cross-checks the two governed procurement views stay disjoint (Showcase 10). |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |

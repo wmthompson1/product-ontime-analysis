@@ -1,0 +1,14 @@
+PREFIX : <http://example.org/manufacturing/threewaymatch#>
+
+# Leg 2 <-> leg 3 links: invoice lines tied to a receipt line. The link is
+# defined by receipt_line_id alone (a payable line pointing at a receipt IS an
+# invoicing of that receipt, whether or not its qty column is populated), so
+# this count matches the SQL LEFT-JOIN negation exactly. The other half of the
+# Uninvoiced Receivers math: receipt lines with NO incoming :invoicesReceipt
+# link = twm_receipt_lines count minus this count, subtracted in Python (SPARQL
+# negation is outside the Ontop+SQLite shapes used by this POC). Compared
+# against the governed SQL aggregate on the same snapshot.
+SELECT (COUNT(?il) AS ?invoicedLinks)
+WHERE {
+  ?il :invoicesReceipt ?rl .
+}

@@ -1,0 +1,30 @@
+[PrefixDeclaration]
+:               http://example.org/manufacturing/threewaymatch#
+owl:            http://www.w3.org/2002/07/owl#
+rdf:            http://www.w3.org/1999/02/22-rdf-syntax-ns#
+rdfs:           http://www.w3.org/2000/01/rdf-schema#
+xsd:            http://www.w3.org/2001/XMLSchema#
+
+[MappingDeclaration] @collection [[
+
+mappingId       map-twm-po-line
+target          :poLine/{line_id} a :PurchaseOrderLine ; :orderedQty {quantity}^^xsd:double .
+source          SELECT line_id, quantity FROM po_line
+
+mappingId       map-twm-receipt-line
+target          :receiptLine/{receipt_line_id} a :ReceiptLine ; :receivedQty {quantity_received}^^xsd:double ; :onPurchaseOrderLine :poLine/{po_line_id} .
+source          SELECT receipt_line_id, quantity_received, po_line_id FROM receiving_line
+
+mappingId       map-twm-invoice-line
+target          :invoiceLine/{payable_line_id} a :InvoiceLine ; :invoiceAmount {amount}^^xsd:double .
+source          SELECT payable_line_id, amount FROM payable_line
+
+mappingId       map-twm-invoice-receipt-link
+target          :invoiceLine/{payable_line_id} :invoicesReceipt :receiptLine/{receipt_line_id} .
+source          SELECT payable_line_id, receipt_line_id FROM payable_line WHERE receipt_line_id IS NOT NULL
+
+mappingId       map-twm-invoiced-qty
+target          :invoiceLine/{payable_line_id} :invoicedQty {qty}^^xsd:double .
+source          SELECT payable_line_id, qty FROM payable_line WHERE receipt_line_id IS NOT NULL AND qty IS NOT NULL
+
+]]

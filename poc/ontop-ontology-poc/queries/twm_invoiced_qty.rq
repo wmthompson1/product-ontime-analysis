@@ -1,0 +1,13 @@
+PREFIX : <http://example.org/manufacturing/threewaymatch#>
+
+# Total invoiced quantity over receipt-linked invoice lines. :invoicedQty is
+# published only on payable lines that BOTH point at a receipt line AND carry a
+# non-null qty — deliberately a (possibly) smaller population than the
+# :invoicesReceipt link itself, which requires only the receipt pointer. The
+# row count is returned too, so the parity check can prove the qty population
+# matches the governed SQL's qty-non-null filter row-for-row, not just by sum.
+# Scalar aggregate (no GROUP BY / OPTIONAL) per the POC's shape conventions.
+SELECT (SUM(?iqty) AS ?invoicedQty) (COUNT(?iqty) AS ?qtyRows)
+WHERE {
+  ?il :invoicedQty ?iqty .
+}

@@ -1,0 +1,12 @@
+PREFIX : <http://example.org/manufacturing/threewaymatch#>
+
+# Leg 1 baseline: every purchase-order line, with the total ordered quantity —
+# the population the governed received/unreceived views measure receipt
+# coverage against. Scalar aggregate (no GROUP BY / OPTIONAL) per the POC's
+# Ontop+SQLite shape conventions. Compared against the governed SQL aggregate
+# on the same snapshot.
+SELECT (COUNT(?pol) AS ?poLines) (SUM(?qty) AS ?orderedQty)
+WHERE {
+  ?pol a :PurchaseOrderLine ;
+       :orderedQty ?qty .
+}
