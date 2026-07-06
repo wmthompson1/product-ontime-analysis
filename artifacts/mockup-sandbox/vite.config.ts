@@ -49,11 +49,13 @@ const appPassThroughPlugin = () => {
 
   const forwardHeaders = (req: import("http").IncomingMessage) => ({
     ...req.headers,
-    host: target.host,
+    // Preserve the original Host so the app builds redirects (e.g.
+    // /gradio -> /gradio/) against the public domain, not localhost.
+    host: req.headers.host || target.host,
     "x-forwarded-host":
       (req.headers["x-forwarded-host"] as string) || req.headers.host || "",
     "x-forwarded-proto":
-      (req.headers["x-forwarded-proto"] as string) || "http",
+      (req.headers["x-forwarded-proto"] as string) || "https",
     "x-forwarded-for":
       (req.headers["x-forwarded-for"] as string) ||
       req.socket.remoteAddress ||

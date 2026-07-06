@@ -1844,10 +1844,10 @@ async def root():
     <html>
         <head>
             <title>Manufacturing Inventory SQL Generator</title>
-            <meta http-equiv="refresh" content="0; url=/gradio" />
+            <meta http-equiv="refresh" content="0; url=/gradio/" />
         </head>
         <body>
-            <p>Redirecting to <a href="/gradio">Gradio Interface</a>...</p>
+            <p>Redirecting to <a href="/gradio/">Gradio Interface</a>...</p>
         </body>
     </html>
     """

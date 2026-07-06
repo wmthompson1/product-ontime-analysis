@@ -23,6 +23,5 @@ invisible in the other.
   to their new index BEFORE inserting the new row at the vacated slot.
 - `query_index` is ordering/metadata only — SQL resolves by `query_name` — but
   keep it matching file order anyway.
-- Verify end-to-end via `/gradio/config` (dropdown choices) and the packed
-  token `"||||||||||<QueryName>"` on the om_query render-chain fn (1 input,
-  4 outputs; was fn_index 48).
+- Verify end-to-end via `/gradio/config` (dropdown choices should list the
+  new query name in all Selector dropdowns).
