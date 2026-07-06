@@ -4600,10 +4600,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 "concrete: physical table → column (✦ = semantically mapped) "
                 "→ concept → analytical intent → ground-truth query."
             )
-            sel_tags = gr.CheckboxGroup(
-                choices=_sel_categories(), label="Perspective tags (filter)",
-                value=[],
-            )
+            with gr.Row():
+                sel_tags = gr.Dropdown(
+                    choices=_sel_categories(),
+                    label="Perspective filter (type to search, multi-select)",
+                    value=[], multiselect=True, filterable=True, scale=1)
+                gr.Markdown("", scale=2)  # spacer keeps the filter narrow
             with gr.Row():
                 sel_table = gr.Dropdown(
                     choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
