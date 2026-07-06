@@ -6526,10 +6526,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mo_summary = gr.Markdown(_sel_summary([]))
 
             gr.Markdown("""
-            ### Ontology Mosaic — three lenses, one selector
+            ### Ontology Mosaic — four lenses, one selector
 
             The ground-truth SQL **IS the view** — it tells the complete story.
-            This mosaic shows that story through **three lenses**, all driven by
+            This mosaic shows that story through **four lenses**, all driven by
             the **Selector v 1.0 chain above** (Perspective filter → Table →
             Column → Concept → Intent → Ground-truth query):
 
@@ -6542,6 +6542,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
               lineage, and its computation template (when it is a metric), read
               from the governed `sql_graph_nodes` / `sql_graph_edges` tables.
             - **📜 SQL** — the raw approved ground-truth SQL text.
+            - **🧾 SQL Semantics** — metadata as the deliverable: a call to
+              action that prints the **Structural Relational Ontology
+              Contract — SQL** (the solder's lossless fingerprint, canonical
+              join edges, predicates, grain, and output shape) instead of
+              running or rendering the SQL.
 
             Nothing is executed against a database — pure AST analysis and
             governed metadata, read-only.
@@ -6564,6 +6569,19 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         language="sql", interactive=False,
                         label="Approved ground-truth SQL",
                     )
+                with gr.Tab("🧾 SQL Semantics"):
+                    gr.Markdown(
+                        "**Metadata as the deliverable.** This lens never "
+                        "executes SQL and never renders the raw file — the "
+                        "call to action interrogates the governed SQL's AST "
+                        "and prints a structured contract mapping syntax to "
+                        "meaning: the solder's lossless fingerprint, canonical "
+                        "join edges, set-membership predicates, grain, and "
+                        "output shape."
+                    )
+                    sem_btn = gr.Button(
+                        "Generate Semantics — SQL", variant="primary")
+                    sem_contract = gr.Markdown()
 
             def _read_gt_sql(entry) -> str:
                 """Load the raw ground-truth SQL text for an entry, '' if missing."""
@@ -6837,6 +6855,137 @@ Check that perspective-concept and intent-concept relationships are seeded.
             mo_query.change(
                 fn=_mosaic_render_chain, inputs=[mo_query],
                 outputs=_mosaic_outputs,
+            )
+
+            def _sql_semantics_contract(val):
+                """🧾 SQL Semantics call to action — metadata as the deliverable.
+
+                Interrogates the governed SQL's AST (never executes it, never
+                renders the raw file) and prints a Structural Relational
+                Ontology Contract: the solder's lossless fingerprint, canonical
+                join edges, set-membership predicates, grain, and output shape.
+                Fail-visible at every hop — parse failure yields an error, not
+                a guess.
+                """
+                tags_csv, table, column, concept, intent, query = _sel_parse(
+                    val or "", 6)
+                if not query:
+                    return ("Pick a ground-truth query in the selector above, "
+                            "then press **Generate Semantics — SQL**.")
+                q = _find_gt_query(query)
+                if q is None:
+                    return (f"Ground-truth query `{query}` not found in the "
+                            f"governed files.")
+                sql_text = (q.get("sql") or "").strip()
+                if not sql_text:
+                    return f"`{query}` carries no SQL text — nothing to interrogate."
+                bk = (q.get("binding_key") or "").strip()
+
+                import structural_fingerprint as _sfp
+                try:
+                    fingerprint = _sfp.base_table_set(sql_text, strict=True)
+                except _sfp.FingerprintParseError as exc:
+                    return (f"**Fail-closed:** SQLGlot could not parse "
+                            f"`{query}` — no contract can be established.\n\n"
+                            f"```\n{exc}\n```")
+                edges, unresolved = _sfp.join_edges_from_sql(sql_text)
+
+                try:
+                    from dataclasses import asdict as _sc_asdict
+                    from view_ontology_extractor import extract_view_ontology
+                    d = _sc_asdict(extract_view_ontology(
+                        sql_text, bk or f"chain::{query}",
+                        concept or query, "",
+                    ))
+                except Exception as exc:
+                    return f"AST facet extraction failed for `{query}`: {exc}"
+
+                _persp = tags_csv.replace(",", " · ") if tags_csv else "(all)"
+                _sel_bits = [f"**Perspective:** {_persp}"]
+                if table:
+                    _sel_bits.append(f"**Table:** `{table}`")
+                if column:
+                    _sel_bits.append(f"**Column:** `{column}`")
+                if concept:
+                    _sel_bits.append(f"**Concept:** `{concept}`")
+                if intent:
+                    _sel_bits.append(f"**Intent:** {intent}")
+                lines = [
+                    "#### 🎛️ Selector v 1.0 pane",
+                    "",
+                    " ✦ ".join(_sel_bits),
+                    "",
+                    "---",
+                    "",
+                    "## OUTPUT: Structural Relational Ontology Contract — SQL",
+                    "",
+                    f"**Ground-truth query:** `{query}`"
+                    + (f" · **Binding key:** `{bk}`" if bk else
+                       " · _(no binding marker — contract derived live)_"),
+                    "",
+                    f"**Lossless fingerprint** ({len(fingerprint)} base tables"
+                    f" · `{_sfp.EXTRACTOR_ID_V2}`):",
+                    "",
+                    "`[" + ", ".join(fingerprint) + "]`",
+                    "",
+                ]
+
+                if edges:
+                    lines.append(f"**Canonical join edges** ({len(edges)}):")
+                    lines.append("")
+                    lines.append("| Table A | Column A | Table B | Column B | Join |")
+                    lines.append("|---|---|---|---|---|")
+                    for e in edges:
+                        ed = _sfp.edge_to_dict(e)
+                        lines.append(
+                            f"| `{ed['table_a']}` | `{ed['column_a']}` "
+                            f"| `{ed['table_b']}` | `{ed['column_b']}` "
+                            f"| {ed['join_type']} |")
+                    lines.append("")
+                if unresolved:
+                    lines.append(
+                        f"**Unresolved joins** ({len(unresolved)} — warn, never block):")
+                    for u in unresolved:
+                        lines.append(f"- `{u['reason']}` — `{u['detail']}`")
+                    lines.append("")
+
+                if d["state_predicates"]:
+                    lines.append(
+                        f"**Set-membership predicates** ({len(d['state_predicates'])}):")
+                    for p in d["state_predicates"]:
+                        lines.append(f"```sql\n{p}\n```")
+                    lines.append("")
+                if d["grain_columns"]:
+                    lines.append(
+                        "**Grain (GROUP BY / ORDER BY keys):**  "
+                        + " · ".join(f"`{g}`" for g in d["grain_columns"]))
+                    lines.append("")
+                if d["cte_names"]:
+                    lines.append(
+                        f"**CTE scaffolding** ({len(d['cte_names'])}):  "
+                        + " · ".join(f"`{c}`" for c in d["cte_names"]))
+                    lines.append("")
+                _tp = ("⏱ time-phased"
+                       + (" (keys: " + ", ".join(f"`{k}`" for k in d["temporal_keys"]) + ")"
+                          if d["temporal_keys"] else "")
+                       if d["time_phased"] else "single-point-in-time")
+                lines.append(f"**Temporal shape:** {_tp}")
+                lines.append("")
+                if d["selected_columns"]:
+                    lines.append(
+                        f"**Output columns** ({len(d['selected_columns'])}):  "
+                        + " ".join(f"`{c}`" for c in d["selected_columns"]))
+                    lines.append("")
+                lines.append(
+                    "---\n_Nothing was executed — pure AST interrogation "
+                    f"(SQLGlot, `{_sfp.FINGERPRINT_DIALECT}` dialect) · "
+                    f"semantics version `{d['semantics_version']}` · "
+                    f"as of {d['extracted_at'][:10]}_")
+                return "\n".join(lines)
+
+            sem_btn.click(
+                fn=_sql_semantics_contract, inputs=[mo_query],
+                outputs=[sem_contract],
             )
 
         with gr.Tab("🦉 Ontology Mapping"):
