@@ -1,0 +1,39 @@
+{
+  "_comment": [
+    "Governed bridge: reviewer-manifest binding_key -> showcase ontology module(s).",
+    "Consumed by hf-space-inventory-sqlgen/ontop_ontology_selector.py (load_binding_bridge /",
+    "load_query_bindings) to resolve a Selector v 1.0 ground-truth query pick to the OBDA",
+    "mappings that republish its governed story. EXPLICIT ONLY — no fuzzy SQL matching:",
+    "a query or key absent from this file renders as 'no ontology mapping bound' (fail visible).",
+    "",
+    "bindings: binding_key -> [showcase module]. Each entry is defensible from the POC docs:",
+    "  - three_way_match keys are named in three_way_match_parity_check.py / README Showcase 10",
+    "  - operations_oeeoperational is the operational OEE metric of README Showcase 5",
+    "  - operations_deliveryperformanceops is the ops on-time story (purchase_order+receiving+suppliers) of Showcases 1-4",
+    "  - suppliers_supplierscorecard carries the performance_rating recomputed in README Showcase 3",
+    "",
+    "query_bindings: governed palette query name -> [binding_key]. Supplies the query->key hop",
+    "ONLY for governed queries that carry no '-- Binding:' marker in their palette file (a marker,",
+    "when present, always wins). 'Three-Way Match Exceptions' interrogates the same strict",
+    "po_line -> receiving_line -> payable_line linkage whose received/unreceived governed views",
+    "ground the three_way_match showcase parity check.",
+    "",
+    "Modules whose grounding queries are ARCHIVED (capacity_planning, customer_order_demand,",
+    "inventory_transactions, shop_floor_routing) have no APPROVED binding key and stay unbound;",
+    "they remain reachable through the flat browse-all picker."
+  ],
+  "version": 2,
+  "bindings": {
+    "operations_deliveryperformanceops_20260604_000013": ["on_time_delivery"],
+    "suppliers_supplierscorecard_20260601_000001": ["on_time_delivery"],
+    "operations_oeeoperational_20260604_000007": ["operational_efficiency"],
+    "payables_ordersreceived_20260706_000001": ["three_way_match"],
+    "payables_ordersunreceived_20260706_000002": ["three_way_match"]
+  },
+  "query_bindings": {
+    "Three-Way Match Exceptions": [
+      "payables_ordersreceived_20260706_000001",
+      "payables_ordersunreceived_20260706_000002"
+    ]
+  }
+}

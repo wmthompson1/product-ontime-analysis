@@ -306,3 +306,79 @@ def selector_choices_for_module(
     if module is None:
         return selector_choices(entries)
     return selector_choices([e for e in entries if e["module"] == module])
+
+
+# ── binding-key bridge (governed, explicit) ──────────────────────────────────
+
+BRIDGE_FILENAME = "binding_bridge.json"
+
+
+def load_binding_bridge(poc_dir: str = DEFAULT_POC_DIR) -> Dict[str, List[str]]:
+    """Load the governed binding_key -> [showcase module] bridge.
+
+    The bridge is a committed POC artifact (binding_bridge.json) linking
+    reviewer-manifest binding keys to the showcase ontology modules that
+    republish their governed story. EXPLICIT ONLY — no SQL-similarity
+    inference: a missing/invalid file or an absent key means "unbound",
+    which callers must surface visibly.
+    """
+    path = os.path.join(poc_dir, BRIDGE_FILENAME)
+    if not os.path.exists(path):
+        return {}
+    try:
+        import json
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        raw = data.get("bindings") or {}
+        out: Dict[str, List[str]] = {}
+        for bk, modules in raw.items():
+            if isinstance(modules, list):
+                mods = [m for m in modules if isinstance(m, str) and m]
+                if mods:
+                    out[bk] = mods
+        return out
+    except Exception:
+        return {}
+
+
+def load_query_bindings(poc_dir: str = DEFAULT_POC_DIR) -> Dict[str, List[str]]:
+    """Load the governed query-name -> [binding_key] section of the bridge.
+
+    Supplies the query->key hop ONLY for governed palette queries that carry
+    no '-- Binding:' marker (a marker, when present, always wins upstream).
+    Same fail-closed contract as load_binding_bridge: missing/invalid file
+    or absent query name means "unbound".
+    """
+    path = os.path.join(poc_dir, BRIDGE_FILENAME)
+    if not os.path.exists(path):
+        return {}
+    try:
+        import json
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        raw = data.get("query_bindings") or {}
+        out: Dict[str, List[str]] = {}
+        for name, keys in raw.items():
+            if isinstance(keys, list):
+                bks = [k for k in keys if isinstance(k, str) and k]
+                if bks:
+                    out[name] = bks
+        return out
+    except Exception:
+        return {}
+
+
+def entries_for_binding(
+    entries: List[dict],
+    bridge: Dict[str, List[str]],
+    binding_key: Optional[str],
+) -> List[dict]:
+    """All OBDA mapping entries bridged to one binding key (order kept).
+
+    Returns [] when the key is unbound — the caller renders that as an
+    explicit "no ontology mapping bound" message, never a fallback.
+    """
+    modules = bridge.get(binding_key or "") or []
+    return [e for e in entries if e["module"] in modules]

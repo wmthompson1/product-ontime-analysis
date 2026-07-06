@@ -6859,18 +6859,26 @@ Check that perspective-concept and intent-concept relationships are seeded.
             try:
                 from ontop_ontology_selector import (
                     load_ontop_entries,
+                    load_binding_bridge as _oo_bridge_fn,
+                    load_query_bindings as _oo_qbind_fn,
+                    entries_for_binding as _oo_bound_fn,
                     selector_choices as _oo_choices_fn,
                     selector_choices_for_module as _oo_mod_choices_fn,
                     module_choices as _oo_cat_fn,
                     slot_legend as _oo_legend_fn,
                 )
                 _oo_entries = load_ontop_entries()
+                _oo_bridge = _oo_bridge_fn()
+                _oo_query_bindings = _oo_qbind_fn()
                 _oo_choices = _oo_choices_fn(_oo_entries)
                 _oo_cat_choices = _oo_cat_fn(_oo_entries)
                 _oo_legend = _oo_legend_fn()
             except Exception as _oo_err:
                 _oo_entries, _oo_choices, _oo_cat_choices = [], [], []
+                _oo_bridge = {}
+                _oo_query_bindings = {}
                 _oo_mod_choices_fn = None
+                _oo_bound_fn = None
                 _oo_legend = f"Selector unavailable: {_oo_err}"
 
             _oo_by_key = {e["entry_key"]: e for e in _oo_entries}
@@ -6882,31 +6890,64 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 if _oo_mod_choices_fn else _oo_choices
             )
 
-            gr.Markdown(
-                f"**{len(_oo_entries)} OBDA mappings across "
-                f"{len(_oo_modules)} showcase ontologies.** Pick a category "
-                f"(showcase ontology), then the mapping — same fixed-width "
-                f"6-slot scheme as the Ontology Mosaic tab:\n\n"
-                f"{_oo_legend}"
-            )
+            # ── Selector v 1.0 chain on top (mirrors the Ontology Mosaic
+            # tab): the final ground-truth query pick resolves through the
+            # governed binding-key → mapping bridge to the OBDA mappings
+            # that republish its story. Explicit bridge only — an unbound
+            # query renders a visible "no ontology mapping bound" message.
+            gr.Markdown("<small>🎛️ <b>Selector v 1.0</b></small>")
 
             with gr.Row():
-                oo_cat = gr.Dropdown(
-                    choices=_oo_cat_choices,
-                    value=_oo_cat0,
-                    label="1 · Category (showcase ontology)",
-                    interactive=True,
-                    scale=1,
-                )
-                oo_picker = gr.Dropdown(
-                    choices=_oo_map0_choices,
-                    label="2 · OBDA mapping (6-slot summary)",
-                    value=_oo_map0_choices[0][1] if _oo_map0_choices else None,
-                    interactive=True,
-                    scale=2,
-                    elem_classes=["gt-slot-select"],
-                )
-                oo_btn = gr.Button("Show Mapping", variant="primary", scale=0)
+                om_tags = gr.Dropdown(
+                    choices=_sel_categories(),
+                    label="Perspective filter (type to search, multi-select)",
+                    value=[], multiselect=True, filterable=True, scale=1)
+                gr.Markdown("", scale=2)  # spacer keeps the filter narrow
+            with gr.Row():
+                om_table = gr.Dropdown(
+                    choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
+                    label="Table", value=None, scale=1)
+                om_column = gr.Dropdown(choices=[], label="Column",
+                                        value=None, scale=1)
+                om_concept = gr.Dropdown(choices=[], label="Concept",
+                                         value=None, scale=1)
+                om_intent = gr.Dropdown(choices=[], label="Intent",
+                                        value=None, scale=1)
+                om_query = gr.Dropdown(choices=_sel_query_choices([]),
+                                       label="Ground-truth query",
+                                       value=None, scale=1)
+            om_summary = gr.Markdown(_sel_summary([]))
+
+            def _om_coverage_counts():
+                """(bound, total) over the governed palette queries.
+
+                A query counts as bound when its '-- Binding:' marker (or,
+                failing that, the committed query_bindings hop) reaches a
+                binding key the bridge maps to ≥1 showcase module.
+                """
+                total, bound = 0, 0
+                try:
+                    for _cat in get_query_categories().get("categories", []):
+                        for _q in get_saved_queries(_cat["id"]):
+                            total += 1
+                            _bk = (_q.get("binding_key") or "").strip()
+                            _bks = ([_bk] if _bk
+                                    else _oo_query_bindings.get(_q["name"], []))
+                            if any(_oo_bridge.get(_k) for _k in _bks):
+                                bound += 1
+                except Exception:
+                    pass
+                return bound, total
+
+            _om_bound_count, _om_total_count = _om_coverage_counts()
+            gr.Markdown(
+                f"**{_om_bound_count} of {_om_total_count} governed queries** "
+                f"currently have a showcase ontology bound "
+                f"({len(_oo_entries)} OBDA mappings across "
+                f"{len(_oo_modules)} showcase ontologies). The bridge is "
+                f"explicit and committed — a query without a bound mapping "
+                f"says so, it never guesses."
+            )
 
             oo_summary = gr.Markdown()
             oo_detail = gr.Markdown()
@@ -6914,14 +6955,14 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 oo_target = gr.Code(language=None, interactive=False, label="Target (RDF triple template)")
                 oo_sql = gr.Code(language="sql", interactive=False, label="Source (governed SQL)")
 
-            def render_ontop_ontology(entry_key):
-                if not entry_key:
-                    return "Select an OBDA mapping above.", "", "", ""
+            def _oo_render_one(entry):
+                """Summary + minted-vocabulary markdown for ONE OBDA mapping.
 
-                entry = _oo_by_key.get(entry_key)
-                if entry is None:
-                    return f"No mapping found for `{entry_key}`.", "", "", ""
-
+                Returns (summary_md, detail_md, pretty_target, source_sql) —
+                the shared building block for the single-mapping browse path
+                and the multi-mapping bridge path. The footer line is NOT
+                included here (callers append it once).
+                """
                 target = entry["target"]
                 source_sql = entry["source_sql"]
 
@@ -6951,8 +6992,6 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
 
                 detail_lines = []
-
-                # Minted vocabulary with ontology annotations
                 minted = entry["datatype_terms"] + entry["object_terms"]
                 if minted:
                     detail_lines.append("#### Minted vocabulary (from the ontology)")
@@ -6968,26 +7007,167 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             + (f"<br/>&nbsp;&nbsp;{comment}" if comment else "")
                         )
                     detail_lines.append("\n".join(rows))
-
-                detail_lines.append(
-                    "\n---\n_Read-only POC · parity proven against the governed SQL "
-                    "on a WAL snapshot · for the AST view of governed SQL, see the "
-                    "Ontology Mosaic tab_"
-                )
                 detail = "\n\n".join(detail_lines)
 
                 pretty_target = target.replace(" ; ", " ;\n    ").replace(" .", " .")
                 return summary, detail, pretty_target, source_sql
 
+            _OO_FOOTER = (
+                "\n---\n_Read-only POC · parity proven against the governed SQL "
+                "on a WAL snapshot · for the AST view of governed SQL, see the "
+                "Ontology Mosaic tab_"
+            )
+
+            def render_ontop_ontology(entry_key):
+                if not entry_key:
+                    return "Select an OBDA mapping above.", "", "", ""
+
+                entry = _oo_by_key.get(entry_key)
+                if entry is None:
+                    return f"No mapping found for `{entry_key}`.", "", "", ""
+
+                summary, detail, pretty_target, source_sql = _oo_render_one(entry)
+                return summary, detail + _OO_FOOTER, pretty_target, source_sql
+
+            def _om_render_chain(val):
+                """Selector v 1.0 query pick → bridged OBDA mapping(s).
+
+                Resolution is deterministic and fail-visible at every hop:
+                query name → governed file → binding key → committed bridge
+                → mapping entries. No hop ever falls back to a guess.
+                """
+                _msg = "Pick a ground-truth query in the selector above."
+                _csv, _t, _c, _concept, _i, query = _sel_parse(val or "", 6)
+                if not query:
+                    return _msg, "", "", ""
+                q = _find_gt_query(query)
+                if q is None:
+                    _err = f"Ground-truth query `{query}` not found in the governed files."
+                    return _err, "", "", ""
+                bk = (q.get("binding_key") or "").strip()
+                bks = [bk] if bk else list(_oo_query_bindings.get(query, []))
+                if not bks:
+                    return (
+                        f"**No ontology mapping bound.** `{query}` carries no "
+                        f"binding marker and the committed bridge records no "
+                        f"binding key for it, so it cannot resolve.",
+                        "", "", "",
+                    )
+                bound = []
+                if _oo_bound_fn:
+                    _seen = set()
+                    for _bk in bks:
+                        for e in _oo_bound_fn(_oo_entries, _oo_bridge, _bk):
+                            if e["entry_key"] not in _seen:
+                                _seen.add(e["entry_key"])
+                                bound.append(e)
+                if not bound:
+                    return (
+                        f"**No ontology mapping bound to this query.**\n\n"
+                        f"`{query}` is governed SQL, but it is not part of any "
+                        f"published showcase ontology yet — the committed "
+                        f"bridge (`poc/ontop-ontology-poc/binding_bridge.json`) "
+                        f"has no entry for it. All mappings remain browsable "
+                        f"in the accordion below.",
+                        "", "", "",
+                    )
+
+                _mods = []
+                for e in bound:
+                    if e["module"] not in _mods:
+                        _mods.append(e["module"])
+                header = (
+                    f"**{query}**  →  {len(bound)} bound mapping"
+                    f"{'s' if len(bound) != 1 else ''} in "
+                    + " · ".join(f"`{m}`" for m in _mods)
+                )
+
+                summaries, details, targets, sqls = [header], [], [], []
+                for e in bound:
+                    s, d, t, sql = _oo_render_one(e)
+                    summaries.append(s)
+                    if d:
+                        details.append(f"### `{e['mapping_id']}`\n\n{d}")
+                    targets.append(f"## {e['mapping_id']}\n{t}")
+                    sqls.append(f"-- mappingId: {e['mapping_id']}\n{sql}")
+
+                return (
+                    "\n\n---\n\n".join(summaries),
+                    "\n\n".join(details) + _OO_FOOTER,
+                    "\n\n".join(targets),
+                    "\n\n".join(sqls),
+                )
+
+            # ── Browse-all fallback (demoted): the flat module → mapping
+            # picker keeps every mapping reachable, bridged or not.
+            with gr.Accordion("Browse all OBDA mappings (flat picker)", open=False):
+                gr.Markdown(
+                    f"Same fixed-width 6-slot scheme as the Ontology Mosaic "
+                    f"tab:\n\n{_oo_legend}"
+                )
+                with gr.Row():
+                    oo_cat = gr.Dropdown(
+                        choices=_oo_cat_choices,
+                        value=_oo_cat0,
+                        label="1 · Category (showcase ontology)",
+                        interactive=True,
+                        scale=1,
+                    )
+                    oo_picker = gr.Dropdown(
+                        choices=_oo_map0_choices,
+                        label="2 · OBDA mapping (6-slot summary)",
+                        value=_oo_map0_choices[0][1] if _oo_map0_choices else None,
+                        interactive=True,
+                        scale=2,
+                        elem_classes=["gt-slot-select"],
+                    )
+                    oo_btn = gr.Button("Show Mapping", variant="primary", scale=0)
+
+            _oo_outputs = [oo_summary, oo_detail, oo_target, oo_sql]
+
+            # Chain wiring — identical to the 🎛️ Selector tab: every handler
+            # takes ONLY its trigger's packed value (Gradio's programmatic
+            # .change events deliver just the trigger component's own value).
+            om_tags.change(
+                fn=_sel_on_tags, inputs=[om_tags],
+                outputs=[om_table, om_column, om_concept, om_intent,
+                         om_query, om_summary],
+            )
+            om_table.change(
+                fn=_sel_on_table, inputs=[om_table],
+                outputs=[om_column, om_concept, om_intent, om_query,
+                         om_summary],
+            )
+            om_column.change(
+                fn=_sel_on_column, inputs=[om_column],
+                outputs=[om_concept, om_intent, om_query, om_summary],
+            )
+            om_concept.change(
+                fn=_sel_on_concept, inputs=[om_concept],
+                outputs=[om_intent, om_query, om_summary],
+            )
+            om_intent.change(
+                fn=_sel_on_intent, inputs=[om_intent],
+                outputs=[om_query, om_summary],
+            )
+            om_query.change(
+                fn=_sel_on_query, inputs=[om_query],
+                outputs=[om_summary],
+            )
+            om_query.change(
+                fn=_om_render_chain, inputs=[om_query],
+                outputs=_oo_outputs,
+            )
+
             oo_btn.click(
                 fn=render_ontop_ontology,
                 inputs=[oo_picker],
-                outputs=[oo_summary, oo_detail, oo_target, oo_sql],
+                outputs=_oo_outputs,
             )
             oo_picker.change(
                 fn=render_ontop_ontology,
                 inputs=[oo_picker],
-                outputs=[oo_summary, oo_detail, oo_target, oo_sql],
+                outputs=_oo_outputs,
             )
 
             if _oo_mod_choices_fn is not None:
