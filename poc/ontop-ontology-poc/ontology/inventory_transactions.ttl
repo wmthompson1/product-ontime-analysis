@@ -124,7 +124,20 @@ wgt:ZeroSemanticWeightContext
     rdfs:comment "Field contexts that carry no semantic weight during inventory-transaction logging — formally the complement of the elevated ledger-fact set." ;
     owl:complementOf wgt:ElevatedLedgerContext .
 
+# wgt:physicalColumn is a machine-readable pointer (read-only annotation, in the
+# dedicated weight namespace) from a zero-weight context to the physical
+# `table.column` it flags. It lets the fail-closed enforcement gate
+# (tests/test_temporal_contract_validation.py) resolve each complementOf-flagged
+# context to a graph column node WITHOUT parsing prose, then assert that node has
+# NO resolves_to edge in the governed graph. It declares no governed term and adds
+# nothing to the OBDA mapping, so the SQL stays the single source of truth.
+wgt:physicalColumn
+    a owl:AnnotationProperty ;
+    rdfs:label "physical column" ;
+    rdfs:comment "The physical `table.column` a zero-weight context flags; used by the enforcement gate to locate the field's graph column node." .
+
 wgt:lot_id
     a wgt:ZeroSemanticWeightContext ;
     rdfs:label "inventory-transaction lot_id (unelevated)" ;
+    wgt:physicalColumn "trace.lot_id" ;
     rdfs:comment "Lot-traceability attribute (trace.lot_id). Not part of the inventory_transaction ledger, so during inventory-transaction logging it has zero semantic weight — a member of the owl:complementOf zero-weight context." .

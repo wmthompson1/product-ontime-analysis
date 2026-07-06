@@ -241,6 +241,19 @@ if [ -f replit_integrations/field_description_coverage_check.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_temporal_contract_validation.py ]; then
+  # SolderEngine temporal-parameter contract validation + the fail-closed
+  # zero-weight enforcement gate: reads the owl:complementOf-flagged (zero-weight)
+  # contexts from the inventory-transactions ontology and asserts none has a
+  # resolves_to edge in the governed graph (committed graph_metadata.json AND the
+  # SQLite sql_graph_edges source of truth), so a future graph change can never
+  # silently elevate a field the ontology declares to carry zero semantic weight.
+  python hf-space-inventory-sqlgen/tests/test_temporal_contract_validation.py || {
+    echo "post-merge: temporal contract + zero-weight enforcement tests failed"
+    exit 1
+  }
+fi
+
 if [ -f poc/ontop-ontology-poc/mapping_drift_check.py ]; then
   # Offline drift guard for the Ontop POC: proves the hand-authored .obda mapping
   # and .ttl ontology stay aligned with the governed graph_metadata.json (file vs

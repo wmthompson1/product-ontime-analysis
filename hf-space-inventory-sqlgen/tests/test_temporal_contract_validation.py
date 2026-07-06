@@ -21,6 +21,12 @@ Tests:
   4. test_owl_complement_zero_weight_rule_present
        The inventory-transactions ontology carries the owl:complementOf rule
        that formally flags lot_id as a zero-semantic-weight (unelevated) context.
+  5. test_zero_weight_fields_have_no_resolves_to_edge
+       ENFORCEMENT gate: reads the complementOf-flagged (zero-weight) contexts
+       from the ontology and asserts none of them has a resolves_to edge in the
+       governed graph (committed graph_metadata.json AND, when present, the
+       SQLite sql_graph_edges source of truth). Fails closed if a zero-weight
+       field is ever silently elevated.
 
 Run directly:
     python hf-space-inventory-sqlgen/tests/test_temporal_contract_validation.py
@@ -29,7 +35,10 @@ Run directly:
 from __future__ import annotations
 
 import glob
+import json
 import os
+import re
+import sqlite3
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +54,101 @@ _ENGINE = se.SolderEngine()
 TTL_PATH = os.path.join(
     REPO_ROOT, "poc", "ontop-ontology-poc", "ontology", "inventory_transactions.ttl"
 )
+
+# The governed graph, in two forms: the committed serialization (always present)
+# and the SQLite source of truth (present when a built DB exists).
+GRAPH_METADATA_JSON = os.path.join(
+    REPO_ROOT, "replit_integrations", "graph_metadata.json"
+)
+APP_DB = os.path.join(HF_DIR, "app_schema", "manufacturing.db")
+
+_NODE_COLLECTION = "manufacturing_graph_node"
+
+# The physical `table.column` referenced by a wgt: zero-weight context — captured
+# from the machine-readable wgt:physicalColumn annotation, falling back to the
+# `(table.column)` prose in the rdfs:comment for older ontology revisions.
+_PHYS_COL_ANNOTATION_RE = re.compile(
+    r"wgt:physicalColumn\s+\"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\""
+)
+_PHYS_COL_PROSE_RE = re.compile(
+    r"\(([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\)"
+)
+
+# A wgt: subject typed as the zero-weight (owl:complementOf) context, with the
+# block of predicates that follow it up to the terminating `.`.
+_ZERO_WEIGHT_BLOCK_RE = re.compile(
+    r"^(wgt:[A-Za-z_][A-Za-z0-9_]*)\s+((?:.|\n)*?)\s*\.\s*$",
+    re.MULTILINE,
+)
+
+
+def _column_node_key(table: str, column: str) -> str:
+    """The canonical structural column-node key for a physical table.column."""
+    return f"{table}:{column}:structural:system:none:none"
+
+
+def _read_zero_weight_contexts() -> dict:
+    """Read the owl:complementOf-flagged (zero-weight) contexts from the ontology.
+
+    Returns {wgt_term: column_node_key}. Fails loudly (empty dict is asserted by
+    the caller) if the flag exists but no physical column can be resolved — a
+    zero-weight flag with no resolvable field would silently disable the gate.
+    """
+    ttl = open(TTL_PATH, encoding="utf-8").read()
+    contexts: dict = {}
+    for block in _ZERO_WEIGHT_BLOCK_RE.finditer(ttl):
+        subject, body = block.group(1), block.group(2)
+        # Only subjects declared to BE a zero-weight context (not the class /
+        # annotation-property declarations themselves).
+        if "a wgt:ZeroSemanticWeightContext" not in body:
+            continue
+        m = _PHYS_COL_ANNOTATION_RE.search(body) or _PHYS_COL_PROSE_RE.search(body)
+        assert m, (
+            f"zero-weight context {subject} has no resolvable physical column "
+            "(neither a wgt:physicalColumn annotation nor a (table.column) hint) "
+            "— the enforcement gate cannot verify it and must fail closed"
+        )
+        contexts[subject] = _column_node_key(m.group(1), m.group(2))
+    return contexts
+
+
+def _resolves_to_from_keys_json() -> set:
+    """`_from` node keys of every resolves_to edge in the committed graph JSON."""
+    if not os.path.exists(GRAPH_METADATA_JSON):
+        return set()
+    data = json.load(open(GRAPH_METADATA_JSON, encoding="utf-8"))
+    keys = set()
+    for edge in data.get("edges", []):
+        if edge.get("edge_type") != "resolves_to":
+            continue
+        frm = edge.get("_from", "")
+        keys.add(frm.split("/", 1)[1] if "/" in frm else frm)
+    return keys
+
+
+def _resolves_to_from_keys_sqlite() -> set:
+    """`_from` node keys of every resolves_to edge in SQLite (source of truth).
+
+    Returns an empty set when no built DB is present (fresh clone / CI without a
+    bootstrapped DB); the committed-JSON check still enforces the invariant.
+    """
+    if not os.path.exists(APP_DB):
+        return set()
+    keys = set()
+    conn = sqlite3.connect(f"file:{APP_DB}?mode=ro", uri=True)
+    try:
+        has_table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sql_graph_edges'"
+        ).fetchone()
+        if not has_table:
+            return set()
+        for (frm,) in conn.execute(
+            "SELECT _from FROM sql_graph_edges WHERE edge_type='resolves_to'"
+        ):
+            keys.add(frm.split("/", 1)[1] if "/" in frm else frm)
+    finally:
+        conn.close()
+    return keys
 
 
 def test_no_placeholders_passes() -> None:
@@ -141,6 +245,53 @@ def test_owl_complement_zero_weight_rule_present() -> None:
     print("PASS: test_owl_complement_zero_weight_rule_present")
 
 
+def test_zero_weight_fields_have_no_resolves_to_edge() -> None:
+    """Fail-closed enforcement: a field the ontology declares zero-weight (via the
+    owl:complementOf rule) must NEVER carry a resolves_to edge in the governed
+    graph. The presence test above only proves the *rule text* exists; this gate
+    proves the graph actually obeys it, so a future graph change can't silently
+    elevate a zero-weight field."""
+    assert os.path.exists(TTL_PATH), f"ontology missing: {TTL_PATH}"
+
+    contexts = _read_zero_weight_contexts()
+    assert contexts, (
+        "no owl:complementOf zero-weight contexts found in the ontology — the "
+        "enforcement gate would be a no-op and must fail closed"
+    )
+
+    json_from = _resolves_to_from_keys_json()
+    sqlite_from = _resolves_to_from_keys_sqlite()
+    assert json_from or sqlite_from, (
+        "no resolves_to edges found in either the committed graph_metadata.json "
+        "or the SQLite sql_graph_edges table — cannot verify the invariant, so "
+        "the gate fails closed"
+    )
+
+    violations = []
+    for term, node_key in sorted(contexts.items()):
+        where = []
+        if node_key in json_from:
+            where.append("graph_metadata.json")
+        if node_key in sqlite_from:
+            where.append("sql_graph_edges")
+        if where:
+            violations.append(
+                f"  {term} -> {node_key} is ELEVATED via resolves_to in "
+                f"{', '.join(where)}"
+            )
+
+    assert not violations, (
+        "zero-weight (owl:complementOf-flagged) field(s) gained semantic weight "
+        "— a resolves_to edge now elevates a field the ontology declares to carry "
+        "ZERO semantic weight:\n" + "\n".join(violations)
+    )
+    print(
+        "PASS: test_zero_weight_fields_have_no_resolves_to_edge "
+        f"({len(contexts)} zero-weight field(s) verified against "
+        f"{len(json_from)} JSON + {len(sqlite_from)} SQLite resolves_to edge(s))"
+    )
+
+
 def main() -> int:
     tests = [
         test_no_placeholders_passes,
@@ -149,6 +300,7 @@ def main() -> int:
         test_reused_token_in_invalid_context_fails_closed,
         test_is_not_null_arm_is_not_the_approved_guard,
         test_owl_complement_zero_weight_rule_present,
+        test_zero_weight_fields_have_no_resolves_to_edge,
     ]
     failed = 0
     for t in tests:
