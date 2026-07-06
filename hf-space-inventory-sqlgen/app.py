@@ -6582,6 +6582,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     sem_btn = gr.Button(
                         "Generate Semantics — SQL", variant="primary")
                     sem_contract = gr.Markdown()
+                    sem_sql = gr.Code(
+                        language="sql", interactive=False,
+                        label="Approved ground-truth SQL (copy/paste)",
+                    )
 
             def _read_gt_sql(entry) -> str:
                 """Load the raw ground-truth SQL text for an entry, '' if missing."""
@@ -6871,14 +6875,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     val or "", 6)
                 if not query:
                     return ("Pick a ground-truth query in the selector above, "
-                            "then press **Generate Semantics — SQL**.")
+                            "then press **Generate Semantics — SQL**."), ""
                 q = _find_gt_query(query)
                 if q is None:
                     return (f"Ground-truth query `{query}` not found in the "
-                            f"governed files.")
+                            f"governed files."), ""
                 sql_text = (q.get("sql") or "").strip()
                 if not sql_text:
-                    return f"`{query}` carries no SQL text — nothing to interrogate."
+                    return (f"`{query}` carries no SQL text — nothing to "
+                            f"interrogate."), ""
                 bk = (q.get("binding_key") or "").strip()
 
                 import structural_fingerprint as _sfp
@@ -6887,7 +6892,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 except _sfp.FingerprintParseError as exc:
                     return (f"**Fail-closed:** SQLGlot could not parse "
                             f"`{query}` — no contract can be established.\n\n"
-                            f"```\n{exc}\n```")
+                            f"```\n{exc}\n```"), sql_text
                 edges, unresolved = _sfp.join_edges_from_sql(sql_text)
 
                 try:
@@ -6898,7 +6903,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         concept or query, "",
                     ))
                 except Exception as exc:
-                    return f"AST facet extraction failed for `{query}`: {exc}"
+                    return (f"AST facet extraction failed for `{query}`: "
+                            f"{exc}"), sql_text
 
                 _persp = tags_csv.replace(",", " · ") if tags_csv else "(all)"
                 _sel_bits = [f"**Perspective:** {_persp}"]
@@ -6981,11 +6987,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     f"(SQLGlot, `{_sfp.FINGERPRINT_DIALECT}` dialect) · "
                     f"semantics version `{d['semantics_version']}` · "
                     f"as of {d['extracted_at'][:10]}_")
-                return "\n".join(lines)
+                return "\n".join(lines), sql_text
 
             sem_btn.click(
                 fn=_sql_semantics_contract, inputs=[mo_query],
-                outputs=[sem_contract],
+                outputs=[sem_contract, sem_sql],
             )
 
         with gr.Tab("🦉 Ontology Mapping"):

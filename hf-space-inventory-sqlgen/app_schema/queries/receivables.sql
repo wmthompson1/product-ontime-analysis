@@ -86,6 +86,7 @@ ORDER BY billable_exposure DESC, open_backlog DESC;
 --           (MAX order_date in the order book), deterministic
 -- ============================================================
 -- Query: Open Order Backlog Aging
+-- Binding: gt_open_order_backlog_aging_20260706_185147
 -- Description: How old is the open order backlog? Open orders with value and days since booking, aged against a data-derived as-of date.
 WITH as_of AS (
     SELECT MAX(order_date) AS as_of_date FROM customer_order
