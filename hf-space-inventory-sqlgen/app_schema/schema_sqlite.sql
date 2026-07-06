@@ -598,6 +598,18 @@ CREATE TABLE IF NOT EXISTS schema_intent_queries (
     FOREIGN KEY (intent_id) REFERENCES schema_intents(intent_id)
 );
 
+-- Self-heal: remove duplicate intent-query rows accumulated before the
+-- unique index existed (this file re-runs on every boot; the seed INSERT
+-- below used to lack OR IGNORE, duplicating rows each startup).
+DELETE FROM schema_intent_queries
+WHERE id NOT IN (
+    SELECT MIN(id) FROM schema_intent_queries
+    GROUP BY intent_id, query_file, query_index
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_intent_queries_unique
+    ON schema_intent_queries (intent_id, query_file, query_index);
+
 -- OPERATES_WITHIN: Intent → Perspective relationship
 -- Intent operates within a perspective, constraining the graph traversal path
 -- Weight semantics per treatise: Binary activation, NOT prioritization
@@ -812,7 +824,7 @@ INSERT INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight,
 -- were removed — their query files exclusively referenced empty PoC tables.
 
 -- Seed data: Link intents to ground truth queries
-INSERT INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name) VALUES
+INSERT OR IGNORE INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name) VALUES
 -- Quality Control queries
 (1, 'quality_control', 'quality_control.sql', 0, 'Defects by severity with cost rollup'),
 (2, 'quality_control', 'quality_control.sql', 1, 'Weekly defect rate trend'),

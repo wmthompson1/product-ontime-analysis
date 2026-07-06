@@ -17,6 +17,15 @@ concept_id) constraint, so existing pairs are ignored but deleted ones come back
 **How to apply:** to durably remove a seeded row, edit BOTH the live DB AND the
 seed file (`schema_sqlite.sql`). Editing only one is incomplete.
 
+# OR IGNORE is a no-op without a unique constraint
+
+The rewrite to `INSERT OR IGNORE` only dedupes when the table has a UNIQUE
+constraint/index on the seeded key. A seeded table without one silently
+accumulates one duplicate row-set per app restart (found: 5 rows → 286).
+Every seeded table needs a UNIQUE guard; the fix pattern is an idempotent
+self-heal `DELETE ... keep MIN(id)` + `CREATE UNIQUE INDEX IF NOT EXISTS`
+placed in the schema file itself, so live DBs heal on next boot.
+
 # Bridge drift root cause (Perspective_Concepts)
 
 `schema_concepts` was re-keyed during curation: live ids are non-contiguous

@@ -4585,6 +4585,67 @@ Check that perspective-concept and intent-concept relationships are seeded.
             finally:
                 conn.close()
 
+        def _sel_reachable_queries(tags, table=None, column=None,
+                                   concept=None):
+            """Distinct ground-truth query names reachable under the current
+            partial selection (tags / table / column / concept). Lets the
+            query dropdown act as a live filter field instead of only
+            filling after a full drill-down."""
+            conn = _sel_db()
+            try:
+                sql = """
+                    SELECT DISTINCT q.query_name
+                    FROM schema_intent_queries q
+                    JOIN schema_intent_concepts ic
+                         ON ic.intent_id = q.intent_id
+                        AND ic.intent_factor_weight = 1
+                    JOIN schema_concepts c ON c.concept_id = ic.concept_id
+                    WHERE 1=1
+                """
+                params = []
+                if concept:
+                    sql += " AND c.concept_name = ?"
+                    params.append(concept)
+                if tags:
+                    ph = ",".join("?" * len(tags))
+                    sql += f"""
+                      AND c.concept_id IN (
+                        SELECT pc.concept_id
+                        FROM schema_perspective_concepts pc
+                        JOIN schema_perspectives p
+                             ON p.perspective_id = pc.perspective_id
+                        WHERE p.perspective_name IN ({ph}))
+                    """
+                    params.extend(tags)
+                if table:
+                    sub = """
+                      AND c.concept_name IN (
+                        SELECT cn.concept_name
+                        FROM sql_graph_edges e
+                        JOIN sql_graph_nodes n  ON n._id = e._from
+                        JOIN sql_graph_nodes cn ON cn._id = e._to
+                        WHERE e.edge_type = 'resolves_to'
+                          AND n.table_name = ?
+                    """
+                    params.append(table)
+                    if column:
+                        sub += " AND n.column_name = ?"
+                        params.append(column)
+                    sql += sub + ")"
+                sql += " ORDER BY 1"
+                return [r[0] for r in conn.execute(sql, params)]
+            finally:
+                conn.close()
+
+        def _sel_query_choices(tags, table="", column="", concept=""):
+            """Packed (label, value) pairs for the query dropdown at any
+            stage of the drill-down."""
+            csv = ",".join(tags)
+            prefix = _SEL_SEP.join([csv, table, column, concept, ""])
+            return [(q, prefix + _SEL_SEP + q)
+                    for q in _sel_reachable_queries(
+                        tags, table or None, column or None, concept or None)]
+
         def _sel_summary(tags, table=None, column=None, concept=None,
                          intent=None, query=None):
             lines = ["### Selection context"]
@@ -4635,7 +4696,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                                           value=None, scale=1)
                 sel_intent = gr.Dropdown(choices=[], label="Intent",
                                          value=None, scale=1)
-                sel_query = gr.Dropdown(choices=[], label="Ground-truth query",
+                sel_query = gr.Dropdown(choices=_sel_query_choices([]),
+                                        label="Ground-truth query",
                                         value=None, scale=1)
             sel_summary = gr.Markdown(_sel_summary([]))
 
@@ -4671,7 +4733,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return (
                     gr.update(choices=[(t, csv + _SEL_SEP + t) for t in tables],
                               value=None),
-                    _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR,
+                    _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR,
+                    gr.update(choices=_sel_query_choices(tags), value=None),
                     summary,
                 )
 
@@ -4686,7 +4749,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                             for label, c in _sel_columns(table)]
                 return (
                     gr.update(choices=choices, value=None),
-                    _SEL_CLEAR, _SEL_CLEAR, _SEL_CLEAR,
+                    _SEL_CLEAR, _SEL_CLEAR,
+                    gr.update(choices=_sel_query_choices(tags, table),
+                              value=None),
                     _sel_summary(tags, table),
                 )
 
@@ -4707,7 +4772,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return (
                     gr.update(choices=[(c, prefix + c) for c in concepts],
                               value=None),
-                    _SEL_CLEAR, _SEL_CLEAR,
+                    _SEL_CLEAR,
+                    gr.update(choices=_sel_query_choices(tags, table, column),
+                              value=None),
                     summary,
                 )
 
@@ -4729,7 +4796,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return (
                     gr.update(choices=[(i, prefix + i) for i in intents],
                               value=None),
-                    _SEL_CLEAR,
+                    gr.update(choices=_sel_query_choices(tags, table, column,
+                                                         concept),
+                              value=None),
                     summary,
                 )
 
@@ -4758,8 +4827,8 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     return gr.update()
                 csv, table, column, concept, intent, query = _sel_parse(val, 6)
                 tags = [t for t in csv.split(",") if t]
-                return _sel_summary(tags, table, column or None, concept,
-                                    intent, query)
+                return _sel_summary(tags, table or None, column or None,
+                                    concept or None, intent or None, query)
 
             sel_tags.change(
                 _sel_on_tags, inputs=[sel_tags],
