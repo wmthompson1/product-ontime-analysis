@@ -150,6 +150,7 @@ receiving,quantity_ordered,Quantity Ordered,Numeric quantity ordered recorded fo
 receiving,quantity_received,Quantity Received,Numeric quantity received recorded for each receiving.,4.0
 receiving,receipt_date,Receipt Date,The receipt date for the receiving.,2026-01-17
 receiving,receipt_id,Receipt ID,Unique identifier for each receiving record.,1
+receiving,received_date,Received Date,"The date goods physically arrived at the dock (the dock-arrival date), distinct from the posted receipt date.",2026-01-17
 receiving,supplier_id,Supplier ID,Links each receiving to its related supplier.,S-006
 requirement,actual_qty,Actual Quantity,Numeric actual quantity recorded for each requirement.,22.1
 requirement,component_id,Component ID,Links each requirement to its related component.,WO-00051

@@ -81,7 +81,7 @@ MANIFEST_PATH = os.path.join(
 )
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 26
+SCHEMA_VERSION = 27
 MILESTONE_NAME = "procurement_receiving_views"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
