@@ -88,6 +88,12 @@ STEPS = [
     # at 20; AS_OF never moves. Runs after expand_demand_and_completions so it
     # sees the same closed baseline.
     ("migrations/complete_last_week_work_orders.py", []),
+    # synthetic demand so planned orders visibly net against on-hand: adds open
+    # customer-order demand lines (scale via LINES, headers stay at 20; AS_OF
+    # never moves) for the parts whose on-hand the completions boosted, sized
+    # above on-hand so the grid draws PAB down to safety stock and then plans
+    # the shortfall. Runs after the completions so it sees the boosted on-hand.
+    ("migrations/add_synthetic_demand_for_netting.py", []),
     # add the physical receiving.received_date column (dock-arrival date, the
     # noun the Temporal Parameter Contract's Horizon Filter binds to) and
     # backfill it = receipt_date. Runs BEFORE the uninvoiced-receipts demo so
