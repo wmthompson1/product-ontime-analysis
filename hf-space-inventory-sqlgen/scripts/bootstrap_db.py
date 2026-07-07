@@ -82,6 +82,12 @@ STEPS = [
     # part a planning part (runs after the three-way match completion so
     # received service POs accrue onto their operations)
     ("migrations/expand_demand_and_completions.py", []),
+    # last-week completions: close three more in-progress shop orders inside the
+    # 7-day window ending on AS_OF (2026-01-21), receipt their finished goods to
+    # stock as synthetic supply, and re-run the cost/labor cascade. Headers stay
+    # at 20; AS_OF never moves. Runs after expand_demand_and_completions so it
+    # sees the same closed baseline.
+    ("migrations/complete_last_week_work_orders.py", []),
     # add the physical receiving.received_date column (dock-arrival date, the
     # noun the Temporal Parameter Contract's Horizon Filter binds to) and
     # backfill it = receipt_date. Runs BEFORE the uninvoiced-receipts demo so
