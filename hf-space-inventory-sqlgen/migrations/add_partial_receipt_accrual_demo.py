@@ -235,6 +235,36 @@ def main():
 
     conn.commit()
 
+    # ── SELECTOR WIRING ──────────────────────────────────────────────────
+    # "Partial-Receipt Accrual Exposure" was inserted into
+    # supplier_performance.sql AFTER "Uninvoiced Receipts" and BEFORE
+    # "Three-Way Match Exceptions", shifting file order: PRA is the 7th
+    # "-- Query:" marker (0-based index 6) and Three-Way moved to index 7.
+    # schema_intent_queries has a unique index on (intent_id, query_file,
+    # query_index), so bump Three-Way first, then insert PRA at 6 under the
+    # same payables intent (18). Idempotent: the guarded UPDATE matches
+    # nothing on re-run, and the INSERT OR IGNORE is a no-op once present.
+    cur.execute(
+        """UPDATE schema_intent_queries SET query_index = 7
+           WHERE intent_id = 18 AND query_file = 'supplier_performance.sql'
+             AND query_name = 'Three-Way Match Exceptions'
+             AND query_index = 6""")
+    if cur.rowcount:
+        print("  ~ Three-Way Match Exceptions: query_index 6 -> 7 "
+              "(file order shifted)")
+    cur.execute(
+        """INSERT OR IGNORE INTO schema_intent_queries
+               (intent_id, query_category, query_file, query_index, query_name)
+           VALUES (18, 'supplier_performance', 'supplier_performance.sql',
+                   6, 'Partial-Receipt Accrual Exposure')""")
+    if cur.rowcount:
+        print("  + intent_query 'Partial-Receipt Accrual Exposure' wired "
+              "to supplier_payables_exposure (intent 18)")
+    else:
+        print("  = intent_query 'Partial-Receipt Accrual Exposure' already "
+              "wired, skipping")
+    conn.commit()
+
     # ── FAIL-CLOSED VERIFY ────────────────────────────────────────────────
     with open(VIEW_PATH, encoding="utf-8") as fh:
         view_sql = fh.read()

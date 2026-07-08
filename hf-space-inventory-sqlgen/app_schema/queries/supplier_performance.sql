@@ -254,6 +254,64 @@ WHERE po.site_id = 'SITE-1'
       )
 ORDER BY s.supplier_id, po.site_id, r.received_date ASC;
 
+-- Query: Partial-Receipt Accrual Exposure
+-- Description: Which PO lines are partially received with the received portion not yet fully invoiced? Received > 0 but < ordered, voucher coverage short — the open Purchase Receipt Accrual (PRA) exposure at PO-price valuation.
+-- Binding: payables_partialreceiptaccrual_20260708_000004
+-- Temporal Parameter Contract: named, NULL-guarded placeholders baked in by the
+-- SME (SolderEngine serves verbatim). :start_date/:end_date = Horizon Filter on
+-- receiving.received_date; :end_date also = Netting Snapshot on
+-- payables.invoice_date inside the voucher-coverage aggregate; :supplier_id
+-- restricts to one vendor. Bind all three NULL for the full population.
+-- Grain: one row per PO LINE in the accrual condition. Receipt and voucher
+-- coverage are pre-aggregated in derived tables so the PO-line grain never
+-- fans out. Cancelled POs and cancelled vouchers excluded.
+SELECT
+    'Partial-Receipt Accrual Exposure'   AS query_name,
+    po.po_id                             AS purc_order_id,
+    pl.line_id                           AS po_line_id,
+    pl.part_id                           AS part_id,
+    s.supplier_id                        AS vendor_id,
+    s.supplier_name                      AS vendor_name,
+    po.site_id                           AS site_id,
+    ROUND(pl.quantity, 1)                AS qty_ordered,
+    ROUND(rcv.qty_received, 1)           AS qty_received,
+    ROUND(COALESCE(inv.qty_invoiced, 0), 1) AS qty_invoiced,
+    ROUND(rcv.qty_received - COALESCE(inv.qty_invoiced, 0), 1) AS qty_uninvoiced,
+    ROUND((rcv.qty_received - COALESCE(inv.qty_invoiced, 0)) * pl.unit_cost, 2)
+                                         AS accrued_value,
+    rcv.last_receipt_date                AS last_receipt_date
+FROM po_line pl
+JOIN purchase_order po ON po.po_id = pl.po_id
+JOIN suppliers s       ON s.supplier_id = po.supplier_id
+JOIN (
+    SELECT
+        rl.po_line_id,
+        SUM(rl.quantity_received) AS qty_received,
+        MAX(r.received_date)      AS last_receipt_date
+    FROM receiving_line rl
+    JOIN receiving r ON r.receipt_id = rl.receipt_id
+    WHERE (:start_date IS NULL OR r.received_date >= :start_date)
+      AND (:end_date IS NULL OR r.received_date <= :end_date)
+    GROUP BY rl.po_line_id
+) rcv ON rcv.po_line_id = pl.line_id
+LEFT JOIN (
+    SELECT
+        pl2.po_line_id,
+        SUM(ABS(pl2.qty)) AS qty_invoiced
+    FROM payable_line pl2
+    JOIN payables pay ON pay.invoice_id = pl2.invoice_id
+    WHERE pl2.po_line_id IS NOT NULL
+      AND pay.status <> 'Cancelled'
+      AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+    GROUP BY pl2.po_line_id
+) inv ON inv.po_line_id = pl.line_id
+WHERE po.status <> 'Cancelled'
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+  AND rcv.qty_received > 0
+  AND rcv.qty_received < pl.quantity
+  AND COALESCE(inv.qty_invoiced, 0) < rcv.qty_received
+ORDER BY s.supplier_id, po.po_id, pl.line_id ASC;
+
 -- Query: Three-Way Match Exceptions
 -- Description: Which unpaid invoices failed three-way match? Exception-status invoices per supplier with amounts at risk and the linked PO.
 SELECT
