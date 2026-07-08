@@ -39,6 +39,19 @@
 --   vendor_name        Supplier name (suppliers.supplier_name).
 --   site_id            Purchasing site (purchase_order.site_id).
 --   qty_ordered        Ordered quantity on the PO line (po_line.quantity).
+--   po_exists          Contractual truth: 1 — the spine is PO-line driven,
+--                      so the contractual leg is present on every row (kept
+--                      explicit so the three truth flags read as a set; a
+--                      FULL OUTER spine that surfaces Unexpected_Receipt /
+--                      Invoice_No_PO states would make this conditional).
+--   receipt_exists     Physical truth: 1 when a receiving_line covers the
+--                      PO line, else 0.
+--   voucher_exists     Financial truth: 1 when a payable_line vouchers the
+--                      receipt line, else 0.
+--   invoice_document_exists  Document truth: 1 when the voucher line rolls
+--                      up to a payables header (the invoice document on
+--                      file), else 0 — a voucher line whose header is
+--                      missing is in-processing, not yet a document.
 --   receipt_line_id    Receipt line key (receiving_line.receipt_line_id);
 --                      NULL when nothing has been received.
 --   qty_received       Row-level received quantity
@@ -77,6 +90,13 @@ SELECT
     s.supplier_name                      AS vendor_name,
     po.site_id                           AS site_id,
     ROUND(pl.quantity, 1)                AS qty_ordered,
+    1                                    AS po_exists,
+    CASE WHEN rl.receipt_line_id IS NOT NULL
+         THEN 1 ELSE 0 END               AS receipt_exists,
+    CASE WHEN pyl.payable_line_id IS NOT NULL
+         THEN 1 ELSE 0 END               AS voucher_exists,
+    CASE WHEN pay.invoice_id IS NOT NULL
+         THEN 1 ELSE 0 END               AS invoice_document_exists,
     rl.receipt_line_id                   AS receipt_line_id,
     ROUND(COALESCE(rl.quantity_received, 0), 1) AS qty_received,
     r.received_date                      AS received_date,
