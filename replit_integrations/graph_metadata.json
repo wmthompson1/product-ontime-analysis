@@ -1,7 +1,7 @@
 {
   "schema_version": 27,
   "milestone": "procurement_receiving_views",
-  "synced_at": "2026-07-08T04:03:00.332982+00:00",
+  "synced_at": "2026-07-08T06:04:23.826415+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Canonical structural graph exported from SQLite in the fixed 6-slot composite-key scheme: table + column + concept nodes, has_column edges (table -> column), and references edges (child column -> parent column) built from declared foreign keys, all with unified abbreviated unique_ids. Covers the business ERP tables (schema_* metadata tables excluded \u2014 the graph models the domain, not its own bookkeeping); the semantic ``resolves_to`` layer is active and node-guarded \u2014 each SME-curated elevation is an edge from a column node to the CONCEPT node it expresses under a business perspective (M2 re-point), carrying the binary weight gate and the raw priority_weight. Concept nodes are perspective-agnostic and carry the M3 payload (concept_type, domain, description as the definition, and the synonyms/tags arrays, emitted from schema_concepts); perspective is never stored on the node \u2014 it lives only on the resolves_to edge. M4 adds metrics: a metric concept carries a dialect-agnostic computation_template, and the resolves_to edges that bind its template {variable} placeholders to physical columns carry variable_name. A concept may exist without a resolves_to edge (an orphan glossary term) until a real ERP column is onboarded.",
   "key_scheme": {
@@ -113,19 +113,19 @@
     "edge_collection": "manufacturing_graph_edge"
   },
   "counts": {
-    "nodes_total": 373,
-    "edges_total": 448,
+    "nodes_total": 374,
+    "edges_total": 459,
     "nodes_by_type": {
       "table": 26,
       "column": 277,
       "concept": 43,
-      "binding": 27
+      "binding": 28
     },
     "edges_by_type": {
       "has_column": 277,
-      "references": 54,
+      "references": 58,
       "resolves_to": 44,
-      "binds_table": 73
+      "binds_table": 80
     }
   },
   "integrity": {
@@ -5950,6 +5950,19 @@
       "description": "Purchase order status list with supplier name, type, dates, and value \u2014 core AP dashboard query joining purchase_order to suppliers"
     },
     {
+      "_id": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
+      "node_type": "binding",
+      "node_family": "manifest",
+      "perspective": "Payables",
+      "binding_key": "payables_threewaymatchcoverage_20260708_000005",
+      "concept_anchor": "THREEWAYMATCHCOVERAGE",
+      "logic_type": "DIRECT",
+      "predicate": "none",
+      "unique_id": "none",
+      "description": "Consolidated three-way-match coverage spine at receipt/voucher row grain: flat base-table joins only (no CTEs/derived tables), po_line->purchase_order INNER then all LEFT, covering Not Received / Received-Uninvoiced / Partially Invoiced / Matched / Over-Invoiced states; sibling exception views become filters over this spine"
+    },
+    {
       "_id": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
       "_key": "payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
       "node_type": "binding",
@@ -9502,6 +9515,48 @@
       "join_type": "RIGHT"
     },
     {
+      "_id": "manufacturing_graph_edge/payable_line:invoice_id:structural:system:references:SYS_REF_PAY_INV_002",
+      "_key": "payable_line:invoice_id:structural:system:references:SYS_REF_PAY_INV_002",
+      "_from": "manufacturing_graph_node/payable_line:invoice_id:structural:system:none:none",
+      "_to": "manufacturing_graph_node/payables:invoice_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_PAY_INV_002",
+      "references_table": "payables",
+      "references_column": "invoice_id",
+      "origin": "sql_observed",
+      "join_type": "LEFT"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payable_line:receipt_line_id:structural:system:references:SYS_REF_PAY_REC_002",
+      "_key": "payable_line:receipt_line_id:structural:system:references:SYS_REF_PAY_REC_002",
+      "_from": "manufacturing_graph_node/payable_line:receipt_line_id:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receiving_line:receipt_line_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_PAY_REC_002",
+      "references_table": "receiving_line",
+      "references_column": "receipt_line_id",
+      "origin": "sql_observed",
+      "join_type": "RIGHT"
+    },
+    {
+      "_id": "manufacturing_graph_edge/po_line:line_id:structural:system:references:SYS_REF_POL_LIN_001",
+      "_key": "po_line:line_id:structural:system:references:SYS_REF_POL_LIN_001",
+      "_from": "manufacturing_graph_node/po_line:line_id:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receiving_line:po_line_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_POL_LIN_001",
+      "references_table": "receiving_line",
+      "references_column": "po_line_id",
+      "origin": "sql_observed",
+      "join_type": "LEFT"
+    },
+    {
       "_id": "manufacturing_graph_edge/purchase_order:po_id:structural:system:references:SYS_REF_PUR_POI_002",
       "_key": "purchase_order:po_id:structural:system:references:SYS_REF_PUR_POI_002",
       "_from": "manufacturing_graph_node/purchase_order:po_id:structural:system:none:none",
@@ -9528,6 +9583,20 @@
       "references_column": "supplier_id",
       "origin": "sql_observed",
       "join_type": "LEFT"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receiving:receipt_id:structural:system:references:SYS_REF_REC_REC_002",
+      "_key": "receiving:receipt_id:structural:system:references:SYS_REF_REC_REC_002",
+      "_from": "manufacturing_graph_node/receiving:receipt_id:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receiving_line:receipt_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_REC_REC_002",
+      "references_table": "receiving_line",
+      "references_column": "receipt_id",
+      "origin": "sql_observed",
+      "join_type": "RIGHT"
     },
     {
       "_id": "manufacturing_graph_edge/customer_order_line:order_qty:semantic:Engineering:resolves_to:ENG_RES_CUS_ORD_704246C4",
@@ -10786,9 +10855,9 @@
       "unique_id": "PAY_BIN_PAY_SUP_003"
     },
     {
-      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:payable_line:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_003",
-      "_key": "payables_uninvoicedreceipts_20260706_000003:payable_line:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_003",
-      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:payable_line:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_003",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:payable_line:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_003",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
       "_to": "manufacturing_graph_node/payable_line:entity:structural:system:none:none",
       "edge_family": "manifest",
       "edge_type": "binds_table",
@@ -10796,9 +10865,9 @@
       "unique_id": "PAY_BIN_PAY_PAY_003"
     },
     {
-      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:payables:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_004",
-      "_key": "payables_uninvoicedreceipts_20260706_000003:payables:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_004",
-      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:payables:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_004",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:payables:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_004",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
       "_to": "manufacturing_graph_node/payables:entity:structural:system:none:none",
       "edge_family": "manifest",
       "edge_type": "binds_table",
@@ -10806,9 +10875,19 @@
       "unique_id": "PAY_BIN_PAY_PAY_004"
     },
     {
-      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_006",
-      "_key": "payables_uninvoicedreceipts_20260706_000003:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_006",
-      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:po_line:manifest:Payables:binds_table:PAY_BIN_PAY_POL_004",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:po_line:manifest:Payables:binds_table:PAY_BIN_PAY_POL_004",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/po_line:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_POL_004"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_006",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_006",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
       "_to": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
       "edge_family": "manifest",
       "edge_type": "binds_table",
@@ -10816,9 +10895,9 @@
       "unique_id": "PAY_BIN_PAY_PUR_006"
     },
     {
-      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_006",
-      "_key": "payables_uninvoicedreceipts_20260706_000003:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_006",
-      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_006",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_006",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
       "_to": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "edge_family": "manifest",
       "edge_type": "binds_table",
@@ -10826,9 +10905,9 @@
       "unique_id": "PAY_BIN_PAY_REC_006"
     },
     {
-      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_007",
-      "_key": "payables_uninvoicedreceipts_20260706_000003:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_007",
-      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_007",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_007",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
       "_to": "manufacturing_graph_node/receiving_line:entity:structural:system:none:none",
       "edge_family": "manifest",
       "edge_type": "binds_table",
@@ -10836,14 +10915,74 @@
       "unique_id": "PAY_BIN_PAY_REC_007"
     },
     {
-      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:suppliers:manifest:Payables:binds_table:PAY_BIN_PAY_SUP_004",
-      "_key": "payables_uninvoicedreceipts_20260706_000003:suppliers:manifest:Payables:binds_table:PAY_BIN_PAY_SUP_004",
-      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_id": "manufacturing_graph_edge/payables_threewaymatchcoverage_20260708_000005:suppliers:manifest:Payables:binds_table:PAY_BIN_PAY_SUP_004",
+      "_key": "payables_threewaymatchcoverage_20260708_000005:suppliers:manifest:Payables:binds_table:PAY_BIN_PAY_SUP_004",
+      "_from": "manufacturing_graph_node/payables_threewaymatchcoverage_20260708_000005:entity:manifest:Payables:none:none",
       "_to": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
       "edge_family": "manifest",
       "edge_type": "binds_table",
       "perspective": "Payables",
       "unique_id": "PAY_BIN_PAY_SUP_004"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:payable_line:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_005",
+      "_key": "payables_uninvoicedreceipts_20260706_000003:payable_line:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_005",
+      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/payable_line:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_PAY_005"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:payables:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_006",
+      "_key": "payables_uninvoicedreceipts_20260706_000003:payables:manifest:Payables:binds_table:PAY_BIN_PAY_PAY_006",
+      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/payables:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_PAY_006"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_007",
+      "_key": "payables_uninvoicedreceipts_20260706_000003:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_007",
+      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/purchase_order:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_PUR_007"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_008",
+      "_key": "payables_uninvoicedreceipts_20260706_000003:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_008",
+      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_REC_008"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_009",
+      "_key": "payables_uninvoicedreceipts_20260706_000003:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_009",
+      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/receiving_line:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_REC_009"
+    },
+    {
+      "_id": "manufacturing_graph_edge/payables_uninvoicedreceipts_20260706_000003:suppliers:manifest:Payables:binds_table:PAY_BIN_PAY_SUP_005",
+      "_key": "payables_uninvoicedreceipts_20260706_000003:suppliers:manifest:Payables:binds_table:PAY_BIN_PAY_SUP_005",
+      "_from": "manufacturing_graph_node/payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none",
+      "_to": "manufacturing_graph_node/suppliers:entity:structural:system:none:none",
+      "edge_family": "manifest",
+      "edge_type": "binds_table",
+      "perspective": "Payables",
+      "unique_id": "PAY_BIN_PAY_SUP_005"
     },
     {
       "_id": "manufacturing_graph_edge/sales_ordercustomerstate_20260604_000012:work_order:manifest:Customer:binds_table:CUS_BIN_SAL_WOR_001",
