@@ -104,6 +104,11 @@ STEPS = [
     # payables_uninvoicedreceipts (runs after the match completion so the
     # engineered exceptions are never "repaired" back into a clean ledger)
     ("migrations/add_uninvoiced_receipts_demo.py", []),
+    # partial-receipt accrual exposure populations for the governed PRA view
+    # payables_partialreceiptaccrual (adds engineered PO LINES — never headers —
+    # partially received and under/never vouchered; runs after the uninvoiced
+    # demo so both exception families coexist without repair)
+    ("migrations/add_partial_receipt_accrual_demo.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)

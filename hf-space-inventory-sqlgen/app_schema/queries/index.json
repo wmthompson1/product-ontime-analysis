@@ -135,20 +135,32 @@
           {
             "query_name": "unnamed",
             "tables": {
-              "payables": 1,
-              "suppliers": 1
+              "receiving": 1,
+              "purchase_order": 1,
+              "suppliers": 2,
+              "receiving_line": 1,
+              "payable_line": 2,
+              "payables": 3
             },
             "select_counts": {
-              "payables": 1,
-              "suppliers": 1
+              "suppliers": 2,
+              "receiving": 1,
+              "purchase_order": 1,
+              "receiving_line": 1,
+              "payable_line": 2,
+              "payables": 3
             }
           }
         ],
         "totals": {
-          "suppliers": 6,
+          "suppliers": 7,
           "daily_deliveries": 3,
           "product_lines": 1,
-          "payables": 5
+          "payables": 7,
+          "receiving": 1,
+          "purchase_order": 1,
+          "receiving_line": 1,
+          "payable_line": 2
         }
       }
     },
@@ -228,8 +240,8 @@
               "customer_order_line": 1
             },
             "select_counts": {
-              "customer_order": 1,
-              "customer_order_line": 1
+              "customer_order_line": 1,
+              "customer_order": 1
             }
           },
           {
@@ -239,8 +251,8 @@
               "customer_order_line": 1
             },
             "select_counts": {
-              "customer_order": 1,
-              "customer_order_line": 1
+              "customer_order_line": 1,
+              "customer_order": 1
             }
           },
           {
@@ -250,8 +262,8 @@
               "customer_order_line": 1
             },
             "select_counts": {
-              "customer_order": 2,
-              "customer_order_line": 1
+              "customer_order_line": 1,
+              "customer_order": 2
             }
           }
         ],
@@ -277,6 +289,7 @@
     "non_conformant_materials",
     "operation",
     "part",
+    "payable_line",
     "payables",
     "po_line",
     "product_defects",
@@ -287,32 +300,35 @@
     "quality_costs",
     "quality_incidents",
     "receiving",
+    "receiving_line",
     "sales",
     "shop_resource",
     "suppliers",
     "work_order"
   ],
   "table_reference_counts": {
-    "suppliers": 12,
+    "suppliers": 15,
+    "purchase_order": 11,
     "work_order": 11,
+    "payables": 10,
     "part": 10,
     "customer_order": 8,
     "daily_deliveries": 7,
     "customer_order_line": 7,
-    "purchase_order": 6,
+    "receiving": 6,
+    "po_line": 6,
     "product_lines": 5,
-    "payables": 5,
+    "receiving_line": 5,
+    "payable_line": 5,
     "shop_resource": 5,
     "operation": 5,
     "customer": 3,
     "customer_address": 3,
     "production_schedule": 3,
     "non_conformant_materials": 3,
-    "po_line": 3,
     "product_defects": 2,
     "equipment_metrics": 2,
     "corrective_actions": 2,
-    "receiving": 2,
     "sales": 1,
     "downtime_events": 1,
     "failure_events": 1,
