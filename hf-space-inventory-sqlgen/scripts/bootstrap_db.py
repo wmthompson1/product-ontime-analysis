@@ -109,6 +109,10 @@ STEPS = [
     # partially received and under/never vouchered; runs after the uninvoiced
     # demo so both exception families coexist without repair)
     ("migrations/add_partial_receipt_accrual_demo.py", []),
+    # wire the consolidated Three-Way Match Coverage spine into the Query
+    # Palette (selector wiring only — no data writes; runs after the PRA demo
+    # so its fail-closed verify sees all five match states in the population)
+    ("migrations/add_twm_coverage_palette.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)

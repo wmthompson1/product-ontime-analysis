@@ -312,6 +312,73 @@ WHERE po.status <> 'Cancelled'
   AND COALESCE(inv.qty_invoiced, 0) < rcv.qty_received
 ORDER BY s.supplier_id, po.po_id, pl.line_id ASC;
 
+-- Query: Three-Way Match Coverage
+-- Description: The full three-way-match coverage spectrum in one flat spine — every non-cancelled PO line at receipt-line/voucher-line grain with contractual, physical, financial, and document truth flags and a five-state match_status (Not Received, Received-Uninvoiced, Partially Invoiced, Matched, Over-Invoiced). The sibling exception views are filters over this spine.
+-- Binding: payables_threewaymatchcoverage_20260708_000005
+-- Temporal Parameter Contract: named, NULL-guarded placeholders baked in by the
+-- SME (SolderEngine serves verbatim). :start_date/:end_date = Horizon Filter on
+-- receiving.received_date (receipt-date guards pass rows with no receipt so
+-- 'Not Received' lines are never dropped by a horizon); :end_date also =
+-- Netting Snapshot on payables.invoice_date — vouchers after :end_date count
+-- as no coverage; :supplier_id restricts to one vendor. Bind all three NULL
+-- for the full unfiltered coverage population.
+-- Grain: one row per PO line x receipt line x voucher line (flat joins only —
+-- no CTEs, no derived tables). po_line -> purchase_order is INNER; every join
+-- after it is LEFT so never-received PO lines still appear. Voucher lines with
+-- no receipt_line_id linkage are excluded by design — they remain the concern
+-- of the Three-Way Match Exceptions view.
+SELECT
+    'Three-Way Match Coverage'           AS query_name,
+    po.po_id                             AS purc_order_id,
+    pl.line_id                           AS po_line_id,
+    pl.part_id                           AS part_id,
+    s.supplier_id                        AS vendor_id,
+    s.supplier_name                      AS vendor_name,
+    po.site_id                           AS site_id,
+    ROUND(pl.quantity, 1)                AS qty_ordered,
+    1                                    AS po_exists,
+    CASE WHEN rl.receipt_line_id IS NOT NULL
+         THEN 1 ELSE 0 END               AS receipt_exists,
+    CASE WHEN pyl.payable_line_id IS NOT NULL
+         THEN 1 ELSE 0 END               AS voucher_exists,
+    CASE WHEN pay.invoice_id IS NOT NULL
+         THEN 1 ELSE 0 END               AS invoice_document_exists,
+    rl.receipt_line_id                   AS receipt_line_id,
+    ROUND(COALESCE(rl.quantity_received, 0), 1) AS qty_received,
+    r.received_date                      AS received_date,
+    pay.invoice_number                   AS invoice_number,
+    pay.invoice_date                     AS invoice_date,
+    pay.status                           AS voucher_status,
+    ROUND(CASE
+        WHEN pyl.payable_line_id IS NOT NULL
+         AND pay.status <> 'Cancelled'
+         AND (:end_date IS NULL OR pay.invoice_date <= :end_date)
+        THEN ABS(pyl.qty) ELSE 0 END, 1) AS qty_invoiced,
+    CASE
+        WHEN rl.receipt_line_id IS NULL THEN 'Not Received'
+        WHEN pyl.payable_line_id IS NULL
+          OR pay.status = 'Cancelled'
+          OR (:end_date IS NOT NULL AND pay.invoice_date > :end_date)
+            THEN 'Received-Uninvoiced'
+        WHEN ABS(pyl.qty) < rl.quantity_received THEN 'Partially Invoiced'
+        WHEN ABS(pyl.qty) = rl.quantity_received THEN 'Matched'
+        ELSE 'Over-Invoiced'
+    END                                  AS match_status
+FROM po_line pl
+JOIN purchase_order po      ON po.po_id = pl.po_id
+LEFT JOIN suppliers s       ON s.supplier_id = po.supplier_id
+LEFT JOIN receiving_line rl ON rl.po_line_id = pl.line_id
+LEFT JOIN receiving r       ON r.receipt_id = rl.receipt_id
+LEFT JOIN payable_line pyl  ON pyl.receipt_line_id = rl.receipt_line_id
+LEFT JOIN payables pay      ON pay.invoice_id = pyl.invoice_id
+WHERE po.status <> 'Cancelled'
+  AND (:supplier_id IS NULL OR s.supplier_id = :supplier_id)
+  AND (:start_date IS NULL OR rl.receipt_line_id IS NULL
+       OR r.received_date >= :start_date)
+  AND (:end_date IS NULL OR rl.receipt_line_id IS NULL
+       OR r.received_date <= :end_date)
+ORDER BY s.supplier_id, po.po_id, pl.line_id, rl.receipt_line_id ASC;
+
 -- Query: Three-Way Match Exceptions
 -- Description: Which unpaid invoices failed three-way match? Exception-status invoices per supplier with amounts at risk and the linked PO.
 SELECT
