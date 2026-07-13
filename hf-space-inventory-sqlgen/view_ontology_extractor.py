@@ -68,6 +68,8 @@ class JoinRelationship:
     right_key: Optional[str] = None
     left_alias: str = ""     # alias in FROM/JOIN (e.g. "p" in "part p"), "" if none
     right_alias: str = ""
+    scope: str = ""          # "" = outer query; else the alias of the derived
+                             # subquery or CTE whose SELECT this join lives in
 
 
 @dataclass
@@ -120,6 +122,21 @@ def _extract_equi_keys(on_expr) -> tuple:
     return None, None
 
 
+def _select_scope_label(select) -> str:
+    """Scope label for a SELECT: "" for the outer query, else the alias of the
+    NEAREST enclosing derived subquery or CTE (SQLGlot walks each SELECT scope
+    separately; we climb parents to find which scope owns this SELECT)."""
+    node = select
+    while node is not None:
+        parent = node.parent
+        if isinstance(parent, exp.CTE):
+            return parent.alias or "(unnamed CTE)"
+        if isinstance(parent, exp.Subquery):
+            return parent.alias or "(unnamed subquery)"
+        node = parent
+    return ""
+
+
 def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
     results: List[JoinRelationship] = []
     seen: set = set()
@@ -131,6 +148,7 @@ def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
         if not left_name:
             continue
         left_alias = _expr_alias(from_clause.this)
+        scope = _select_scope_label(select)
         for join in select.args.get("joins") or []:
             right_name = _expr_table_name(join.this)
             if not right_name:
@@ -150,7 +168,7 @@ def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
             # distinct relational lineage. Aliases also disambiguate predicate-
             # less CROSS JOINs. Only byte-identical repeats (the same join
             # re-seen across nested SELECT scopes) collapse.
-            key = (left_name, left_alias, right_name, right_alias, kind, on_str)
+            key = (scope, left_name, left_alias, right_name, right_alias, kind, on_str)
             if key not in seen:
                 seen.add(key)
                 results.append(JoinRelationship(
@@ -162,8 +180,58 @@ def _extract_joins_from_selects(ast) -> List[JoinRelationship]:
                     right_key=rk,
                     left_alias=left_alias,
                     right_alias=right_alias,
+                    scope=scope,
                 ))
     return results
+
+
+def split_joins_by_scope(joins: List[dict]) -> tuple:
+    """Group serialized join dicts by scope for sectioned display.
+
+    Returns (outer_joins, scoped) where ``scoped`` is a dict of
+    scope-label -> joins, in first-appearance order. Legacy rows seeded
+    before scope existed have no "scope" key — they land in ``outer_joins``
+    (absent scope = flat/legacy rendering) and ``scoped`` stays empty.
+    """
+    outer: List[dict] = []
+    scoped: dict = {}
+    for j in joins:
+        sc = j.get("scope") or ""
+        if sc:
+            scoped.setdefault(sc, []).append(j)
+        else:
+            outer.append(j)
+    return outer, scoped
+
+
+def render_join_scope_sections_md(scoped: dict, cte_names: List[str]) -> str:
+    """Markdown sections for derived-subquery / CTE scope joins.
+
+    One clearly labeled section per scope (labeled by its alias, e.g. `rcv`);
+    the label says whether the scope is a CTE or a derived subquery. Returns
+    "" when there are no subquery scopes — flat views show no scaffolding
+    sections at all.
+    """
+    if not scoped:
+        return ""
+    cte_set = set(cte_names or [])
+    lines: List[str] = [
+        "#### Subquery / CTE scope joins (internal scaffolding)",
+        "_These joins live inside derived-table or CTE scopes — aggregate "
+        "scaffolding, not the outer query's structural spine._",
+    ]
+    for sc, joins in scoped.items():
+        kind = "CTE" if sc in cte_set else "Derived subquery"
+        lines.append(f"\n**{kind} `{sc}`**\n")
+        lines.append("| Left table | Join type | Right table | Left key | Right key |")
+        lines.append("|---|---|---|---|---|")
+        for j in joins:
+            lines.append(
+                f"| `{j['left_table']}` | {j['join_type']} "
+                f"| `{j['right_table']}` "
+                f"| {j.get('left_key') or ''} | {j.get('right_key') or ''} |"
+            )
+    return "\n".join(lines)
 
 
 def _extract_state_predicates(ast) -> List[str]:

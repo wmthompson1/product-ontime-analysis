@@ -6568,9 +6568,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     svo_joins = gr.Dataframe(
                         headers=["Left table", "Join type", "Right table", "Left key", "Right key"],
                         interactive=False,
-                        label="Join relationships",
+                        label="Join relationships — outer query",
                         wrap=False,
                     )
+                    svo_scopes = gr.Markdown()
                     svo_detail = gr.Markdown()
                 with gr.Tab("🧠 Semantic Ontology"):
                     svo_semantic = gr.Markdown()
@@ -6670,11 +6671,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 from dataclasses import asdict as _r_asdict
                 from view_ontology_extractor import (
                     extract_view_ontology, get_view_ontology_by_binding_key,
+                    render_join_scope_sections_md, split_joins_by_scope,
                 )
 
                 if not binding_key:
                     _msg = "Select a ground-truth query above."
-                    return _msg, [], "", _msg, ""
+                    return _msg, [], "", _msg, _msg, ""
 
                 entry = _svo_by_binding.get(binding_key)
                 sql_text = _read_gt_sql(entry)
@@ -6714,13 +6716,13 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     except Exception as exc:
                         return (
                             f"Extraction failed for `{binding_key}`: {exc}",
-                            [], "", semantic_md, sql_text,
+                            [], "", "", semantic_md, sql_text,
                         )
 
                 if rec is None:
                     return (
                         f"No ontology found for `{binding_key}`.",
-                        [], "", semantic_md, sql_text,
+                        [], "", "", semantic_md, sql_text,
                     )
 
                 meta = ""
@@ -6753,13 +6755,21 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     + (f"  `{'` · `'.join(rec['cte_names_json'])}`" if rec['cte_names_json'] else "  _(none)_")
                 )
 
+                # Sectioned join topology: outer-query joins in the dataframe,
+                # one labeled markdown section per derived-subquery/CTE scope.
+                # Legacy rows without scope info fall entirely into the outer
+                # bucket — flat rendering, exactly as before.
+                _outer_joins, _scoped_joins = split_joins_by_scope(rec["joins_json"])
                 joins_table = [
                     [
                         j["left_table"], j["join_type"], j["right_table"],
                         j["left_key"] or "", j["right_key"] or "",
                     ]
-                    for j in rec["joins_json"]
+                    for j in _outer_joins
                 ]
+                scopes_md = render_join_scope_sections_md(
+                    _scoped_joins, rec["cte_names_json"]
+                )
 
                 preds = rec["state_predicates_json"]
                 grain = rec["grain_columns_json"]
@@ -6811,9 +6821,9 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
                 detail = "\n\n".join(detail_lines)
 
-                return summary, joins_table, detail, semantic_md, sql_text
+                return summary, joins_table, scopes_md, detail, semantic_md, sql_text
 
-            _mosaic_outputs = [svo_summary, svo_joins, svo_detail, svo_semantic, svo_sql]
+            _mosaic_outputs = [svo_summary, svo_joins, svo_scopes, svo_detail, svo_semantic, svo_sql]
 
             def _find_gt_query(name):
                 """Locate a governed query by its '-- Query:' marker name."""
@@ -6835,11 +6845,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 _msg = "Pick a ground-truth query in the selector above."
                 _csv, _t, _c, concept, _i, query = _sel_parse(val or "", 6)
                 if not query:
-                    return _msg, [], "", _msg, ""
+                    return _msg, [], "", _msg, _msg, ""
                 q = _find_gt_query(query)
                 if q is None:
                     _err = f"Ground-truth query `{query}` not found in the governed files."
-                    return _err, [], "", _err, ""
+                    return _err, [], "", _err, _err, ""
                 bk = (q.get("binding_key") or "").strip()
                 if bk and bk in _svo_by_binding:
                     return render_view_ontology(bk)
@@ -6852,7 +6862,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
                 try:
                     from dataclasses import asdict as _mrc_asdict
-                    from view_ontology_extractor import extract_view_ontology
+                    from view_ontology_extractor import (
+                        extract_view_ontology,
+                        render_join_scope_sections_md as _mrc_scope_md,
+                        split_joins_by_scope as _mrc_split,
+                    )
                     d = _mrc_asdict(extract_view_ontology(
                         sql_text, bk or f"chain::{query}",
                         concept or query, "",
@@ -6860,7 +6874,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 except Exception as exc:
                     return (
                         f"Extraction failed for `{query}`: {exc}",
-                        [], "", semantic_md, sql_text,
+                        [], "", "", semantic_md, sql_text,
                     )
 
                 tp = "⏱ **Time-phased**" if d["time_phased"] else "· Single-point-in-time"
@@ -6883,13 +6897,15 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     f"**CTE scaffolding** ({len(d['cte_names'])}):"
                     + (f"  `{'` · `'.join(d['cte_names'])}`" if d["cte_names"] else "  _(none)_")
                 )
+                _outer_joins, _scoped_joins = _mrc_split(d["joins"])
                 joins_table = [
                     [
                         j["left_table"], j["join_type"], j["right_table"],
                         j["left_key"] or "", j["right_key"] or "",
                     ]
-                    for j in d["joins"]
+                    for j in _outer_joins
                 ]
+                scopes_md = _mrc_scope_md(_scoped_joins, d["cte_names"])
                 detail_lines = []
                 if d["state_predicates"]:
                     detail_lines.append("#### Set-membership predicates (WHERE)")
@@ -6935,7 +6951,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 )
                 detail = "\n\n".join(detail_lines)
 
-                return summary, joins_table, detail, semantic_md, sql_text
+                return summary, joins_table, scopes_md, detail, semantic_md, sql_text
 
             # Chain wiring — identical to the 🎛️ Selector tab: every handler
             # takes ONLY its trigger's packed value (Gradio's programmatic

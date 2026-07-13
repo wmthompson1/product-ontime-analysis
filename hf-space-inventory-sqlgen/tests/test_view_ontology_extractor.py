@@ -38,7 +38,9 @@ from view_ontology_extractor import (
     extract_view_ontology,
     get_view_ontology,
     list_view_ontologies,
+    render_join_scope_sections_md,
     seed_view_ontology_table,
+    split_joins_by_scope,
 )
 
 MANIFEST_PATH = HF_DIR / "app_schema" / "ground_truth" / "reviewer_manifest.json"
@@ -462,6 +464,149 @@ def test_temporal_trait_range_bounded_and_point_in_time(temporal_vo):
 def test_plain_view_has_no_temporal_parameters(simple_vo):
     assert simple_vo.temporal_parameters == []
     assert simple_vo.temporal_trait == []
+
+
+# ── 14. Join scopes — sectioned topology (flat / derived subquery / CTE) ─────
+
+FLAT_VIEW_SQL = """
+SELECT pl.line_id, po.po_id
+FROM po_line pl
+JOIN purchase_order po ON po.po_id = pl.po_id
+LEFT JOIN suppliers s  ON s.supplier_id = po.supplier_id
+"""
+
+DERIVED_SUBQUERY_SQL = """
+SELECT pl.line_id
+FROM po_line pl
+JOIN purchase_order po ON po.po_id = pl.po_id
+JOIN (
+    SELECT rl.po_line_id, SUM(rl.quantity_received) AS qty
+    FROM receiving_line rl
+    JOIN receiving r ON r.receipt_id = rl.receipt_id
+    GROUP BY rl.po_line_id
+) rcv ON rcv.po_line_id = pl.line_id
+LEFT JOIN (
+    SELECT pl2.po_line_id, SUM(ABS(pl2.qty)) AS qty
+    FROM payable_line pl2
+    JOIN payables pay ON pay.invoice_id = pl2.invoice_id
+    GROUP BY pl2.po_line_id
+) inv ON inv.po_line_id = pl.line_id
+"""
+
+
+def test_flat_view_single_outer_scope():
+    vo = extract_view_ontology(FLAT_VIEW_SQL, "k", "TEST", "f.sql")
+    assert vo.joins
+    assert all(j["scope"] == "" for j in vo.joins)
+    outer, scoped = split_joins_by_scope(vo.joins)
+    assert len(outer) == len(vo.joins)
+    assert scoped == {}
+    assert render_join_scope_sections_md(scoped, vo.cte_names) == ""
+
+
+def test_derived_subquery_scopes_labeled_by_alias():
+    vo = extract_view_ontology(DERIVED_SUBQUERY_SQL, "k", "TEST", "f.sql")
+    outer, scoped = split_joins_by_scope(vo.joins)
+    # outer spine: po_line->purchase_order, po_line->rcv, po_line->inv
+    assert {j["right_table"] for j in outer} == {"purchase_order", "rcv", "inv"}
+    assert set(scoped.keys()) == {"rcv", "inv"}
+    assert [j["right_table"] for j in scoped["rcv"]] == ["receiving"]
+    assert [j["right_table"] for j in scoped["inv"]] == ["payables"]
+
+
+def test_derived_subquery_sections_render_as_derived():
+    vo = extract_view_ontology(DERIVED_SUBQUERY_SQL, "k", "TEST", "f.sql")
+    _, scoped = split_joins_by_scope(vo.joins)
+    md = render_join_scope_sections_md(scoped, vo.cte_names)
+    assert "Derived subquery `rcv`" in md
+    assert "Derived subquery `inv`" in md
+    assert "CTE `rcv`" not in md
+
+
+def test_cte_scope_labeled_by_cte_alias(simple_vo):
+    # SIMPLE_VIEW_SQL joins inside the `open_demand` CTE; the outer query only
+    # LEFT JOINs the CTE itself.
+    outer, scoped = split_joins_by_scope(simple_vo.joins)
+    assert "open_demand" in scoped
+    scoped_rights = {j["right_table"] for j in scoped["open_demand"]}
+    assert "customer_order" in scoped_rights
+    assert [j["right_table"] for j in outer] == ["open_demand"]
+    md = render_join_scope_sections_md(scoped, simple_vo.cte_names)
+    assert "CTE `open_demand`" in md
+    assert "Derived subquery `open_demand`" not in md
+
+
+def test_nested_subquery_inside_cte_takes_nearest_scope():
+    # A derived subquery nested INSIDE a CTE: joins in the innermost SELECT
+    # belong to the nearest enclosing scope (the subquery alias), not the CTE.
+    sql = """
+    WITH agg AS (
+        SELECT sub.part_id, sub.qty
+        FROM (
+            SELECT rl.part_id, SUM(rl.quantity_received) AS qty
+            FROM receiving_line rl
+            JOIN receiving r ON r.receipt_id = rl.receipt_id
+            GROUP BY rl.part_id
+        ) sub
+        JOIN part p ON p.part_id = sub.part_id
+    )
+    SELECT a.part_id FROM agg a
+    """
+    vo = extract_view_ontology(sql, "k", "TEST", "f.sql")
+    _, scoped = split_joins_by_scope(vo.joins)
+    assert set(scoped.keys()) == {"agg", "sub"}
+    assert [j["right_table"] for j in scoped["sub"]] == ["receiving"]
+    assert [j["right_table"] for j in scoped["agg"]] == ["part"]
+
+
+def test_legacy_rows_without_scope_render_flat():
+    # Previously seeded joins_json rows have no "scope" key at all — they must
+    # load and land in the outer (flat/legacy) bucket with no sections.
+    legacy = [
+        {"left_table": "a", "right_table": "b", "join_type": "INNER",
+         "on_condition": "b.x = a.x", "left_key": "x", "right_key": "x",
+         "left_alias": "", "right_alias": ""},
+    ]
+    outer, scoped = split_joins_by_scope(legacy)
+    assert len(outer) == 1
+    assert scoped == {}
+    assert render_join_scope_sections_md(scoped, []) == ""
+
+
+def test_governed_pra_snippet_scopes():
+    # The real PRA governed snippet: rcv/inv derived-subquery scaffolding must
+    # section out, leaving the base-table spine in the outer scope.
+    snippet = (
+        HF_DIR / "app_schema" / "ground_truth" / "sql_snippets"
+        / "payables_partialreceiptaccrual_20260708_000004.sql"
+    )
+    vo = extract_view_ontology(
+        snippet.read_text(encoding="utf-8"),
+        binding_key="payables_partialreceiptaccrual_20260708_000004",
+        concept_anchor="PARTIALRECEIPTACCRUAL",
+        view_file=str(snippet),
+    )
+    outer, scoped = split_joins_by_scope(vo.joins)
+    assert set(scoped.keys()) == {"rcv", "inv"}
+    assert all(j["left_table"] == "po_line" for j in outer)
+
+
+def test_governed_twm_snippet_stays_flat():
+    # The flat Three-Way Match Coverage spine has NO subquery scopes — a single
+    # outer section with all six joins, no scaffolding sections.
+    snippet = (
+        HF_DIR / "app_schema" / "ground_truth" / "sql_snippets"
+        / "payables_threewaymatchcoverage_20260708_000005.sql"
+    )
+    vo = extract_view_ontology(
+        snippet.read_text(encoding="utf-8"),
+        binding_key="payables_threewaymatchcoverage_20260708_000005",
+        concept_anchor="THREEWAYMATCHCOVERAGE",
+        view_file=str(snippet),
+    )
+    outer, scoped = split_joins_by_scope(vo.joins)
+    assert scoped == {}
+    assert len(outer) == 6
 
 
 def test_governed_uninvoiced_snippet_carries_temporal_contract():
