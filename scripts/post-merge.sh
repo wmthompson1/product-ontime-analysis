@@ -171,6 +171,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_demand_expansion.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_receivable_tables.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_receivable_tables.py || {
+    echo "post-merge: receivable AR ledger tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_procurement_views.py ]; then
   python hf-space-inventory-sqlgen/tests/test_procurement_views.py || {
     echo "post-merge: procurement view tests failed"

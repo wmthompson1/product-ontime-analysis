@@ -1,4 +1,14 @@
 table_name,column_name,display_name,description,example_value
+EMPLOYEE,active,Active Flag,Whether the employee is currently active (1) or inactive (0).,1
+EMPLOYEE,buyer_code,Buyer Code,The purchasing code (BUYER-1 through BUYER-10) for employees who are buyers; empty for everyone else. Parts and purchase orders reference this code.,BUYER-3
+EMPLOYEE,created_at,Created At,Timestamp when the employee record was created.,2026-07-05 00:00:00
+EMPLOYEE,department,Department,"The department the employee works in — Machining, Welding, Assembly, Quality, or Purchasing.",Machining
+EMPLOYEE,employee_id,Employee ID,Unique identifier for each employee (e.g. EMP-001). Labor tickets reference this ID.,EMP-001
+EMPLOYEE,employee_name,Employee Name,The employee's full name.,James Smith
+EMPLOYEE,hire_date,Hire Date,The date the employee was hired; always before their first labor ticket.,2018-06-11
+EMPLOYEE,home_resource_id,Home Resource ID,The shop resource (machine or work center) this plant worker primarily mans; empty for office staff such as buyers.,MC-001
+EMPLOYEE,hourly_rate,Hourly Rate,The employee's hourly labor cost in dollars; plant workers fall in the $40.00–$45.00 band.,42.25
+EMPLOYEE,job_title,Job Title,"The employee's role on the floor or in the office — e.g. CNC Machinist, Welder, Assembly Technician, Quality Inspector, or Buyer.",CNC Machinist
 certification,cert_id,Certification ID,Unique identifier for each certification record.,1
 certification,cert_type,Certification Type,"The kind of supplier / material certification on file — e.g. Certificate of Conformance, First Article Inspection, PPAP, FAA 8130-3, or Material Test Report.",CoC
 certification,created_at,Created At,Timestamp for when the certification record was created.,2026-06-01 00:48:21
@@ -8,6 +18,7 @@ certification,part_id,Part ID,Links each certification to its related part.,PN-1
 certification,receipt_id,Receipt ID,Links each certification to its related receipt.,1
 certification,status,Certification Status,"Whether a certification is currently valid: active, expired, revoked, or pending renewal.",ACTIVE
 certification,supplier_id,Supplier ID,Links each certification to its related supplier.,S-006
+customer_order,completed_date,Completed Date,"The date the order was completed, projected from the order date plus the longest part lead time on the order; empty for orders that never completed (Open or Cancelled).",2026-01-01
 customer_order,created_at,Created At,Timestamp for when the customer order record was created.,2026-06-06 05:16:25
 customer_order,customer_name,Customer Name,Human-readable name of the customer.,Northrop Grumman
 customer_order,order_date,Order Date,The order date for the customer order.,2025-11-27
@@ -39,17 +50,6 @@ inventory_transaction,trans_date,Trans Date,The trans date for the inventory tra
 inventory_transaction,transaction_id,Transaction ID,Unique identifier for each inventory transaction record.,1
 inventory_transaction,type,Transaction Type,Direction of the stock movement: a receipt into stock (in) versus an issue out to a work order or shipment (out).,ISSUE
 inventory_transaction,wo_id,Wo ID,Links each inventory transaction to its related wo.,WO-240003
-payables,amount_dollars,Amount Dollars,Numeric amount dollars recorded for each payables record.,22502.95
-payables,created_at,Created At,Timestamp for when the payables record was created.,2026-06-01 00:48:21
-payables,due_date,Due Date,The due date for the payables record.,2026-04-02
-payables,invoice_date,Invoice Date,The invoice date for the payables record.,2026-02-01
-payables,invoice_id,Invoice ID,Unique identifier for each payables record.,70
-payables,invoice_number,Invoice Number,The invoice number for each payables record.,INV-000070
-payables,payment_date,Payment Date,The payment date for the payables record.,2026-05-14
-payables,po_id,PO ID,Links each payables record to its related po.,PO-M240005
-payables,status,Status,"The status of each payables record; one of a small set of values such as: Disputed, Approved, Paid, Open.",Disputed
-payables,supplier_id,Supplier ID,Links each payables record to its related supplier.,S-006
-payables,three_way_match_status,Three-Way Match Status,"Result of matching a supplier invoice against its purchase order and receiving record before it can be paid: matched, on hold for price / quantity variance, or unmatched.",MATCHED
 labor_ticket,burden_cost,Burden Cost,Numeric burden cost recorded for each labor ticket.,107.52
 labor_ticket,clock_in,Clock In,The clock in for each labor ticket record.,2026-03-09T12:00:00
 labor_ticket,clock_out,Clock Out,The clock out for each labor ticket record.,2026-03-09T14:33:36
@@ -98,7 +98,9 @@ operation,vendor_id,Vendor ID,Links each operation to its related vendor.,S-010
 operation,wo_id,Wo ID,Links each operation to its related wo.,WO-00051
 operation,workorder_type,Workorder Type,"The workorder type of each operation; one of a small set of values such as: M, W.",M
 part,active,Active,Yes/no flag indicating whether the part active.,1
+part,buyer_code,Buyer Code,"The buyer (EMPLOYEE.buyer_code) who owns purchasing for this part, derived from the supplier the part is most purchased from; empty for in-house parts nobody buys.",BUYER-5
 part,cage_code,Cage Code,"The cage code of each part; one of a small set of values such as: 59012, 1HHH9, K0579, 32499, F3234, CAGE1.",59012
+part,commodity_code,Commodity Code,"Purchasing commodity category for the part, such as RAW-METAL, HARDWARE, COMPOSITE, TOOLING, SHOP-SUPPLY, or OSP-THERMAL.",HARDWARE
 part,created_at,Created At,Timestamp for when the part record was created.,2026-06-03 16:34:08
 part,drawing_number,Drawing Number,"The drawing number of each part; one of a small set of values such as: DWG-10010-A, DWG-10011-A, DWG-10012-A, DWG-10013-A, DWG-10014-A, DWG-10024-A.",DWG-10010-A
 part,lead_time_days,Lead Time Days,Numeric lead time days recorded for each part.,45
@@ -113,6 +115,16 @@ part,revision,Revision,The revision of each part; one of a small set of values s
 part,safety_stock,Safety Stock,Minimum on-hand quantity the planner keeps in reserve for this part; MRP plans replenishment so projected inventory never dips below it.,1.0
 part,unit_cost,Unit Cost,Numeric unit cost recorded for each part.,4250.0
 part,unit_of_measure,Unit Of Measure,"The unit of measure of each part; one of a small set of values such as: EA, FT, LB.",EA
+part_location,committed_qty,Committed Quantity,The portion of on-hand quantity already committed (allocated) to demand.,0.0
+part_location,created_at,Created At,Timestamp when the part-location record was created.,2026-07-04 21:05:36
+part_location,description,Location Part Description,The description of the part held at this location.,Titanium Bulkhead Frame 6Al-4V
+part_location,last_count_date,Last Count Date,The date this location's stock was last cycle-counted.,2025-11-12
+part_location,location_id,Location ID,"The bin or area within the warehouse, e.g. STORES.",STORES
+part_location,part_id,Part ID,The part held at this warehouse location.,P-10010
+part_location,part_location_id,Part Location ID,Unique identifier for each part-location stock record.,1
+part_location,qty,Quantity On Hand,The quantity of the part physically on hand at this location.,225.0
+part_location,status,Location Status,Status of the stock record; A means active.,A
+part_location,warehouse_id,Warehouse ID,The warehouse holding this stock.,WH-1A
 payable_line,amount,Amount,Numeric amount recorded for each payable line.,731.04
 payable_line,created_at,Created At,Timestamp for when the payable line record was created.,2026-06-06 05:16:25
 payable_line,invoice_id,Invoice ID,Links each payable line to its related invoice.,1
@@ -120,7 +132,20 @@ payable_line,line_no,Line No.,Numeric line no. recorded for each payable line.,1
 payable_line,part_id,Part ID,Links each payable line to its related part.,PN-10060
 payable_line,payable_line_id,Payable Line ID,Unique identifier for each payable line record.,1
 payable_line,po_id,PO ID,Links each payable line to its related po.,PO-M240005
+payable_line,po_line_id,PO Line ID,Links each payable line to the purchase-order line it matches (line-level three-way match).,1
 payable_line,qty,Quantity,Numeric quantity recorded for each payable line.,4.0
+payable_line,receipt_line_id,Receipt Line ID,Links each payable line to the receiving line it matches (line-level three-way match).,1
+payables,amount_dollars,Amount Dollars,Numeric amount dollars recorded for each payables record.,22502.95
+payables,created_at,Created At,Timestamp for when the payables record was created.,2026-06-01 00:48:21
+payables,due_date,Due Date,The due date for the payables record.,2026-04-02
+payables,invoice_date,Invoice Date,The invoice date for the payables record.,2026-02-01
+payables,invoice_id,Invoice ID,Unique identifier for each payables record.,70
+payables,invoice_number,Invoice Number,The invoice number for each payables record.,INV-000070
+payables,payment_date,Payment Date,The payment date for the payables record.,2026-05-14
+payables,po_id,PO ID,Links each payables record to its related po.,PO-M240005
+payables,status,Status,"The status of each payables record; one of a small set of values such as: Disputed, Approved, Paid, Open.",Disputed
+payables,supplier_id,Supplier ID,Links each payables record to its related supplier.,S-006
+payables,three_way_match_status,Three-Way Match Status,"Result of matching a supplier invoice against its purchase order and receiving record before it can be paid: matched, on hold for price / quantity variance, or unmatched.",MATCHED
 po_line,created_at,Created At,Timestamp for when the po line record was created.,2026-06-01 00:48:21
 po_line,line_id,Line ID,Unique identifier for each po line record.,1
 po_line,line_total,Line Total,Numeric line total recorded for each po line.,331.9
@@ -141,6 +166,26 @@ purchase_order,status,PO Status,"Lifecycle stage of a purchase order: open, appr
 purchase_order,supplier_id,Supplier ID,Links each purchase order to its related supplier.,S-002
 purchase_order,total_cost,Total Cost,Numeric total cost recorded for each purchase order.,8180.62
 purchase_order,wo_id,Wo ID,Links each purchase order to its related wo.,WO-240001
+receivable,amount_dollars,Amount Dollars,Numeric amount dollars recorded for each receivable.,22257.03
+receivable,created_at,Created At,Timestamp for when the receivable record was created.,2026-07-14 04:19:36
+receivable,customer_name,Customer Name,Human-readable name of the customer.,Northrop Grumman
+receivable,due_date,Due Date,The due date for the receivable.,2025-06-19
+receivable,invoice_date,Invoice Date,The invoice date for the receivable.,2025-05-20
+receivable,invoice_id,Invoice ID,Unique identifier for each receivable record.,1
+receivable,invoice_number,Invoice Number,"The invoice number of each receivable; one of a small set of values such as: AR-CO-00001, AR-CO-00002, AR-CO-00003, AR-CO-00004, AR-CO-00005, AR-CO-00006.",AR-CO-00001
+receivable,order_id,Order ID,Links each receivable to its related order.,CO-00001
+receivable,payment_date,Payment Date,The payment date for the receivable.,2025-06-14
+receivable,status,Status,"The status of each receivable; one of a small set of values such as: Paid, Open, Disputed.",Paid
+receivable_line,amount,Amount,Numeric amount recorded for each receivable line.,17884.6
+receivable_line,created_at,Created At,Timestamp for when the receivable line record was created.,2026-07-14 04:19:36
+receivable_line,invoice_id,Invoice ID,Links each receivable line to its related invoice.,1
+receivable_line,line_no,Line No.,Numeric line no. recorded for each receivable line.,1
+receivable_line,order_id,Order ID,Links each receivable line to its related order.,CO-00001
+receivable_line,order_line_id,Order Line ID,Links each receivable line to its related order line.,1
+receivable_line,part_id,Part ID,Links each receivable line to its related part.,P-10040
+receivable_line,qty,Quantity,Numeric quantity recorded for each receivable line.,4.0
+receivable_line,receivable_line_id,Receivable Line ID,Unique identifier for each receivable line record.,1
+receivable_line,shipment_line_id,Shipment Line ID,Links each receivable line to its related shipment line.,
 receiving,cert_required,Certification Required,Yes/no flag indicating whether the receiving certification required.,0
 receiving,created_at,Created At,Timestamp for when the receiving record was created.,2026-06-01 00:48:21
 receiving,inspection_status,Receiving Inspection Status,"Quality disposition of a received shipment: pending inspection, passed, or failed / rejected.",PASS
@@ -152,6 +197,16 @@ receiving,receipt_date,Receipt Date,The receipt date for the receiving.,2026-01-
 receiving,receipt_id,Receipt ID,Unique identifier for each receiving record.,1
 receiving,received_date,Received Date,"The date goods physically arrived at the dock (the dock-arrival date), distinct from the posted receipt date.",2026-01-17
 receiving,supplier_id,Supplier ID,Links each receiving to its related supplier.,S-006
+receiving_line,cert_required,Certification Required,Yes/no flag indicating whether the receiving line requires a certification.,1
+receiving_line,created_at,Created At,Timestamp for when the receiving line record was created.,2026-06-01 00:48:21
+receiving_line,inspection_status,Inspection Status,"Quality disposition of the received line: pending inspection, passed, or failed / rejected.",Passed
+receiving_line,line_no,Line Number,Sequential line number within the goods receipt.,1
+receiving_line,part_id,Part ID,Links each receiving line to its related part.,PN-10010
+receiving_line,po_line_id,PO Line ID,Links each receiving line to the purchase-order line it closes against.,1
+receiving_line,quantity_ordered,Quantity Ordered,Numeric quantity ordered recorded for each receiving line.,200.0
+receiving_line,quantity_received,Quantity Received,Numeric quantity received recorded for each receiving line.,200.0
+receiving_line,receipt_id,Receipt ID,Links each receiving line to its receiving header.,1
+receiving_line,receipt_line_id,Receipt Line ID,Unique identifier for each receiving line record.,1
 requirement,actual_qty,Actual Quantity,Numeric actual quantity recorded for each requirement.,22.1
 requirement,component_id,Component ID,Links each requirement to its related component.,WO-00051
 requirement,component_type,Requirement Component Type,"Whether a resource requirement belongs to a PART (the as-designed routing standard — engineering, costed per unit) or a WORK_ORDER (as-built actuals — manufacturing, costed per batch). This is the engineering-vs-manufacturing differentiator.",PART
@@ -210,6 +265,14 @@ trace_inventory_trace,qty,Quantity,Numeric quantity recorded for each trace inve
 trace_inventory_trace,trace_id,Trace ID,Links each trace inventory trace to its related trace.,1
 trace_inventory_trace,trace_inv_id,Trace Inv ID,Unique identifier for each trace inventory trace record.,1
 trace_inventory_trace,transaction_id,Transaction ID,Links each trace inventory trace to its related transaction.,469
+warehouse,created_at,Created At,Timestamp when the warehouse record was created.,2026-07-04 21:05:36
+warehouse,description,Warehouse Description,"Plain-language description of the warehouse — its role, plant, and city.",Main Stores — Main Assembly Plant — Wichita KS
+warehouse,independent,Independent Flag,Whether the warehouse plans independently (Y) or as part of its site (N).,Y
+warehouse,mrp_exempt,MRP Exempt Flag,Whether the warehouse's stock is excluded from MRP netting (Y) or included (N).,N
+warehouse,name,Warehouse Name,Short display name of the warehouse.,SITE-1 Main Stores
+warehouse,region_id,Region ID,The geographic region of the warehouse.,US-Central
+warehouse,site_id,Site ID,The manufacturing site this warehouse belongs to.,SITE-1
+warehouse,warehouse_id,Warehouse ID,Unique identifier for each warehouse (e.g. WH-1A).,WH-1A
 work_order,act_bur_cost,Act Bur Cost,Numeric act bur cost recorded for each work order.,0.0
 work_order,act_lab_cost,Act Lab Cost,Numeric act lab cost recorded for each work order.,0.0
 work_order,act_mat_cost,Act Mat Cost,Numeric act mat cost recorded for each work order.,0.0
@@ -233,46 +296,3 @@ work_order,status,Work Order Status,"Shop-floor lifecycle stage of the work orde
 work_order,vendor_id,Vendor ID,The outside-service vendor that performs work for this work order.,S-010
 work_order,wo_id,Wo ID,Unique identifier for each work order record.,WO-00051
 work_order,workorder_type,Workorder Type,"The workorder type of each work order; one of a small set of values such as: M, W.",M
-EMPLOYEE,employee_id,Employee ID,Unique identifier for each employee (e.g. EMP-001). Labor tickets reference this ID.,EMP-001
-EMPLOYEE,employee_name,Employee Name,The employee's full name.,James Smith
-EMPLOYEE,job_title,Job Title,"The employee's role on the floor or in the office — e.g. CNC Machinist, Welder, Assembly Technician, Quality Inspector, or Buyer.",CNC Machinist
-EMPLOYEE,department,Department,"The department the employee works in — Machining, Welding, Assembly, Quality, or Purchasing.",Machining
-EMPLOYEE,hourly_rate,Hourly Rate,"The employee's hourly labor cost in dollars; plant workers fall in the $40.00–$45.00 band.",42.25
-EMPLOYEE,buyer_code,Buyer Code,"The purchasing code (BUYER-1 through BUYER-10) for employees who are buyers; empty for everyone else. Parts and purchase orders reference this code.",BUYER-3
-EMPLOYEE,home_resource_id,Home Resource ID,The shop resource (machine or work center) this plant worker primarily mans; empty for office staff such as buyers.,MC-001
-EMPLOYEE,hire_date,Hire Date,The date the employee was hired; always before their first labor ticket.,2018-06-11
-EMPLOYEE,active,Active Flag,Whether the employee is currently active (1) or inactive (0).,1
-EMPLOYEE,created_at,Created At,Timestamp when the employee record was created.,2026-07-05 00:00:00
-part,buyer_code,Buyer Code,"The buyer (EMPLOYEE.buyer_code) who owns purchasing for this part, derived from the supplier the part is most purchased from; empty for in-house parts nobody buys.",BUYER-5
-customer_order,completed_date,Completed Date,"The date the order was completed, projected from the order date plus the longest part lead time on the order; empty for orders that never completed (Open or Cancelled).",2026-01-01
-part_location,part_location_id,Part Location ID,Unique identifier for each part-location stock record.,1
-part_location,part_id,Part ID,The part held at this warehouse location.,P-10010
-part_location,warehouse_id,Warehouse ID,The warehouse holding this stock.,WH-1A
-part_location,location_id,Location ID,"The bin or area within the warehouse, e.g. STORES.",STORES
-part_location,description,Location Part Description,The description of the part held at this location.,Titanium Bulkhead Frame 6Al-4V
-part_location,qty,Quantity On Hand,The quantity of the part physically on hand at this location.,225.0
-part_location,committed_qty,Committed Quantity,The portion of on-hand quantity already committed (allocated) to demand.,0.0
-part_location,status,Location Status,"Status of the stock record; A means active.",A
-part_location,last_count_date,Last Count Date,The date this location's stock was last cycle-counted.,2025-11-12
-part_location,created_at,Created At,Timestamp when the part-location record was created.,2026-07-04 21:05:36
-warehouse,warehouse_id,Warehouse ID,Unique identifier for each warehouse (e.g. WH-1A).,WH-1A
-warehouse,description,Warehouse Description,"Plain-language description of the warehouse — its role, plant, and city.",Main Stores — Main Assembly Plant — Wichita KS
-warehouse,name,Warehouse Name,Short display name of the warehouse.,SITE-1 Main Stores
-warehouse,site_id,Site ID,The manufacturing site this warehouse belongs to.,SITE-1
-warehouse,region_id,Region ID,The geographic region of the warehouse.,US-Central
-warehouse,independent,Independent Flag,"Whether the warehouse plans independently (Y) or as part of its site (N).",Y
-warehouse,mrp_exempt,MRP Exempt Flag,"Whether the warehouse's stock is excluded from MRP netting (Y) or included (N).",N
-warehouse,created_at,Created At,Timestamp when the warehouse record was created.,2026-07-04 21:05:36
-receiving_line,receipt_line_id,Receipt Line ID,Unique identifier for each receiving line record.,1
-receiving_line,receipt_id,Receipt ID,Links each receiving line to its receiving header.,1
-receiving_line,line_no,Line Number,Sequential line number within the goods receipt.,1
-receiving_line,po_line_id,PO Line ID,Links each receiving line to the purchase-order line it closes against.,1
-receiving_line,part_id,Part ID,Links each receiving line to its related part.,PN-10010
-receiving_line,quantity_ordered,Quantity Ordered,Numeric quantity ordered recorded for each receiving line.,200.0
-receiving_line,quantity_received,Quantity Received,Numeric quantity received recorded for each receiving line.,200.0
-receiving_line,inspection_status,Inspection Status,"Quality disposition of the received line: pending inspection, passed, or failed / rejected.",Passed
-receiving_line,cert_required,Certification Required,Yes/no flag indicating whether the receiving line requires a certification.,1
-receiving_line,created_at,Created At,Timestamp for when the receiving line record was created.,2026-06-01 00:48:21
-payable_line,po_line_id,PO Line ID,Links each payable line to the purchase-order line it matches (line-level three-way match).,1
-payable_line,receipt_line_id,Receipt Line ID,Links each payable line to the receiving line it matches (line-level three-way match).,1
-part,commodity_code,Commodity Code,"Purchasing commodity category for the part, such as RAW-METAL, HARDWARE, COMPOSITE, TOOLING, SHOP-SUPPLY, or OSP-THERMAL.",HARDWARE

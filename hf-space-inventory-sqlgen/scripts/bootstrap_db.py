@@ -113,6 +113,11 @@ STEPS = [
     # Palette (selector wiring only — no data writes; runs after the PRA demo
     # so its fail-closed verify sees all five match states in the population)
     ("migrations/add_twm_coverage_palette.py", []),
+    # physical AR ledger: receivable / receivable_line tables + deterministic
+    # invoice backfill from the final order book (runs after every migration
+    # that adds or prunes customer orders so the 1:1 invoicing sees the
+    # finished demand side; Open orders stay uninvoiced by design)
+    ("migrations/add_receivable_tables.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)
