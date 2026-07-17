@@ -21,6 +21,7 @@ Cascading selectors: columns may be added but max 5 per selector row, keep dropd
 
 ## Runtime & Setup
 - **Python 3.13** (pinned). Do NOT move to 3.14 — it removes `ast.Str`, which SQLGlot/SQLMesh AST handling depends on. Replit runtime module: `python-base-3.13`; virtualenv at `.pythonlibs`.
+- **Python upgrade: TABLED** (per private-repo Plan-014, 2026-07-17). Upstream fix is merged — SQLMesh PR #5850 replaces astor/`ast.Str` with `ast.unparse` — but wait for a *released* SQLMesh version containing it, then validate in a disposable venv (expect one-time snapshot refingerprinting on `sqlmesh migrate`, no backfills) before touching the working environment. Never install Jupyter/pyzmq into the SQLMesh runtime env.
 - Install deps with `uv pip install` from `requirements.txt` + `hf-space-inventory-sqlgen/requirements.txt`. Do NOT use `uv sync` — `uv.lock` is stale and intentionally unused.
 - `pyproject.toml` sets `requires-python = ">=3.13"`.
 
