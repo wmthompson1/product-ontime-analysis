@@ -100,9 +100,13 @@ def test_as_of_anchor_unmoved():
 def test_header_bands_respected():
     conn = _connect()
     try:
-        wo = _one(conn, "SELECT COUNT(*) FROM work_order")
+        # Band applies to FIRM shop orders; planned (unreleased) orders are
+        # the MRP proposal population and scale separately
+        # (migrations/add_planned_work_orders.py).
+        wo = _one(conn, "SELECT COUNT(*) FROM work_order "
+                        "WHERE status IN ('firmed','released','closed')")
         co = _one(conn, "SELECT COUNT(*) FROM customer_order")
-        assert 10 <= wo <= 20, f"work-order headers out of band: {wo}"
+        assert 10 <= wo <= 20, f"firm work-order headers out of band: {wo}"
         assert 10 <= co <= 20, f"customer-order headers out of band: {co}"
     finally:
         conn.close()

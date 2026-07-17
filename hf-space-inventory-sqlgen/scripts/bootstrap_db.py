@@ -113,6 +113,11 @@ STEPS = [
     # Palette (selector wiring only — no data writes; runs after the PRA demo
     # so its fail-closed verify sees all five match states in the population)
     ("migrations/add_twm_coverage_palette.py", []),
+    # synthetic planned orders: 40 unreleased work orders (WO-PLN-*) on
+    # non-pinned MAKE parts, most due >30 days after AS_OF; the firm-order
+    # band [10,20] excludes them (planned orders scale separately). Runs
+    # after the netting demo so its pinned-grid verifies never see them.
+    ("migrations/add_planned_work_orders.py", []),
     # physical AR ledger: receivable / receivable_line tables + deterministic
     # invoice backfill from the final order book (runs after every migration
     # that adds or prunes customer orders so the 1:1 invoicing sees the

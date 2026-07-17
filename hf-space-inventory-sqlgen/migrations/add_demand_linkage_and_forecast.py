@@ -135,9 +135,12 @@ def link_work_orders(cur):
         )
     }
 
+    # Planned orders (WO-PLN-*, migrations/add_planned_work_orders.py) are
+    # MRP proposals, not demand-pegged firm supply — never link them.
     wos = cur.execute(
         "SELECT wo_id, part_id, status, quantity, required_date FROM work_order "
-        "WHERE demand_order_line_id IS NULL ORDER BY wo_id"
+        "WHERE demand_order_line_id IS NULL AND wo_id NOT LIKE 'WO-PLN-%' "
+        "ORDER BY wo_id"
     ).fetchall()
 
     updates = []
@@ -168,9 +171,14 @@ def link_work_orders(cur):
         "UPDATE work_order SET demand_order_line_id=? WHERE wo_id=?", updates
     )
 
-    total = cur.execute("SELECT COUNT(*) FROM work_order").fetchone()[0]
+    # Ratio population excludes planned orders (WO-PLN-*) — they are MRP
+    # proposals outside the linkage layer, so they must not dilute the gate.
+    total = cur.execute(
+        "SELECT COUNT(*) FROM work_order WHERE wo_id NOT LIKE 'WO-PLN-%'"
+    ).fetchone()[0]
     linked = cur.execute(
-        "SELECT COUNT(*) FROM work_order WHERE demand_order_line_id IS NOT NULL"
+        "SELECT COUNT(*) FROM work_order WHERE demand_order_line_id IS NOT NULL "
+        "AND wo_id NOT LIKE 'WO-PLN-%'"
     ).fetchone()[0]
     return len(updates), linked, total
 
@@ -190,6 +198,7 @@ def seed_forecast(cur, as_of: date, plan_start: date):
             SELECT DISTINCT w.part_id FROM work_order w
             JOIN part p ON p.part_id = w.part_id
             WHERE w.demand_order_line_id IS NULL
+              AND w.wo_id NOT LIKE 'WO-PLN-%'
             ORDER BY w.part_id
             """
         )

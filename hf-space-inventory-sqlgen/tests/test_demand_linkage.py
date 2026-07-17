@@ -59,7 +59,10 @@ def test_linkage_column_declared_fk():
 def test_linked_ratio_at_least_half():
     conn = _connect()
     try:
-        total = conn.execute("SELECT COUNT(*) FROM work_order").fetchone()[0]
+        # Planned orders (WO-PLN-*) are MRP proposals outside the linkage layer.
+        total = conn.execute(
+            "SELECT COUNT(*) FROM work_order WHERE wo_id NOT LIKE 'WO-PLN-%'"
+        ).fetchone()[0]
         linked = conn.execute(
             "SELECT COUNT(*) FROM work_order WHERE demand_order_line_id IS NOT NULL"
         ).fetchone()[0]
@@ -110,7 +113,8 @@ def test_forecast_covers_unlinked_wo_parts():
             r[0]
             for r in conn.execute(
                 "SELECT DISTINCT part_id FROM work_order "
-                "WHERE demand_order_line_id IS NULL"
+                "WHERE demand_order_line_id IS NULL "
+                "AND wo_id NOT LIKE 'WO-PLN-%'"
             )
         }
         forecast_parts = {
