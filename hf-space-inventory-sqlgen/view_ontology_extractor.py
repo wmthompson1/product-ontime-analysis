@@ -27,6 +27,7 @@ import sqlglot
 from sqlglot import exp
 
 SEMANTICS_VERSION = "mrp_views_v1"
+LEDGER_SEMANTICS_VERSION = "ledger_views_v1"
 
 MRP_VIEW_BINDING_KEYS: List[str] = [
     "inventory_atp_20260703_000004",
@@ -36,6 +37,15 @@ MRP_VIEW_BINDING_KEYS: List[str] = [
     "inventory_minimumstock_20260703_000008",
     "inventory_maximumstock_20260703_000009",
     "inventory_eoq_20260703_000010",
+]
+
+# The 5 governed General_Ledger queries over the gl_* sub-ledger tables.
+LEDGER_VIEW_BINDING_KEYS: List[str] = [
+    "ledger_inventorybalance_20260719_000001",
+    "ledger_jobcostsummary_20260719_000002",
+    "ledger_eventtrace_20260719_000003",
+    "ledger_materialissued_20260719_000004",
+    "ledger_fgproduced_20260719_000005",
 ]
 
 CREATE_SQL_VIEW_ONTOLOGY = """
@@ -391,11 +401,26 @@ def _derive_temporal_trait(temporal_parameters: List[dict]) -> List[str]:
     return trait
 
 
+def _has_bounded_horizon_window(temporal_parameters: List[dict]) -> bool:
+    """True when horizon params form a bounded window (lower AND upper bound).
+
+    A query filtered by a :start_date/:end_date pair spans a period and is
+    time-phased even without bucket CTEs. A single upper-bound cutoff
+    (e.g. an :as_of_date balance) is point-in-time, not time-phased.
+    """
+    lower = {"GT", "GTE"}
+    upper = {"LT", "LTE"}
+    ops = {p["operator"] for p in temporal_parameters
+           if p["classification"] == "horizon"}
+    return bool(ops & lower) and bool(ops & upper)
+
+
 def extract_view_ontology(
     sql_text: str,
     binding_key: str,
     concept_anchor: str,
     view_file: str,
+    semantics_version: str = SEMANTICS_VERSION,
 ) -> ViewOntology:
     """Parse a ground-truth SQL view and return its embedded ViewOntology.
 
@@ -423,6 +448,8 @@ def extract_view_ontology(
     time_phased, temporal_keys = _detect_time_phasing(cte_names, ast)
     temporal_parameters = _extract_temporal_parameters(ast)
     temporal_trait = _derive_temporal_trait(temporal_parameters)
+    if not time_phased and _has_bounded_horizon_window(temporal_parameters):
+        time_phased = True
 
     return ViewOntology(
         concept_anchor=concept_anchor,
@@ -436,21 +463,26 @@ def extract_view_ontology(
         time_phased=time_phased,
         temporal_keys=temporal_keys,
         selected_columns=selected_columns,
-        semantics_version=SEMANTICS_VERSION,
+        semantics_version=semantics_version,
         extracted_at=datetime.now(timezone.utc).isoformat(),
         temporal_parameters=temporal_parameters,
         temporal_trait=temporal_trait,
     )
 
 
-def extract_all_mrp_views(manifest_path: str, base_dir: str) -> List[ViewOntology]:
-    """Extract ViewOntology for all 7 MRP views listed in the manifest."""
+def _extract_manifest_views(
+    manifest_path: str,
+    base_dir: str,
+    binding_keys: List[str],
+    semantics_version: str,
+) -> List[ViewOntology]:
+    """Extract ViewOntology for the given manifest binding keys."""
     with open(manifest_path) as f:
         manifest = json.load(f)
     snippets = manifest.get("approved_snippets", {})
 
     results: List[ViewOntology] = []
-    for binding_key in MRP_VIEW_BINDING_KEYS:
+    for binding_key in binding_keys:
         entry = snippets.get(binding_key)
         if not entry:
             continue
@@ -462,11 +494,26 @@ def extract_all_mrp_views(manifest_path: str, base_dir: str) -> List[ViewOntolog
             continue
         sql_text = sql_path.read_text(encoding="utf-8")
         try:
-            vo = extract_view_ontology(sql_text, binding_key, concept_anchor, view_file)
+            vo = extract_view_ontology(
+                sql_text, binding_key, concept_anchor, view_file,
+                semantics_version=semantics_version,
+            )
             results.append(vo)
         except Exception as exc:
             print(f"[view_ontology_extractor] Failed to extract {binding_key}: {exc}")
     return results
+
+
+def extract_all_mrp_views(manifest_path: str, base_dir: str) -> List[ViewOntology]:
+    """Extract ViewOntology for all 7 MRP views listed in the manifest."""
+    return _extract_manifest_views(
+        manifest_path, base_dir, MRP_VIEW_BINDING_KEYS, SEMANTICS_VERSION)
+
+
+def extract_all_ledger_views(manifest_path: str, base_dir: str) -> List[ViewOntology]:
+    """Extract ViewOntology for the 5 governed General_Ledger queries."""
+    return _extract_manifest_views(
+        manifest_path, base_dir, LEDGER_VIEW_BINDING_KEYS, LEDGER_SEMANTICS_VERSION)
 
 
 def create_view_ontology_table(conn: sqlite3.Connection) -> None:

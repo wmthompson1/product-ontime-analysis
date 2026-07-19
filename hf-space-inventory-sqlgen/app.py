@@ -631,20 +631,37 @@ def init_sqlite_db():
         print(f"ledger_bindings LOAD FAILED (fail-closed, bindings unavailable): {e}")
 
     # Extract the embedded ontological structure from the 7 MRP ground-truth SQL
-    # views and seed sql_view_ontology. INSERT OR REPLACE — idempotent on every
-    # boot, safe to re-run. Never blocks boot.
+    # views plus the 5 governed General_Ledger queries and seed
+    # sql_view_ontology. INSERT OR REPLACE — idempotent on every boot, safe to
+    # re-run. Never blocks boot.
     try:
         import sqlite3 as _vo_sqlite3
-        from view_ontology_extractor import extract_all_mrp_views, seed_view_ontology_table
+        from view_ontology_extractor import (
+            extract_all_mrp_views,
+            extract_all_ledger_views,
+            seed_view_ontology_table,
+        )
         _vo_base = os.path.dirname(os.path.abspath(__file__))
         _vo_manifest = os.path.join(_vo_base, "app_schema", "ground_truth", "reviewer_manifest.json")
         if os.path.exists(_vo_manifest):
             _vos = extract_all_mrp_views(_vo_manifest, _vo_base)
+            _vos += extract_all_ledger_views(_vo_manifest, _vo_base)
             with _vo_sqlite3.connect(SQLITE_DB_PATH) as _vc:
                 _vn = seed_view_ontology_table(_vc, _vos)
             print(f"view_ontology: seeded {_vn} view(s) into sql_view_ontology.")
     except Exception as e:
         print(f"view_ontology seed warning: {e}")
+
+    # Index per-table usage for every APPROVED reviewer-manifest snippet into
+    # ground_truth_table_usage (idempotent upsert). Keeps the Ground Truth
+    # mosaic's table-usage log complete for snippets living outside
+    # QUERIES_DIR (e.g. the governed ledger queries). Never blocks boot.
+    try:
+        _gt_engine = SolderEngine()
+        _gt_summary = _gt_engine.index_snippet_table_usage(verbose=False)
+        print(f"snippet_table_usage: indexed {len(_gt_summary)} approved snippet(s).")
+    except Exception as e:
+        print(f"snippet_table_usage index warning: {e}")
 
 def get_table_create_sql(table_name: str) -> str:
     """Generate CREATE TABLE SQL for a given table (SQLite version)"""

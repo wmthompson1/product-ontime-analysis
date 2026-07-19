@@ -154,6 +154,10 @@ STEPS = [
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)
     ("migrations/declare_structural_fks.py", []),
+    # index every APPROVED reviewer-manifest snippet (incl. the governed
+    # ledger queries) into ground_truth_table_usage so a fresh DB's Ground
+    # Truth mosaic sees their table usage without waiting for an app boot
+    ("migrations/add_snippet_table_usage.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least
