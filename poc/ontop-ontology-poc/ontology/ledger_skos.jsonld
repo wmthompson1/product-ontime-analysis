@@ -1,0 +1,157 @@
+{
+  "@context": {
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "ledger": "http://example.org/manufacturing/ledger#",
+    "prefLabel": {"@id": "skos:prefLabel"},
+    "altLabel": {"@id": "skos:altLabel"},
+    "definition": {"@id": "skos:definition"},
+    "notation": {"@id": "skos:notation"},
+    "broader": {"@id": "skos:broader", "@type": "@id"},
+    "narrower": {"@id": "skos:narrower", "@type": "@id", "@container": "@set"},
+    "inScheme": {"@id": "skos:inScheme", "@type": "@id"},
+    "hasTopConcept": {"@id": "skos:hasTopConcept", "@type": "@id", "@container": "@set"},
+    "topConceptOf": {"@id": "skos:topConceptOf", "@type": "@id"}
+  },
+  "@graph": [
+    {
+      "@id": "ledger:JobCostingLedgerScheme",
+      "@type": "skos:ConceptScheme",
+      "prefLabel": "Job-Costing Ledger Concept Scheme",
+      "definition": "SKOS concept scheme for the synthetic job-costing ledger: the endurant inventory accounts (Raw Materials, WIP, Finished Goods), the job cost detail register, and the perdurant cost-accumulation event vocabulary that moves cost between them (Material Issued, Labor Applied, Overhead Applied, Job Completion).",
+      "hasTopConcept": [
+        "ledger:RawMaterialsInventory",
+        "ledger:WIPInventory",
+        "ledger:FinishedGoodsInventory",
+        "ledger:JobCostDetail",
+        "ledger:CostAccumulationEvent"
+      ]
+    },
+    {
+      "@id": "ledger:RawMaterialsInventory",
+      "@type": "skos:Concept",
+      "prefLabel": "Raw Materials Inventory",
+      "altLabel": "Inventory",
+      "definition": "Endurant inventory account holding the cost of unprocessed input material owned but not yet consumed by a job. Cost leaves this account and enters WIP when material is issued to a work order. Physical twin table: gl_raw_materials_inventory.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "topConceptOf": "ledger:JobCostingLedgerScheme",
+      "narrower": [
+        "ledger:StandardsRawMaterial",
+        "ledger:DetailPartsRawMaterial",
+        "ledger:ComponentsRawMaterial",
+        "ledger:SheetMetalRawMaterial"
+      ]
+    },
+    {
+      "@id": "ledger:StandardsRawMaterial",
+      "@type": "skos:Concept",
+      "prefLabel": "Standards",
+      "altLabel": "Standard Hardware",
+      "definition": "Raw-material subtype: catalog standard hardware (fasteners, rivets, inserts, bushings) bought to a published specification and consumed across many jobs.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:RawMaterialsInventory"
+    },
+    {
+      "@id": "ledger:DetailPartsRawMaterial",
+      "@type": "skos:Concept",
+      "prefLabel": "Detail Parts",
+      "definition": "Raw-material subtype: make-from or buy detail parts machined or formed to a drawing, consumed as direct material by downstream assembly jobs.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:RawMaterialsInventory"
+    },
+    {
+      "@id": "ledger:ComponentsRawMaterial",
+      "@type": "skos:Concept",
+      "prefLabel": "Components",
+      "definition": "Raw-material subtype: purchased components and sub-assemblies (motors, valves, connectors) consumed as direct material without further transformation.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:RawMaterialsInventory"
+    },
+    {
+      "@id": "ledger:SheetMetalRawMaterial",
+      "@type": "skos:Concept",
+      "prefLabel": "Sheet Metal",
+      "altLabel": "Sheet Stock",
+      "definition": "Raw-material subtype: sheet and plate stock (aluminum, steel, titanium) issued by area or weight and cut/formed on the shop floor.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:RawMaterialsInventory"
+    },
+    {
+      "@id": "ledger:WIPInventory",
+      "@type": "skos:Concept",
+      "prefLabel": "WIP Inventory",
+      "altLabel": "WIP",
+      "definition": "Endurant inventory account accumulating job cost while work is in process: material issued from Raw Materials, labor applied from labor tickets, and overhead (burden) applied on top of labor. Relieved into Finished Goods at job completion. Physical twin table: gl_wip_inventory.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "topConceptOf": "ledger:JobCostingLedgerScheme"
+    },
+    {
+      "@id": "ledger:FinishedGoodsInventory",
+      "@type": "skos:Concept",
+      "prefLabel": "Finished Goods Inventory",
+      "altLabel": "FG",
+      "definition": "Endurant inventory account holding the accumulated cost of completed jobs after WIP is relieved at job completion. The flow stops here (no COGS/shipment costing exists yet). Physical twin table: gl_finished_goods_inventory.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "topConceptOf": "ledger:JobCostingLedgerScheme"
+    },
+    {
+      "@id": "ledger:JobCostDetail",
+      "@type": "skos:Concept",
+      "prefLabel": "Job Cost Detail",
+      "definition": "The per-event cost register: one row per cost-accumulation event, typed by cost element and keyed to the job (work order), telling the full job-costing story line by line. Physical twin table: gl_job_cost_detail.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "topConceptOf": "ledger:JobCostingLedgerScheme"
+    },
+    {
+      "@id": "ledger:CostAccumulationEvent",
+      "@type": "skos:Concept",
+      "prefLabel": "Cost Accumulation Event",
+      "altLabel": "Ledger Event",
+      "definition": "Perdurant event vocabulary: the four posting events that move cost through the ledger flow Raw Materials -> WIP -> Finished Goods. Physical twin table: gl_events.",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "topConceptOf": "ledger:JobCostingLedgerScheme",
+      "narrower": [
+        "ledger:MaterialIssued",
+        "ledger:LaborApplied",
+        "ledger:OverheadApplied",
+        "ledger:JobCompletion"
+      ]
+    },
+    {
+      "@id": "ledger:MaterialIssued",
+      "@type": "skos:Concept",
+      "prefLabel": "Material Issued",
+      "definition": "Cost event: material issued from Raw Materials Inventory into WIP for a job, posted at the issue's total cost on its data-derived issue date.",
+      "notation": "RM_ISSUE",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:CostAccumulationEvent"
+    },
+    {
+      "@id": "ledger:LaborApplied",
+      "@type": "skos:Concept",
+      "prefLabel": "Labor Applied",
+      "definition": "Cost event: direct labor from a labor ticket applied into WIP for a job at the ticket's labor cost.",
+      "notation": "LABOR",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:CostAccumulationEvent"
+    },
+    {
+      "@id": "ledger:OverheadApplied",
+      "@type": "skos:Concept",
+      "prefLabel": "Overhead Applied",
+      "altLabel": "Burden Applied",
+      "definition": "Cost event: overhead (burden) applied into WIP on top of a labor ticket's labor, at the ticket's burden cost.",
+      "notation": "BURDEN",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:CostAccumulationEvent"
+    },
+    {
+      "@id": "ledger:JobCompletion",
+      "@type": "skos:Concept",
+      "prefLabel": "Job Completion",
+      "definition": "Cost event: a closed work order's accumulated WIP relieved into Finished Goods Inventory on the job's close date.",
+      "notation": "FG_COMPLETION",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:CostAccumulationEvent"
+    }
+  ]
+}

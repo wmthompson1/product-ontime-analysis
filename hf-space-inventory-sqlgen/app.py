@@ -599,6 +599,22 @@ def init_sqlite_db():
     except Exception as e:
         print(f"table_descriptions sync warning: {e}")
 
+    # Load the SKOS job-costing ledger concepts (committed JSON-LD at
+    # poc/ontop-ontology-poc/ontology/ledger_skos.jsonld) into the in-memory
+    # read-only store the semantic layer queries. The loader FAILS CLOSED on
+    # malformed input (SkosLoadError); a load failure is surfaced loudly here
+    # but does not block boot — consumers calling the accessor later will get
+    # the same fail-closed error rather than a partial scheme.
+    try:
+        from skos_ledger import get_ledger_concept_store
+        _skos = get_ledger_concept_store(reload=True)
+        print(
+            f"skos_ledger: loaded {len(_skos.all_concepts())} concept(s) "
+            f"({len(_skos.top_concepts())} top) from {_skos.scheme_label!r}."
+        )
+    except Exception as e:
+        print(f"skos_ledger LOAD FAILED (fail-closed, concepts unavailable): {e}")
+
     # Extract the embedded ontological structure from the 7 MRP ground-truth SQL
     # views and seed sql_view_ontology. INSERT OR REPLACE — idempotent on every
     # boot, safe to re-run. Never blocks boot.
