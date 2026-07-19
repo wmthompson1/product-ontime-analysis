@@ -6710,7 +6710,11 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     )
                     sem_btn = gr.Button(
                         "Generate Semantics — SQL", variant="primary")
-                    sem_contract = gr.Markdown()
+                    sem_contract = gr.Markdown(
+                        "Pick a ground-truth query in the selector above — "
+                        "the contract renders automatically (or press "
+                        "**Generate Semantics — SQL**)."
+                    )
                     sem_sql = gr.Code(
                         language="sql", interactive=False,
                         label="Approved ground-truth SQL (copy/paste)",
@@ -7109,7 +7113,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 outputs=[sem_sel],
             )
 
-            def _sql_semantics_contract(val):
+            def _sql_semantics_contract(val, live_val=""):
                 """🧾 SQL Semantics call to action — metadata as the deliverable.
 
                 Interrogates the governed SQL's AST (never executes it, never
@@ -7119,8 +7123,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 Fail-visible at every hop — parse failure yields an error, not
                 a guess.
                 """
+                # Prefer the stashed pick; fall back to the live dropdown
+                # value so a click still works when the stash never fired.
                 tags_csv, table, column, concept, intent, query = _sel_parse(
-                    val or "", 6)
+                    val or live_val or "", 6)
                 if not query:
                     return ("Pick a ground-truth query in the selector above, "
                             "then press **Generate Semantics — SQL**."), ""
@@ -7265,7 +7271,13 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 return "\n".join(lines), sql_text
 
             sem_btn.click(
-                fn=_sql_semantics_contract, inputs=[sem_sel],
+                fn=_sql_semantics_contract, inputs=[sem_sel, mo_query],
+                outputs=[sem_contract, sem_sql],
+            )
+            # Auto-render the contract the moment a query is picked, so the
+            # pane is never empty; the button remains as an explicit re-run.
+            mo_query.change(
+                fn=_sql_semantics_contract, inputs=[mo_query],
                 outputs=[sem_contract, sem_sql],
             )
 
