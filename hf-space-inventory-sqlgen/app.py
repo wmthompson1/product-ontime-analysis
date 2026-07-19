@@ -4784,18 +4784,28 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     value=[], multiselect=True, filterable=True, scale=1)
                 gr.Markdown("", scale=2)  # spacer keeps the filter narrow
             with gr.Row():
+                # allow_custom_value on every chained dropdown: choices are
+                # re-populated per session via gr.update, and after an app
+                # restart the server-side session state is gone — without
+                # this, any pick in a pre-restart browser page fails
+                # preprocess validation ("not in the list of choices: []").
                 sel_table = gr.Dropdown(
                     choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
-                    label="Table", value=None, scale=1)
+                    label="Table", value=None, scale=1,
+                    allow_custom_value=True)
                 sel_column = gr.Dropdown(choices=[], label="Column",
-                                         value=None, scale=1)
+                                         value=None, scale=1,
+                                         allow_custom_value=True)
                 sel_concept = gr.Dropdown(choices=[], label="Concept",
-                                          value=None, scale=1)
+                                          value=None, scale=1,
+                                          allow_custom_value=True)
                 sel_intent = gr.Dropdown(choices=[], label="Intent",
-                                         value=None, scale=1)
+                                         value=None, scale=1,
+                                         allow_custom_value=True)
                 sel_query = gr.Dropdown(choices=_sel_query_choices([]),
                                         label="Ground-truth query",
-                                        value=None, scale=1)
+                                        value=None, scale=1,
+                                        allow_custom_value=True)
             sel_summary = gr.Markdown(_sel_summary([]))
 
             _SEL_CLEAR = gr.update(choices=[], value=None)
@@ -6618,18 +6628,25 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     value=[], multiselect=True, filterable=True, scale=1)
                 gr.Markdown("", scale=2)  # spacer keeps the filter narrow
             with gr.Row():
+                # allow_custom_value: survives app restarts under a stale
+                # browser session (see the 🎛️ Selector tab note).
                 mo_table = gr.Dropdown(
                     choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
-                    label="Table", value=None, scale=1)
+                    label="Table", value=None, scale=1,
+                    allow_custom_value=True)
                 mo_column = gr.Dropdown(choices=[], label="Column",
-                                        value=None, scale=1)
+                                        value=None, scale=1,
+                                        allow_custom_value=True)
                 mo_concept = gr.Dropdown(choices=[], label="Concept",
-                                         value=None, scale=1)
+                                         value=None, scale=1,
+                                         allow_custom_value=True)
                 mo_intent = gr.Dropdown(choices=[], label="Intent",
-                                        value=None, scale=1)
+                                        value=None, scale=1,
+                                        allow_custom_value=True)
                 mo_query = gr.Dropdown(choices=_sel_query_choices([]),
                                        label="Ground-truth query",
-                                       value=None, scale=1)
+                                       value=None, scale=1,
+                                       allow_custom_value=True)
             mo_summary = gr.Markdown(_sel_summary([]))
 
             gr.Markdown("""
@@ -7317,18 +7334,25 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     value=[], multiselect=True, filterable=True, scale=1)
                 gr.Markdown("", scale=2)  # spacer keeps the filter narrow
             with gr.Row():
+                # allow_custom_value: survives app restarts under a stale
+                # browser session (see the 🎛️ Selector tab note).
                 om_table = gr.Dropdown(
                     choices=[(t, "" + _SEL_SEP + t) for t in _sel_tables([])],
-                    label="Table", value=None, scale=1)
+                    label="Table", value=None, scale=1,
+                    allow_custom_value=True)
                 om_column = gr.Dropdown(choices=[], label="Column",
-                                        value=None, scale=1)
+                                        value=None, scale=1,
+                                        allow_custom_value=True)
                 om_concept = gr.Dropdown(choices=[], label="Concept",
-                                         value=None, scale=1)
+                                         value=None, scale=1,
+                                         allow_custom_value=True)
                 om_intent = gr.Dropdown(choices=[], label="Intent",
-                                        value=None, scale=1)
+                                        value=None, scale=1,
+                                        allow_custom_value=True)
                 om_query = gr.Dropdown(choices=_sel_query_choices([]),
                                        label="Ground-truth query",
-                                       value=None, scale=1)
+                                       value=None, scale=1,
+                                       allow_custom_value=True)
             om_summary = gr.Markdown(_sel_summary([]))
 
             def _om_coverage_counts():
