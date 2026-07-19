@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-07-08T06:04:21.164937+00:00",
+  "last_updated": "2026-07-19T03:58:13.786597+00:00",
   "approved_snippets": {
     "inventory_reorderpoint_20260703_000001": {
       "concept_anchor": "REORDERPOINT",
@@ -1348,6 +1348,128 @@
         "dialect": "sqlite",
         "signed_off_by": "twm_accrual_guides",
         "signed_off_at": "2026-07-08T06:04:21.164937+00:00"
+      }
+    },
+    "ledger_inventorybalance_20260719_000001": {
+      "binding_key": "ledger_inventorybalance_20260719_000001",
+      "category": "job_costing_ledger",
+      "perspective": "General_Ledger",
+      "concept_anchor": "GLINVENTORYBALANCE",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/ledger_inventorybalance_20260719_000001.sql",
+      "sme_justification": "Signed running balance per perpetual inventory bucket (RM/WIP/FG) from the gl_* sub-ledgers; optional :as_of_date horizon guard. Single UNION ALL over the three bucket tables, no joins.",
+      "validation_status": "APPROVED",
+      "created_at": "2026-07-19T03:58:13.687759+00:00",
+      "approved_at": "2026-07-19T03:58:13.687759+00:00",
+      "approved_by": "ledger_nlq_governed_queries",
+      "structural_fingerprint": {
+        "base_tables": [
+          "gl_finished_goods_inventory",
+          "gl_raw_materials_inventory",
+          "gl_wip_inventory"
+        ],
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "ledger_nlq_governed_queries",
+        "signed_off_at": "2026-07-19T03:58:13.687759+00:00"
+      }
+    },
+    "ledger_jobcostsummary_20260719_000002": {
+      "binding_key": "ledger_jobcostsummary_20260719_000002",
+      "category": "job_costing_ledger",
+      "perspective": "General_Ledger",
+      "concept_anchor": "GLJOBCOSTSUMMARY",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/ledger_jobcostsummary_20260719_000002.sql",
+      "sme_justification": "Job cost roll-up by work order and cost element (LABOR/MATERIAL/BURDEN/SERVICE) from gl_job_cost_detail; optional :job_id filter guard and :start_date/:end_date horizon guards.",
+      "validation_status": "APPROVED",
+      "created_at": "2026-07-19T03:58:13.759122+00:00",
+      "approved_at": "2026-07-19T03:58:13.759122+00:00",
+      "approved_by": "ledger_nlq_governed_queries",
+      "structural_fingerprint": {
+        "base_tables": [
+          "gl_job_cost_detail"
+        ],
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "ledger_nlq_governed_queries",
+        "signed_off_at": "2026-07-19T03:58:13.759122+00:00"
+      }
+    },
+    "ledger_eventtrace_20260719_000003": {
+      "binding_key": "ledger_eventtrace_20260719_000003",
+      "category": "job_costing_ledger",
+      "perspective": "General_Ledger",
+      "concept_anchor": "GLEVENTTRACE",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/ledger_eventtrace_20260719_000003.sql",
+      "sme_justification": "Chronological audit trace of gl_events postings for a job, carrying the originating source document (table + row key); optional :job_id filter and :start_date/:end_date horizon guards.",
+      "validation_status": "APPROVED",
+      "created_at": "2026-07-19T03:58:13.767896+00:00",
+      "approved_at": "2026-07-19T03:58:13.767896+00:00",
+      "approved_by": "ledger_nlq_governed_queries",
+      "structural_fingerprint": {
+        "base_tables": [
+          "gl_events"
+        ],
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "ledger_nlq_governed_queries",
+        "signed_off_at": "2026-07-19T03:58:13.767896+00:00"
+      }
+    },
+    "ledger_materialissued_20260719_000004": {
+      "binding_key": "ledger_materialissued_20260719_000004",
+      "category": "job_costing_ledger",
+      "perspective": "General_Ledger",
+      "concept_anchor": "GLMATERIALISSUED",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/ledger_materialissued_20260719_000004.sql",
+      "sme_justification": "Material issued over a period: RM_ISSUE postings (signed negative out of the RM bucket) reported as positive issued value per part and job; :start_date/:end_date horizon guards.",
+      "validation_status": "APPROVED",
+      "created_at": "2026-07-19T03:58:13.777617+00:00",
+      "approved_at": "2026-07-19T03:58:13.777617+00:00",
+      "approved_by": "ledger_nlq_governed_queries",
+      "structural_fingerprint": {
+        "base_tables": [
+          "gl_raw_materials_inventory"
+        ],
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "ledger_nlq_governed_queries",
+        "signed_off_at": "2026-07-19T03:58:13.777617+00:00"
+      }
+    },
+    "ledger_fgproduced_20260719_000005": {
+      "binding_key": "ledger_fgproduced_20260719_000005",
+      "category": "job_costing_ledger",
+      "perspective": "General_Ledger",
+      "concept_anchor": "GLFGPRODUCED",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/ledger_fgproduced_20260719_000005.sql",
+      "sme_justification": "Finished goods produced over a period: FG_COMPLETION postings (signed positive into the FG bucket) per part and job; :start_date/:end_date horizon guards.",
+      "validation_status": "APPROVED",
+      "created_at": "2026-07-19T03:58:13.786597+00:00",
+      "approved_at": "2026-07-19T03:58:13.786597+00:00",
+      "approved_by": "ledger_nlq_governed_queries",
+      "structural_fingerprint": {
+        "base_tables": [
+          "gl_finished_goods_inventory"
+        ],
+        "join_edges": [],
+        "unresolved_joins": [],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "ledger_nlq_governed_queries",
+        "signed_off_at": "2026-07-19T03:58:13.786597+00:00"
       }
     }
   }

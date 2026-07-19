@@ -110,12 +110,19 @@ def test_every_approved_snippet_executes() -> None:
                 continue
             try:
                 # Temporal-contract snippets carry NULL-guarded named params
-                # (:start_date / :end_date / :supplier_id). Binding them all to
-                # NULL reproduces the full unfiltered population; snippets that
-                # don't reference these keys ignore the extra dict entries.
+                # (:start_date / :end_date / :supplier_id / :as_of_date /
+                # :job_id). Binding them all to NULL reproduces the full
+                # unfiltered population; snippets that don't reference these
+                # keys ignore the extra dict entries.
                 conn.execute(
                     sql,
-                    {"start_date": None, "end_date": None, "supplier_id": None},
+                    {
+                        "start_date": None,
+                        "end_date": None,
+                        "supplier_id": None,
+                        "as_of_date": None,
+                        "job_id": None,
+                    },
                 ).fetchall()
                 executed += 1
             except Exception as exc:  # noqa: BLE001 - report any execution error

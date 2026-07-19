@@ -795,6 +795,52 @@ WHERE si.intent_name IN (
     'inventory_minimum_stock','inventory_maximum_stock','inventory_eoq'
 ) AND sp.perspective_name = 'Inventory_Transactions';
 
+-- Job Costing Ledger intents (NLQ layer over the gl_* tables).
+-- Each intent resolves directly through primary_binding_key to an
+-- SME-approved governed snippet — no schema_concept_fields elevation path.
+INSERT OR IGNORE INTO schema_intents (intent_name, intent_category, description, typical_question, primary_binding_key) VALUES
+('ledger_inventory_balance', 'job_costing_ledger',
+ 'Signed running balance of each perpetual inventory bucket (Raw Materials / WIP / Finished Goods) from the gl_* sub-ledgers',
+ 'How much value sits in raw materials, WIP, and finished goods?',
+ 'ledger_inventorybalance_20260719_000001'),
+('ledger_job_cost_summary', 'job_costing_ledger',
+ 'Job cost roll-up per work order and cost element (LABOR / MATERIAL / BURDEN / SERVICE) from gl_job_cost_detail',
+ 'What has job WO-00004 cost so far, by cost element?',
+ 'ledger_jobcostsummary_20260719_000002'),
+('ledger_event_trace', 'job_costing_ledger',
+ 'Chronological gl_events audit trail for a job with the originating source document per posting',
+ 'Show the event trace for job WO-00001',
+ 'ledger_eventtrace_20260719_000003'),
+('ledger_material_issued', 'job_costing_ledger',
+ 'Material issued over a period: RM_ISSUE outflow from the Raw Materials bucket per part and job',
+ 'What material was issued in July?',
+ 'ledger_materialissued_20260719_000004'),
+('ledger_fg_production', 'job_costing_ledger',
+ 'Finished goods produced over a period: FG_COMPLETION inflow into the Finished Goods bucket per part and job',
+ 'What finished goods were produced this year?',
+ 'ledger_fgproduced_20260719_000005');
+
+-- Job Costing Ledger perspective links
+INSERT OR IGNORE INTO schema_intent_perspectives (intent_id, perspective_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sp.perspective_id, 1, 'operates within General_Ledger perspective'
+FROM schema_intents si, schema_perspectives sp
+WHERE si.intent_name IN (
+    'ledger_inventory_balance','ledger_job_cost_summary','ledger_event_trace',
+    'ledger_material_issued','ledger_fg_production'
+) AND sp.perspective_name = 'General_Ledger';
+
+-- Job Costing Ledger palette queries (new file — indexes 0..4, no displacement)
+INSERT OR IGNORE INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name)
+SELECT si.intent_id, 'job_costing_ledger', 'job_costing_ledger.sql', q.qi, q.qn
+FROM schema_intents si
+JOIN (
+    SELECT 'ledger_inventory_balance' AS iname, 0 AS qi, 'Inventory Balance per Bucket' AS qn
+    UNION ALL SELECT 'ledger_job_cost_summary', 1, 'Job Cost Summary by Cost Element'
+    UNION ALL SELECT 'ledger_event_trace', 2, 'Job Event Trace'
+    UNION ALL SELECT 'ledger_material_issued', 3, 'Material Issued over a Period'
+    UNION ALL SELECT 'ledger_fg_production', 4, 'Finished Goods Produced over a Period'
+) q ON si.intent_name = q.iname;
+
 -- Seed data: Intent-Concept weight mappings (binary elevation/suppression)
 -- Weight semantics: 1 = elevated, 0 = neutral, -1 = suppressed
 -- For defect analysis, each intent elevates ONE severity interpretation

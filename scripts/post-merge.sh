@@ -501,6 +501,17 @@ if [ -f tests/test_mrp_approval_committer.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_ledger_nlq_queries.py ]; then
+  # Ledger NLQ layer gate: the five governed gl_* queries stay APPROVED with
+  # v2 fingerprints, SolderEngine serves them, intent/palette/perspective rows
+  # are intact, mock routing lands the example questions on the right intent,
+  # and every snippet executes (NULL-guarded and with bound params).
+  python hf-space-inventory-sqlgen/tests/test_ledger_nlq_queries.py || {
+    echo "post-merge: ledger NLQ governed query tests failed"
+    exit 1
+  }
+fi
+
 if [ -f tests/test_mrp_term_promoter.py ]; then
   python tests/test_mrp_term_promoter.py || {
     echo "post-merge: MRP term promoter tests failed"

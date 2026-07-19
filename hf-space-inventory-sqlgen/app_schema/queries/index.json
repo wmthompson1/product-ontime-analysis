@@ -135,35 +135,35 @@
           {
             "query_name": "unnamed",
             "tables": {
-              "receiving": 2,
-              "purchase_order": 2,
-              "suppliers": 3,
-              "receiving_line": 2,
-              "payable_line": 3,
-              "payables": 4,
-              "po_line": 1
+              "receiving": 3,
+              "purchase_order": 3,
+              "suppliers": 4,
+              "receiving_line": 3,
+              "payable_line": 4,
+              "payables": 5,
+              "po_line": 2
             },
             "select_counts": {
-              "purchase_order": 2,
-              "suppliers": 3,
-              "receiving": 2,
-              "receiving_line": 2,
-              "payable_line": 3,
-              "payables": 4,
-              "po_line": 1
+              "purchase_order": 3,
+              "receiving": 3,
+              "suppliers": 4,
+              "receiving_line": 3,
+              "payables": 5,
+              "payable_line": 4,
+              "po_line": 2
             }
           }
         ],
         "totals": {
-          "suppliers": 8,
+          "suppliers": 9,
           "daily_deliveries": 3,
           "product_lines": 1,
-          "payables": 8,
-          "receiving": 2,
-          "purchase_order": 2,
-          "receiving_line": 2,
-          "payable_line": 3,
-          "po_line": 1
+          "payables": 9,
+          "receiving": 3,
+          "purchase_order": 3,
+          "receiving_line": 3,
+          "payable_line": 4,
+          "po_line": 2
         }
       }
     },
@@ -275,6 +275,74 @@
           "customer_order_line": 3
         }
       }
+    },
+    {
+      "id": "job_costing_ledger",
+      "name": "Job Costing Ledger",
+      "description": "Inventory bucket balances, job cost summaries, event traces, and period flows from the gl_* ledger",
+      "file": "job_costing_ledger.sql",
+      "query_count": 5,
+      "table_usage": {
+        "file": "job_costing_ledger.sql",
+        "per_query": [
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "gl_finished_goods_inventory": 1,
+              "gl_raw_materials_inventory": 1,
+              "gl_wip_inventory": 1
+            },
+            "select_counts": {
+              "gl_finished_goods_inventory": 1,
+              "gl_raw_materials_inventory": 1,
+              "gl_wip_inventory": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "gl_job_cost_detail": 1
+            },
+            "select_counts": {
+              "gl_job_cost_detail": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "gl_events": 1
+            },
+            "select_counts": {
+              "gl_events": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "gl_raw_materials_inventory": 1
+            },
+            "select_counts": {
+              "gl_raw_materials_inventory": 1
+            }
+          },
+          {
+            "query_name": "unnamed",
+            "tables": {
+              "gl_finished_goods_inventory": 1
+            },
+            "select_counts": {
+              "gl_finished_goods_inventory": 1
+            }
+          }
+        ],
+        "totals": {
+          "gl_finished_goods_inventory": 2,
+          "gl_raw_materials_inventory": 2,
+          "gl_wip_inventory": 1,
+          "gl_job_cost_detail": 1,
+          "gl_events": 1
+        }
+      }
     }
   ],
   "tables_referenced": [
@@ -289,6 +357,11 @@
     "employee",
     "equipment_metrics",
     "failure_events",
+    "gl_events",
+    "gl_finished_goods_inventory",
+    "gl_job_cost_detail",
+    "gl_raw_materials_inventory",
+    "gl_wip_inventory",
     "non_conformant_materials",
     "operation",
     "part",
@@ -310,27 +383,32 @@
     "work_order"
   ],
   "table_reference_counts": {
-    "suppliers": 17,
-    "purchase_order": 13,
-    "payables": 12,
+    "suppliers": 18,
+    "purchase_order": 14,
+    "payables": 13,
     "work_order": 11,
     "part": 10,
+    "receiving": 9,
+    "po_line": 9,
     "customer_order": 8,
-    "receiving": 8,
-    "po_line": 8,
+    "receiving_line": 8,
+    "payable_line": 8,
     "daily_deliveries": 7,
     "customer_order_line": 7,
-    "receiving_line": 7,
-    "payable_line": 7,
     "product_lines": 5,
     "shop_resource": 5,
     "operation": 5,
+    "gl_finished_goods_inventory": 4,
+    "gl_raw_materials_inventory": 4,
     "customer": 3,
     "customer_address": 3,
     "production_schedule": 3,
     "non_conformant_materials": 3,
     "product_defects": 2,
     "equipment_metrics": 2,
+    "gl_wip_inventory": 2,
+    "gl_job_cost_detail": 2,
+    "gl_events": 2,
     "corrective_actions": 2,
     "sales": 1,
     "downtime_events": 1,

@@ -22,6 +22,89 @@ from solder_engine import SolderEngine, SQLITE_DB_PATH
 HF_DEFAULT_MODEL = "mistralai/Mistral-7B-Instruct-v0.3"
 
 MOCK_ROUTES = {
+    # Job Costing Ledger (gl_*) routes — MUST come first: "job cost" would
+    # otherwise be swallowed by the generic "cost" route below, and "wip for
+    # job" must beat the shorter "wip".
+    "wip for job": {
+        "intent": "ledger_job_cost_summary",
+        "concepts": ["GLJobCostSummary"],
+        "perspective": "General_Ledger"
+    },
+    "wip on job": {
+        "intent": "ledger_job_cost_summary",
+        "concepts": ["GLJobCostSummary"],
+        "perspective": "General_Ledger"
+    },
+    "job cost": {
+        "intent": "ledger_job_cost_summary",
+        "concepts": ["GLJobCostSummary"],
+        "perspective": "General_Ledger"
+    },
+    "cost element": {
+        "intent": "ledger_job_cost_summary",
+        "concepts": ["GLJobCostSummary"],
+        "perspective": "General_Ledger"
+    },
+    "wip": {
+        "intent": "ledger_inventory_balance",
+        "concepts": ["GLInventoryBalance"],
+        "perspective": "General_Ledger"
+    },
+    "work in process": {
+        "intent": "ledger_inventory_balance",
+        "concepts": ["GLInventoryBalance"],
+        "perspective": "General_Ledger"
+    },
+    "inventory balance": {
+        "intent": "ledger_inventory_balance",
+        "concepts": ["GLInventoryBalance"],
+        "perspective": "General_Ledger"
+    },
+    "inventory bucket": {
+        "intent": "ledger_inventory_balance",
+        "concepts": ["GLInventoryBalance"],
+        "perspective": "General_Ledger"
+    },
+    "event trace": {
+        "intent": "ledger_event_trace",
+        "concepts": ["GLEventTrace"],
+        "perspective": "General_Ledger"
+    },
+    "ledger trace": {
+        "intent": "ledger_event_trace",
+        "concepts": ["GLEventTrace"],
+        "perspective": "General_Ledger"
+    },
+    "trace": {
+        "intent": "ledger_event_trace",
+        "concepts": ["GLEventTrace"],
+        "perspective": "General_Ledger"
+    },
+    "material issued": {
+        "intent": "ledger_material_issued",
+        "concepts": ["GLMaterialIssued"],
+        "perspective": "General_Ledger"
+    },
+    "issued": {
+        "intent": "ledger_material_issued",
+        "concepts": ["GLMaterialIssued"],
+        "perspective": "General_Ledger"
+    },
+    "finished goods produced": {
+        "intent": "ledger_fg_production",
+        "concepts": ["GLFGProduced"],
+        "perspective": "General_Ledger"
+    },
+    "goods produced": {
+        "intent": "ledger_fg_production",
+        "concepts": ["GLFGProduced"],
+        "perspective": "General_Ledger"
+    },
+    "produced": {
+        "intent": "ledger_fg_production",
+        "concepts": ["GLFGProduced"],
+        "perspective": "General_Ledger"
+    },
     "cost": {
         "intent": "defect_cost_analysis",
         "concepts": ["DefectSeverityCost"],
