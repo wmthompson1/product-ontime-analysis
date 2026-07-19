@@ -1,19 +1,20 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-07-07T02:27:45+00:00
+generated: 2026-07-19T01:37:16+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
 
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
-nodes                372         368 MISMATCH
-edges                441         427 MISMATCH
+nodes                435         374 MISMATCH
+edges                530         459 MISMATCH
 
 differences:
-  - nodes: count mismatch — SQLite=372 ArangoDB=368
-  - nodes: 4 _key(s) in SQLite but not ArangoDB, e.g. ['payables_ordersreceived_20260706_000001:entity:manifest:Payables:none:none', 'payables_ordersunreceived_20260706_000002:entity:manifest:Payables:none:none', 'payables_uninvoicedreceipts_20260706_000003:entity:manifest:Payables:none:none', 'receiving:received_date:structural:system:none:none']
-  - edges: count mismatch — SQLite=441 ArangoDB=427
-  - edges: 17 _key(s) in SQLite but not ArangoDB, e.g. ['payables_ordersreceived_20260706_000001:po_line:manifest:Payables:binds_table:PAY_BIN_PAY_POL_001', 'payables_ordersreceived_20260706_000001:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_002', 'payables_ordersreceived_20260706_000001:receiving:manifest:Payables:binds_table:PAY_BIN_PAY_REC_001', 'payables_ordersreceived_20260706_000001:receiving_line:manifest:Payables:binds_table:PAY_BIN_PAY_REC_002', 'payables_ordersunreceived_20260706_000002:po_line:manifest:Payables:binds_table:PAY_BIN_PAY_POL_002']
-  - edges: 3 _key(s) in ArangoDB but not SQLite, e.g. ['payables_purchaseorderstatus_20260601_000005:purchase_order:manifest:Payables:binds_table:PAY_BIN_PAY_PUR_002', 'receiving_line:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_003', 'receiving_line:receipt_line_id:structural:system:has_column:SYS_HAS_REC_REC_004']
+  - nodes: count mismatch — SQLite=435 ArangoDB=374
+  - nodes: 61 _key(s) in SQLite but not ArangoDB, e.g. ['gl_events:amount:structural:system:none:none', 'gl_events:entity:structural:system:none:none', 'gl_events:event_date:structural:system:none:none', 'gl_events:event_id:structural:system:none:none', 'gl_events:event_type:structural:system:none:none']
+  - edges: count mismatch — SQLite=530 ArangoDB=459
+  - edges: 83 _key(s) in SQLite but not ArangoDB, e.g. ['gl_events:amount:structural:system:has_column:SYS_HAS_GLE_AMO_001', 'gl_events:event_date:structural:system:has_column:SYS_HAS_GLE_EVE_001', 'gl_events:event_id:structural:system:has_column:SYS_HAS_GLE_EVE_002', 'gl_events:event_type:structural:system:has_column:SYS_HAS_GLE_EVE_003', 'gl_events:job_id:structural:system:has_column:SYS_HAS_GLE_JOB_001']
+  - edges: 12 _key(s) in ArangoDB but not SQLite, e.g. ['receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_001', 'receiving:part_id:structural:system:has_column:SYS_HAS_REC_PAR_001', 'receiving:part_id:structural:system:references:SYS_REF_REC_PAR_001', 'receiving:receipt_date:structural:system:has_column:SYS_HAS_REC_REC_001', 'receiving:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_002']
+  - edges: field mismatch for 'receiving:part_id:structural:system:references:SYS_REF_REC_PAR_002' on ['_to', 'references_table']: sqlite={'_to': 'manufacturing_graph_node/part:part_id:structural:system:none:none', 'references_table': 'part'} arangodb={'_to': 'manufacturing_graph_node/work_order:part_id:structural:system:none:none', 'references_table': 'work_order'}
 
 [sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph
