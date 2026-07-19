@@ -69,6 +69,22 @@ class ConceptTableBinding:
 
 
 @dataclass(frozen=True)
+class EntityTableBinding:
+    """OWL entity class -> physical (non-ledger) table + key column."""
+
+    entity_class_uri: str
+    table_name: str
+    key_column: str
+
+    def to_dict(self) -> dict:
+        return {
+            "entity_class_uri": self.entity_class_uri,
+            "table_name": self.table_name,
+            "key_column": self.key_column,
+        }
+
+
+@dataclass(frozen=True)
 class EventClassBinding:
     """RDF posting-event class -> gl_events.event_type."""
 
@@ -93,6 +109,7 @@ class LedgerBindingStore:
     scheme_uri: str
     concept_bindings: tuple
     event_bindings: tuple
+    entity_bindings: tuple = ()
 
     # -- lookups ---------------------------------------------------------
     def table_for_concept(self, concept_uri: str) -> Optional[str]:
@@ -119,6 +136,16 @@ class LedgerBindingStore:
                 return b.event_class_uri
         return None
 
+    def entity_binding(self, entity_class_uri: str) -> Optional["EntityTableBinding"]:
+        for b in self.entity_bindings:
+            if b.entity_class_uri == entity_class_uri:
+                return b
+        return None
+
+    def table_for_entity(self, entity_class_uri: str) -> Optional[str]:
+        b = self.entity_binding(entity_class_uri)
+        return b.table_name if b else None
+
     def as_records(self) -> dict:
         """Plain-dict view for API / UI surfaces (copies, never internals)."""
         return {
@@ -127,6 +154,7 @@ class LedgerBindingStore:
             "scheme": self.scheme_uri,
             "concept_table_bindings": [b.to_dict() for b in self.concept_bindings],
             "event_class_bindings": [b.to_dict() for b in self.event_bindings],
+            "entity_table_bindings": [b.to_dict() for b in self.entity_bindings],
         }
 
 
@@ -243,6 +271,50 @@ def load_ledger_bindings(
     if not os.path.exists(events_ttl_path):
         raise LedgerBindingError(f"event ontology not found: {events_ttl_path}")
     blocks = _parse_ttl_blocks(events_ttl_path)
+
+    # ---- entity class -> physical table bindings ------------------------
+    # (e.g. ledger:Job -> work_order keyed by wo_id). Entities ground on
+    # NON-ledger tables of the governed graph, keyed by an explicit column.
+    entity_map = doc.get("entity_table_bindings") or {}
+    if not isinstance(entity_map, dict):
+        raise LedgerBindingError("entity_table_bindings must be an object")
+    entity_bindings: List[EntityTableBinding] = []
+    for class_uri, spec in entity_map.items():
+        local = class_uri.split(":", 1)[-1].split("#")[-1]
+        body = blocks.get(local)
+        if body is None or not re.search(r"\ba\s+owl:Class\b", body):
+            raise LedgerBindingError(
+                f"bound entity class {class_uri!r} is not declared "
+                f"'a owl:Class' in {os.path.basename(events_ttl_path)}"
+            )
+        if not isinstance(spec, dict):
+            raise LedgerBindingError(
+                f"entity binding for {class_uri!r} must be an object "
+                "with 'table' and 'key_column'"
+            )
+        table = spec.get("table")
+        key_column = spec.get("key_column")
+        if not table or not key_column:
+            raise LedgerBindingError(
+                f"entity binding for {class_uri!r} is missing table/key_column"
+            )
+        if table not in graph_tables:
+            raise LedgerBindingError(
+                f"bound entity table {table!r} (for {class_uri}) is absent "
+                "from the governed graph"
+            )
+        if table.startswith(LEDGER_TABLE_PREFIX):
+            raise LedgerBindingError(
+                f"entity binding {class_uri!r} targets ledger table {table!r}; "
+                "entities must ground on non-ledger tables"
+            )
+        entity_bindings.append(
+            EntityTableBinding(
+                entity_class_uri=class_uri,
+                table_name=table,
+                key_column=key_column,
+            )
+        )
     notations = {
         c.notation: c.uri for c in skos.all_concepts() if c.notation
     }
@@ -310,6 +382,9 @@ def load_ledger_bindings(
             sorted(concept_bindings, key=lambda b: b.concept_uri)
         ),
         event_bindings=tuple(sorted(event_bindings, key=lambda b: b.event_class_uri)),
+        entity_bindings=tuple(
+            sorted(entity_bindings, key=lambda b: b.entity_class_uri)
+        ),
     )
 
 
@@ -342,3 +417,6 @@ if __name__ == "__main__":
     print(f"event class->event_type bindings: {len(s.event_bindings)}")
     for b in s.event_bindings:
         print(f"  {b.event_class_uri} -> {b.event_type} (via {b.skos_concept_uri})")
+    print(f"entity->table bindings: {len(s.entity_bindings)}")
+    for b in s.entity_bindings:
+        print(f"  {b.entity_class_uri} -> {b.table_name} (key {b.key_column})")

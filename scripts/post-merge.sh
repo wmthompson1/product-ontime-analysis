@@ -298,6 +298,19 @@ if [ -f hf-space-inventory-sqlgen/tests/test_ledger_bindings.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_job_lifecycle.py ]; then
+  # Job entity & lifecycle gate: the ontology declares :Job with the four
+  # lifecycle state individuals (notations exactly the real work_order.status
+  # vocabulary), the binding map grounds ledger:Job -> work_order (wo_id),
+  # create_job/advance_job/complete_job fail closed (planned WO-PLN-* never
+  # completable, completion only from released, data-derived dates), and the
+  # lifecycle trace of a backfilled closed WO tells the full ordered story.
+  python hf-space-inventory-sqlgen/tests/test_job_lifecycle.py || {
+    echo "post-merge: job lifecycle gate failed"
+    exit 1
+  }
+fi
+
 if [ -f poc/ontop-ontology-poc/ledger_events_vocab_check.py ]; then
   # Ledger EVENT ontology gate: ledger_events.ttl declares the four posting
   # event classes + flow properties with the required domains/ranges, links

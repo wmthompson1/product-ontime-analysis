@@ -85,7 +85,51 @@
 :Job
     a owl:Class ;
     rdfs:label "Job" ;
-    rdfs:comment "The job (work order) whose cost the ledger accumulates: the endurant every ledger event is FOR (:forJob). One job's story is the ordered sequence of its events — material issues, labor and overhead applications, then a single completion." .
+    rdfs:comment "The job (work order) whose cost the ledger accumulates: the endurant every ledger event is FOR (:forJob). One job's story is the ordered sequence of its events — material issues, labor and overhead applications, then a single completion. Grounded 1:1 on the physical work_order table (see ledger_binding_map.json entity_table_bindings); its lifecycle walks the real WO status vocabulary via :hasLifecycleState." .
+
+# ── Job lifecycle states ─────────────────────────────────────────────────────
+# The closed set of lifecycle states a Job can be in, aligned 1:1 with the
+# REAL work_order.status vocabulary (unreleased / firmed / released / closed —
+# never invented states). Each state individual carries the exact physical
+# status string as its skos:notation, so the binding layer can map state <->
+# column value without guessing. Completion (:JobCompletionEvent) is only
+# legal from the Released state; planned orders (WO-PLN-*) never complete.
+
+:JobLifecycleState
+    a owl:Class ;
+    rdfs:label "Job Lifecycle State" ;
+    rdfs:comment "The closed vocabulary of lifecycle states a :Job moves through, mirroring work_order.status exactly: Unreleased -> (Firmed) -> Released -> Closed. skos:notation on each individual carries the physical status string." .
+
+:UnreleasedJobState
+    a owl:NamedIndividual , :JobLifecycleState ;
+    rdfs:label "Unreleased" ;
+    skos:notation "unreleased" ;
+    rdfs:comment "Job registered but not yet firmed or released to the shop floor. The state the job module's create_job function registers a new job in." .
+
+:FirmedJobState
+    a owl:NamedIndividual , :JobLifecycleState ;
+    rdfs:label "Firmed" ;
+    skos:notation "firmed" ;
+    rdfs:comment "Job firmed by the planner — first lots tested or recently engineered parts — but not yet released." .
+
+:ReleasedJobState
+    a owl:NamedIndividual , :JobLifecycleState ;
+    rdfs:label "Released" ;
+    skos:notation "released" ;
+    rdfs:comment "Job released to the shop floor and accumulating cost. The ONLY state a :JobCompletionEvent may be posted from." .
+
+:ClosedJobState
+    a owl:NamedIndividual , :JobLifecycleState ;
+    rdfs:label "Closed" ;
+    skos:notation "closed" ;
+    rdfs:comment "Job closed: its accumulated WIP was relieved into Finished Goods by a single :JobCompletionEvent at a data-derived close date. Terminal state." .
+
+:hasLifecycleState
+    a owl:ObjectProperty ;
+    rdfs:label "has lifecycle state" ;
+    rdfs:comment "Ties a :Job to its current :JobLifecycleState — the semantic twin of the physical work_order.status column (each state individual's skos:notation IS the column value)." ;
+    rdfs:domain :Job ;
+    rdfs:range  :JobLifecycleState .
 
 # ── Flow properties ──────────────────────────────────────────────────────────
 # Domains/ranges tie the event classes to the SKOS inventory concepts of the
