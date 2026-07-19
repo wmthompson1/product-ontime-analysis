@@ -77,7 +77,11 @@ def _ids(cur, sql, params=()):
 
 
 def pick_customer_orders(cur) -> list[str]:
+    # CO-JUL-% is a protected synthetic series (seed_july_throughput.py):
+    # excluded from the demo-scale keep-set selection so its presence never
+    # reshuffles which legacy orders survive; preserved separately in prune().
     keep = _ids(cur, "SELECT order_id FROM customer_order WHERE status = 'Open' "
+                     "AND order_id NOT LIKE 'CO-JUL-%' "
                      "ORDER BY order_date DESC, order_id DESC")
     for status, n in (("Shipped", 2), ("Closed", 2), ("Cancelled", 1)):
         keep += _ids(
@@ -117,6 +121,7 @@ def pick_work_orders(cur, kept_cos: list[str]) -> list[str]:
             cur,
             f"SELECT wo_id FROM work_order "
             f"WHERE wo_id NOT IN ({kph}) AND status = 'closed' "
+            f"AND wo_id NOT LIKE 'WO-JUL-%' "
             f"ORDER BY close_date DESC, wo_id DESC LIMIT ?",
             keep + [pad],
         )
@@ -166,6 +171,10 @@ def consolidate_cnc(cur) -> None:
 
 def prune(cur) -> None:
     kept_cos = pick_customer_orders(cur)
+    # Preserve the protected July daily-throughput series (may be absent when
+    # the prune runs before seed_july_throughput.py in a fresh chain).
+    kept_cos += _ids(cur, "SELECT order_id FROM customer_order "
+                          "WHERE order_id LIKE 'CO-JUL-%'")
     ph_co = ",".join("?" * len(kept_cos))
     demand_parts = set(_ids(
         cur,
@@ -175,6 +184,8 @@ def prune(cur) -> None:
         kept_cos,
     ))
     kept_wos = pick_work_orders(cur, kept_cos)
+    kept_wos += _ids(cur, "SELECT wo_id FROM work_order "
+                          "WHERE wo_id LIKE 'WO-JUL-%'")
     ph_wo = ",".join("?" * len(kept_wos))
     kept_pos = pick_purchase_orders(cur, kept_wos, demand_parts)
     ph_po = ",".join("?" * len(kept_pos))
@@ -247,10 +258,16 @@ def validate(cur) -> None:
     failures = []
 
     # PO band top is 25: add_receiving_line_and_commodities adds 5 POs on top
-    # of the seeded 15 (+ a possible deterministic MRP top-up PO).
-    for table, lo, hi in (("customer_order", 10, 20), ("work_order", 10, 20),
-                          ("purchase_order", 10, 25)):
-        n = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    # of the seeded 15 (+ a possible deterministic MRP top-up PO). The
+    # protected July series (CO-JUL-% / WO-JUL-%) is outside the bands by
+    # design and excluded from the count.
+    for table, pk, excl, lo, hi in (
+        ("customer_order", "order_id", "CO-JUL-%", 10, 20),
+        ("work_order", "wo_id", "WO-JUL-%", 10, 20),
+        ("purchase_order", "po_id", None, 10, 25),
+    ):
+        where = f" WHERE {pk} NOT LIKE '{excl}'" if excl else ""
+        n = cur.execute(f"SELECT COUNT(*) FROM {table}{where}").fetchone()[0]
         if not (lo <= n <= hi):
             failures.append(f"{table} count {n} outside [{lo}, {hi}]")
 
@@ -315,10 +332,18 @@ def validate_mrp(con) -> None:
 
 def already_at_demo_scale(cur) -> bool:
     """True when CO/WO/PO counts are already inside the demo band — a fresh
-    bootstrap seeds directly at demo scale, so the trim would over-prune."""
-    for table, hi in (("customer_order", 20), ("work_order", 20),
-                      ("purchase_order", 25)):
-        n = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    bootstrap seeds directly at demo scale, so the trim would over-prune.
+
+    The July daily-throughput series (CO-JUL-% / WO-JUL-%, added by
+    seed_july_throughput.py AFTER this prune in the chain) is a protected
+    synthetic series: excluded from the band count and never trimmed."""
+    for table, pk, excl, hi in (
+        ("customer_order", "order_id", "CO-JUL-%", 20),
+        ("work_order", "wo_id", "WO-JUL-%", 20),
+        ("purchase_order", "po_id", None, 25),
+    ):
+        where = f" WHERE {pk} NOT LIKE '{excl}'" if excl else ""
+        n = cur.execute(f"SELECT COUNT(*) FROM {table}{where}").fetchone()[0]
         if not (10 <= n <= hi):
             return False
     return True

@@ -102,10 +102,14 @@ def test_header_bands_respected():
     try:
         # Band applies to FIRM shop orders; planned (unreleased) orders are
         # the MRP proposal population and scale separately
-        # (migrations/add_planned_work_orders.py).
+        # (migrations/add_planned_work_orders.py). The protected July
+        # daily-throughput series (WO-JUL-% / CO-JUL-%,
+        # seed_july_throughput.py) sits outside the bands by design.
         wo = _one(conn, "SELECT COUNT(*) FROM work_order "
-                        "WHERE status IN ('firmed','released','closed')")
-        co = _one(conn, "SELECT COUNT(*) FROM customer_order")
+                        "WHERE status IN ('firmed','released','closed') "
+                        "AND wo_id NOT LIKE 'WO-JUL-%'")
+        co = _one(conn, "SELECT COUNT(*) FROM customer_order "
+                        "WHERE order_id NOT LIKE 'CO-JUL-%'")
         assert 10 <= wo <= 20, f"firm work-order headers out of band: {wo}"
         assert 10 <= co <= 20, f"customer-order headers out of band: {co}"
     finally:

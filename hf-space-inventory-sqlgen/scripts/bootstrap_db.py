@@ -123,6 +123,16 @@ STEPS = [
     # that adds or prunes customer orders so the 1:1 invoicing sees the
     # finished demand side; Open orders stay uninvoiced by design)
     ("migrations/add_receivable_tables.py", []),
+    # daily synthetic July 2026 throughput: one closed WO per July day plus a
+    # matching open customer order with daily demand lines (CO-JUL-01 /
+    # WO-JUL-01..31). Shifts the data-derived AS_OF anchor to 2026-07-31, so
+    # the two MRP re-anchor runs below recompute horizon dates against the new
+    # anchor (both are idempotent recomputes; CO-JUL demand dates are exempt
+    # from the demand backfill and keep their daily cadence).
+    ("migrations/seed_july_throughput.py", []),
+    ("migrations/backfill_mrp_demand_supply.py", []),
+    ("migrations/expand_mrp_part_universe.py", []),
+    ("migrations/add_demand_linkage_and_forecast.py", []),
     # minimal synthetic GL ledger tables (gl_events + RM/WIP/FG inventory +
     # job cost detail) — DDL only, idempotent; posting/population is a later
     # task. job_id links structurally to work_order.wo_id.

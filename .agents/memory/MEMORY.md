@@ -41,6 +41,7 @@
 - [Live graph concept-node drift](live-graph-concept-node-drift.md) — sql_aql_parity fails (live Arango 399 vs canonical 296) from extra concept_* nodes in the live graph; sql_graph_parity (SQLite↔graph_metadata) is the authoritative gate for snippet/graph work.
 - [Planned-order population carve-out](planned-orders-population.md) — WO-PLN-* unreleased WOs are MRP proposals; exclude from firm band AND every demand-linkage gate incl. the migration's own ratio denominator.
 - [MRP expansion vs prune bands](mrp-demo-scale-expansion.md) — synthetic header adds must run after prune and stay inside CO/WO [10,20] / PO [10,25], scale via CO/PO lines not headers.
+- [July protected series & AS_OF re-anchor](july-protected-throughput-series.md) — WO-JUL/CO-JUL band-exempt; moving AS_OF ⇒ prune stale keyed rows (forecast) and regenerate GL for touched jobs, never trust idempotent upserts alone.
 - [Fresh-clone bootstrap 3WM drift](fresh-bootstrap-3wm-drift.md) — clean-room bootstrap fails upstream at three-way-match verify; test new chain migrations directly at the failure point; layout must keep repo folder names.
 - [Canvas artifact-frame 3s reload loop](canvas-artifact-frame-reload-loop.md) — Gradio app "refreshing every 3s" in canvas is a preview-layer shell probe (app_id+index+theme.css only), NOT an app bug; view in Preview tab.
 - [Filter date column binding](filter-date-column-binding.md) — date facet binds to each query's PHYSICAL column (per query), not the output alias; noun (received_date) vs adjective (receipt_date) differs real-source vs twin.

@@ -310,9 +310,21 @@ def run():
         % ",".join("?" * len(universe)),
         [p["part_id"] for p in universe],
     ).fetchone()[0]
+    # Band counts exclude post-prune synthetic series that later chain steps
+    # re-create deterministically: WO-PLN-% (add_planned_work_orders) and the
+    # July daily-throughput series CO-JUL-% / WO-JUL-% (seed_july_throughput —
+    # the prune excludes the July series from its own band check and never
+    # trims it). This migration re-runs AFTER those steps to re-anchor MRP
+    # dates, so it now sees their rows.
     counts = {
-        t: cur.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-        for t in ("customer_order", "work_order", "purchase_order")
+        "customer_order": cur.execute(
+            "SELECT COUNT(*) FROM customer_order "
+            "WHERE order_id NOT LIKE 'CO-JUL-%'").fetchone()[0],
+        "work_order": cur.execute(
+            "SELECT COUNT(*) FROM work_order WHERE wo_id NOT LIKE 'WO-JUL-%' "
+            "AND wo_id NOT LIKE 'WO-PLN-%'").fetchone()[0],
+        "purchase_order": cur.execute(
+            "SELECT COUNT(*) FROM purchase_order").fetchone()[0],
     }
 
     summary = eng.validate_planning_inputs(conn)

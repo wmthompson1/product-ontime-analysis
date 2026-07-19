@@ -239,12 +239,16 @@ def verify(conn, as_of_before):
         errors.append(f"AS_OF moved: {as_of_before} -> {as_of_after}")
 
     # Band applies to FIRM shop orders; planned (unreleased) orders scale
-    # separately (migrations/add_planned_work_orders.py).
+    # separately (migrations/add_planned_work_orders.py), and the protected
+    # July daily-throughput series (WO-JUL-% / CO-JUL-%,
+    # seed_july_throughput.py) sits outside the bands by design.
     wo_n = cur.execute(
         "SELECT COUNT(*) FROM work_order "
-        "WHERE status IN ('firmed','released','closed')"
+        "WHERE status IN ('firmed','released','closed') "
+        "AND wo_id NOT LIKE 'WO-JUL-%'"
     ).fetchone()[0]
-    co_n = cur.execute("SELECT COUNT(*) FROM customer_order").fetchone()[0]
+    co_n = cur.execute("SELECT COUNT(*) FROM customer_order "
+                       "WHERE order_id NOT LIKE 'CO-JUL-%'").fetchone()[0]
     if not (10 <= wo_n <= 20):
         errors.append(f"firm work-order headers out of band: {wo_n}")
     if not (10 <= co_n <= 20):

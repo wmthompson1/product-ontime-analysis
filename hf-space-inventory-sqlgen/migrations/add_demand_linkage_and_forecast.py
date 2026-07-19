@@ -240,6 +240,19 @@ def seed_forecast(cur, as_of: date, plan_start: date):
             fid = f"FC-{part_id}-{base.strftime('%Y%m')}"
             rows.append((fid, part_id, fdate.strftime(ISO), float(qty)))
 
+    # Re-anchor prune: the forecast is fully recomputed from (parts, as_of,
+    # plan_start), so any row whose forecast_id is not in the recomputed set is
+    # stale (e.g. left over from an earlier AS_OF anchor) and must go, or it
+    # would sit outside the current planning horizon.
+    keep_ids = {r[0] for r in rows}
+    stale = [
+        (fid,)
+        for (fid,) in cur.execute("SELECT forecast_id FROM forecast")
+        if fid not in keep_ids
+    ]
+    if stale:
+        cur.executemany("DELETE FROM forecast WHERE forecast_id=?", stale)
+
     cur.executemany(
         """
         INSERT INTO forecast (forecast_id, part_id, forecast_date, forecast_qty)

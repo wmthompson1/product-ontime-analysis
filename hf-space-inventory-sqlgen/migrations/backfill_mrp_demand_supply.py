@@ -128,6 +128,10 @@ def run():
     }
 
     # 2. Demand timing: need_by_date + desired_release_date on OPEN CO lines. ---
+    # CO-JUL-* lines are exempt: seed_july_throughput.py owns their dates (a
+    # fixed daily cadence through July 2026, one line per day) and re-heals
+    # them after this backfill in the bootstrap chain. Rewriting them with the
+    # horizon formula here would destroy that cadence on solo re-runs.
     demand_updates = []
     for order_line_id, part_id in cur.execute(
         """
@@ -135,6 +139,7 @@ def run():
         FROM customer_order_line l
         JOIN customer_order o ON o.order_id = l.order_id
         WHERE o.status = ?
+          AND l.order_id NOT LIKE 'CO-JUL-%'
         """,
         (eng.OPEN_CO_STATUS,),
     ).fetchall():
