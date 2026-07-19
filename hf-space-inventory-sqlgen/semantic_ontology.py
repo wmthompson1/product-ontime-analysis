@@ -87,8 +87,31 @@ def get_semantic_ontology(db_path: str, concept_anchor: str) -> Optional[dict]:
             "perspective": row["perspective"] or "",
             "computation_template": template,
             "is_metric": bool(template),
+            "stakeholder_perspectives": [],
             "lineage": [],
+            "table_context": [],
         }
+
+        # Stakeholder perspectives (schema_perspective_concepts) — the
+        # DIFFERENTIATED layer (e.g. General_Ledger / Payables / Receivables)
+        # that refines the coarse standard domain frozen on the graph node.
+        try:
+            result["stakeholder_perspectives"] = [
+                r[0] for r in conn.execute(
+                    """
+                    SELECT p.perspective_name
+                    FROM schema_perspective_concepts pc
+                    JOIN schema_perspectives p
+                         ON p.perspective_id = pc.perspective_id
+                    JOIN schema_concepts sc ON sc.concept_id = pc.concept_id
+                    WHERE sc.concept_name = ?
+                    ORDER BY p.perspective_name
+                    """,
+                    (row["concept_name"],),
+                ).fetchall()
+            ]
+        except sqlite3.Error:
+            pass
 
         # resolves_to edges run column -> concept; match on the concept's _id.
         try:
@@ -122,6 +145,21 @@ def get_semantic_ontology(db_path: str, concept_anchor: str) -> Optional[dict]:
                     col_desc = col_row["description"] or ""
             except sqlite3.Error:
                 pass
+            if not col_desc:
+                # Overlay-only by design: plain-language field descriptions
+                # live in api_field_descriptions, never on the graph node.
+                try:
+                    ov = conn.execute(
+                        """
+                        SELECT description FROM api_field_descriptions
+                        WHERE table_name = ? AND column_name = ?
+                        """,
+                        (table, column),
+                    ).fetchone()
+                    if ov:
+                        col_desc = ov["description"] or ""
+                except sqlite3.Error:
+                    pass
             lineage.append(
                 {
                     "variable": e["variable_name"] or "",
@@ -133,6 +171,25 @@ def get_semantic_ontology(db_path: str, concept_anchor: str) -> Optional[dict]:
                 }
             )
         result["lineage"] = lineage
+
+        # Table-level meta-context (overlay) for every lineage table.
+        seen_tables = []
+        for b in lineage:
+            if b["table"] and b["table"] not in seen_tables:
+                seen_tables.append(b["table"])
+        for t in seen_tables:
+            try:
+                tr = conn.execute(
+                    "SELECT description FROM api_table_descriptions "
+                    "WHERE table_name = ?",
+                    (t,),
+                ).fetchone()
+            except sqlite3.Error:
+                tr = None
+            if tr and (tr["description"] or "").strip():
+                result["table_context"].append(
+                    {"table": t, "description": tr["description"].strip()}
+                )
         return result
     finally:
         conn.close()
@@ -161,15 +218,25 @@ def render_semantic_ontology_markdown(
 
     facts = []
     if onto["domain"]:
-        facts.append(f"**Domain:** `{onto['domain']}`")
+        facts.append(f"**Standard domain:** `{onto['domain']}` _(coarse, frozen on the graph node)_")
     if onto["perspective"]:
-        facts.append(f"**Perspective:** `{onto['perspective']}`")
+        facts.append(f"**Graph perspective:** `{onto['perspective']}`")
     facts.append(
         "**Metric:** yes — carries a computation template"
         if onto["is_metric"]
         else "**Metric:** no — entity concept (no computation template)"
     )
     lines.append("  ·  ".join(facts) + "\n")
+
+    sp = onto.get("stakeholder_perspectives") or []
+    if sp:
+        lines.append(
+            "**Stakeholder perspectives:** "
+            + " · ".join(f"`{p}`" for p in sp)
+            + "  \n_The differentiated placement layer "
+            "(`schema_perspective_concepts`) — finer-grained than the "
+            "standard domain above._\n"
+        )
 
     if onto["is_metric"]:
         lines.append("#### Computation template (dialect-agnostic)")
@@ -194,6 +261,13 @@ def render_semantic_ontology_markdown(
             "_No `resolves_to` bindings — this concept has no column-level "
             "lineage in the semantic layer yet._"
         )
+
+    tc = onto.get("table_context") or []
+    if tc:
+        lines.append("#### Table meta-context")
+        for t in tc:
+            lines.append(f"- **`{t['table']}`** — {t['description']}")
+        lines.append("")
 
     lines.append(
         "\n---\n_Read-only view of the governed `sql_graph_nodes` / "
