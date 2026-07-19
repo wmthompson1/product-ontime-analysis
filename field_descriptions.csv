@@ -35,6 +35,40 @@ customer_order_line,order_qty,Order Quantity,How many units the customer ordered
 customer_order_line,part_id,Part ID,Links each customer order line to its related part.,P-10036
 customer_order_line,site_id,Site ID,Links each customer order line to its related site.,SITE-2
 customer_order_line,unit_price,Unit Price,Numeric unit price recorded for each customer order line.,3391.02
+gl_events,amount,Amount,The dollar amount of the posted costing event.,832.66
+gl_events,event_date,Event Date,"The date of the economic event, taken from its source document (issue date, clock-out, or work-order close date) — never the posting wall-clock.",2026-01-15
+gl_events,event_id,Event ID,Unique identifier for each GL economic event.,1
+gl_events,event_type,Event Type,"The kind of costing event posted: material issue into the job, labor applied, burden (overhead) applied, or finished-goods completion.",RM_ISSUE
+gl_events,job_id,Job ID,Links each GL event to the work order (job) it was posted against.,WO-240003
+gl_events,source_id,Source ID,The originating document row key inside the source table; with source_table and event_type it makes replays a no-op.,1
+gl_events,source_table,Source Table,"The originating document table the event was posted from (material_issue, labor_ticket, or work_order).",material_issue
+gl_finished_goods_inventory,amount,Amount,"Signed dollar movement on the finished-goods account: positive flows in, negative flows out.",832.66
+gl_finished_goods_inventory,event_date,Event Date,"The data-derived date of the event that moved the finished-goods balance — from the source document, never wall-clock.",2026-01-15
+gl_finished_goods_inventory,event_id,Event ID,Links each finished-goods ledger line to the GL event it hangs off.,1
+gl_finished_goods_inventory,event_type,Event Type,"The kind of costing event that moved the finished-goods balance (material issue, labor, burden, or job completion).",FG_COMPLETION
+gl_finished_goods_inventory,job_id,Job ID,Links each finished-goods ledger line to its work order (job).,WO-240003
+gl_finished_goods_inventory,line_id,Line ID,Unique identifier for each finished-goods ledger line.,1
+gl_finished_goods_inventory,part_id,Part ID,Links each finished-goods ledger line to the part whose dollars are moving.,PN-10200
+gl_job_cost_detail,amount,Amount,The dollar amount of this cost element posted to the job.,832.66
+gl_job_cost_detail,event_date,Event Date,"The data-derived date the cost element hit the job — from the source document, never wall-clock.",2026-01-15
+gl_job_cost_detail,event_id,Event ID,Links each cost detail line to the GL event it hangs off.,1
+gl_job_cost_detail,event_type,Cost Element,"The cost element the dollars belong to: MATERIAL, LABOR, or BURDEN.",MATERIAL
+gl_job_cost_detail,job_id,Job ID,Links each cost detail line to its work order (job).,WO-240003
+gl_job_cost_detail,line_id,Line ID,Unique identifier for each per-job cost detail line.,1
+gl_raw_materials_inventory,amount,Amount,"Signed dollar movement on the raw-materials account: positive flows in, negative flows out.",-832.66
+gl_raw_materials_inventory,event_date,Event Date,"The data-derived date of the event that moved the raw-materials balance — from the source document, never wall-clock.",2026-01-15
+gl_raw_materials_inventory,event_id,Event ID,Links each raw-materials ledger line to the GL event it hangs off.,1
+gl_raw_materials_inventory,event_type,Event Type,"The kind of costing event that moved the raw-materials balance (material issue, labor, burden, or job completion).",RM_ISSUE
+gl_raw_materials_inventory,job_id,Job ID,Links each raw-materials ledger line to its work order (job).,WO-240003
+gl_raw_materials_inventory,line_id,Line ID,Unique identifier for each raw-materials ledger line.,1
+gl_raw_materials_inventory,part_id,Part ID,Links each raw-materials ledger line to the part whose dollars are moving.,PN-10200
+gl_wip_inventory,amount,Amount,"Signed dollar movement on the work-in-process account: positive flows in, negative flows out.",832.66
+gl_wip_inventory,event_date,Event Date,"The data-derived date of the event that moved the work-in-process balance — from the source document, never wall-clock.",2026-01-15
+gl_wip_inventory,event_id,Event ID,Links each work-in-process ledger line to the GL event it hangs off.,1
+gl_wip_inventory,event_type,Event Type,"The kind of costing event that moved the work-in-process balance (material issue, labor, burden, or job completion).",LABOR
+gl_wip_inventory,job_id,Job ID,Links each work-in-process ledger line to its work order (job).,WO-240003
+gl_wip_inventory,line_id,Line ID,Unique identifier for each work-in-process ledger line.,1
+gl_wip_inventory,part_id,Part ID,Links each work-in-process ledger line to the part whose dollars are moving.,PN-10200
 inv_trans_dist,created_at,Created At,Timestamp for when the inv trans dist record was created.,2026-06-06 05:16:25
 inv_trans_dist,dist_id,Dist ID,Unique identifier for each inv trans dist record.,1
 inv_trans_dist,dist_qty,Dist Quantity,Numeric dist quantity recorded for each inv trans dist.,2.3

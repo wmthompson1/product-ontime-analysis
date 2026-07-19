@@ -132,6 +132,10 @@ STEPS = [
     # (gl_posting.py) with idempotency keys; fails closed unless per-job
     # ledger detail ties to work_order actuals to the cent
     ("migrations/backfill_gl_ledger.py", []),
+    # register the GL ledger tables in schema_nodes / schema_edges and run the
+    # fail-closed ledger-to-source reconciliation (cent-exact; runs after the
+    # GL backfill so it sees the posted ledger)
+    ("migrations/add_gl_schema_registry.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)
