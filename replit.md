@@ -52,6 +52,9 @@ Schema Browser · Ground Truth SQL · Copilot Context Builder · Semantic Graph 
 - **MRP engine** (`mrp_engine.py`): read-only, deterministic horizon + netting helpers. `validate_planning_inputs` and `compute_mrp_grid` fail closed unless every in-horizon demand part has a positive lead time and a real supply basis.
 - **Define Relationship mockup** (React/Vite): `artifacts/mockup-sandbox/src/components/mockups/graph-relationship/DefineRelationship.tsx`, served by the mockup-sandbox Vite server (port 23636), connects to the app at `/mcp/*`.
 
+### Ledger view registration
+Newly SME-approved ledger queries added to `reviewer_manifest.json` must also be added to `LEDGER_VIEW_BINDING_KEYS` in `view_ontology_extractor.py`, or they will be silently missing from the ontology mosaic (regression gate: `tests/test_ledger_view_ontology.py`).
+
 ### Approval-copy CSVs (repo root)
 SME-editable CSVs at the repo root mirror into SQLite overlay tables on boot (idempotent upsert, never blocks boot):
 - `masking_matrix.csv` / `masking_type.csv` — masking DAG + reference lookup (`masking_matrix.py` / `masking_type.py`); the receiving certificate imports only `status == active` rows.
