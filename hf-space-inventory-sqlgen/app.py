@@ -6643,6 +6643,10 @@ Check that perspective-concept and intent-concept relationships are seeded.
             governed metadata, read-only.
             """)
 
+            _NO_JOINS_PLACEHOLDER = [[
+                "— (single-table / set query)", "none", "—", "", "",
+            ]]
+
             with gr.Tabs():
                 with gr.Tab("🔗 Join Topology"):
                     svo_summary = gr.Markdown()
@@ -6847,7 +6851,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         j["left_key"] or "", j["right_key"] or "",
                     ]
                     for j in _outer_joins
-                ]
+                ] or _NO_JOINS_PLACEHOLDER
                 scopes_md = render_join_scope_sections_md(
                     _scoped_joins, rec["cte_names_json"]
                 )
@@ -6985,7 +6989,7 @@ Check that perspective-concept and intent-concept relationships are seeded.
                         j["left_key"] or "", j["right_key"] or "",
                     ]
                     for j in _outer_joins
-                ]
+                ] or _NO_JOINS_PLACEHOLDER
                 scopes_md = _mrc_scope_md(_scoped_joins, d["cte_names"])
                 detail_lines = []
                 if d["state_predicates"]:
