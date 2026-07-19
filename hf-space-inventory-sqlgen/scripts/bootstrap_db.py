@@ -123,6 +123,10 @@ STEPS = [
     # that adds or prunes customer orders so the 1:1 invoicing sees the
     # finished demand side; Open orders stay uninvoiced by design)
     ("migrations/add_receivable_tables.py", []),
+    # minimal synthetic GL ledger tables (gl_events + RM/WIP/FG inventory +
+    # job cost detail) — DDL only, idempotent; posting/population is a later
+    # task. job_id links structurally to work_order.wo_id.
+    ("migrations/add_gl_ledger_tables.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)

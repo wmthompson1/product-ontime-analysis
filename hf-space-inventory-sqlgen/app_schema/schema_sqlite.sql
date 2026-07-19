@@ -1038,3 +1038,73 @@ CREATE TABLE IF NOT EXISTS column_bindings (
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(intent_name, slot_name)
 );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MINIMAL SYNTHETIC GL LEDGER TABLES (see migrations/add_gl_ledger_tables.py)
+-- Deliberately minimal: no period-close, control-account, or validation
+-- columns. job_id = work_order.wo_id; FKs are structural-only (enforcement
+-- OFF — declared for graph derivation). event_date carries NO default: every
+-- timestamp must be data-derived from a source document, never wall-clock.
+-- Population (posting functions) is a later task; this is DDL only.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS gl_events (
+    event_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id      TEXT,                   -- FK -> work_order.wo_id (structural)
+    event_type  TEXT NOT NULL,          -- e.g. RM_ISSUE / LABOR / BURDEN / SERVICE / FG_COMPLETION
+    amount      REAL NOT NULL DEFAULT 0.0,
+    event_date  DATETIME NOT NULL,      -- data-derived from the source document, never wall-clock
+    source_table TEXT,                  -- originating document table (material_issue, labor_ticket, ...)
+    source_id   TEXT,                   -- originating document row key
+    FOREIGN KEY (job_id) REFERENCES work_order (wo_id)
+);
+
+CREATE TABLE IF NOT EXISTS gl_raw_materials_inventory (
+    line_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id    INTEGER,                -- FK -> gl_events (structural)
+    job_id      TEXT,                   -- FK -> work_order.wo_id (structural)
+    part_id     TEXT,                   -- FK -> part (structural)
+    amount      REAL NOT NULL DEFAULT 0.0,   -- signed: + into RM, - out of RM
+    event_type  TEXT NOT NULL,
+    event_date  DATETIME NOT NULL,      -- data-derived, never wall-clock
+    FOREIGN KEY (event_id) REFERENCES gl_events (event_id),
+    FOREIGN KEY (job_id) REFERENCES work_order (wo_id),
+    FOREIGN KEY (part_id) REFERENCES part (part_id)
+);
+
+CREATE TABLE IF NOT EXISTS gl_wip_inventory (
+    line_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id    INTEGER,                -- FK -> gl_events (structural)
+    job_id      TEXT,                   -- FK -> work_order.wo_id (structural)
+    part_id     TEXT,                   -- FK -> part (structural)
+    amount      REAL NOT NULL DEFAULT 0.0,   -- signed: + into WIP, - out of WIP
+    event_type  TEXT NOT NULL,
+    event_date  DATETIME NOT NULL,      -- data-derived, never wall-clock
+    FOREIGN KEY (event_id) REFERENCES gl_events (event_id),
+    FOREIGN KEY (job_id) REFERENCES work_order (wo_id),
+    FOREIGN KEY (part_id) REFERENCES part (part_id)
+);
+
+CREATE TABLE IF NOT EXISTS gl_finished_goods_inventory (
+    line_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id    INTEGER,                -- FK -> gl_events (structural)
+    job_id      TEXT,                   -- FK -> work_order.wo_id (structural)
+    part_id     TEXT,                   -- FK -> part (structural)
+    amount      REAL NOT NULL DEFAULT 0.0,   -- signed: + into FG, - out of FG
+    event_type  TEXT NOT NULL,
+    event_date  DATETIME NOT NULL,      -- data-derived, never wall-clock
+    FOREIGN KEY (event_id) REFERENCES gl_events (event_id),
+    FOREIGN KEY (job_id) REFERENCES work_order (wo_id),
+    FOREIGN KEY (part_id) REFERENCES part (part_id)
+);
+
+CREATE TABLE IF NOT EXISTS gl_job_cost_detail (
+    line_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id    INTEGER,                -- FK -> gl_events (structural)
+    job_id      TEXT NOT NULL,          -- FK -> work_order.wo_id (structural)
+    amount      REAL NOT NULL DEFAULT 0.0,
+    event_type  TEXT NOT NULL,          -- cost element: LABOR / MATERIAL / BURDEN / SERVICE
+    event_date  DATETIME NOT NULL,      -- data-derived, never wall-clock
+    FOREIGN KEY (event_id) REFERENCES gl_events (event_id),
+    FOREIGN KEY (job_id) REFERENCES work_order (wo_id)
+);
