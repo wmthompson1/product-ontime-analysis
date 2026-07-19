@@ -1,0 +1,53 @@
+// Job-Costing Flow — material -> WIP -> finished goods, annotated with the
+// four posting events (gl_posting.py) and their table effects.
+//
+// Deterministic source of truth for docs/ledger/diagrams/job_costing_flow.svg.
+// Regenerate after any change to hf-space-inventory-sqlgen/gl_posting.py or
+// migrations/backfill_gl_ledger.py with:
+//   dot -Tsvg docs/ledger/diagrams/job_costing_flow.dot -o docs/ledger/diagrams/job_costing_flow.svg
+// (or run docs/ledger/diagrams/render.sh)
+
+digraph job_costing_flow {
+    rankdir=LR;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=9];
+    labelloc="t";
+    label="Job-Costing Flow — Raw Materials → WIP → Finished Goods\n(the flow deliberately stops at Finished Goods: no COGS/shipment costing exists)";
+
+    // Inventory accounts (endurants)
+    node [shape=box, style="rounded,filled", fillcolor="#cfe3f5", color="#5b8db8"];
+    RM  [label="Raw Materials Inventory\ngl_raw_materials_inventory\n(signed lines: + in / − out)"];
+    WIP [label="WIP Inventory\ngl_wip_inventory\n(accumulates job cost;\nnets to 0 for closed jobs)"];
+    FG  [label="Finished Goods Inventory\ngl_finished_goods_inventory\n(flow terminus)"];
+
+    // Source documents
+    node [shape=note, style=filled, fillcolor="#f4f4f4", color="#999999", fontsize=9];
+    mi [label="material_issue\n(amount = total_cost,\ndate = issue_date)"];
+    lt [label="labor_ticket\n(labor_cost + burden_cost,\ndate = clock_out)"];
+    wo [label="work_order (closed)\n(amount = act_mat + act_lab\n+ act_bur cost,\ndate = close_date)"];
+
+    // Side-register
+    node [shape=cylinder, style=filled, fillcolor="#efe8d8", color="#b09660", fontsize=10];
+    jcd [label="gl_job_cost_detail\nper-event cost register\nelements: MATERIAL / LABOR / BURDEN"];
+    ev  [label="gl_events\none row per posting\nidempotency key:\n(source_table, source_id, event_type)"];
+
+    // Flow edges (posting events)
+    edge [color="#3d7a3d", fontcolor="#3d7a3d", style=bold, fontsize=10];
+    RM  -> WIP [label="Material Issued\npost_material_issue\nRM_ISSUE  (−RM, +WIP)"];
+    WIP -> FG  [label="Job Completion\npost_job_completion\nFG_COMPLETION  (−WIP, +FG)"];
+
+    // Additions into WIP with no inventory source account
+    edge [color="#7a3d7a", fontcolor="#7a3d7a", style=bold];
+    lt -> WIP [label="Labor Applied\npost_labor  LABOR  (+WIP)\nOverhead Applied\npost_overhead  BURDEN  (+WIP)"];
+
+    // Document triggers
+    edge [color="#999999", fontcolor="#666666", style=dashed, fontsize=8];
+    mi -> RM  [label="drawn from"];
+    wo -> WIP [label="relieves accumulated WIP"];
+
+    // Every posting also writes the event log; WIP additions also write cost detail
+    edge [color="#b09660", fontcolor="#8a733f", style=dotted, fontsize=8];
+    RM  -> ev  [label="all four postings\nwrite gl_events", dir=none];
+    WIP -> jcd [label="RM_ISSUE / LABOR / BURDEN\nalso write cost detail", dir=none];
+}

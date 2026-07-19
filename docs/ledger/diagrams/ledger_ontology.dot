@@ -1,0 +1,95 @@
+// Job-Costing Ledger Ontology — SKOS concepts, RDF (OWL) event classes,
+// and the flow properties tying them together.
+//
+// Deterministic source of truth for docs/ledger/diagrams/ledger_ontology.svg.
+// Regenerate after any change to:
+//   poc/ontop-ontology-poc/ontology/ledger_skos.jsonld
+//   poc/ontop-ontology-poc/ontology/ledger_events.ttl
+// with:
+//   dot -Tsvg docs/ledger/diagrams/ledger_ontology.dot -o docs/ledger/diagrams/ledger_ontology.svg
+// (or run docs/ledger/diagrams/render.sh)
+
+digraph ledger_ontology {
+    rankdir=LR;
+    fontname="Helvetica";
+    node [fontname="Helvetica", fontsize=11];
+    edge [fontname="Helvetica", fontsize=9];
+    labelloc="t";
+    label="Job-Costing Ledger Ontology\nSKOS concept scheme (ledger_skos.jsonld) + OWL event layer (ledger_events.ttl)\nshared namespace http://example.org/manufacturing/ledger#";
+
+    // ── SKOS concept scheme ────────────────────────────────────────────
+    subgraph cluster_skos {
+        label="SKOS concept scheme  :JobCostingLedgerScheme  (JSON-LD)";
+        style="rounded,filled"; color="#dbe9f6"; fillcolor="#eef5fc";
+        node [shape=box, style="rounded,filled", fillcolor="#cfe3f5", color="#5b8db8"];
+
+        RawMaterialsInventory [label="skos:Concept\n:RawMaterialsInventory\n(gl_raw_materials_inventory)"];
+        WIPInventory          [label="skos:Concept\n:WIPInventory\n(gl_wip_inventory)"];
+        FinishedGoodsInventory[label="skos:Concept\n:FinishedGoodsInventory\n(gl_finished_goods_inventory)"];
+        JobCostDetail         [label="skos:Concept\n:JobCostDetail\n(gl_job_cost_detail)"];
+        CostAccumulationEvent [label="skos:Concept\n:CostAccumulationEvent\n(gl_events)"];
+
+        // Raw-material subtypes (vocabulary-only, unbound)
+        node [fillcolor="#e4eff9", fontsize=9];
+        Standards   [label=":StandardsRawMaterial\n\"Standards\""];
+        DetailParts [label=":DetailPartsRawMaterial\n\"Detail Parts\""];
+        Components  [label=":ComponentsRawMaterial\n\"Components\""];
+        SheetMetal  [label=":SheetMetalRawMaterial\n\"Sheet Metal\""];
+
+        // Event-type concepts
+        node [fillcolor="#e4eff9", fontsize=9];
+        MaterialIssued  [label=":MaterialIssued\nnotation RM_ISSUE"];
+        LaborApplied    [label=":LaborApplied\nnotation LABOR"];
+        OverheadApplied [label=":OverheadApplied\nnotation BURDEN"];
+        JobCompletion   [label=":JobCompletion\nnotation FG_COMPLETION"];
+
+        edge [color="#5b8db8", label="skos:broader"];
+        Standards   -> RawMaterialsInventory;
+        DetailParts -> RawMaterialsInventory;
+        Components  -> RawMaterialsInventory;
+        SheetMetal  -> RawMaterialsInventory;
+        MaterialIssued  -> CostAccumulationEvent;
+        LaborApplied    -> CostAccumulationEvent;
+        OverheadApplied -> CostAccumulationEvent;
+        JobCompletion   -> CostAccumulationEvent;
+    }
+
+    // ── OWL event layer ────────────────────────────────────────────────
+    subgraph cluster_owl {
+        label="OWL event classes  (Turtle, OWL 2 QL)";
+        style="rounded,filled"; color="#e7dcc8"; fillcolor="#f8f3e9";
+        node [shape=box, style=filled, fillcolor="#f0e3c8", color="#b09660"];
+
+        LedgerEvent           [label="owl:Class\n:LedgerEvent"];
+        WIPAdditionEvent      [label="owl:Class\n:WIPAdditionEvent"];
+        MaterialIssueEvent    [label="owl:Class\n:MaterialIssueEvent"];
+        LaborApplicationEvent [label="owl:Class\n:LaborApplicationEvent"];
+        OverheadApplicationEvent [label="owl:Class\n:OverheadApplicationEvent"];
+        JobCompletionEvent    [label="owl:Class\n:JobCompletionEvent"];
+        Job                   [label="owl:Class\n:Job\n(work_order, key wo_id)"];
+        JobLifecycleState     [label="owl:Class\n:JobLifecycleState\nunreleased / firmed /\nreleased / closed"];
+
+        edge [color="#b09660", label="rdfs:subClassOf"];
+        WIPAdditionEvent      -> LedgerEvent;
+        MaterialIssueEvent    -> WIPAdditionEvent;
+        LaborApplicationEvent -> WIPAdditionEvent;
+        OverheadApplicationEvent -> WIPAdditionEvent;
+        JobCompletionEvent    -> LedgerEvent;
+    }
+
+    // ── Flow properties (OWL object properties, domain -> range) ─────
+    edge [color="#3d7a3d", fontcolor="#3d7a3d", style=bold];
+    MaterialIssueEvent -> RawMaterialsInventory [label=":consumesMaterial"];
+    WIPAdditionEvent   -> WIPInventory          [label=":addsCostToWIP"];
+    JobCompletionEvent -> FinishedGoodsInventory[label=":producesFinishedGoods"];
+    LedgerEvent        -> Job                   [label=":forJob"];
+    Job                -> JobLifecycleState     [label=":hasLifecycleState", style=solid];
+
+    // ── Cross-layer alignment ─────────────────────────────────────────
+    edge [color="#888888", fontcolor="#888888", style=dashed, label="skos:closeMatch"];
+    LedgerEvent              -> CostAccumulationEvent;
+    MaterialIssueEvent       -> MaterialIssued;
+    LaborApplicationEvent    -> LaborApplied;
+    OverheadApplicationEvent -> OverheadApplied;
+    JobCompletionEvent       -> JobCompletion;
+}
