@@ -127,6 +127,11 @@ STEPS = [
     # job cost detail) — DDL only, idempotent; posting/population is a later
     # task. job_id links structurally to work_order.wo_id.
     ("migrations/add_gl_ledger_tables.py", []),
+    # deterministic GL ledger backfill: replay material_issue / labor_ticket /
+    # closed work_order rows through the simple posting functions
+    # (gl_posting.py) with idempotency keys; fails closed unless per-job
+    # ledger detail ties to work_order actuals to the cent
+    ("migrations/backfill_gl_ledger.py", []),
     # re-declare structural FKs the frozen graph records but fresh DDL lacks
     # (declared-FK-only consumers like metric assembly fail closed without them;
     # runs last so every table in the graph already exists)

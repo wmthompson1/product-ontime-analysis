@@ -241,6 +241,16 @@ if [ -f hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py ]; th
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_gl_posting.py ]; then
+  # GL posting functions + deterministic ledger backfill: in-memory function
+  # semantics (balances, idempotency keys, fail-closed args) and live-DB
+  # tie-out of gl_job_cost_detail to work_order actuals.
+  python hf-space-inventory-sqlgen/tests/test_gl_posting.py || {
+    echo "post-merge: GL posting / ledger backfill tests failed"
+    exit 1
+  }
+fi
+
 if [ -f replit_integrations/field_description_coverage_check.py ]; then
   python replit_integrations/field_description_coverage_check.py || {
     echo "post-merge: field description graph coverage check failed"
