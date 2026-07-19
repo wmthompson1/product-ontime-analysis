@@ -335,9 +335,9 @@ def test_graph_wiring():
           "binding count matches nodes_by_type")
 
     # Binding nodes are NOT column nodes -> field-description coverage unaffected.
-    # Frozen count tracks the committed graph_metadata.json (SCHEMA_VERSION 27,
-    # which added the real receiving.received_date dock-arrival column node).
-    check(len(column_nodes) == 277, "column node count still 277 (coverage intact)")
+    # Frozen count tracks the committed graph_metadata.json (SCHEMA_VERSION 28,
+    # which added the receivable / receivable_line AR ledger column nodes).
+    check(len(column_nodes) == 297, "column node count still 297 (coverage intact)")
 
     # Every binding node carries binding_key + manifest family; slots 4-5 none.
     ok_shape = all(
