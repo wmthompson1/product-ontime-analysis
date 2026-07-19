@@ -133,6 +133,10 @@ STEPS = [
     ("migrations/backfill_mrp_demand_supply.py", []),
     ("migrations/expand_mrp_part_universe.py", []),
     ("migrations/add_demand_linkage_and_forecast.py", []),
+    # fabricated angle-bracket detail part + design-level BOM usage on several
+    # parents (incl. MCH-51006, scheduled Fri 2026-07-31). Design-level rows
+    # only; no work-order/GL impact.
+    ("migrations/seed_angle_bracket_design.py", []),
     # minimal synthetic GL ledger tables (gl_events + RM/WIP/FG inventory +
     # job cost detail) — DDL only, idempotent; posting/population is a later
     # task. job_id links structurally to work_order.wo_id.
