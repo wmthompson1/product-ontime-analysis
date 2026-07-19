@@ -258,6 +258,16 @@ if [ -f hf-space-inventory-sqlgen/tests/test_gl_posting.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_gl_events_rdf.py ]; then
+  # RDF event trace of the ledger: per-class triples per the Task-4 ontology,
+  # deterministic IRIs from idempotency keys, and fail-closed 1:1
+  # gl_job_cost_detail <-> event trace completeness on the live DB.
+  python hf-space-inventory-sqlgen/tests/test_gl_events_rdf.py || {
+    echo "post-merge: GL RDF event trace tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_skos_ledger.py ]; then
   # SKOS ledger concept loader: committed JSON-LD parses, lookup by
   # URI/label/notation works, hierarchy traversal is symmetric, and every
