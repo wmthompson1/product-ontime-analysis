@@ -248,6 +248,18 @@ if [ -f hf-space-inventory-sqlgen/tests/test_ontology_mosaic.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_semantic_ontology_skos.py ]; then
+  # SKOS-first Semantic Ontology pane gate: bound gl_* lineage tables resolve
+  # to committed SKOS concepts via the governed binding map, entity-bound
+  # tables pull the corpus vocabulary via skos:closeMatch (lifecycle chain +
+  # forbidden-synonym governance), unbound tables degrade honestly, and the
+  # rendered pane leads with SKOS while frozen graph facts trail compactly.
+  (cd hf-space-inventory-sqlgen && python tests/test_semantic_ontology_skos.py) || {
+    echo "post-merge: SKOS-first semantic ontology pane gate failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py ]; then
   python hf-space-inventory-sqlgen/tests/test_labor_chain_reconciliation.py || {
     echo "post-merge: labor chain reconciliation tests failed"
