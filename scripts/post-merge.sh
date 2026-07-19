@@ -268,6 +268,17 @@ if [ -f hf-space-inventory-sqlgen/tests/test_skos_ledger.py ]; then
   }
 fi
 
+if [ -f poc/ontop-ontology-poc/ledger_events_vocab_check.py ]; then
+  # Ledger EVENT ontology gate: ledger_events.ttl declares the four posting
+  # event classes + flow properties with the required domains/ranges, links
+  # into the SKOS scheme via skos:closeMatch only (never owl:equivalentClass),
+  # has no free-floating terms, and parses alongside every other POC .ttl.
+  python poc/ontop-ontology-poc/ledger_events_vocab_check.py || {
+    echo "post-merge: ledger event ontology vocabulary gate failed"
+    exit 1
+  }
+fi
+
 if [ -f replit_integrations/field_description_coverage_check.py ]; then
   python replit_integrations/field_description_coverage_check.py || {
     echo "post-merge: field description graph coverage check failed"

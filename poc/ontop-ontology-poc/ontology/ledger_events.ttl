@@ -1,0 +1,122 @@
+@prefix :     <http://example.org/manufacturing/ledger#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+#
+# Job-Costing Ledger Events — minimal OWL ontology (OWL 2 QL profile)
+# ===============================================================================
+# The RDF EVENT layer of the synthetic job-costing ledger: the four posting
+# events that move cost through the flow Raw Materials -> WIP -> Finished
+# Goods, and the flow properties that tie each event to the SKOS inventory
+# concepts of the ledger concept scheme (ontology/ledger_skos.jsonld,
+# scheme :JobCostingLedgerScheme) and to the job (work order) it costs.
+#
+# It shares the ledger namespace (http://example.org/manufacturing/ledger#)
+# with the SKOS scheme: the SKOS concepts named as flow-property ranges
+# (:RawMaterialsInventory, :WIPInventory, :FinishedGoodsInventory) and as
+# skos:closeMatch targets (:MaterialIssued, :LaborApplied, :OverheadApplied,
+# :JobCompletion, :CostAccumulationEvent) are declared in the JSON-LD file,
+# not re-declared here — this file only adds the OWL event CLASSES beside
+# them. OWL classes and SKOS concepts stay distinct terms linked by
+# skos:closeMatch, never owl:equivalentClass (the safe-annotation convention
+# of the POC ontologies: enrich with rdfs:subClassOf / skos:closeMatch only).
+#
+# Vocabulary only — no event instances (posting-function emission) and no
+# Ontop .obda mapping to the gl_* ledger tables yet; both are follow-on work.
+# NOTE for that future mapping work: the POC's Ontop+SQLite rule is that LINK
+# (object) properties are mapped with a range only and NO rdfs:domain, because
+# a domain on a mapped link property makes Ontop infer the subject class from
+# two sources and emit invalid UNION/LEFT-JOIN SQL on SQLite. The flow
+# properties below DO declare rdfs:domain (the reasoning layer this file
+# exists for); if they are ever mapped through Ontop over SQLite, the domains
+# must be revisited then.
+#
+
+<http://example.org/manufacturing/ledger>
+    a owl:Ontology ;
+    rdfs:label "Job-Costing Ledger Event Ontology" ;
+    rdfs:comment "RDF event layer for the synthetic job-costing ledger: four posting-event classes (material issue, labor application, overhead application, job completion) and the flow properties tying each event to the SKOS inventory concepts of the ledger concept scheme and to the job it costs. Vocabulary only — read-only, no instances, no Ontop mapping; the SQL ledger (gl_* tables) stays the single source of truth." .
+
+# ── Event classes ────────────────────────────────────────────────────────────
+
+:LedgerEvent
+    a owl:Class ;
+    rdfs:label "Ledger Event" ;
+    rdfs:comment "A perdurant cost-posting event of the job-costing ledger (one row of gl_events): something that HAPPENS to move cost between the endurant inventory accounts. Every ledger event costs exactly one job (:forJob). OWL twin of the SKOS event vocabulary rooted at :CostAccumulationEvent." ;
+    skos:closeMatch :CostAccumulationEvent .
+
+:WIPAdditionEvent
+    a owl:Class ;
+    rdfs:subClassOf :LedgerEvent ;
+    rdfs:label "WIP Addition Event" ;
+    rdfs:comment "A ledger event that ADDS cost into WIP Inventory for its job: material issue, labor application, or overhead application. The shared domain of :addsCostToWIP — job completion is deliberately NOT a subclass (it relieves WIP rather than adding to it)." .
+
+:MaterialIssueEvent
+    a owl:Class ;
+    rdfs:subClassOf :WIPAdditionEvent ;
+    rdfs:label "Material Issue Event" ;
+    rdfs:comment "Posting event: material issued from Raw Materials Inventory into WIP for a job, at the issue's total cost on its data-derived issue date (gl_events event_type RM_ISSUE). Consumes raw material (:consumesMaterial) and adds that cost to WIP (:addsCostToWIP)." ;
+    skos:closeMatch :MaterialIssued .
+
+:LaborApplicationEvent
+    a owl:Class ;
+    rdfs:subClassOf :WIPAdditionEvent ;
+    rdfs:label "Labor Application Event" ;
+    rdfs:comment "Posting event: direct labor from a labor ticket applied into WIP for a job at the ticket's labor cost (gl_events event_type LABOR). Adds cost to WIP (:addsCostToWIP) without consuming inventory material." ;
+    skos:closeMatch :LaborApplied .
+
+:OverheadApplicationEvent
+    a owl:Class ;
+    rdfs:subClassOf :WIPAdditionEvent ;
+    rdfs:label "Overhead Application Event" ;
+    rdfs:comment "Posting event: overhead (burden) applied into WIP on top of a labor ticket's labor, at the ticket's burden cost (gl_events event_type BURDEN). Adds cost to WIP (:addsCostToWIP) without consuming inventory material." ;
+    skos:closeMatch :OverheadApplied .
+
+:JobCompletionEvent
+    a owl:Class ;
+    rdfs:subClassOf :LedgerEvent ;
+    rdfs:label "Job Completion Event" ;
+    rdfs:comment "Posting event: a closed work order's accumulated WIP relieved into Finished Goods Inventory on the job's close date (gl_events event_type FG_COMPLETION). Produces finished goods (:producesFinishedGoods); NOT a WIP-addition event — it ends the WIP accumulation the other three events feed." ;
+    skos:closeMatch :JobCompletion .
+
+:Job
+    a owl:Class ;
+    rdfs:label "Job" ;
+    rdfs:comment "The job (work order) whose cost the ledger accumulates: the endurant every ledger event is FOR (:forJob). One job's story is the ordered sequence of its events — material issues, labor and overhead applications, then a single completion." .
+
+# ── Flow properties ──────────────────────────────────────────────────────────
+# Domains/ranges tie the event classes to the SKOS inventory concepts of the
+# ledger scheme (declared in ledger_skos.jsonld, shared namespace) — the
+# reasoning layer that lets a consumer ask "what does this event consume,
+# where does its cost go?" from the vocabulary alone.
+
+:consumesMaterial
+    a owl:ObjectProperty ;
+    rdfs:label "consumes material" ;
+    rdfs:comment "Ties a material-issue event to the Raw Materials Inventory account (SKOS concept :RawMaterialsInventory) it draws cost OUT of. Only material issues consume material — labor, overhead, and completion events never carry this property." ;
+    rdfs:domain :MaterialIssueEvent ;
+    rdfs:range  :RawMaterialsInventory .
+
+:addsCostToWIP
+    a owl:ObjectProperty ;
+    rdfs:label "adds cost to WIP" ;
+    rdfs:comment "Ties a WIP-addition event (material issue, labor application, overhead application) to the WIP Inventory account (SKOS concept :WIPInventory) its cost flows INTO. Job completion deliberately falls outside the domain: it relieves WIP instead of adding to it." ;
+    rdfs:domain :WIPAdditionEvent ;
+    rdfs:range  :WIPInventory .
+
+:producesFinishedGoods
+    a owl:ObjectProperty ;
+    rdfs:label "produces finished goods" ;
+    rdfs:comment "Ties a job-completion event to the Finished Goods Inventory account (SKOS concept :FinishedGoodsInventory) the job's accumulated WIP cost is relieved INTO. Only completion events produce finished goods." ;
+    rdfs:domain :JobCompletionEvent ;
+    rdfs:range  :FinishedGoodsInventory .
+
+:forJob
+    a owl:ObjectProperty ;
+    rdfs:label "for job" ;
+    rdfs:comment "Ties every ledger event to the single job (work order) it costs — the spine of the job-costing story. Domain is the event root :LedgerEvent, so all four event classes inherit it." ;
+    rdfs:domain :LedgerEvent ;
+    rdfs:range  :Job .

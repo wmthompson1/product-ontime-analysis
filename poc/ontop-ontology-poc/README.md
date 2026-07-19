@@ -675,6 +675,9 @@ wired into `scripts/post-merge.sh`.
 | `queries/twm_invoiced_qty.rq` | Total invoiced qty + row count over receipt-linked, qty-non-null invoice lines (checked row-for-row against the identically-filtered SQL — Showcase 10). |
 | `queries/twm_ordered_qty.rq` | Leg-1 baseline: PO-line count + total ordered qty (a Showcase 10 parity number). |
 | `three_way_match_parity_check.py` | Runs the three-way-match SPARQL queries + the governed SQL aggregates on the same snapshot, proves the per-leg populations/quantities and the Uninvoiced Receivers count match, and cross-checks the two governed procurement views stay disjoint (Showcase 10). |
+| `ontology/ledger_skos.jsonld` | The SKOS concept scheme for the synthetic job-costing ledger (inventory accounts, cost register, event vocabulary) — loaded by the app's `skos_ledger.py` and shared with the event ontology below. |
+| `ontology/ledger_events.ttl` | The RDF EVENT layer of the job-costing ledger: four posting-event classes + flow properties tying events to the SKOS inventory concepts (see **Ledger event vocabulary** below). Vocabulary only — no mapping yet. |
+| `ledger_events_vocab_check.py` | Offline gate for `ledger_events.ttl`: required classes/properties + exact domains/ranges present, safe-annotation only (no `owl:equivalentClass`), every link resolves into the SKOS scheme, no free-floating terms, and every sibling `.ttl` still parses. Runs in `scripts/post-merge.sh`. |
 | `parity_check.py` | Runs SPARQL + SolderEngine on the same snapshot: on-time-rate parity **and** the supplier LEFT-JOIN optionality proof. |
 | `rating_parity_check.py` | Recomputes the full My MRP rating from graph triples and proves it equals the stored `performance_rating` per supplier; also captures + SQLGlot-lifts Ontop's SQLite-incompatible aggregate SQL. |
 | `sql_lift.py` | Pure helpers: scrape Ontop's native SQL from its DEBUG log and re-transpile the nested join group with SQLGlot so SQLite accepts it. |
@@ -688,6 +691,51 @@ wired into `scripts/post-merge.sh`.
 | `../../replit_integrations/ontop_poc_setup.py` | Downloads the pinned Ontop CLI + SQLite JDBC driver into `tools/`. |
 
 `tools/` (downloaded binaries) and `results/` (run output) are gitignored.
+
+---
+
+## Ledger event vocabulary (`ontology/ledger_events.ttl`)
+
+The RDF event layer of the synthetic job-costing ledger. It shares the
+`http://example.org/manufacturing/ledger#` namespace with the SKOS concept
+scheme (`ontology/ledger_skos.jsonld`), adding OWL **event classes** beside the
+SKOS concepts and **flow properties** whose domains/ranges tie the events to
+the inventory accounts. OWL classes and SKOS concepts stay distinct terms
+linked by `skos:closeMatch` — never `owl:equivalentClass` (the POC's
+safe-annotation convention). Vocabulary only: no instances and no Ontop
+mapping yet (both are follow-on work).
+
+**Event classes** (all `rdfs:subClassOf :LedgerEvent`, which closeMatches the
+SKOS `:CostAccumulationEvent`):
+
+| Class | closeMatch (SKOS) | Meaning |
+|---|---|---|
+| `:MaterialIssueEvent` | `:MaterialIssued` | Material issued from Raw Materials into WIP for a job (`RM_ISSUE`). |
+| `:LaborApplicationEvent` | `:LaborApplied` | Labor-ticket labor applied into WIP (`LABOR`). |
+| `:OverheadApplicationEvent` | `:OverheadApplied` | Burden applied into WIP on top of labor (`BURDEN`). |
+| `:JobCompletionEvent` | `:JobCompletion` | Closed job's WIP relieved into Finished Goods (`FG_COMPLETION`). |
+
+The first three are grouped under an intermediate `:WIPAdditionEvent` class —
+the shared domain of `:addsCostToWIP`. Job completion deliberately sits
+outside it (it relieves WIP rather than adding to it). `:Job` names the work
+order every event costs.
+
+**Flow properties** (domain → range):
+
+| Property | Domain | Range |
+|---|---|---|
+| `:consumesMaterial` | `:MaterialIssueEvent` | `:RawMaterialsInventory` |
+| `:addsCostToWIP` | `:WIPAdditionEvent` | `:WIPInventory` |
+| `:producesFinishedGoods` | `:JobCompletionEvent` | `:FinishedGoodsInventory` |
+| `:forJob` | `:LedgerEvent` | `:Job` |
+
+The ranges of the first three ARE the SKOS inventory concepts of the ledger
+scheme — the reasoning layer that lets a consumer ask "what does this event
+consume, where does its cost go?" from the vocabulary alone. Note the flow
+properties declare `rdfs:domain`; if they are ever mapped through Ontop over
+SQLite, the POC's range-only link-property rule applies and the domains must
+be revisited then. `ledger_events_vocab_check.py` gates all of the above
+offline (and runs in `scripts/post-merge.sh`).
 
 ---
 
