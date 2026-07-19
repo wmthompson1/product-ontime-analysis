@@ -717,7 +717,7 @@ SKOS `:CostAccumulationEvent`):
 
 The first three are grouped under an intermediate `:WIPAdditionEvent` class —
 the shared domain of `:addsCostToWIP`. Job completion deliberately sits
-outside it (it relieves WIP rather than adding to it). `:Job` names the work
+outside it (it relieves WIP rather than adding to it). `:WorkOrder` names the work
 order every event costs.
 
 **Flow properties** (domain → range):
@@ -727,7 +727,7 @@ order every event costs.
 | `:consumesMaterial` | `:MaterialIssueEvent` | `:RawMaterialsInventory` |
 | `:addsCostToWIP` | `:WIPAdditionEvent` | `:WIPInventory` |
 | `:producesFinishedGoods` | `:JobCompletionEvent` | `:FinishedGoodsInventory` |
-| `:forJob` | `:LedgerEvent` | `:Job` |
+| `:forJob` | `:LedgerEvent` | `:WorkOrder` |
 
 The ranges of the first three ARE the SKOS inventory concepts of the ledger
 scheme — the reasoning layer that lets a consumer ask "what does this event

@@ -82,9 +82,9 @@
     rdfs:comment "Posting event: a closed work order's accumulated WIP relieved into Finished Goods Inventory on the job's close date (gl_events event_type FG_COMPLETION). Produces finished goods (:producesFinishedGoods); NOT a WIP-addition event — it ends the WIP accumulation the other three events feed." ;
     skos:closeMatch :JobCompletion .
 
-:Job
+:WorkOrder
     a owl:Class ;
-    rdfs:label "Job" ;
+    rdfs:label "Work Order" ;
     rdfs:comment "The job (work order) whose cost the ledger accumulates: the endurant every ledger event is FOR (:forJob). One job's story is the ordered sequence of its events — material issues, labor and overhead applications, then a single completion. Grounded 1:1 on the physical work_order table (see ledger_binding_map.json entity_table_bindings); its lifecycle walks the real WO status vocabulary via :hasLifecycleState." .
 
 # ── Job lifecycle states ─────────────────────────────────────────────────────
@@ -95,31 +95,31 @@
 # column value without guessing. Completion (:JobCompletionEvent) is only
 # legal from the Released state; planned orders (WO-PLN-*) never complete.
 
-:JobLifecycleState
+:WorkOrderLifecycleState
     a owl:Class ;
-    rdfs:label "Job Lifecycle State" ;
-    rdfs:comment "The closed vocabulary of lifecycle states a :Job moves through, mirroring work_order.status exactly: Unreleased -> (Firmed) -> Released -> Closed. skos:notation on each individual carries the physical status string." .
+    rdfs:label "Work Order Lifecycle State" ;
+    rdfs:comment "The closed vocabulary of lifecycle states a :WorkOrder moves through, mirroring work_order.status exactly: Unreleased -> (Firmed) -> Released -> Closed. skos:notation on each individual carries the physical status string." .
 
-:UnreleasedJobState
-    a owl:NamedIndividual , :JobLifecycleState ;
+:UnreleasedWorkOrderState
+    a owl:NamedIndividual , :WorkOrderLifecycleState ;
     rdfs:label "Unreleased" ;
     skos:notation "unreleased" ;
     rdfs:comment "Job registered but not yet firmed or released to the shop floor. The state the job module's create_job function registers a new job in." .
 
-:FirmedJobState
-    a owl:NamedIndividual , :JobLifecycleState ;
+:FirmedWorkOrderState
+    a owl:NamedIndividual , :WorkOrderLifecycleState ;
     rdfs:label "Firmed" ;
     skos:notation "firmed" ;
     rdfs:comment "Job firmed by the planner — first lots tested or recently engineered parts — but not yet released." .
 
-:ReleasedJobState
-    a owl:NamedIndividual , :JobLifecycleState ;
+:ReleasedWorkOrderState
+    a owl:NamedIndividual , :WorkOrderLifecycleState ;
     rdfs:label "Released" ;
     skos:notation "released" ;
     rdfs:comment "Job released to the shop floor and accumulating cost. The ONLY state a :JobCompletionEvent may be posted from." .
 
-:ClosedJobState
-    a owl:NamedIndividual , :JobLifecycleState ;
+:ClosedWorkOrderState
+    a owl:NamedIndividual , :WorkOrderLifecycleState ;
     rdfs:label "Closed" ;
     skos:notation "closed" ;
     rdfs:comment "Job closed: its accumulated WIP was relieved into Finished Goods by a single :JobCompletionEvent at a data-derived close date. Terminal state." .
@@ -127,9 +127,9 @@
 :hasLifecycleState
     a owl:ObjectProperty ;
     rdfs:label "has lifecycle state" ;
-    rdfs:comment "Ties a :Job to its current :JobLifecycleState — the semantic twin of the physical work_order.status column (each state individual's skos:notation IS the column value)." ;
-    rdfs:domain :Job ;
-    rdfs:range  :JobLifecycleState .
+    rdfs:comment "Ties a :WorkOrder to its current :WorkOrderLifecycleState — the semantic twin of the physical work_order.status column (each state individual's skos:notation IS the column value)." ;
+    rdfs:domain :WorkOrder ;
+    rdfs:range  :WorkOrderLifecycleState .
 
 # ── Flow properties ──────────────────────────────────────────────────────────
 # Domains/ranges tie the event classes to the SKOS inventory concepts of the
@@ -163,4 +163,4 @@
     rdfs:label "for job" ;
     rdfs:comment "Ties every ledger event to the single job (work order) it costs — the spine of the job-costing story. Domain is the event root :LedgerEvent, so all four event classes inherit it." ;
     rdfs:domain :LedgerEvent ;
-    rdfs:range  :Job .
+    rdfs:range  :WorkOrder .

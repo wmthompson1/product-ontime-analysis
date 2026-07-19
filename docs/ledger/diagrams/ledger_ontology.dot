@@ -66,8 +66,8 @@ digraph ledger_ontology {
         LaborApplicationEvent [label="owl:Class\n:LaborApplicationEvent"];
         OverheadApplicationEvent [label="owl:Class\n:OverheadApplicationEvent"];
         JobCompletionEvent    [label="owl:Class\n:JobCompletionEvent"];
-        Job                   [label="owl:Class\n:Job\n(work_order, key wo_id)"];
-        JobLifecycleState     [label="owl:Class\n:JobLifecycleState\nunreleased / firmed /\nreleased / closed"];
+        Job                   [label="owl:Class\n:WorkOrder\n(work_order, key wo_id)"];
+        JobLifecycleState     [label="owl:Class\n:WorkOrderLifecycleState\nunreleased / firmed /\nreleased / closed"];
 
         edge [color="#b09660", label="rdfs:subClassOf"];
         WIPAdditionEvent      -> LedgerEvent;

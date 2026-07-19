@@ -273,7 +273,7 @@ def load_ledger_bindings(
     blocks = _parse_ttl_blocks(events_ttl_path)
 
     # ---- entity class -> physical table bindings ------------------------
-    # (e.g. ledger:Job -> work_order keyed by wo_id). Entities ground on
+    # (e.g. ledger:WorkOrder -> work_order keyed by wo_id). Entities ground on
     # NON-ledger tables of the governed graph, keyed by an explicit column.
     entity_map = doc.get("entity_table_bindings") or {}
     if not isinstance(entity_map, dict):

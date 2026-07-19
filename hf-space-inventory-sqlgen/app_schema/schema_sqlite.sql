@@ -829,6 +829,35 @@ WHERE si.intent_name IN (
     'ledger_material_issued','ledger_fg_production'
 ) AND sp.perspective_name = 'General_Ledger';
 
+-- Job Costing Ledger intent-concept links (name-based subqueries — ID-independent).
+-- Concepts are seeded by replit_integrations/seed_elevations.py (batch 9); these
+-- inserts are silently zero-row until that seeder has run — the app re-applies
+-- this seed on every boot, so they self-heal (same pattern as the MRP links).
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: bucket balance is the measure this intent reports'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'ledger_inventory_balance' AND sc.concept_name = 'InventoryBucketBalance';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: cost element is the roll-up axis of the job cost summary'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'ledger_job_cost_summary' AND sc.concept_name = 'JobCostElement';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: posting event class drives the chronological audit trace'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'ledger_event_trace' AND sc.concept_name = 'LedgerPostingEventClass';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: RM_ISSUE outflow is the measure this intent reports'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'ledger_material_issued' AND sc.concept_name = 'MaterialIssueFlow';
+
+INSERT OR IGNORE INTO schema_intent_concepts (intent_id, concept_id, intent_factor_weight, explanation)
+SELECT si.intent_id, sc.concept_id, 1, 'ELEVATED: FG_COMPLETION inflow is the measure this intent reports'
+FROM schema_intents si, schema_concepts sc
+WHERE si.intent_name = 'ledger_fg_production' AND sc.concept_name = 'FinishedGoodsProductionFlow';
+
 -- Job Costing Ledger palette queries (new file — indexes 0..4, no displacement)
 INSERT OR IGNORE INTO schema_intent_queries (intent_id, query_category, query_file, query_index, query_name)
 SELECT si.intent_id, 'job_costing_ledger', 'job_costing_ledger.sql', q.qi, q.qn

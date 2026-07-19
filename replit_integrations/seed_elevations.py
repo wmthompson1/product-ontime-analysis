@@ -100,6 +100,35 @@ NEW_CONCEPTS = {
         "Requirement read through the manufacturing lens: as-built actuals on a "
         "WORK_ORDER component (batch basis); component_type='WORK_ORDER'",
     ),
+    # --- General_Ledger (job-costing ledger) vocabulary. Mirrors the five
+    # SKOS anchors of the Job-Costing Ledger Concept Scheme; each concept
+    # anchors one governed ledger query intent (ledger_* in schema_intents).
+    "LedgerPostingEventClass": (
+        "classification", "finance",
+        "Kind of ledger posting event in the gl_events audit trail "
+        "(RM_ISSUE / LABOR / BURDEN / FG_COMPLETION)",
+    ),
+    "JobCostElement": (
+        "classification", "finance",
+        "Cost element of a job-cost ledger line (labor / material / burden / "
+        "service) rolled up per work order in gl_job_cost_detail",
+    ),
+    "InventoryBucketBalance": (
+        "metric", "finance",
+        "Signed running balance of a perpetual inventory bucket (Raw Materials "
+        "/ WIP / Finished Goods) from the gl_* sub-ledgers; the approved "
+        "ledger_inventorybalance snippet is the authoritative derivation",
+    ),
+    "MaterialIssueFlow": (
+        "metric", "finance",
+        "Material issued to jobs over a period: RM_ISSUE outflow from the Raw "
+        "Materials bucket, reported as positive issued value per part and job",
+    ),
+    "FinishedGoodsProductionFlow": (
+        "metric", "finance",
+        "Finished goods produced over a period: FG_COMPLETION inflow into the "
+        "Finished Goods bucket per part and job",
+    ),
 }
 
 # M3 — MRP / inventory-planning vocabulary, seeded as perspective-AGNOSTIC
@@ -290,6 +319,32 @@ ELEVATIONS = [
     ("Inventory_Transactions", "EconomicOrderQuantity",
      "po_line", "quantity", 3,
      "Average observed PO order quantity — empirical EOQ proxy (no D/S/H cost params in schema)"),
+    # --- batch 9: General_Ledger (job-costing ledger). The bounded categorical
+    # is event_type (the posting event class); the balance/flow metrics follow
+    # the batch-7 pattern — anchored to their PRIMARY INPUT column, with the
+    # approved governed snippet as the authoritative derivation. Value-routed
+    # flows carry the event_type condition in context_hint (batch-5 pattern).
+    ("General_Ledger", "LedgerPostingEventClass",
+     "gl_events", "event_type", 3,
+     "Posting event class in the ledger audit trail (RM_ISSUE / LABOR / BURDEN / FG_COMPLETION)"),
+    ("General_Ledger", "JobCostElement",
+     "gl_job_cost_detail", "event_type", 3,
+     "Cost element of the job-cost line (labor / material / burden per work order)"),
+    ("General_Ledger", "InventoryBucketBalance",
+     "gl_raw_materials_inventory", "amount", 3,
+     "Signed RM-bucket posting amount — primary input to the running bucket balance"),
+    ("General_Ledger", "InventoryBucketBalance",
+     "gl_wip_inventory", "amount", 3,
+     "Signed WIP-bucket posting amount — primary input to the running bucket balance"),
+    ("General_Ledger", "InventoryBucketBalance",
+     "gl_finished_goods_inventory", "amount", 3,
+     "Signed FG-bucket posting amount — primary input to the running bucket balance"),
+    ("General_Ledger", "MaterialIssueFlow",
+     "gl_raw_materials_inventory", "event_type", 3,
+     "event_type = 'RM_ISSUE' — material issued out of the RM bucket to a job"),
+    ("General_Ledger", "FinishedGoodsProductionFlow",
+     "gl_finished_goods_inventory", "event_type", 3,
+     "event_type = 'FG_COMPLETION' — finished goods completed into the FG bucket"),
 ]
 
 # --- M4: METRIC computation templates -------------------------------------

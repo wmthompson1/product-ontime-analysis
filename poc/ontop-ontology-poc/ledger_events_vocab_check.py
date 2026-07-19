@@ -7,12 +7,12 @@ Exits non-zero on any failure. File-vs-file only — no DB, no network, no JVM.
 Proves:
   1. The Turtle file parses into subject blocks (same focused parser style as
      mapping_drift_check.py — no rdflib dependency).
-  2. The four required event classes, the Job class, and the four flow
+  2. The four required event classes, the WorkOrder class, and the four flow
      properties are declared with the exact domains/ranges the task defines:
        MaterialIssueEvent    consumesMaterial      -> RawMaterialsInventory
        WIP-addition events   addsCostToWIP         -> WIPInventory
        JobCompletionEvent    producesFinishedGoods -> FinishedGoodsInventory
-       every LedgerEvent     forJob                -> Job
+       every LedgerEvent     forJob                -> WorkOrder
   3. The class hierarchy is safe-annotation only: rdfs:subClassOf and
      skos:closeMatch — NO owl:equivalentClass anywhere in the file.
   4. Every skos:closeMatch target and every SKOS-concept range actually exists
@@ -118,7 +118,7 @@ def main() -> None:
 
     event_classes = ["MaterialIssueEvent", "LaborApplicationEvent",
                      "OverheadApplicationEvent", "JobCompletionEvent"]
-    for cls in event_classes + ["LedgerEvent", "WIPAdditionEvent", "Job"]:
+    for cls in event_classes + ["LedgerEvent", "WIPAdditionEvent", "WorkOrder"]:
         check(f"class :{cls} declared", is_class(cls))
     for prop in ["consumesMaterial", "addsCostToWIP", "producesFinishedGoods", "forJob"]:
         check(f"object property :{prop} declared", is_obj_prop(prop))
@@ -150,7 +150,7 @@ def main() -> None:
         "consumesMaterial":      ("MaterialIssueEvent", "RawMaterialsInventory"),
         "addsCostToWIP":         ("WIPAdditionEvent", "WIPInventory"),
         "producesFinishedGoods": ("JobCompletionEvent", "FinishedGoodsInventory"),
-        "forJob":                ("LedgerEvent", "Job"),
+        "forJob":                ("LedgerEvent", "WorkOrder"),
     }
     for prop, (dom, rng) in expected_dr.items():
         body = blocks.get(prop, "")

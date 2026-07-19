@@ -2,12 +2,12 @@
 
 A Job maps 1:1 to the existing ``work_order`` row (Infor LN / SyteLine
 semantics): this module MODELS that mapping — it never invents a parallel
-table. The ontology twin is ``ledger:Job`` in
+table. The ontology twin is ``ledger:WorkOrder`` in
 poc/ontop-ontology-poc/ontology/ledger_events.ttl (lifecycle states
 Unreleased / Firmed / Released / Closed aligned to the real
 ``work_order.status`` vocabulary); the physical grounding is the governed
 ``entity_table_bindings`` entry in ledger_binding_map.json
-(ledger:Job -> work_order keyed by wo_id).
+(ledger:WorkOrder -> work_order keyed by wo_id).
 
 API (all fail-closed, all take an open sqlite3 cursor, none commit):
 
@@ -49,7 +49,7 @@ __all__ = [
     "job_lifecycle_trace",
 ]
 
-JOB_ENTITY_URI = "ledger:Job"
+JOB_ENTITY_URI = "ledger:WorkOrder"
 
 # The CLOSED lifecycle vocabulary — exactly work_order.status, never invented.
 LIFECYCLE_STATES = ("unreleased", "firmed", "released", "closed")

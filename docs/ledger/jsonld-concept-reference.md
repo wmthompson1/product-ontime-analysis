@@ -61,8 +61,8 @@ enforces against the OWL event classes' `skos:closeMatch` targets.
 `poc/ontop-ontology-poc/ontology/ledger_events.ttl` adds OWL event *classes*
 (`:LedgerEvent`, `:WIPAdditionEvent`, `:MaterialIssueEvent`,
 `:LaborApplicationEvent`, `:OverheadApplicationEvent`,
-`:JobCompletionEvent`), the `:Job` entity class (grounded 1:1 on
-`work_order` keyed by `wo_id`), the closed `:JobLifecycleState` vocabulary
+`:JobCompletionEvent`), the `:WorkOrder` entity class (grounded 1:1 on
+`work_order` keyed by `wo_id`), the closed `:WorkOrderLifecycleState` vocabulary
 mirroring `work_order.status` exactly (unreleased / firmed / released /
 closed), and the flow properties `:consumesMaterial`, `:addsCostToWIP`,
 `:producesFinishedGoods`, `:forJob`, `:hasLifecycleState` — in the *same*

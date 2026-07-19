@@ -5,10 +5,10 @@ Run directly (gate style):  python hf-space-inventory-sqlgen/tests/test_job_life
 
 Proves:
   Part 0 — ontology & binding layer:
-    * ledger_events.ttl declares :Job, :JobLifecycleState, :hasLifecycleState,
+    * ledger_events.ttl declares :WorkOrder, :WorkOrderLifecycleState, :hasLifecycleState,
       and the four state individuals whose skos:notation values are EXACTLY
       the real work_order.status vocabulary (unreleased/firmed/released/closed).
-    * The governed binding map grounds ledger:Job -> work_order keyed by wo_id.
+    * The governed binding map grounds ledger:WorkOrder -> work_order keyed by wo_id.
   Part A — lifecycle functions on a throwaway in-memory DB:
     * create_job registers an unreleased synthetic WO row (seeding
       conventions: next WO-%05d id, data-derived open date, real part).
@@ -83,28 +83,28 @@ def part_0():
     print("Part 0 — ontology lifecycle states + Job->work_order binding")
     with open(EVENTS_TTL, encoding="utf-8") as fh:
         ttl = fh.read()
-    check(":Job declared a owl:Class",
-          re.search(r"^:Job\b.*?\ba owl:Class\b", ttl, re.S | re.M) is not None)
-    check(":JobLifecycleState class declared", ":JobLifecycleState" in ttl
-          and re.search(r"^:JobLifecycleState\s*\n\s+a owl:Class", ttl, re.M) is not None)
+    check(":WorkOrder declared a owl:Class",
+          re.search(r"^:WorkOrder\b.*?\ba owl:Class\b", ttl, re.S | re.M) is not None)
+    check(":WorkOrderLifecycleState class declared", ":WorkOrderLifecycleState" in ttl
+          and re.search(r"^:WorkOrderLifecycleState\s*\n\s+a owl:Class", ttl, re.M) is not None)
     check(":hasLifecycleState domain Job range JobLifecycleState",
-          re.search(r"^:hasLifecycleState.*?rdfs:domain :Job ;.*?"
-                    r"rdfs:range\s+:JobLifecycleState", ttl, re.S | re.M) is not None)
+          re.search(r"^:hasLifecycleState.*?rdfs:domain :WorkOrder ;.*?"
+                    r"rdfs:range\s+:WorkOrderLifecycleState", ttl, re.S | re.M) is not None)
     notations = set(re.findall(r'skos:notation "([a-z]+)"', ttl))
     check("state notations are EXACTLY the real WO status vocabulary",
           notations == set(LIFECYCLE_STATES), str(sorted(notations)))
     for state in ("Unreleased", "Firmed", "Released", "Closed"):
-        check(f":{state}JobState individual declared",
-              re.search(rf"^:{state}JobState\s*\n\s+a owl:NamedIndividual\s*,"
-                        r"\s*:JobLifecycleState", ttl, re.M) is not None)
+        check(f":{state}WorkOrderState individual declared",
+              re.search(rf"^:{state}WorkOrderState\s*\n\s+a owl:NamedIndividual\s*,"
+                        r"\s*:WorkOrderLifecycleState", ttl, re.M) is not None)
 
     store = get_ledger_binding_store(reload=True)
-    b = store.entity_binding("ledger:Job")
-    check("binding map grounds ledger:Job", b is not None)
-    check("ledger:Job -> work_order keyed by wo_id",
+    b = store.entity_binding("ledger:WorkOrder")
+    check("binding map grounds ledger:WorkOrder", b is not None)
+    check("ledger:WorkOrder -> work_order keyed by wo_id",
           b is not None and b.table_name == "work_order"
           and b.key_column == "wo_id")
-    check("table_for_entity lookup", store.table_for_entity("ledger:Job") == "work_order")
+    check("table_for_entity lookup", store.table_for_entity("ledger:WorkOrder") == "work_order")
     rec = store.as_records()
     check("as_records carries entity_table_bindings",
           len(rec.get("entity_table_bindings", [])) == 1)

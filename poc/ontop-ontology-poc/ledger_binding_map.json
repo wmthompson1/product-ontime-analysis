@@ -20,7 +20,7 @@
     "  class's skos:closeMatch concept notation against the bound event_type.",
     "",
     "entity_table_bindings: OWL entity class -> physical (non-gl_*) table + key",
-    "  column. ledger:Job grounds 1:1 on work_order keyed by wo_id — this is",
+    "  column. ledger:WorkOrder grounds 1:1 on work_order keyed by wo_id — this is",
     "  what lets the semantic layer resolve 'job 42' to a wo_id. The loader",
     "  fails closed if the class is not declared in ledger_events.ttl or the",
     "  table is absent from the governed graph."
@@ -36,7 +36,7 @@
     "ledger:CostAccumulationEvent": "gl_events"
   },
   "entity_table_bindings": {
-    "ledger:Job": {
+    "ledger:WorkOrder": {
       "table": "work_order",
       "key_column": "wo_id"
     }

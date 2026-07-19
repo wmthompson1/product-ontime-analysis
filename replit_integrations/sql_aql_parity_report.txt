@@ -1,20 +1,12 @@
 SQLite (SQL) <-> ArangoDB (AQL) parity report
-generated: 2026-07-19T14:37:03+00:00
+generated: 2026-07-19T16:45:00+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 arango_node_collection: manufacturing_graph_node
 arango_edge_collection: manufacturing_graph_edge
 
 collection        SQLite    ArangoDB    Match
 ---------------------------------------------
-nodes                440         374 MISMATCH
-edges                537         459 MISMATCH
+nodes                445         445       OK
+edges                544         544       OK
 
-differences:
-  - nodes: count mismatch — SQLite=440 ArangoDB=374
-  - nodes: 66 _key(s) in SQLite but not ArangoDB, e.g. ['gl_events:amount:structural:system:none:none', 'gl_events:entity:structural:system:none:none', 'gl_events:event_date:structural:system:none:none', 'gl_events:event_id:structural:system:none:none', 'gl_events:event_type:structural:system:none:none']
-  - edges: count mismatch — SQLite=537 ArangoDB=459
-  - edges: 90 _key(s) in SQLite but not ArangoDB, e.g. ['gl_events:amount:structural:system:has_column:SYS_HAS_GLE_AMO_001', 'gl_events:event_date:structural:system:has_column:SYS_HAS_GLE_EVE_001', 'gl_events:event_id:structural:system:has_column:SYS_HAS_GLE_EVE_002', 'gl_events:event_type:structural:system:has_column:SYS_HAS_GLE_EVE_003', 'gl_events:job_id:structural:system:has_column:SYS_HAS_GLE_JOB_001']
-  - edges: 12 _key(s) in ArangoDB but not SQLite, e.g. ['receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_001', 'receiving:part_id:structural:system:has_column:SYS_HAS_REC_PAR_001', 'receiving:part_id:structural:system:references:SYS_REF_REC_PAR_001', 'receiving:receipt_date:structural:system:has_column:SYS_HAS_REC_REC_001', 'receiving:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_002']
-  - edges: field mismatch for 'receiving:part_id:structural:system:references:SYS_REF_REC_PAR_002' on ['_to', 'references_table']: sqlite={'_to': 'manufacturing_graph_node/part:part_id:structural:system:none:none', 'references_table': 'part'} arangodb={'_to': 'manufacturing_graph_node/work_order:part_id:structural:system:none:none', 'references_table': 'work_order'}
-
-[sql_aql_parity] FAIL — the SQLite graph tables do not match the live ArangoDB graph
+[sql_aql_parity] OK — 445 nodes and 544 edges match between SQLite (SQL) and ArangoDB (AQL)

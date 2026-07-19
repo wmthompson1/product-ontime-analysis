@@ -299,9 +299,9 @@ if [ -f hf-space-inventory-sqlgen/tests/test_ledger_bindings.py ]; then
 fi
 
 if [ -f hf-space-inventory-sqlgen/tests/test_job_lifecycle.py ]; then
-  # Job entity & lifecycle gate: the ontology declares :Job with the four
+  # Job entity & lifecycle gate: the ontology declares :WorkOrder with the four
   # lifecycle state individuals (notations exactly the real work_order.status
-  # vocabulary), the binding map grounds ledger:Job -> work_order (wo_id),
+  # vocabulary), the binding map grounds ledger:WorkOrder -> work_order (wo_id),
   # create_job/advance_job/complete_job fail closed (planned WO-PLN-* never
   # completable, completion only from released, data-derived dates), and the
   # lifecycle trace of a backfilled closed WO tells the full ordered story.

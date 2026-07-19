@@ -40,7 +40,7 @@
 
 :CostedJob a owl:Class ;
     rdfs:label "Costed Job" ;
-    rdfs:comment "A work order in its role as the cost-collection object of the ledger (the ledger# ontology's Job). Kept distinct from ledger:Job to avoid re-declaring a ledger-namespace term." .
+    rdfs:comment "A work order in its role as the cost-collection object of the ledger (the ledger# ontology's Job). Kept distinct from ledger:WorkOrder to avoid re-declaring a ledger-namespace term." .
 
 :RawMaterialsLine a owl:Class ;
     rdfs:label "Raw Materials Ledger Line" ;
