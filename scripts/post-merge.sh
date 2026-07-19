@@ -185,6 +185,13 @@ if [ -f hf-space-inventory-sqlgen/tests/test_gl_schema_registry.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_month_end_wip_reconciliation.py ]; then
+  python hf-space-inventory-sqlgen/tests/test_month_end_wip_reconciliation.py || {
+    echo "post-merge: month-end WIP reconciliation test failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_procurement_views.py ]; then
   python hf-space-inventory-sqlgen/tests/test_procurement_views.py || {
     echo "post-merge: procurement view tests failed"
