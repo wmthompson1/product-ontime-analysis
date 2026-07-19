@@ -1,0 +1,38 @@
+{
+  "_comment": [
+    "Governed binding map for the job-costing ledger: ties the three ontology",
+    "layers to the physical SQL ledger. EXPLICIT ONLY — same fail-visible rule",
+    "as binding_bridge.json: a concept or event class absent from this file is",
+    "simply unbound; the loader (hf-space-inventory-sqlgen/ledger_bindings.py)",
+    "additionally FAILS CLOSED if any entry here does not exist in its layer.",
+    "",
+    "URIs use the compact 'ledger:' form exactly as they appear in",
+    "ontology/ledger_skos.jsonld and ontology/ledger_events.ttl",
+    "(ledger: = http://example.org/manufacturing/ledger#).",
+    "",
+    "concept_table_bindings: SKOS concept URI -> physical ledger table.",
+    "  Only the five concepts with a physical twin are bound; the raw-material",
+    "  subtype concepts (Standards, Detail Parts, Components, Sheet Metal) are",
+    "  vocabulary-only and deliberately unbound.",
+    "",
+    "event_class_bindings: RDF (OWL) posting-event class -> gl_events.event_type.",
+    "  One-to-one with the four posting event types; the loader cross-checks each",
+    "  class's skos:closeMatch concept notation against the bound event_type."
+  ],
+  "version": 1,
+  "namespace": "http://example.org/manufacturing/ledger#",
+  "scheme": "ledger:JobCostingLedgerScheme",
+  "concept_table_bindings": {
+    "ledger:RawMaterialsInventory": "gl_raw_materials_inventory",
+    "ledger:WIPInventory": "gl_wip_inventory",
+    "ledger:FinishedGoodsInventory": "gl_finished_goods_inventory",
+    "ledger:JobCostDetail": "gl_job_cost_detail",
+    "ledger:CostAccumulationEvent": "gl_events"
+  },
+  "event_class_bindings": {
+    "ledger:MaterialIssueEvent": "RM_ISSUE",
+    "ledger:LaborApplicationEvent": "LABOR",
+    "ledger:OverheadApplicationEvent": "BURDEN",
+    "ledger:JobCompletionEvent": "FG_COMPLETION"
+  }
+}

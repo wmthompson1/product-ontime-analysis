@@ -1,0 +1,9 @@
+PREFIX : <http://example.org/manufacturing/jobcost#>
+
+# Smoke: gl_wip_inventory over SPARQL — WIP movement lines.
+# Compared against SELECT COUNT(*), SUM(amount) FROM gl_wip_inventory.
+SELECT (COUNT(?l) AS ?lines) (SUM(?amt) AS ?totalAmount)
+WHERE {
+  ?l a :WIPLine ;
+     :wipAmount ?amt .
+}

@@ -51,3 +51,4 @@
 - [Shared selector pane design](selector-pane-design.md) — tags = the 15 schema_perspectives (Define Relationship vocabulary), never intent categories; concrete 5-dropdown chain Table→Column→Concept→Intent→Query; surface coverage gaps honestly.
 - [Live references edges never load](arango-references-edge-key-illegal.md) — fk:: key contains `->`, illegal in Arango; live `references` is always empty (test SKIPs); full graph_sync live run exceeds 120s cap — use targeted upserts + prune.
 - [Temporal parameter contract validation](temporal-param-contract-validation.md) — SolderEngine passive fail-closed check; validate PER-OCCURRENCE (not token name); approved guard idiom is `(:param IS NULL OR col op :param)` — accept only positive IS NULL arm.
+- [Ontop generated-mapping quirks](ontop-generated-mapping-quirks.md) — FK alias when child col ≠ target key; SQLite DATETIME needs explicit ^^xsd:string; distinct namespace per showcase, closeMatch only.

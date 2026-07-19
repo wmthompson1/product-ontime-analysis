@@ -1,0 +1,11 @@
+PREFIX : <http://example.org/manufacturing/jobcost#>
+
+# Smoke: gl_events over SPARQL — every GL posting event with its amount.
+# Scalar aggregate (no GROUP BY / OPTIONAL) so it stays within the
+# Ontop+SQLite shapes that serialize cleanly. Compared against
+# SELECT COUNT(*), SUM(amount) FROM gl_events on the same snapshot.
+SELECT (COUNT(?e) AS ?events) (SUM(?amt) AS ?totalAmount)
+WHERE {
+  ?e a :GLEvent ;
+     :eventAmount ?amt .
+}

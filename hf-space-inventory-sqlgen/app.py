@@ -615,6 +615,21 @@ def init_sqlite_db():
     except Exception as e:
         print(f"skos_ledger LOAD FAILED (fail-closed, concepts unavailable): {e}")
 
+    # Load the governed ledger binding map (committed JSON at
+    # poc/ontop-ontology-poc/ledger_binding_map.json) into its read-only
+    # store: SKOS concept URI -> gl_* table, RDF event class ->
+    # gl_events.event_type. FAILS CLOSED on any cross-layer inconsistency
+    # (LedgerBindingError); surfaced loudly here but never blocks boot.
+    try:
+        from ledger_bindings import get_ledger_binding_store
+        _lb = get_ledger_binding_store(reload=True)
+        print(
+            f"ledger_bindings: loaded {len(_lb.concept_bindings)} concept->table "
+            f"and {len(_lb.event_bindings)} event-class->event_type binding(s)."
+        )
+    except Exception as e:
+        print(f"ledger_bindings LOAD FAILED (fail-closed, bindings unavailable): {e}")
+
     # Extract the embedded ontological structure from the 7 MRP ground-truth SQL
     # views and seed sql_view_ontology. INSERT OR REPLACE — idempotent on every
     # boot, safe to re-run. Never blocks boot.
@@ -2438,6 +2453,39 @@ async def get_resolves_to(concept_name: Optional[str] = None):
             }
     except Exception as e:
         return {"error": str(e), "resolves_to": [], "count": 0}
+
+
+@app.get("/mcp/tools/get_ledger_bindings")
+async def get_ledger_bindings():
+    """Get the governed job-costing ledger binding map (read-only).
+
+    Serves the validated in-memory view of the committed binding map
+    (`poc/ontop-ontology-poc/ledger_binding_map.json`):
+
+      * `concept_table_bindings` — SKOS concept URI -> physical `gl_*` table
+        (with the concept's prefLabel for display), and
+      * `event_class_bindings` — RDF (OWL) posting-event class ->
+        `gl_events.event_type` (with the closeMatch SKOS concept URI).
+
+    The loader FAILS CLOSED (ledger_bindings.py) — a map that disagrees with
+    the SKOS scheme, the event ontology, or the governed SQL graph is never
+    served; this endpoint then reports the load error instead.
+    """
+    try:
+        from ledger_bindings import get_ledger_binding_store
+        store = get_ledger_binding_store()
+        payload = store.as_records()
+        payload["concept_binding_count"] = len(payload["concept_table_bindings"])
+        payload["event_binding_count"] = len(payload["event_class_bindings"])
+        return payload
+    except Exception as e:
+        return {
+            "error": str(e),
+            "concept_table_bindings": [],
+            "event_class_bindings": [],
+            "concept_binding_count": 0,
+            "event_binding_count": 0,
+        }
 
 
 @app.get("/mcp/tools/get_ambiguous_fields")

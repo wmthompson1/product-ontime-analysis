@@ -1,0 +1,143 @@
+{
+  "_comment": [
+    "Publishing manifest for the Job-Costing Ledger Ontop OBDA mapping — the",
+    "generated-mapping pattern (see on_time_delivery_manifest.json). This file",
+    "holds ONLY the stable PUBLISHING decisions absent from the governed schema",
+    "(replit_integrations/graph_metadata.json): the ontology term names, the",
+    "jobcost# namespace, the IRI templates, and the entity modelling. Every",
+    "VOLATILE physical fact (which columns exist, their datatypes, and the FK",
+    "join columns) is RESOLVED from graph_metadata.json at generation time, so",
+    "a rename or drop in the governed schema breaks generation loudly instead",
+    "of silently desyncing the published graph.",
+    "",
+    "The jobcost# namespace is deliberately DISTINCT from the ledger# ontology",
+    "namespace (ledger_skos.jsonld / ledger_events.ttl): these are the physical",
+    "record classes published over SPARQL, linked to the ledger# concepts via",
+    "skos:closeMatch annotations in ontology/job_costing_ledger.ttl and via the",
+    "governed binding map (ledger_binding_map.json) — never owl:equivalentClass.",
+    "",
+    "Regenerate: python poc/ontop-ontology-poc/generate_mapping.py",
+    "  --manifest poc/ontop-ontology-poc/mapping/job_costing_ledger_manifest.json",
+    "  --obda-out poc/ontop-ontology-poc/mapping/job_costing_ledger.obda",
+    "  --vocab-out poc/ontop-ontology-poc/ontology/job_costing_ledger.generated.vocab.ttl"
+  ],
+  "ontology_iri": "http://example.org/manufacturing/jobcost",
+  "prefixes": [
+    [":", "http://example.org/manufacturing/jobcost#"],
+    ["owl:", "http://www.w3.org/2002/07/owl#"],
+    ["rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"],
+    ["rdfs:", "http://www.w3.org/2000/01/rdf-schema#"],
+    ["xsd:", "http://www.w3.org/2001/XMLSchema#"]
+  ],
+  "literal_type_map": {
+    "DATE": "xsd:date",
+    "DATETIME": "xsd:string",
+    "REAL": "xsd:double",
+    "TEXT": "xsd:string",
+    "INTEGER": "xsd:integer"
+  },
+  "classes": {
+    "GLEvent": {
+      "table": "gl_events",
+      "key_column": "event_id",
+      "iri_template": ":event/{event_id}",
+      "label": "GL Posting Event"
+    },
+    "CostedJob": {
+      "table": "work_order",
+      "key_column": "wo_id",
+      "iri_template": ":job/{wo_id}",
+      "label": "Costed Job"
+    },
+    "RawMaterialsLine": {
+      "table": "gl_raw_materials_inventory",
+      "key_column": "line_id",
+      "iri_template": ":rmLine/{line_id}",
+      "label": "Raw Materials Ledger Line"
+    },
+    "WIPLine": {
+      "table": "gl_wip_inventory",
+      "key_column": "line_id",
+      "iri_template": ":wipLine/{line_id}",
+      "label": "WIP Ledger Line"
+    },
+    "FinishedGoodsLine": {
+      "table": "gl_finished_goods_inventory",
+      "key_column": "line_id",
+      "iri_template": ":fgLine/{line_id}",
+      "label": "Finished Goods Ledger Line"
+    },
+    "JobCostLine": {
+      "table": "gl_job_cost_detail",
+      "key_column": "line_id",
+      "iri_template": ":costLine/{line_id}",
+      "label": "Job Cost Detail Line"
+    }
+  },
+  "mappings": [
+    {
+      "id": "map-jc-job",
+      "kind": "entity",
+      "class": "CostedJob"
+    },
+    {
+      "id": "map-jc-event",
+      "kind": "entity",
+      "class": "GLEvent",
+      "datatype_properties": [
+        { "term": "eventType", "column": "event_type", "label": "posting event type" },
+        { "term": "eventAmount", "column": "amount", "label": "posting amount" },
+        { "term": "eventDate", "column": "event_date", "label": "posting date" },
+        { "term": "sourceTable", "column": "source_table", "label": "ERP source table" }
+      ],
+      "object_properties": [
+        { "term": "costsJob", "fk_column": "job_id", "target_class": "CostedJob", "label": "accumulates cost to job" }
+      ]
+    },
+    {
+      "id": "map-jc-rm-line",
+      "kind": "entity",
+      "class": "RawMaterialsLine",
+      "datatype_properties": [
+        { "term": "rmAmount", "column": "amount", "label": "raw materials credit amount" }
+      ],
+      "object_properties": [
+        { "term": "rmPostedBy", "fk_column": "event_id", "target_class": "GLEvent", "label": "posted by GL event" }
+      ]
+    },
+    {
+      "id": "map-jc-wip-line",
+      "kind": "entity",
+      "class": "WIPLine",
+      "datatype_properties": [
+        { "term": "wipAmount", "column": "amount", "label": "WIP movement amount" }
+      ],
+      "object_properties": [
+        { "term": "wipPostedBy", "fk_column": "event_id", "target_class": "GLEvent", "label": "posted by GL event" }
+      ]
+    },
+    {
+      "id": "map-jc-fg-line",
+      "kind": "entity",
+      "class": "FinishedGoodsLine",
+      "datatype_properties": [
+        { "term": "fgAmount", "column": "amount", "label": "finished goods debit amount" }
+      ],
+      "object_properties": [
+        { "term": "fgPostedBy", "fk_column": "event_id", "target_class": "GLEvent", "label": "posted by GL event" }
+      ]
+    },
+    {
+      "id": "map-jc-cost-line",
+      "kind": "entity",
+      "class": "JobCostLine",
+      "datatype_properties": [
+        { "term": "costAmount", "column": "amount", "label": "job cost amount" },
+        { "term": "costElement", "column": "event_type", "label": "cost element" }
+      ],
+      "object_properties": [
+        { "term": "costPostedBy", "fk_column": "event_id", "target_class": "GLEvent", "label": "posted by GL event" }
+      ]
+    }
+  ]
+}

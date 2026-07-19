@@ -168,10 +168,13 @@ def _xsd_for_type(manifest: dict, col_type: str) -> str:
     return type_map[col_type]
 
 
-def _literal_suffix(xsd: str) -> str:
-    """xsd:string literals carry no ``^^`` annotation (Ontop's default); every
-    other datatype is annotated explicitly."""
-    return "" if xsd == "xsd:string" else f"^^{xsd}"
+def _literal_suffix(xsd: str, col_type: str = "TEXT") -> str:
+    """xsd:string literals on TEXT columns carry no ``^^`` annotation (Ontop
+    infers string from the JDBC TEXT type); every other case is annotated
+    explicitly — including xsd:string on non-TEXT columns (e.g. SQLite
+    DATETIME), whose JDBC type Ontop cannot map to an RDF datatype on its
+    own (UnknownDatatypeException with inferDefaultDatatype disabled)."""
+    return "" if (xsd == "xsd:string" and col_type == "TEXT") else f"^^{xsd}"
 
 
 def _key_select_expr(cls: dict) -> str:
@@ -257,9 +260,12 @@ def _render_entity(manifest: dict, graph: Graph, m: dict) -> Tuple[str, str]:
 
     for dp in m.get("datatype_properties", []):
         column = dp["column"]
-        xsd = _xsd_for_type(manifest, graph.column_type(table, column))
+        col_type = graph.column_type(table, column)
+        xsd = _xsd_for_type(manifest, col_type)
         select_cols.append(column)
-        target_parts.append(f':{dp["term"]} {{{column}}}{_literal_suffix(xsd)}')
+        target_parts.append(
+            f':{dp["term"]} {{{column}}}{_literal_suffix(xsd, col_type)}'
+        )
 
     for op in m.get("object_properties", []):
         fk_col = op["fk_column"]
@@ -277,7 +283,13 @@ def _render_entity(manifest: dict, graph: Graph, m: dict) -> Tuple[str, str]:
                 f"{target_cls['table']}.{fk[1]}, not the {op['target_class']} key "
                 f"{target_cls['key_column']}"
             )
-        select_cols.append(fk_col)
+        # The target IRI template is written in terms of the TARGET class key.
+        # When the child FK column is named differently (e.g. gl_events.job_id
+        # -> work_order.wo_id) alias it so the template placeholder resolves.
+        if fk_col == target_cls["key_column"]:
+            select_cols.append(fk_col)
+        else:
+            select_cols.append(f'{fk_col} AS {target_cls["key_column"]}')
         target_parts.append(f':{op["term"]} {target_cls["iri_template"]}')
 
     source = f"SELECT {', '.join(select_cols)} FROM {table}"

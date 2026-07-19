@@ -1,0 +1,137 @@
+# Job-Costing Ledger runtime ontology (hand-authored governance).
+#
+# Publishes the PHYSICAL job-costing ledger records (the gl_* tables in the
+# governed SQL graph) as a virtual RDF graph via Ontop, in their own
+# jobcost# namespace. The mechanically-derivable vocabulary lives in
+# job_costing_ledger.generated.vocab.ttl (regenerated from
+# mapping/job_costing_ledger_manifest.json + graph_metadata.json); this file
+# re-declares those terms and ADDS the hand-authored governance:
+#
+#   * skos:closeMatch annotations linking each record class to its concept in
+#     the ledger# SKOS scheme (ontology/ledger_skos.jsonld) — the same safe
+#     annotation convention as ledger_events.ttl: NEVER owl:equivalentClass,
+#     because a physical posting record is evidence for a concept, not the
+#     concept itself.
+#   * prose rationale per class.
+#
+# The concept-level binding (which SKOS concept a table realizes, which OWL
+# event class a gl_events.event_type realizes) is governed by
+# ledger_binding_map.json and validated fail-closed by
+# hf-space-inventory-sqlgen/ledger_bindings.py.
+
+@prefix :       <http://example.org/manufacturing/jobcost#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix ledger: <http://example.org/manufacturing/ledger#> .
+
+<http://example.org/manufacturing/jobcost> a owl:Ontology ;
+    rdfs:label "Job-Costing Ledger (virtual, Ontop over SQLite)" ;
+    rdfs:comment "Physical gl_* ledger records published over SPARQL. Linked to the ledger# concept scheme by skos:closeMatch only." .
+
+# ---- Classes ---------------------------------------------------------------
+
+:GLEvent a owl:Class ;
+    rdfs:label "GL Posting Event" ;
+    skos:closeMatch ledger:CostAccumulationEvent ;
+    rdfs:comment "One row of gl_events: an atomic cost-accumulation posting. Its event_type realizes one of the four ledger# posting-event classes per ledger_binding_map.json." .
+
+:CostedJob a owl:Class ;
+    rdfs:label "Costed Job" ;
+    rdfs:comment "A work order in its role as the cost-collection object of the ledger (the ledger# ontology's Job). Kept distinct from ledger:Job to avoid re-declaring a ledger-namespace term." .
+
+:RawMaterialsLine a owl:Class ;
+    rdfs:label "Raw Materials Ledger Line" ;
+    skos:closeMatch ledger:RawMaterialsInventory ;
+    rdfs:comment "One row of gl_raw_materials_inventory: a credit relieving raw-materials inventory." .
+
+:WIPLine a owl:Class ;
+    rdfs:label "WIP Ledger Line" ;
+    skos:closeMatch ledger:WIPInventory ;
+    rdfs:comment "One row of gl_wip_inventory: a movement into or out of work-in-process." .
+
+:FinishedGoodsLine a owl:Class ;
+    rdfs:label "Finished Goods Ledger Line" ;
+    skos:closeMatch ledger:FinishedGoodsInventory ;
+    rdfs:comment "One row of gl_finished_goods_inventory: a debit receiving completed cost into finished goods." .
+
+:JobCostLine a owl:Class ;
+    rdfs:label "Job Cost Detail Line" ;
+    skos:closeMatch ledger:JobCostDetail ;
+    rdfs:comment "One row of gl_job_cost_detail: the per-job cost-element subledger entry." .
+
+# ---- Datatype properties ---------------------------------------------------
+
+:eventType a owl:DatatypeProperty ;
+    rdfs:label "posting event type" ;
+    rdfs:domain :GLEvent ;
+    rdfs:range  xsd:string .
+
+:eventAmount a owl:DatatypeProperty ;
+    rdfs:label "posting amount" ;
+    rdfs:domain :GLEvent ;
+    rdfs:range  xsd:double .
+
+:eventDate a owl:DatatypeProperty ;
+    rdfs:label "posting date" ;
+    rdfs:domain :GLEvent ;
+    rdfs:range  xsd:string .
+
+:sourceTable a owl:DatatypeProperty ;
+    rdfs:label "ERP source table" ;
+    rdfs:domain :GLEvent ;
+    rdfs:range  xsd:string .
+
+:rmAmount a owl:DatatypeProperty ;
+    rdfs:label "raw materials credit amount" ;
+    rdfs:domain :RawMaterialsLine ;
+    rdfs:range  xsd:double .
+
+:wipAmount a owl:DatatypeProperty ;
+    rdfs:label "WIP movement amount" ;
+    rdfs:domain :WIPLine ;
+    rdfs:range  xsd:double .
+
+:fgAmount a owl:DatatypeProperty ;
+    rdfs:label "finished goods debit amount" ;
+    rdfs:domain :FinishedGoodsLine ;
+    rdfs:range  xsd:double .
+
+:costAmount a owl:DatatypeProperty ;
+    rdfs:label "job cost amount" ;
+    rdfs:domain :JobCostLine ;
+    rdfs:range  xsd:double .
+
+:costElement a owl:DatatypeProperty ;
+    rdfs:label "cost element" ;
+    rdfs:domain :JobCostLine ;
+    rdfs:range  xsd:string .
+
+# ---- Object properties -----------------------------------------------------
+
+:costsJob a owl:ObjectProperty ;
+    rdfs:label "accumulates cost to job" ;
+    rdfs:domain :GLEvent ;
+    rdfs:range  :CostedJob .
+
+:rmPostedBy a owl:ObjectProperty ;
+    rdfs:label "posted by GL event" ;
+    rdfs:domain :RawMaterialsLine ;
+    rdfs:range  :GLEvent .
+
+:wipPostedBy a owl:ObjectProperty ;
+    rdfs:label "posted by GL event" ;
+    rdfs:domain :WIPLine ;
+    rdfs:range  :GLEvent .
+
+:fgPostedBy a owl:ObjectProperty ;
+    rdfs:label "posted by GL event" ;
+    rdfs:domain :FinishedGoodsLine ;
+    rdfs:range  :GLEvent .
+
+:costPostedBy a owl:ObjectProperty ;
+    rdfs:label "posted by GL event" ;
+    rdfs:domain :JobCostLine ;
+    rdfs:range  :GLEvent .

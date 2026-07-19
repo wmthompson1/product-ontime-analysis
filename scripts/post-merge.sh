@@ -285,6 +285,19 @@ if [ -f hf-space-inventory-sqlgen/tests/test_skos_ledger.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_ledger_bindings.py ]; then
+  # Governed ledger BINDING MAP gate: the committed ledger_binding_map.json
+  # binds every gl_* table in the governed graph to its SKOS concept exactly
+  # once and every posting event_type to its OWL event class exactly once,
+  # cross-checked against the SKOS scheme, ledger_events.ttl closeMatch links,
+  # and graph_metadata.json — and every inconsistency class fails closed
+  # (LedgerBindingError).
+  python hf-space-inventory-sqlgen/tests/test_ledger_bindings.py || {
+    echo "post-merge: ledger binding map gate failed"
+    exit 1
+  }
+fi
+
 if [ -f poc/ontop-ontology-poc/ledger_events_vocab_check.py ]; then
   # Ledger EVENT ontology gate: ledger_events.ttl declares the four posting
   # event classes + flow properties with the required domains/ranges, links
@@ -336,6 +349,18 @@ if [ -f poc/ontop-ontology-poc/mapping_generation_check.py ]; then
   # gracefully if the POC files are absent from a stripped checkout.
   python poc/ontop-ontology-poc/mapping_generation_check.py --skip-on-missing || {
     echo "post-merge: Ontop mapping generation equivalence check failed"
+    exit 1
+  }
+  # Same equivalence gate for the job-costing LEDGER mapping (the gl_* tables
+  # published over SPARQL): committed .obda + generated vocabulary are fresh
+  # against the governed schema, and every generated term is declared in the
+  # hand-authored runtime ontology job_costing_ledger.ttl.
+  python poc/ontop-ontology-poc/mapping_generation_check.py --skip-on-missing \
+    --manifest poc/ontop-ontology-poc/mapping/job_costing_ledger_manifest.json \
+    --obda poc/ontop-ontology-poc/mapping/job_costing_ledger.obda \
+    --vocab poc/ontop-ontology-poc/ontology/job_costing_ledger.generated.vocab.ttl \
+    --ontology poc/ontop-ontology-poc/ontology/job_costing_ledger.ttl || {
+    echo "post-merge: Ontop job-costing ledger mapping generation check failed"
     exit 1
   }
 fi
