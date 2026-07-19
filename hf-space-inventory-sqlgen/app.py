@@ -615,6 +615,22 @@ def init_sqlite_db():
     except Exception as e:
         print(f"skos_ledger LOAD FAILED (fail-closed, concepts unavailable): {e}")
 
+    # Load the corpus vocabulary SKOS scheme (committed JSON-LD at
+    # poc/ontop-ontology-poc/ontology/corpus_vocab_skos.jsonld): entity /
+    # practice terms, the work-order lifecycle progression, time-based derived
+    # terms, and forbidden-synonym governance. Same fail-closed contract as
+    # the ledger scheme: a load failure is loud but never blocks boot.
+    try:
+        from corpus_vocab import get_corpus_vocab_store
+        _cv = get_corpus_vocab_store(reload=True)
+        print(
+            f"corpus_vocab: loaded {len(_cv.all_concepts())} concept(s), "
+            f"{len(_cv.all_collections())} collection(s) from "
+            f"{_cv.scheme_label!r}."
+        )
+    except Exception as e:
+        print(f"corpus_vocab LOAD FAILED (fail-closed, vocabulary unavailable): {e}")
+
     # Load the governed ledger binding map (committed JSON at
     # poc/ontop-ontology-poc/ledger_binding_map.json) into its read-only
     # store: SKOS concept URI -> gl_* table, RDF event class ->

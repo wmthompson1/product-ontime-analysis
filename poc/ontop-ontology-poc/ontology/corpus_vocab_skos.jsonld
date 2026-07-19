@@ -1,0 +1,186 @@
+{
+  "@context": {
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "corpus": "http://example.org/manufacturing/corpus/vocab#",
+    "ledger": "http://example.org/manufacturing/ledger#",
+    "prefLabel": {"@id": "skos:prefLabel"},
+    "altLabel": {"@id": "skos:altLabel", "@container": "@set"},
+    "hiddenLabel": {"@id": "skos:hiddenLabel", "@container": "@set"},
+    "definition": {"@id": "skos:definition"},
+    "scopeNote": {"@id": "skos:scopeNote"},
+    "notation": {"@id": "skos:notation"},
+    "broader": {"@id": "skos:broader", "@type": "@id"},
+    "narrower": {"@id": "skos:narrower", "@type": "@id", "@container": "@set"},
+    "inScheme": {"@id": "skos:inScheme", "@type": "@id"},
+    "hasTopConcept": {"@id": "skos:hasTopConcept", "@type": "@id", "@container": "@set"},
+    "topConceptOf": {"@id": "skos:topConceptOf", "@type": "@id"},
+    "closeMatch": {"@id": "skos:closeMatch", "@type": "@id", "@container": "@set"},
+    "member": {"@id": "skos:member", "@type": "@id", "@container": "@set"}
+  },
+  "@graph": [
+    {
+      "@id": "corpus:CorpusVocabularyScheme",
+      "@type": "skos:ConceptScheme",
+      "prefLabel": "Corpus Vocabulary",
+      "definition": "The governed corpus taxonomy for the manufacturing semantic layer: entity terms, practice terms, status vocabularies, time-based derived terms, and machine-readable synonym governance. SKOS concepts here are VOCABULARY, never entities: they touch the OWL ontology layer only via skos:closeMatch. skos:broader/skos:narrower is used ONLY to express lifecycle progression (earlier state -> later state); all other grouping is done with skos:Collection. skos:notation appears ONLY on stored statuses and carries the physical column value verbatim.",
+      "hasTopConcept": [
+        "corpus:WorkOrderTerm",
+        "corpus:JobCostingTerm",
+        "corpus:UnreleasedState",
+        "corpus:ReleaseDateTerm",
+        "corpus:PastDueTerm",
+        "corpus:InHorizonTerm",
+        "corpus:AsOfTerm"
+      ]
+    },
+
+    {
+      "@id": "corpus:WorkOrderTerm",
+      "@type": "skos:Concept",
+      "prefLabel": "Work Order",
+      "hiddenLabel": ["Job", "Shop Order"],
+      "definition": "Entity term: the plant-floor work specification — the authorization to make a quantity of a part, carrying its own status lifecycle. Grounds 1:1 on the physical work_order table.",
+      "scopeNote": "The governed noun is 'work order'. 'Job' and 'shop order' are FORBIDDEN synonyms for the entity (kept as skos:hiddenLabel so NLQ can still recognize them, but they must never surface as labels or class names). 'Job' survives only inside costing-practice terms — see the Job Costing concept.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme",
+      "closeMatch": ["ledger:WorkOrder"]
+    },
+    {
+      "@id": "corpus:JobCostingTerm",
+      "@type": "skos:Concept",
+      "prefLabel": "Job Costing",
+      "altLabel": ["Job-Costing Ledger"],
+      "definition": "Practice term: the accounting discipline of accumulating material, labor, and overhead cost against a work order and relieving it to finished goods at completion. Names a practice, not a table.",
+      "scopeNote": "'Job' is legitimate ONLY inside this practice vocabulary (Job Costing, Job Completion, job cost detail). It is never an entity term — the entity is always the work order.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme"
+    },
+
+    {
+      "@id": "corpus:UnreleasedState",
+      "@type": "skos:Concept",
+      "prefLabel": "Unreleased",
+      "definition": "Stored work-order lifecycle status: the work specification exists but has not been committed to the floor; quantities and dates may still change freely.",
+      "notation": "unreleased",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme",
+      "narrower": ["corpus:FirmedState"],
+      "closeMatch": ["ledger:UnreleasedWorkOrderState"]
+    },
+    {
+      "@id": "corpus:FirmedState",
+      "@type": "skos:Concept",
+      "prefLabel": "Firmed",
+      "definition": "Stored work-order lifecycle status: the planner has locked quantity and dates against automatic replanning (typically first lots and new parts), but work has not started.",
+      "notation": "firmed",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "broader": "corpus:UnreleasedState",
+      "narrower": ["corpus:ReleasedState"],
+      "closeMatch": ["ledger:FirmedWorkOrderState"]
+    },
+    {
+      "@id": "corpus:ReleasedState",
+      "@type": "skos:Concept",
+      "prefLabel": "Released",
+      "definition": "Stored work-order lifecycle status: the work order is committed to the floor; material can be issued and labor charged against it.",
+      "notation": "released",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "broader": "corpus:FirmedState",
+      "narrower": ["corpus:ClosedState"],
+      "closeMatch": ["ledger:ReleasedWorkOrderState"]
+    },
+    {
+      "@id": "corpus:ClosedState",
+      "@type": "skos:Concept",
+      "prefLabel": "Closed",
+      "definition": "Stored work-order lifecycle status: all work is complete and accumulated cost has been relieved to finished goods; the record is historical fact and no further transitions occur.",
+      "scopeNote": "Terminal state. The data-derived as-of anchor of the whole demo dataset is MAX(work_order.close_date) over closed work orders.",
+      "notation": "closed",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "broader": "corpus:ReleasedState",
+      "closeMatch": ["ledger:ClosedWorkOrderState"]
+    },
+
+    {
+      "@id": "corpus:ReleaseDateTerm",
+      "@type": "skos:Concept",
+      "prefLabel": "Release Date",
+      "altLabel": ["Desired Release Date"],
+      "definition": "Stored planning date: the date a work order is desired to be released to the floor. Physical column: work_order.desired_rls_date.",
+      "scopeNote": "A stored DATE column, not a status — it carries no notation because notation is reserved for stored status values.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme"
+    },
+    {
+      "@id": "corpus:PastDueTerm",
+      "@type": "skos:Concept",
+      "prefLabel": "Past Due",
+      "altLabel": ["Overdue"],
+      "definition": "Time-based derived term: a demand or order whose required date falls strictly before the as-of date. Computed relative to a date — never stored in any status column.",
+      "scopeNote": "Derived, not stored: there is no 'past due' value in any physical column, so this concept carries no notation. In the MRP grid it is the bucket before the first monthly bucket.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme"
+    },
+    {
+      "@id": "corpus:InHorizonTerm",
+      "@type": "skos:Concept",
+      "prefLabel": "In Horizon",
+      "altLabel": ["Within Planning Horizon"],
+      "definition": "Time-based derived term: falling inside the planning window that starts at the as-of date and spans the configured horizon buckets. Computed relative to the as-of anchor — never stored.",
+      "scopeNote": "Derived, not stored: no notation. Horizon membership changes whenever the as-of anchor moves.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme"
+    },
+    {
+      "@id": "corpus:AsOfTerm",
+      "@type": "skos:Concept",
+      "prefLabel": "As Of",
+      "altLabel": ["As-Of Date", "Cutoff Date"],
+      "definition": "Time-based derived term: the reference date a snapshot or balance is evaluated against — an upper bound on event dates, not a stored value. In this dataset the canonical anchor is data-derived: MAX(work_order.close_date).",
+      "scopeNote": "Derived, not stored: no notation. Governed queries expose it as the NULL-guarded :as_of_date parameter.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "topConceptOf": "corpus:CorpusVocabularyScheme"
+    },
+
+    {
+      "@id": "corpus:ActiveWorkOrderStates",
+      "@type": "skos:Collection",
+      "prefLabel": "Active Work-Order States",
+      "definition": "Grouping only (no hierarchy implied): the stored lifecycle states in which a work order can still change or progress — Unreleased, Firmed, Released.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "member": [
+        "corpus:UnreleasedState",
+        "corpus:FirmedState",
+        "corpus:ReleasedState"
+      ]
+    },
+    {
+      "@id": "corpus:TerminalWorkOrderStates",
+      "@type": "skos:Collection",
+      "prefLabel": "Terminal Work-Order States",
+      "definition": "Grouping only (no hierarchy implied): the stored lifecycle states from which no further transition occurs — the record becomes historical fact.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "member": ["corpus:ClosedState"]
+    },
+    {
+      "@id": "corpus:TimeBasedTerms",
+      "@type": "skos:Collection",
+      "prefLabel": "Time-Based Terms",
+      "definition": "Grouping only (no hierarchy implied): derived, time-relative vocabulary computed against a reference date. Members are never stored status values and therefore never carry notation.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "member": [
+        "corpus:PastDueTerm",
+        "corpus:InHorizonTerm",
+        "corpus:AsOfTerm"
+      ]
+    },
+    {
+      "@id": "corpus:ForbiddenSynonymGovernance",
+      "@type": "skos:Collection",
+      "prefLabel": "Forbidden Synonym Governance",
+      "definition": "Machine-readable governance grouping: every member concept carries one or more skos:hiddenLabel values, and each hiddenLabel is a FORBIDDEN synonym — recognized for matching (NLQ can still resolve it) but never surfaced as a label, class name, or ontology term.",
+      "inScheme": "corpus:CorpusVocabularyScheme",
+      "member": ["corpus:WorkOrderTerm"]
+    }
+  ]
+}

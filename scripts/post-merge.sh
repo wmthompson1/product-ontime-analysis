@@ -285,6 +285,18 @@ if [ -f hf-space-inventory-sqlgen/tests/test_skos_ledger.py ]; then
   }
 fi
 
+if [ -f hf-space-inventory-sqlgen/tests/test_corpus_vocab.py ]; then
+  # Corpus vocabulary SKOS gate: the committed corpus_vocab_skos.jsonld
+  # honors the corpus-taxonomy architecture — Collections group (active /
+  # terminal / time-based / forbidden-synonym governance), broader/narrower
+  # is lifecycle progression only (linear + notated), SKOS touches OWL only
+  # via skos:closeMatch, and every governance violation fails closed.
+  python hf-space-inventory-sqlgen/tests/test_corpus_vocab.py || {
+    echo "post-merge: corpus vocabulary loader tests failed"
+    exit 1
+  }
+fi
+
 if [ -f hf-space-inventory-sqlgen/tests/test_ledger_bindings.py ]; then
   # Governed ledger BINDING MAP gate: the committed ledger_binding_map.json
   # binds every gl_* table in the governed graph to its SKOS concept exactly
