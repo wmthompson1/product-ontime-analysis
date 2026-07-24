@@ -335,9 +335,9 @@ def test_graph_wiring():
           "binding count matches nodes_by_type")
 
     # Binding nodes are NOT column nodes -> field-description coverage unaffected.
-    # Frozen count tracks the committed graph_metadata.json (SCHEMA_VERSION 29,
-    # which added the five gl_* job-costing ledger tables' column nodes).
-    check(len(column_nodes) == 331, "column node count still 331 (coverage intact)")
+    # Frozen count tracks the committed graph_metadata.json (SCHEMA_VERSION 32,
+    # which added receivable_payment columns + AR aging binding node).
+    check(len(column_nodes) == 333, "column node count still 333 (coverage intact)")
 
     # Every binding node carries binding_key + manifest family; slots 4-5 none.
     ok_shape = all(

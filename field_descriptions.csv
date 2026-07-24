@@ -330,3 +330,5 @@ work_order,status,Work Order Status,"Shop-floor lifecycle stage of the work orde
 work_order,vendor_id,Vendor ID,The outside-service vendor that performs work for this work order.,S-010
 work_order,wo_id,Wo ID,Unique identifier for each work order record.,WO-00051
 work_order,workorder_type,Workorder Type,"The workorder type of each work order; one of a small set of values such as: M, W.",M
+customer_order_line,shipped_qty,Shipped Quantity,Number of units shipped against this order line — populated by the collect_june2026_ar / ship_august_first_bucket migration when goods leave the warehouse. Zero until the line is shipped.,0
+customer_order_line,shipped_date,Shipped Date,Date the units on this order line were physically shipped to the customer. NULL until the line is shipped.,2026-07-23

@@ -171,6 +171,9 @@ STEPS = [
     # creates receivable_payment table, 15 installment rows (5 invoices × 3),
     # 15 CASH_RECEIPT gl_events, and marks all 5 June invoices Paid.
     ("migrations/collect_june2026_ar.py", []),
+    # wire the AR aging governed view (receivables_araging_20260724_000001)
+    # to Receivables intent 19 (order_revenue_recognition) at query_index 3.
+    ("migrations/add_ar_aging_palette_wiring.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least
