@@ -1,13 +1,14 @@
 """
 gl_posting.py — simple synthetic GL posting functions (NO control logic).
 
-Four posting functions, each inserting into gl_events plus the relevant
+Five posting functions, each inserting into gl_events plus the relevant
 inventory ledger table(s) and gl_job_cost_detail:
 
   post_material_issue   RM  -> WIP   (material cost onto the job)
   post_labor            -> WIP       (labor cost onto the job)
   post_overhead         -> WIP       (burden/overhead cost onto the job)
   post_job_completion   WIP -> FG    (relieve WIP into finished goods)
+  post_customer_shipment FG -> out   (relieve shipped job cost out of FG)
 
 Design rules (deliberate simplicity):
   * NO period close, NO reconciliation, NO validation beyond fail-closed
@@ -22,7 +23,7 @@ Design rules (deliberate simplicity):
     transaction control belongs to the caller.
 
 Event types written:
-  RM_ISSUE (material), LABOR, BURDEN, FG_COMPLETION.
+  RM_ISSUE (material), LABOR, BURDEN, FG_COMPLETION, CUSTOMER_SHIPMENT.
 Job-cost-detail cost elements: MATERIAL, LABOR, BURDEN.
 """
 
@@ -33,6 +34,7 @@ __all__ = [
     "post_labor",
     "post_overhead",
     "post_job_completion",
+    "post_customer_shipment",
 ]
 
 
@@ -133,4 +135,23 @@ def post_job_completion(cur, job_id, part_id, amount, event_date,
               -amount, "FG_COMPLETION", event_date)
     _inv_line(cur, "gl_finished_goods_inventory", ev, job_id, part_id,
               amount, "FG_COMPLETION", event_date)
+    return ev
+
+def post_customer_shipment(cur, job_id, part_id, amount, event_date,
+                           source_table, source_id):
+    """FG -> shipped: relieve a shipped job's finished-goods cost out of FG.
+
+    Mirror of post_job_completion's FG side: a single negative
+    gl_finished_goods_inventory line (cost leaves the ledger flow), keyed
+    to the ONE job whose finished-goods cost the shipment relieves.
+    No WIP line, no cost-detail line — shipment neither adds job cost nor
+    touches WIP.
+    """
+    _check(amount, event_date)
+    if _existing_event(cur, source_table, source_id, "CUSTOMER_SHIPMENT") is not None:
+        return None
+    ev = _new_event(cur, job_id, "CUSTOMER_SHIPMENT", amount, event_date,
+                    source_table, source_id)
+    _inv_line(cur, "gl_finished_goods_inventory", ev, job_id, part_id,
+              -amount, "CUSTOMER_SHIPMENT", event_date)
     return ev

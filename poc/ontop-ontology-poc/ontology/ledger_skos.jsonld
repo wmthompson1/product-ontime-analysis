@@ -106,14 +106,15 @@
       "@type": "skos:Concept",
       "prefLabel": "Cost Accumulation Event",
       "altLabel": "Ledger Event",
-      "definition": "Perdurant event vocabulary: the four posting events that move cost through the ledger flow Raw Materials -> WIP -> Finished Goods. Physical twin table: gl_events.",
+      "definition": "Perdurant event vocabulary: the five posting events that move cost through the ledger flow Raw Materials -> WIP -> Finished Goods -> shipped to customer. Physical twin table: gl_events.",
       "inScheme": "ledger:JobCostingLedgerScheme",
       "topConceptOf": "ledger:JobCostingLedgerScheme",
       "narrower": [
         "ledger:MaterialIssued",
         "ledger:LaborApplied",
         "ledger:OverheadApplied",
-        "ledger:JobCompletion"
+        "ledger:JobCompletion",
+        "ledger:CustomerShipment"
       ]
     },
     {
@@ -150,6 +151,15 @@
       "prefLabel": "Job Completion",
       "definition": "Cost event: a closed work order's accumulated WIP relieved into Finished Goods Inventory on the job's close date.",
       "notation": "FG_COMPLETION",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:CostAccumulationEvent"
+    },
+    {
+      "@id": "ledger:CustomerShipment",
+      "@type": "skos:Concept",
+      "prefLabel": "Customer Shipment",
+      "definition": "Cost event: finished goods shipped to a customer, relieving the shipped job's accumulated cost out of Finished Goods Inventory on the shipment date. The only event that takes cost OUT of the ledger flow.",
+      "notation": "CUSTOMER_SHIPMENT",
       "inScheme": "ledger:JobCostingLedgerScheme",
       "broader": "ledger:CostAccumulationEvent"
     }

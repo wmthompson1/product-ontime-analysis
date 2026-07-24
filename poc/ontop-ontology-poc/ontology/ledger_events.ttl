@@ -8,7 +8,7 @@
 #
 # Job-Costing Ledger Events — minimal OWL ontology (OWL 2 QL profile)
 # ===============================================================================
-# The RDF EVENT layer of the synthetic job-costing ledger: the four posting
+# The RDF EVENT layer of the synthetic job-costing ledger: the five posting
 # events that move cost through the flow Raw Materials -> WIP -> Finished
 # Goods, and the flow properties that tie each event to the SKOS inventory
 # concepts of the ledger concept scheme (ontology/ledger_skos.jsonld,
@@ -38,7 +38,7 @@
 <http://example.org/manufacturing/ledger>
     a owl:Ontology ;
     rdfs:label "Job-Costing Ledger Event Ontology" ;
-    rdfs:comment "RDF event layer for the synthetic job-costing ledger: four posting-event classes (material issue, labor application, overhead application, job completion) and the flow properties tying each event to the SKOS inventory concepts of the ledger concept scheme and to the job it costs. Vocabulary only — read-only, no instances, no Ontop mapping; the SQL ledger (gl_* tables) stays the single source of truth." .
+    rdfs:comment "RDF event layer for the synthetic job-costing ledger: five posting-event classes (material issue, labor application, overhead application, job completion, customer shipment) and the flow properties tying each event to the SKOS inventory concepts of the ledger concept scheme and to the job it costs. Vocabulary only — read-only, no instances, no Ontop mapping; the SQL ledger (gl_* tables) stays the single source of truth." .
 
 # ── Event classes ────────────────────────────────────────────────────────────
 
@@ -81,6 +81,13 @@
     rdfs:label "Job Completion Event" ;
     rdfs:comment "Posting event: a closed work order's accumulated WIP relieved into Finished Goods Inventory on the job's close date (gl_events event_type FG_COMPLETION). Produces finished goods (:producesFinishedGoods); NOT a WIP-addition event — it ends the WIP accumulation the other three events feed." ;
     skos:closeMatch :JobCompletion .
+
+:CustomerShipmentEvent
+    a owl:Class ;
+    rdfs:subClassOf :LedgerEvent ;
+    rdfs:label "Customer Shipment Event" ;
+    rdfs:comment "Posting event: finished goods shipped to a customer, relieving the shipped job's accumulated cost OUT of Finished Goods Inventory on the shipment date (gl_events event_type CUSTOMER_SHIPMENT). The only event that takes cost out of the ledger flow; like completion it costs exactly one job (:forJob) — the job whose finished-goods cost the shipment relieves. Ships finished goods (:shipsFinishedGoods); NOT a WIP-addition event." ;
+    skos:closeMatch :CustomerShipment .
 
 :WorkOrder
     a owl:Class ;
@@ -158,9 +165,16 @@
     rdfs:domain :JobCompletionEvent ;
     rdfs:range  :FinishedGoodsInventory .
 
+:shipsFinishedGoods
+    a owl:ObjectProperty ;
+    rdfs:label "ships finished goods" ;
+    rdfs:comment "Ties a customer-shipment event to the Finished Goods Inventory account (SKOS concept :FinishedGoodsInventory) the shipped job's cost is relieved OUT of. Only shipment events ship finished goods; the mirror of :producesFinishedGoods." ;
+    rdfs:domain :CustomerShipmentEvent ;
+    rdfs:range  :FinishedGoodsInventory .
+
 :forJob
     a owl:ObjectProperty ;
     rdfs:label "for job" ;
-    rdfs:comment "Ties every ledger event to the single job (work order) it costs — the spine of the job-costing story. Domain is the event root :LedgerEvent, so all four event classes inherit it." ;
+    rdfs:comment "Ties every ledger event to the single job (work order) it costs — the spine of the job-costing story. Domain is the event root :LedgerEvent, so all five event classes inherit it." ;
     rdfs:domain :LedgerEvent ;
     rdfs:range  :WorkOrder .

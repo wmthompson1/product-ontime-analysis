@@ -163,6 +163,10 @@ STEPS = [
     # CO-MRP-002 header, sized to exceed on-hand so planned orders net
     # visibly; fail-closed verify keeps AS_OF and the CO band intact
     ("migrations/seed_august_weekly_demand.py", []),
+    # ship the first weekly August bucket early (2026-07-23) — physical
+    # stock move + CUSTOMER_SHIPMENT ledger events relieving P-10024's FG;
+    # fail-closed verify keeps AS_OF, the June close, and the CO band intact
+    ("migrations/ship_august_first_bucket.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least

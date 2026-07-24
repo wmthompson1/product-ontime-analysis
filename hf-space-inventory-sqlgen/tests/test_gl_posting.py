@@ -165,9 +165,10 @@ def part_b():
         "SELECT ROUND(COALESCE(-SUM(amount),0),2) FROM gl_wip_inventory "
         "WHERE amount < 0").fetchone()[0]
     fg = cur.execute(
-        "SELECT ROUND(COALESCE(SUM(amount),0),2) FROM gl_finished_goods_inventory"
+        "SELECT ROUND(COALESCE(SUM(amount),0),2) FROM gl_finished_goods_inventory "
+        "WHERE event_type = 'FG_COMPLETION'"
     ).fetchone()[0]
-    check("WIP outflow equals FG inflow", wip_out == fg,
+    check("WIP outflow equals FG completion inflow", wip_out == fg,
           f"wip_out={wip_out} fg={fg}")
     check("WIP balance is non-negative", round(wip_in - wip_out, 2) >= 0)
 

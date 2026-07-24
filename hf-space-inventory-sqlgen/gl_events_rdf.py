@@ -40,6 +40,7 @@ EVENT_TYPE_TO_CLASS = {
     "LABOR": "LaborApplicationEvent",
     "BURDEN": "OverheadApplicationEvent",
     "FG_COMPLETION": "JobCompletionEvent",
+    "CUSTOMER_SHIPMENT": "CustomerShipmentEvent",
 }
 
 # Flow properties emitted per RDF class (besides rdf:type and forJob).
@@ -51,6 +52,7 @@ CLASS_FLOW_PROPERTIES = {
     "LaborApplicationEvent": [("addsCostToWIP", "WIPInventory")],
     "OverheadApplicationEvent": [("addsCostToWIP", "WIPInventory")],
     "JobCompletionEvent": [("producesFinishedGoods", "FinishedGoodsInventory")],
+    "CustomerShipmentEvent": [("shipsFinishedGoods", "FinishedGoodsInventory")],
 }
 
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
@@ -143,7 +145,7 @@ def verify_trace_completeness(conn):
 
     unknown = cur.execute(
         "SELECT COUNT(*) FROM gl_events WHERE event_type NOT IN "
-        "('RM_ISSUE','LABOR','BURDEN','FG_COMPLETION')"
+        "('RM_ISSUE','LABOR','BURDEN','FG_COMPLETION','CUSTOMER_SHIPMENT')"
     ).fetchone()[0]
     if unknown:
         problems.append(f"{unknown} gl_events rows with unknown event_type")

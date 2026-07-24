@@ -238,6 +238,7 @@ def _run_phases(conn, cur):
         """
         SELECT COUNT(*) FROM
           (SELECT job_id, ROUND(SUM(amount),2) fg FROM gl_finished_goods_inventory
+           WHERE event_type = 'FG_COMPLETION'
            GROUP BY job_id) f
         LEFT JOIN
           (SELECT job_id, ROUND(-SUM(amount),2) wip_out FROM gl_wip_inventory
@@ -248,6 +249,16 @@ def _run_phases(conn, cur):
     ).fetchone()[0]
     if drift:
         fail(f"{drift} job(s) where FG inflow != WIP completion outflow")
+    # Shipments (CUSTOMER_SHIPMENT) may relieve FG, but never more than the
+    # job's completion inflow put in — per job, net FG stays >= 0.
+    over_shipped = cur.execute(
+        """
+        SELECT job_id, ROUND(SUM(amount),2) FROM gl_finished_goods_inventory
+        GROUP BY job_id HAVING SUM(amount) < -?
+        """, (CENT,)
+    ).fetchall()
+    if over_shipped:
+        fail(f"shipment relieved more FG than the job produced: {over_shipped}")
 
     # 3f. job cost detail ties to the work_order cost truth per job
     bad_jobs = cur.execute(

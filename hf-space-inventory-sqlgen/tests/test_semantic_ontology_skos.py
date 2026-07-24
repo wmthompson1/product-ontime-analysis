@@ -73,9 +73,9 @@ def main() -> None:
     ev = by_table["gl_events"]
     ev_narrower = {n["pref_label"]: n for n in ev["narrower"]}
     check(
-        "gl_events narrower = 4 posting events with notations",
+        "gl_events narrower = 5 posting events with notations",
         {n["notation"] for n in ev["narrower"]}
-        == {"RM_ISSUE", "LABOR", "BURDEN", "FG_COMPLETION"},
+        == {"RM_ISSUE", "LABOR", "BURDEN", "FG_COMPLETION", "CUSTOMER_SHIPMENT"},
     )
     check(
         "posting event carries its OWL event class from the binding map",

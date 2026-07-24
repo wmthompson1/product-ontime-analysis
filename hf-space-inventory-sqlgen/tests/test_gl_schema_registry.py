@@ -146,7 +146,8 @@ def main():
         """
         SELECT COUNT(*) FROM
           (SELECT job_id, ROUND(SUM(amount),2) fg
-           FROM gl_finished_goods_inventory GROUP BY job_id) f
+           FROM gl_finished_goods_inventory
+           WHERE event_type = 'FG_COMPLETION' GROUP BY job_id) f
         LEFT JOIN
           (SELECT job_id, ROUND(-SUM(amount),2) wip_out FROM gl_wip_inventory
            WHERE amount < 0 GROUP BY job_id) w ON w.job_id = f.job_id

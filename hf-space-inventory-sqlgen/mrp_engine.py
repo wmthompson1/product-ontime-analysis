@@ -91,6 +91,20 @@ def _has_table(conn: sqlite3.Connection, table: str) -> bool:
     return bool(row)
 
 
+def _open_co_qty_expr(conn: sqlite3.Connection) -> str:
+    """SQL expression for a CO line's OPEN (unshipped) quantity.
+
+    Once migrations/ship_august_first_bucket.py has added shipped_qty,
+    shipped quantity no longer counts as open demand (it already left
+    on-hand). Column-existence-tolerant: earlier links in the migration
+    chain run before the column exists, where open = order_qty.
+    Never negative: over-shipment cannot create negative demand.
+    """
+    if _has_column(conn, "customer_order_line", "shipped_qty"):
+        return "MAX(l.order_qty - COALESCE(l.shipped_qty, 0), 0)"
+    return "l.order_qty"
+
+
 def _require_columns(conn: sqlite3.Connection, table: str, columns) -> None:
     missing = [c for c in columns if not _has_column(conn, table, c)]
     if missing:
@@ -232,14 +246,15 @@ def demand_parts_in_horizon(conn, buckets):
     """
     _require_columns(conn, "customer_order_line", ["need_by_date"])
     hs, he = horizon_bounds(buckets)
+    open_qty = _open_co_qty_expr(conn)
     rows = conn.execute(
-        """
+        f"""
         SELECT l.part_id,
                p.part_class,
                p.lead_time_days,
                p.on_hand_qty,
                COUNT(*)          AS demand_lines,
-               SUM(l.order_qty)  AS demand_qty
+               SUM({open_qty})   AS demand_qty
         FROM customer_order_line l
         JOIN customer_order o ON o.order_id = l.order_id
         JOIN part p           ON p.part_id  = l.part_id
@@ -436,8 +451,8 @@ def compute_mrp_grid(conn, part_id):
 
     # Gross requirements — open customer-order demand by need_by_date.
     for need_by, qty in conn.execute(
-        """
-        SELECT l.need_by_date, l.order_qty
+        f"""
+        SELECT l.need_by_date, {_open_co_qty_expr(conn)}
         FROM customer_order_line l
         JOIN customer_order o ON o.order_id = l.order_id
         WHERE l.part_id = ? AND o.status = ? AND l.need_by_date IS NOT NULL
