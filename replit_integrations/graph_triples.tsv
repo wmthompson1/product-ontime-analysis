@@ -222,13 +222,6 @@ manufacturing_graph_node/receivable_line:entity:structural:system:none:none	has_
 manufacturing_graph_node/receivable_line:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_line:order_line_id:structural:system:none:none
 manufacturing_graph_node/receivable_line:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_line:shipment_line_id:structural:system:none:none
 manufacturing_graph_node/receivable_line:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_line:created_at:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:payment_id:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:invoice_id:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:installment_no:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:payment_date:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:amount:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:source_event_id:structural:system:none:none
-manufacturing_graph_node/receivable_payment:entity:structural:system:none:none	has_column	manufacturing_graph_node/receivable_payment:created_at:structural:system:none:none
 manufacturing_graph_node/receiving:entity:structural:system:none:none	has_column	manufacturing_graph_node/receiving:receipt_id:structural:system:none:none
 manufacturing_graph_node/receiving:entity:structural:system:none:none	has_column	manufacturing_graph_node/receiving:po_id:structural:system:none:none
 manufacturing_graph_node/receiving:entity:structural:system:none:none	has_column	manufacturing_graph_node/receiving:supplier_id:structural:system:none:none
@@ -389,8 +382,6 @@ manufacturing_graph_node/receivable_line:invoice_id:structural:system:none:none	
 manufacturing_graph_node/receivable_line:order_id:structural:system:none:none	references	manufacturing_graph_node/customer_order:order_id:structural:system:none:none
 manufacturing_graph_node/receivable_line:order_line_id:structural:system:none:none	references	manufacturing_graph_node/customer_order_line:order_line_id:structural:system:none:none
 manufacturing_graph_node/receivable_line:part_id:structural:system:none:none	references	manufacturing_graph_node/part:part_id:structural:system:none:none
-manufacturing_graph_node/receivable_payment:invoice_id:structural:system:none:none	references	manufacturing_graph_node/receivable:invoice_id:structural:system:none:none
-manufacturing_graph_node/receivable_payment:source_event_id:structural:system:none:none	references	manufacturing_graph_node/gl_events:event_id:structural:system:none:none
 manufacturing_graph_node/receiving:part_id:structural:system:none:none	references	manufacturing_graph_node/part:part_id:structural:system:none:none
 manufacturing_graph_node/receiving:part_id:structural:system:none:none	references	manufacturing_graph_node/work_order:part_id:structural:system:none:none
 manufacturing_graph_node/receiving:po_id:structural:system:none:none	references	manufacturing_graph_node/purchase_order:po_id:structural:system:none:none

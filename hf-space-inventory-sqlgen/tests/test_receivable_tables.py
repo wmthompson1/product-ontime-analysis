@@ -160,9 +160,17 @@ def main():
     n_disputed = cur.execute(
         "SELECT COUNT(*) FROM receivable WHERE status='Disputed'"
     ).fetchone()[0]
-    # After collect_june2026_ar runs, the Gulfstream Disputed invoice is collected
-    # and transitions to Paid — so 0 Disputed invoices is the post-collection state.
-    check("no open Disputed invoices after AR collection", n_disputed == 0, str(n_disputed))
+    # State-aware: if collect_june2026_ar has run (receivable_payment table exists),
+    # all June invoices — including the Gulfstream Disputed one — are Paid; expect 0.
+    # If collection has not yet run (pre-collection bootstrap state), the engineered
+    # aging population holds exactly 1 Disputed invoice; expect 1.
+    collection_ran = cur.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='receivable_payment'"
+    ).fetchone()[0] == 1
+    if collection_ran:
+        check("no open Disputed invoices after AR collection", n_disputed == 0, str(n_disputed))
+    else:
+        check("exactly 1 engineered Disputed invoice (pre-collection)", n_disputed == 1, str(n_disputed))
 
     placeholder = cur.execute(
         "SELECT COUNT(*) FROM receivable_line WHERE shipment_line_id IS NOT NULL"
