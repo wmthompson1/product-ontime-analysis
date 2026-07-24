@@ -229,14 +229,18 @@ def run():
     print("\nPhase 5 — fail-closed verify ...")
     errors = []
 
+    expected_payments = len(invoices) * 3
     n_payments = cur.execute(
         "SELECT COUNT(*) FROM receivable_payment "
         "WHERE invoice_id IN (SELECT invoice_id FROM receivable "
         "WHERE invoice_date < ? )",
         (JUNE_CUTOFF,),
     ).fetchone()[0]
-    if n_payments != 15:
-        errors.append(f"receivable_payment row count = {n_payments}, expected 15")
+    if n_payments != expected_payments:
+        errors.append(
+            f"receivable_payment row count = {n_payments}, "
+            f"expected {expected_payments} ({len(invoices)} invoice(s) × 3)"
+        )
 
     for invoice_id, invoice_number, amount_dollars, _ in invoices:
         row = cur.execute(
@@ -272,13 +276,27 @@ def run():
         (FINAL_PAYMENT_DATE,),
     ).fetchone()[0]
     if wrong_pay_date:
-        errors.append(f"{wrong_pay_date} of the 5 collected invoices have wrong payment_date")
+        errors.append(
+            f"{wrong_pay_date} of the {len(invoices)} collected invoices "
+            f"have wrong payment_date"
+        )
 
+    # Count only the CASH_RECEIPT events linked to this migration's payments
+    # (scoped by payment_id so future migrations can add other CASH_RECEIPT rows
+    # without breaking the gate).
     cr_count = cur.execute(
-        "SELECT COUNT(*) FROM gl_events WHERE event_type = 'CASH_RECEIPT'"
+        f"SELECT COUNT(*) FROM gl_events WHERE event_type = 'CASH_RECEIPT' "
+        f"AND source_table = 'receivable_payment' "
+        f"AND source_id IN ("
+        f"  SELECT payment_id FROM receivable_payment "
+        f"  WHERE invoice_id IN ({invoice_ids_sql})"
+        f")"
     ).fetchone()[0]
-    if cr_count != 15:
-        errors.append(f"gl_events CASH_RECEIPT count = {cr_count}, expected 15")
+    if cr_count != expected_payments:
+        errors.append(
+            f"CASH_RECEIPT event count = {cr_count}, "
+            f"expected {expected_payments} ({len(invoices)} invoice(s) × 3)"
+        )
 
     neg_cr = cur.execute(
         "SELECT COUNT(*) FROM gl_events "
@@ -294,8 +312,11 @@ def run():
         _fail("verification failed — see VERIFY FAIL lines above")
 
     conn.commit()
-    print("  VERIFY OK — 15 installments, all 5 June invoices Paid, "
-          "15 CASH_RECEIPT events, all amounts positive")
+    print(
+        f"  VERIFY OK — {expected_payments} installments, "
+        f"all {len(invoices)} June invoices Paid, "
+        f"{expected_payments} CASH_RECEIPT events, all amounts positive"
+    )
     conn.close()
     print("\n[collect_june2026_ar] committed — June 2026 AR fully collected.")
 

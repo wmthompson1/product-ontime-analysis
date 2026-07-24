@@ -150,14 +150,6 @@ STEPS = [
     # fail-closed ledger-to-source reconciliation (cent-exact; runs after the
     # GL backfill so it sees the posted ledger)
     ("migrations/add_gl_schema_registry.py", []),
-    # re-declare structural FKs the frozen graph records but fresh DDL lacks
-    # (declared-FK-only consumers like metric assembly fail closed without them;
-    # runs last so every table in the graph already exists)
-    ("migrations/declare_structural_fks.py", []),
-    # index every APPROVED reviewer-manifest snippet (incl. the governed
-    # ledger queries) into ground_truth_table_usage so a fresh DB's Ground
-    # Truth mosaic sees their table usage without waiting for an app boot
-    ("migrations/add_snippet_table_usage.py", []),
     # weekly August 2026 demand (Aug 7/14/21) for the three highest
     # on-hand-value parts (P-10037 / P-10014 / P-10024) — lines on the Open
     # CO-MRP-002 header, sized to exceed on-hand so planned orders net
@@ -174,6 +166,15 @@ STEPS = [
     # wire the AR aging governed view (receivables_araging_20260724_000001)
     # to Receivables intent 19 (order_revenue_recognition) at query_index 3.
     ("migrations/add_ar_aging_palette_wiring.py", []),
+    # index every APPROVED reviewer-manifest snippet (incl. the governed
+    # ledger queries) into ground_truth_table_usage so a fresh DB's Ground
+    # Truth mosaic sees their table usage without waiting for an app boot
+    ("migrations/add_snippet_table_usage.py", []),
+    # re-declare structural FKs the frozen graph records but fresh DDL lacks
+    # (declared-FK-only consumers like metric assembly fail closed without
+    # them; intentionally LAST so every table in the graph already exists,
+    # including receivable_payment created by collect_june2026_ar.py above)
+    ("migrations/declare_structural_fks.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least

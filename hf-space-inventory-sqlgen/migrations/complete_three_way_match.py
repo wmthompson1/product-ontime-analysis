@@ -333,7 +333,36 @@ def run():
                                   fractions)
     print(f"  receipts: {n} new receipt line(s)")
 
+    # Fresh-DB guard: INV-000004 maps to PO-000010 (the "voucher pending" demo
+    # population — third line intentionally not yet received, invoice cannot
+    # clear).  The seeder can generate it as Paid on a fresh clone, which
+    # contradicts the demo story and causes the verify gate to fail because a
+    # Matched+Paid invoice with an unlinked payable line is invalid.
+    # Reset it to Open/unpaid before the status-repair step so repair_match_statuses
+    # can correctly stamp it Pending, and the verify gates stay consistent
+    # whether this is a fresh-clone or an idempotent re-run on an existing DB.
+    demo_reset = cur.execute(
+        "UPDATE payables SET status='Open', payment_date=NULL "
+        "WHERE invoice_number='INV-000004' AND status='Paid'"
+    ).rowcount
+    if demo_reset:
+        print("  demo reset: INV-000004 corrected to Open/unpaid (voucher-pending story)")
+
     print(f"  match-status repairs: {repair_match_statuses(cur)} invoice(s)")
+
+    # A Paid invoice with Pending match status is semantically invalid: payment
+    # implies the match was accepted.  On a fresh DB the seeder can produce
+    # Paid+Pending rows (random status assignment), and the MATCH_STATUS_REPAIRS
+    # dict can also create one (INV-000004 may already be Paid on a fresh clone).
+    # Promote all such rows to Matched before verify so the gate is deterministic
+    # regardless of whether this is a first run or an idempotent re-run.
+    paid_pending_fixed = cur.execute(
+        "UPDATE payables SET three_way_match_status='Matched' "
+        "WHERE status='Paid' AND three_way_match_status='Pending'"
+    ).rowcount
+    if paid_pending_fixed:
+        print(f"  paid+pending cleanup: {paid_pending_fixed} row(s) promoted to Matched")
+
     print(f"  payable-line links: {link_payable_lines(cur)} row(s) linked")
 
     verify(cur)
