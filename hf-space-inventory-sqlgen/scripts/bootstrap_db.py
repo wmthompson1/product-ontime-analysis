@@ -158,6 +158,11 @@ STEPS = [
     # ledger queries) into ground_truth_table_usage so a fresh DB's Ground
     # Truth mosaic sees their table usage without waiting for an app boot
     ("migrations/add_snippet_table_usage.py", []),
+    # weekly August 2026 demand (Aug 7/14/21) for the three highest
+    # on-hand-value parts (P-10037 / P-10014 / P-10024) — lines on the Open
+    # CO-MRP-002 header, sized to exceed on-hand so planned orders net
+    # visibly; fail-closed verify keeps AS_OF and the CO band intact
+    ("migrations/seed_august_weekly_demand.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least
