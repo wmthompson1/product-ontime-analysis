@@ -1471,6 +1471,35 @@
         "signed_off_by": "ledger_nlq_governed_queries",
         "signed_off_at": "2026-07-19T03:58:13.786597+00:00"
       }
+    },
+    "receivables_araging_20260724_000001": {
+      "binding_key": "receivables_araging_20260724_000001",
+      "category": "receivables",
+      "perspective": "Receivables",
+      "concept_anchor": "ARAGING",
+      "logic_type": "DIRECT",
+      "file_path": "app_schema/ground_truth/sql_snippets/receivables_araging_20260724_000001.sql",
+      "sme_justification": "AR aging report (Open + Disputed invoices only) bucketed by days past due_date — Current / 1-30 / 31-60 / >60 days — relative to a data-derived as-of date (MAX payment_date from Paid invoices). After collect_june2026_ar, all pre-July-2026 invoices are Paid and return zero rows here, confirming the cash-to-cash cycle closed correctly.",
+      "validation_status": "APPROVED",
+      "created_at": "2026-07-24T00:00:01Z",
+      "approved_at": "2026-07-24T00:00:01Z",
+      "approved_by": "ar_aging_governed_view",
+      "structural_fingerprint": {
+        "base_tables": [
+          "receivable"
+        ],
+        "join_edges": [],
+        "unresolved_joins": [
+          {
+            "reason": "cross_join",
+            "detail": "as_of"
+          }
+        ],
+        "extractor": "sqlglot-sqlite-base-tables+join-edges-v2",
+        "dialect": "sqlite",
+        "signed_off_by": "ar_aging_governed_view",
+        "signed_off_at": "2026-07-24T00:00:01Z"
+      }
     }
   }
 }
