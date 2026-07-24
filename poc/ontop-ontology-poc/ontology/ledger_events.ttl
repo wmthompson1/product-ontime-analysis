@@ -96,6 +96,11 @@
     rdfs:comment "Posting event: collection of an outstanding accounts-receivable installment from a customer (gl_events event_type CASH_RECEIPT). Records one installment payment against the receivable sub-ledger. Positive cash inflow — no WIP, FG, or job-cost-detail lines. Ties to the invoice (receivable) via the event's job_id (invoice_number); NOT a WIP-addition event." ;
     skos:closeMatch :CashReceipt .
 
+:AccountsReceivable
+    a owl:Class ;
+    rdfs:label "Accounts Receivable" ;
+    rdfs:comment "The accounts-receivable sub-ledger: the endurant that tracks outstanding customer invoices (receivable table) until collected. Range of :collectsAccountsReceivable — a cash-receipt event draws the collected installment INTO (and eventually clears) this account." .
+
 :WorkOrder
     a owl:Class ;
     rdfs:label "Work Order" ;
