@@ -53,5 +53,5 @@
 - [Live references edges never load](arango-references-edge-key-illegal.md) — fk:: key contains `->`, illegal in Arango; live `references` is always empty (test SKIPs); full graph_sync live run exceeds 120s cap — use targeted upserts + prune.
 - [Temporal parameter contract validation](temporal-param-contract-validation.md) — SolderEngine passive fail-closed check; validate PER-OCCURRENCE (not token name); approved guard idiom is `(:param IS NULL OR col op :param)` — accept only positive IS NULL arm.
 - [Ontop generated-mapping quirks](ontop-generated-mapping-quirks.md) — FK alias when child col ≠ target key; SQLite DATETIME needs explicit ^^xsd:string; distinct namespace per showcase, closeMatch only.
-- [FG outflow gate scoping](fg-outflow-gate-scoping.md) — FG↔WIP tie-out gates must scope to FG_COMPLETION inflows; outbound events (CUSTOMER_SHIPMENT) get a separate never-negative gate; checklist for new gl event types.
+- [FG outflow gate scoping](fg-outflow-gate-scoping.md) — FG↔WIP tie-out gates scope to FG_COMPLETION inflows; shipments get a separate never-negative gate; new gl event type checklist.
 - [Ledger entity vocab boundary](ledger-entity-vocab-boundary.md) — entity class is :WorkOrder (grounds on work_order); "Job" survives only as costing-practice terms (:JobCompletionEvent, :forJob, scheme name); gates assert it.

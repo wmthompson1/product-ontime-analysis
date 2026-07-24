@@ -6,6 +6,13 @@ thing deterministically:
 
     cd hf-space-inventory-sqlgen && python scripts/bootstrap_db.py
 
+Partial bootstrap: pass --stop-after <migration_name> (path as listed in
+STEPS or just the basename) to stop the chain right after that step
+completes. Useful for exercising deliberate mid-chain states, e.g. the
+pre-collection AR aging population (stop after ship_august_first_bucket.py,
+i.e. just before collect_june2026_ar.py). The final MRP readiness check is
+skipped; unknown names fail closed before any step runs.
+
 Steps (all idempotent — safe to re-run on an existing DB):
   1. Apply app_schema/schema_sqlite.sql if the DB is missing (core ERP +
      semantic-layer tables and reference seeds).
@@ -25,6 +32,7 @@ Steps (all idempotent — safe to re-run on an existing DB):
 Everything is plain SQLite — no ArangoDB, no API keys, no network needed.
 """
 
+import argparse
 import os
 import sqlite3
 import subprocess
@@ -202,8 +210,32 @@ def init_schema_if_missing():
         conn.close()
 
 
-def run_steps():
-    for rel, args in STEPS:
+def _resolve_stop_index(stop_after):
+    """Map --stop-after to the index of the LAST matching STEPS entry.
+
+    Accepts either the relative path exactly as listed in STEPS
+    ("migrations/collect_june2026_ar.py") or just the basename
+    ("collect_june2026_ar.py"). Some migrations appear more than once in the
+    chain (re-anchor re-runs); stopping after the last occurrence means "the
+    chain up through this migration is fully complete". Fails closed on an
+    unknown name.
+    """
+    matches = [
+        i for i, (rel, _args) in enumerate(STEPS)
+        if rel == stop_after or os.path.basename(rel) == stop_after
+    ]
+    if not matches:
+        names = "\n  ".join(rel for rel, _ in STEPS)
+        raise SystemExit(
+            f"[bootstrap] FAIL-CLOSED: --stop-after '{stop_after}' does not "
+            f"match any step. Valid steps (in chain order):\n  {names}"
+        )
+    return matches[-1]
+
+
+def run_steps(stop_after=None):
+    stop_index = None if stop_after is None else _resolve_stop_index(stop_after)
+    for i, (rel, args) in enumerate(STEPS):
         path = os.path.join(HF_DIR, rel)
         if not os.path.exists(path):
             raise SystemExit(f"[bootstrap] FAIL-CLOSED: missing script {rel}")
@@ -216,6 +248,18 @@ def run_steps():
                 "fix the error above and re-run (all steps are idempotent)."
             )
         print(f"[bootstrap]   done in {time.time() - t0:.1f}s")
+        if stop_index is not None and i == stop_index:
+            remaining = len(STEPS) - i - 1
+            print(
+                f"[bootstrap] PARTIAL — stopped after {rel} as requested "
+                f"(--stop-after); {remaining} step(s) NOT run. This DB is in "
+                "a deliberate mid-chain state. To complete the chain, either "
+                "run the remaining migrations individually in STEPS order, "
+                "or wipe the DB and re-run the full bootstrap (a full re-run "
+                "on an existing DB restarts from step 1)."
+            )
+            return True
+    return False
 
 
 def verify_mrp():
@@ -257,9 +301,33 @@ def verify_mrp():
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="One-command database bootstrap for a fresh clone."
+    )
+    parser.add_argument(
+        "--stop-after",
+        metavar="MIGRATION_NAME",
+        default=None,
+        help=(
+            "Stop the chain right after this step completes (path as listed "
+            "in STEPS, or just the basename, e.g. ship_august_first_bucket.py). "
+            "If the step appears more than once, stops after its LAST "
+            "occurrence. Skips the final MRP readiness check — the DB is "
+            "left in a deliberate mid-chain state. Fails closed on an "
+            "unknown name."
+        ),
+    )
+    opts = parser.parse_args()
+    if opts.stop_after is not None:
+        _resolve_stop_index(opts.stop_after)  # fail closed before any work
+
     t0 = time.time()
     init_schema_if_missing()
-    run_steps()
+    stopped_early = run_steps(stop_after=opts.stop_after)
+    if stopped_early:
+        print(f"[bootstrap] partial bootstrap done in {time.time() - t0:.1f}s "
+              "— MRP readiness check SKIPPED (mid-chain state).")
+        return
     verify_mrp()
     print(f"[bootstrap] complete in {time.time() - t0:.1f}s — "
           "start the app with: PORT=5000 python app.py")

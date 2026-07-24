@@ -30,6 +30,7 @@ Cascading selectors: columns may be added but max 5 per selector row, keep dropd
 - **Flask demo**: workflow `Flask App` → `FLASK_PORT=3000 python main.py` (port 3000, console).
 - **Database**: `hf-space-inventory-sqlgen/app_schema/manufacturing.db` (SQLite, WAL mode). Gitignored — verify migrations via `sqlite3` dumps, not file copies.
 - **Fresh clone / missing DB**: `cd hf-space-inventory-sqlgen && python scripts/bootstrap_db.py` — one-command idempotent rebuild (schema → seeder → full migration chain → MRP readiness check). SQLite-only, needs no Arango or API keys. Safe to re-run on an existing DB.
+- **Partial bootstrap**: `python scripts/bootstrap_db.py --stop-after <migration_name>` stops right after that step (basename or full STEPS path; fails closed on unknown names; MRP check skipped). E.g. `--stop-after ship_august_first_bucket.py` yields the supported pre-collection AR state (1 engineered Disputed invoice, no receivable_payment yet).
 - **Graph**: ArangoDB graph `manufacturing_graph` in database `manufacturing_graph` (name read from `ARANGO_DB`).
 - **Full gate**: `scripts/post-merge.sh` runs the whole test + parity suite. It exceeds the bash-tool 120s limit — run detached or in the foreground with care.
 
