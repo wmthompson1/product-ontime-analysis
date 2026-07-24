@@ -47,7 +47,7 @@ def main():
     store = load_ledger_concepts(DEFAULT_JSONLD_PATH)
     check("committed JSON-LD loads", store is not None)
     check("scheme labelled", store.scheme_label == "Job-Costing Ledger Concept Scheme")
-    check("14 concepts", len(store.all_concepts()) == 14,
+    check("15 concepts", len(store.all_concepts()) == 15,
           f"got {len(store.all_concepts())}")
     check("5 top concepts", len(store.top_concepts()) == 5,
           f"got {len(store.top_concepts())}")
@@ -75,7 +75,7 @@ def main():
     anc = store.ancestors(sheet.uri)
     check("ancestors chain to top", len(anc) == 1 and anc[0].top_concept)
     desc = store.descendants("ledger:CostAccumulationEvent")
-    check("event vocabulary has 5 events", len(desc) == 5)
+    check("event vocabulary has 6 events", len(desc) == 6)
     check("top concept has no broader", store.broader_of("ledger:WIPInventory") is None)
 
     # ---- 4. Read-only accessor ----
@@ -83,7 +83,7 @@ def main():
     s2 = get_ledger_concept_store()
     check("accessor is cached singleton", s1 is s2)
     recs = s1.as_records()
-    check("as_records exposes all concepts", len(recs) == 14
+    check("as_records exposes all concepts", len(recs) == 15
           and all(r["pref_label"] and r["definition"] for r in recs))
 
     # ---- 5. Fail-closed on malformed input ----

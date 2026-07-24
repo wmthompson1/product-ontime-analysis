@@ -38,7 +38,7 @@
 <http://example.org/manufacturing/ledger>
     a owl:Ontology ;
     rdfs:label "Job-Costing Ledger Event Ontology" ;
-    rdfs:comment "RDF event layer for the synthetic job-costing ledger: five posting-event classes (material issue, labor application, overhead application, job completion, customer shipment) and the flow properties tying each event to the SKOS inventory concepts of the ledger concept scheme and to the job it costs. Vocabulary only — read-only, no instances, no Ontop mapping; the SQL ledger (gl_* tables) stays the single source of truth." .
+    rdfs:comment "RDF event layer for the synthetic job-costing ledger: six posting-event classes (material issue, labor application, overhead application, job completion, customer shipment, cash receipt) and the flow properties tying each event to the SKOS inventory concepts of the ledger concept scheme and to the job it costs. Vocabulary only — read-only, no instances, no Ontop mapping; the SQL ledger (gl_* tables) stays the single source of truth." .
 
 # ── Event classes ────────────────────────────────────────────────────────────
 
@@ -88,6 +88,13 @@
     rdfs:label "Customer Shipment Event" ;
     rdfs:comment "Posting event: finished goods shipped to a customer, relieving the shipped job's accumulated cost OUT of Finished Goods Inventory on the shipment date (gl_events event_type CUSTOMER_SHIPMENT). The only event that takes cost out of the ledger flow; like completion it costs exactly one job (:forJob) — the job whose finished-goods cost the shipment relieves. Ships finished goods (:shipsFinishedGoods); NOT a WIP-addition event." ;
     skos:closeMatch :CustomerShipment .
+
+:CashReceiptEvent
+    a owl:Class ;
+    rdfs:subClassOf :LedgerEvent ;
+    rdfs:label "Cash Receipt Event" ;
+    rdfs:comment "Posting event: collection of an outstanding accounts-receivable installment from a customer (gl_events event_type CASH_RECEIPT). Records one installment payment against the receivable sub-ledger. Positive cash inflow — no WIP, FG, or job-cost-detail lines. Ties to the invoice (receivable) via the event's job_id (invoice_number); NOT a WIP-addition event." ;
+    skos:closeMatch :CashReceipt .
 
 :WorkOrder
     a owl:Class ;
@@ -172,9 +179,16 @@
     rdfs:domain :CustomerShipmentEvent ;
     rdfs:range  :FinishedGoodsInventory .
 
+:collectsAccountsReceivable
+    a owl:ObjectProperty ;
+    rdfs:label "collects accounts receivable" ;
+    rdfs:comment "Ties a cash-receipt event to the AccountsReceivable sub-ledger it draws cash INTO. Only cash-receipt events carry this property — all other events are job-cost postings that do not touch the AR sub-ledger." ;
+    rdfs:domain :CashReceiptEvent ;
+    rdfs:range  :AccountsReceivable .
+
 :forJob
     a owl:ObjectProperty ;
     rdfs:label "for job" ;
-    rdfs:comment "Ties every ledger event to the single job (work order) it costs — the spine of the job-costing story. Domain is the event root :LedgerEvent, so all five event classes inherit it." ;
+    rdfs:comment "Ties every ledger event to the single job (work order) it costs — the spine of the job-costing story. Domain is the event root :LedgerEvent, so all six event classes inherit it." ;
     rdfs:domain :LedgerEvent ;
     rdfs:range  :WorkOrder .

@@ -106,7 +106,7 @@
       "@type": "skos:Concept",
       "prefLabel": "Cost Accumulation Event",
       "altLabel": "Ledger Event",
-      "definition": "Perdurant event vocabulary: the five posting events that move cost through the ledger flow Raw Materials -> WIP -> Finished Goods -> shipped to customer. Physical twin table: gl_events.",
+      "definition": "Perdurant event vocabulary: the six posting events that move cost through the ledger flow Raw Materials -> WIP -> Finished Goods -> shipped to customer, and collect outstanding AR. Physical twin table: gl_events.",
       "inScheme": "ledger:JobCostingLedgerScheme",
       "topConceptOf": "ledger:JobCostingLedgerScheme",
       "narrower": [
@@ -114,7 +114,8 @@
         "ledger:LaborApplied",
         "ledger:OverheadApplied",
         "ledger:JobCompletion",
-        "ledger:CustomerShipment"
+        "ledger:CustomerShipment",
+        "ledger:CashReceipt"
       ]
     },
     {
@@ -160,6 +161,16 @@
       "prefLabel": "Customer Shipment",
       "definition": "Cost event: finished goods shipped to a customer, relieving the shipped job's accumulated cost out of Finished Goods Inventory on the shipment date. The only event that takes cost OUT of the ledger flow.",
       "notation": "CUSTOMER_SHIPMENT",
+      "inScheme": "ledger:JobCostingLedgerScheme",
+      "broader": "ledger:CostAccumulationEvent"
+    },
+    {
+      "@id": "ledger:CashReceipt",
+      "@type": "skos:Concept",
+      "prefLabel": "Cash Receipt",
+      "altLabel": "AR Collection",
+      "definition": "Cash event: collection of an outstanding accounts-receivable installment from a customer, recorded as a positive cash inflow against the receivable sub-ledger. Does not affect WIP, FG, or job cost detail — closes the AR sub-ledger side of the cash-to-cash cycle.",
+      "notation": "CASH_RECEIPT",
       "inScheme": "ledger:JobCostingLedgerScheme",
       "broader": "ledger:CostAccumulationEvent"
     }

@@ -239,6 +239,15 @@ def main():
     ]
     check("graph has the 34 gl_* column nodes", len(gl_cols) == 34, str(len(gl_cols)))
 
+    # 11 — CASH_RECEIPT amounts are all positive (cash inflows)
+    conn2 = sqlite3.connect(DB_PATH)
+    cur2 = conn2.cursor()
+    negative_cr = cur2.execute(
+        "SELECT COUNT(*) FROM gl_events WHERE event_type = 'CASH_RECEIPT' AND amount <= 0"
+    ).fetchone()[0]
+    check("all CASH_RECEIPT amounts are positive", negative_cr == 0, str(negative_cr))
+    conn2.close()
+
     if FAILURES:
         print(f"\nFAILED: {len(FAILURES)} check(s): {FAILURES}")
         sys.exit(1)

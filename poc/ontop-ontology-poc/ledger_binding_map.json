@@ -46,6 +46,7 @@
     "ledger:LaborApplicationEvent": "LABOR",
     "ledger:OverheadApplicationEvent": "BURDEN",
     "ledger:JobCompletionEvent": "FG_COMPLETION",
-    "ledger:CustomerShipmentEvent": "CUSTOMER_SHIPMENT"
+    "ledger:CustomerShipmentEvent": "CUSTOMER_SHIPMENT",
+    "ledger:CashReceiptEvent": "CASH_RECEIPT"
   }
 }

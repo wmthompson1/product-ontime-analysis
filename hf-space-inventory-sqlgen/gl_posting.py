@@ -1,7 +1,7 @@
 """
 gl_posting.py — simple synthetic GL posting functions (NO control logic).
 
-Five posting functions, each inserting into gl_events plus the relevant
+Six posting functions, each inserting into gl_events plus the relevant
 inventory ledger table(s) and gl_job_cost_detail:
 
   post_material_issue   RM  -> WIP   (material cost onto the job)
@@ -9,6 +9,7 @@ inventory ledger table(s) and gl_job_cost_detail:
   post_overhead         -> WIP       (burden/overhead cost onto the job)
   post_job_completion   WIP -> FG    (relieve WIP into finished goods)
   post_customer_shipment FG -> out   (relieve shipped job cost out of FG)
+  post_cash_receipt     AR -> Cash   (record collection of a receivable)
 
 Design rules (deliberate simplicity):
   * NO period close, NO reconciliation, NO validation beyond fail-closed
@@ -23,7 +24,8 @@ Design rules (deliberate simplicity):
     transaction control belongs to the caller.
 
 Event types written:
-  RM_ISSUE (material), LABOR, BURDEN, FG_COMPLETION, CUSTOMER_SHIPMENT.
+  RM_ISSUE (material), LABOR, BURDEN, FG_COMPLETION, CUSTOMER_SHIPMENT,
+  CASH_RECEIPT.
 Job-cost-detail cost elements: MATERIAL, LABOR, BURDEN.
 """
 
@@ -35,6 +37,7 @@ __all__ = [
     "post_overhead",
     "post_job_completion",
     "post_customer_shipment",
+    "post_cash_receipt",
 ]
 
 
@@ -154,4 +157,40 @@ def post_customer_shipment(cur, job_id, part_id, amount, event_date,
                     source_table, source_id)
     _inv_line(cur, "gl_finished_goods_inventory", ev, job_id, part_id,
               -amount, "CUSTOMER_SHIPMENT", event_date)
+    return ev
+
+
+def post_cash_receipt(cur, invoice_id, amount, event_date,
+                      source_table, source_id):
+    """AR -> Cash: record collection of one AR installment against a receivable.
+
+    Posts a single gl_events row (event_type CASH_RECEIPT, positive amount).
+    No inventory ledger lines, no job-cost-detail lines — cash receipt closes
+    the AR sub-ledger side only; it neither touches WIP/FG nor adds job cost.
+
+    job_id in gl_events is set to the invoice_number so the event is
+    traceable to its invoice without requiring a work-order key.
+
+    Fail closed if:
+      * invoice_id does not exist in the receivable table, or
+      * amount is non-positive, or
+      * event_date is missing.
+
+    Idempotent: if a CASH_RECEIPT event already exists for
+    (source_table, source_id) this is a NO-OP and returns None.
+    """
+    _check(amount, event_date)
+    row = cur.execute(
+        "SELECT invoice_number FROM receivable WHERE invoice_id = ?",
+        (invoice_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(
+            f"invoice_id {invoice_id!r} not found in receivable table"
+        )
+    invoice_number = row[0]
+    if _existing_event(cur, source_table, source_id, "CASH_RECEIPT") is not None:
+        return None
+    ev = _new_event(cur, invoice_number, "CASH_RECEIPT", amount, event_date,
+                    source_table, source_id)
     return ev

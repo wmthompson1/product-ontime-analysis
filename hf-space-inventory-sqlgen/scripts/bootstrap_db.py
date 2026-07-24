@@ -167,6 +167,10 @@ STEPS = [
     # stock move + CUSTOMER_SHIPMENT ledger events relieving P-10024's FG;
     # fail-closed verify keeps AS_OF, the June close, and the CO band intact
     ("migrations/ship_august_first_bucket.py", []),
+    # collect June 2026 AR across three weekly installments (July 7/14/21):
+    # creates receivable_payment table, 15 installment rows (5 invoices × 3),
+    # 15 CASH_RECEIPT gl_events, and marks all 5 June invoices Paid.
+    ("migrations/collect_june2026_ar.py", []),
 ]
 
 # The MRP Schedule dropdown (open in-horizon demand parts) must list at least

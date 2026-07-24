@@ -71,16 +71,16 @@ def main():
     check("committed map loads", True)
     check("5 concept->table bindings", len(store.concept_bindings) == 5,
           str(len(store.concept_bindings)))
-    check("5 event-class bindings", len(store.event_bindings) == 5,
+    check("6 event-class bindings", len(store.event_bindings) == 6,
           str(len(store.event_bindings)))
     bound_tables = {b.table_name for b in store.concept_bindings}
     check("all five gl_* tables bound", bound_tables == {
         "gl_events", "gl_raw_materials_inventory", "gl_wip_inventory",
         "gl_finished_goods_inventory", "gl_job_cost_detail"})
     bound_types = {b.event_type for b in store.event_bindings}
-    check("all five posting event types bound",
+    check("all six posting event types bound",
           bound_types == {"RM_ISSUE", "LABOR", "BURDEN", "FG_COMPLETION",
-                          "CUSTOMER_SHIPMENT"})
+                          "CUSTOMER_SHIPMENT", "CASH_RECEIPT"})
     check("every binding carries a prefLabel",
           all(b.pref_label for b in store.concept_bindings))
     check("every event binding carries its SKOS concept",
@@ -104,7 +104,7 @@ def main():
     rec = store.as_records()
     check("as_records carries both sections",
           len(rec["concept_table_bindings"]) == 5
-          and len(rec["event_class_bindings"]) == 5)
+          and len(rec["event_class_bindings"]) == 6)
     check("as_records is a plain-dict copy",
           isinstance(rec["concept_table_bindings"][0], dict))
 
