@@ -1,7 +1,7 @@
 {
   "schema_version": 32,
-  "milestone": "ar_aging_binding_node",
-  "synced_at": "2026-07-24T03:38:19.384522+00:00",
+  "milestone": "receivable_payment_added",
+  "synced_at": "2026-07-24T03:37:09.684229+00:00",
   "source": "sqlite:hf-space-inventory-sqlgen/app_schema/manufacturing.db",
   "description": "Canonical structural graph exported from SQLite in the fixed 6-slot composite-key scheme: table + column + concept nodes, has_column edges (table -> column), and references edges (child column -> parent column) built from declared foreign keys, all with unified abbreviated unique_ids. Covers the business ERP tables (schema_* metadata tables excluded \u2014 the graph models the domain, not its own bookkeeping); the semantic ``resolves_to`` layer is active and node-guarded \u2014 each SME-curated elevation is an edge from a column node to the CONCEPT node it expresses under a business perspective (M2 re-point), carrying the binary weight gate and the raw priority_weight. Concept nodes are perspective-agnostic and carry the M3 payload (concept_type, domain, description as the definition, and the synonyms/tags arrays, emitted from schema_concepts); perspective is never stored on the node \u2014 it lives only on the resolves_to edge. M4 adds metrics: a metric concept carries a dialect-agnostic computation_template, and the resolves_to edges that bind its template {variable} placeholders to physical columns carry variable_name. A concept may exist without a resolves_to edge (an orphan glossary term) until a real ERP column is onboarded.",
   "key_scheme": {
@@ -113,17 +113,17 @@
     "edge_collection": "manufacturing_graph_edge"
   },
   "counts": {
-    "nodes_total": 448,
-    "edges_total": 547,
+    "nodes_total": 456,
+    "edges_total": 556,
     "nodes_by_type": {
-      "table": 33,
-      "column": 333,
+      "table": 34,
+      "column": 340,
       "concept": 48,
       "binding": 34
     },
     "edges_by_type": {
-      "has_column": 333,
-      "references": 75,
+      "has_column": 340,
+      "references": 77,
       "resolves_to": 51,
       "binds_table": 88
     }
@@ -403,6 +403,18 @@
       "predicate": "none",
       "unique_id": "none",
       "description": "AR receivable line detail extending receivable \u2014 part, order line, quantity, amount"
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_key": "receivable_payment:entity:structural:system:none:none",
+      "node_type": "table",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_slot": "entity",
+      "predicate": "none",
+      "unique_id": "none",
+      "description": "AR installment payment records \u2014 one row per installment per invoice, linked to the cash-receipt GL event"
     },
     {
       "_id": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
@@ -4095,6 +4107,118 @@
       "node_family": "structural",
       "perspective": "system",
       "table_name": "receivable_line",
+      "column_name": "created_at",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "DATETIME",
+      "notnull": false,
+      "default_value": "CURRENT_TIMESTAMP",
+      "primary_key": false,
+      "foreign_key": false
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:payment_id:structural:system:none:none",
+      "_key": "receivable_payment:payment_id:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_name": "payment_id",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "default_value": null,
+      "primary_key": true,
+      "foreign_key": false
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:invoice_id:structural:system:none:none",
+      "_key": "receivable_payment:invoice_id:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_name": "invoice_id",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "INTEGER",
+      "notnull": true,
+      "default_value": null,
+      "primary_key": false,
+      "foreign_key": true
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:installment_no:structural:system:none:none",
+      "_key": "receivable_payment:installment_no:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_name": "installment_no",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "INTEGER",
+      "notnull": true,
+      "default_value": null,
+      "primary_key": false,
+      "foreign_key": false
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:payment_date:structural:system:none:none",
+      "_key": "receivable_payment:payment_date:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_name": "payment_date",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "DATE",
+      "notnull": true,
+      "default_value": null,
+      "primary_key": false,
+      "foreign_key": false
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:amount:structural:system:none:none",
+      "_key": "receivable_payment:amount:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_name": "amount",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "REAL",
+      "notnull": true,
+      "default_value": null,
+      "primary_key": false,
+      "foreign_key": false
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:source_event_id:structural:system:none:none",
+      "_key": "receivable_payment:source_event_id:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
+      "column_name": "source_event_id",
+      "predicate": "none",
+      "unique_id": "none",
+      "column_type": "INTEGER",
+      "notnull": false,
+      "default_value": null,
+      "primary_key": false,
+      "foreign_key": true
+    },
+    {
+      "_id": "manufacturing_graph_node/receivable_payment:created_at:structural:system:none:none",
+      "_key": "receivable_payment:created_at:structural:system:none:none",
+      "node_type": "column",
+      "node_family": "structural",
+      "perspective": "system",
+      "table_name": "receivable_payment",
       "column_name": "created_at",
       "predicate": "none",
       "unique_id": "none",
@@ -9385,6 +9509,76 @@
       "unique_id": "SYS_HAS_REC_CRE_002"
     },
     {
+      "_id": "manufacturing_graph_edge/receivable_payment:payment_id:structural:system:has_column:SYS_HAS_REC_PAY_003",
+      "_key": "receivable_payment:payment_id:structural:system:has_column:SYS_HAS_REC_PAY_003",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:payment_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_PAY_003"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:invoice_id:structural:system:has_column:SYS_HAS_REC_INV_005",
+      "_key": "receivable_payment:invoice_id:structural:system:has_column:SYS_HAS_REC_INV_005",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:invoice_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_INV_005"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:installment_no:structural:system:has_column:SYS_HAS_REC_INS_001",
+      "_key": "receivable_payment:installment_no:structural:system:has_column:SYS_HAS_REC_INS_001",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:installment_no:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_INS_001"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:payment_date:structural:system:has_column:SYS_HAS_REC_PAY_002",
+      "_key": "receivable_payment:payment_date:structural:system:has_column:SYS_HAS_REC_PAY_002",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:payment_date:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_PAY_002"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:amount:structural:system:has_column:SYS_HAS_REC_AMO_003",
+      "_key": "receivable_payment:amount:structural:system:has_column:SYS_HAS_REC_AMO_003",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:amount:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_AMO_003"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:source_event_id:structural:system:has_column:SYS_HAS_REC_SOU_001",
+      "_key": "receivable_payment:source_event_id:structural:system:has_column:SYS_HAS_REC_SOU_001",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:source_event_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_SOU_001"
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:created_at:structural:system:has_column:SYS_HAS_REC_CRE_003",
+      "_key": "receivable_payment:created_at:structural:system:has_column:SYS_HAS_REC_CRE_003",
+      "_from": "manufacturing_graph_node/receivable_payment:entity:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable_payment:created_at:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "has_column",
+      "perspective": "system",
+      "unique_id": "SYS_HAS_REC_CRE_003"
+    },
+    {
       "_id": "manufacturing_graph_edge/receiving:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_003",
       "_key": "receiving:receipt_id:structural:system:has_column:SYS_HAS_REC_REC_003",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
@@ -9455,14 +9649,14 @@
       "unique_id": "SYS_HAS_REC_REC_002"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_001",
-      "_key": "receiving:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_001",
+      "_id": "manufacturing_graph_edge/receiving:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_002",
+      "_key": "receiving:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_002",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:inspection_status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "SYS_HAS_REC_INS_001"
+      "unique_id": "SYS_HAS_REC_INS_002"
     },
     {
       "_id": "manufacturing_graph_edge/receiving:cert_required:structural:system:has_column:SYS_HAS_REC_CER_001",
@@ -9475,14 +9669,14 @@
       "unique_id": "SYS_HAS_REC_CER_001"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_003",
-      "_key": "receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_003",
+      "_id": "manufacturing_graph_edge/receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_004",
+      "_key": "receiving:created_at:structural:system:has_column:SYS_HAS_REC_CRE_004",
       "_from": "manufacturing_graph_node/receiving:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "SYS_HAS_REC_CRE_003"
+      "unique_id": "SYS_HAS_REC_CRE_004"
     },
     {
       "_id": "manufacturing_graph_edge/receiving:received_date:structural:system:has_column:SYS_HAS_REC_REC_004",
@@ -9565,14 +9759,14 @@
       "unique_id": "SYS_HAS_REC_QUA_004"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving_line:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_002",
-      "_key": "receiving_line:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_002",
+      "_id": "manufacturing_graph_edge/receiving_line:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_003",
+      "_key": "receiving_line:inspection_status:structural:system:has_column:SYS_HAS_REC_INS_003",
       "_from": "manufacturing_graph_node/receiving_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving_line:inspection_status:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "SYS_HAS_REC_INS_002"
+      "unique_id": "SYS_HAS_REC_INS_003"
     },
     {
       "_id": "manufacturing_graph_edge/receiving_line:cert_required:structural:system:has_column:SYS_HAS_REC_CER_002",
@@ -9585,14 +9779,14 @@
       "unique_id": "SYS_HAS_REC_CER_002"
     },
     {
-      "_id": "manufacturing_graph_edge/receiving_line:created_at:structural:system:has_column:SYS_HAS_REC_CRE_004",
-      "_key": "receiving_line:created_at:structural:system:has_column:SYS_HAS_REC_CRE_004",
+      "_id": "manufacturing_graph_edge/receiving_line:created_at:structural:system:has_column:SYS_HAS_REC_CRE_005",
+      "_key": "receiving_line:created_at:structural:system:has_column:SYS_HAS_REC_CRE_005",
       "_from": "manufacturing_graph_node/receiving_line:entity:structural:system:none:none",
       "_to": "manufacturing_graph_node/receiving_line:created_at:structural:system:none:none",
       "edge_family": "structural",
       "edge_type": "has_column",
       "perspective": "system",
-      "unique_id": "SYS_HAS_REC_CRE_004"
+      "unique_id": "SYS_HAS_REC_CRE_005"
     },
     {
       "_id": "manufacturing_graph_edge/requirement:requirement_id:structural:system:has_column:SYS_HAS_REQ_REQ_001",
@@ -11181,6 +11375,34 @@
       "unique_id": "SYS_REF_REC_PAR_001",
       "references_table": "part",
       "references_column": "part_id",
+      "origin": "fk_declared",
+      "join_type": null
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:invoice_id:structural:system:references:SYS_REF_REC_INV_002",
+      "_key": "receivable_payment:invoice_id:structural:system:references:SYS_REF_REC_INV_002",
+      "_from": "manufacturing_graph_node/receivable_payment:invoice_id:structural:system:none:none",
+      "_to": "manufacturing_graph_node/receivable:invoice_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_REC_INV_002",
+      "references_table": "receivable",
+      "references_column": "invoice_id",
+      "origin": "fk_declared",
+      "join_type": null
+    },
+    {
+      "_id": "manufacturing_graph_edge/receivable_payment:source_event_id:structural:system:references:SYS_REF_REC_SOU_001",
+      "_key": "receivable_payment:source_event_id:structural:system:references:SYS_REF_REC_SOU_001",
+      "_from": "manufacturing_graph_node/receivable_payment:source_event_id:structural:system:none:none",
+      "_to": "manufacturing_graph_node/gl_events:event_id:structural:system:none:none",
+      "edge_family": "structural",
+      "edge_type": "references",
+      "perspective": "system",
+      "unique_id": "SYS_REF_REC_SOU_001",
+      "references_table": "gl_events",
+      "references_column": "event_id",
       "origin": "fk_declared",
       "join_type": null
     },

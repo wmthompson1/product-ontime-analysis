@@ -1,11 +1,11 @@
 SQLite <-> graph_metadata.json parity report
-generated: 2026-07-19T16:44:58+00:00
+generated: 2026-07-24T03:48:05+00:00
 db: /home/runner/workspace/hf-space-inventory-sqlgen/app_schema/manufacturing.db
 json: /home/runner/workspace/replit_integrations/graph_metadata.json
 
 collection          JSON      SQLite    Match
 ---------------------------------------------
-nodes                445         445       OK
-edges                544         544       OK
+nodes                456         456       OK
+edges                556         556       OK
 
-[sql_graph_parity] OK — 445 nodes and 544 edges match between SQLite and graph_metadata.json
+[sql_graph_parity] OK — 456 nodes and 556 edges match between SQLite and graph_metadata.json

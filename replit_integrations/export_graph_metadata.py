@@ -81,8 +81,8 @@ MANIFEST_PATH = os.path.join(
 )
 
 # Canonical milestone identity — bump these to freeze a new snapshot.
-SCHEMA_VERSION = 32
-MILESTONE_NAME = "ar_aging_binding_node"
+SCHEMA_VERSION = 33
+MILESTONE_NAME = "receivable_payment_added"
 SNAPSHOT_PATH = os.path.join(_HERE, f"graph_metadata.v{SCHEMA_VERSION}.json")
 
 # ArangoDB collections (canonical target naming; single node + single edge set).

@@ -220,6 +220,13 @@ receivable_line,part_id,Part ID,Links each receivable line to its related part.,
 receivable_line,qty,Quantity,Numeric quantity recorded for each receivable line.,4.0
 receivable_line,receivable_line_id,Receivable Line ID,Unique identifier for each receivable line record.,1
 receivable_line,shipment_line_id,Shipment Line ID,Links each receivable line to its related shipment line.,
+receivable_payment,amount,Amount,Dollar amount of this installment payment.,350.99
+receivable_payment,created_at,Created At,Timestamp when the payment record was created.,2026-07-07 00:00:00
+receivable_payment,installment_no,Installment Number,Installment sequence within the invoice — 1 first tranche 2 second 3 final.,1
+receivable_payment,invoice_id,Invoice ID,Foreign key linking this payment to its parent receivable invoice.,7
+receivable_payment,payment_date,Payment Date,Date the installment was collected.,2026-07-07
+receivable_payment,payment_id,Payment ID,Primary key — unique identifier for each installment payment row.,1
+receivable_payment,source_event_id,Source Event ID,Foreign key to the gl_events cash-receipt event posted for this installment.,42
 receiving,cert_required,Certification Required,Yes/no flag indicating whether the receiving certification required.,0
 receiving,created_at,Created At,Timestamp for when the receiving record was created.,2026-06-01 00:48:21
 receiving,inspection_status,Receiving Inspection Status,"Quality disposition of a received shipment: pending inspection, passed, or failed / rejected.",PASS

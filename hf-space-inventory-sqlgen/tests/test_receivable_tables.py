@@ -7,8 +7,8 @@ Locks the invariants of migrations/add_receivable_tables.py:
     exactly one invoice; Open/Cancelled orders have none;
   - header amount == SUM(line amounts); every invoice has lines;
   - line provenance resolves to a real customer_order_line of the same order;
-  - status semantics: Closed->Paid (payment_date set), Shipped->Open or the
-    single engineered Disputed (payment_date NULL); vocabulary respected;
+  - status semantics: Closed->Paid (payment_date set), Shipped->Open;
+    no Disputed invoices remain after collect_june2026_ar collects them all;
   - shipment_line_id NULL everywhere (packslip placeholder contract);
   - dates are data-derived: invoice_date == the order's completed_date,
     due_date == invoice_date + 30 days.
@@ -160,7 +160,9 @@ def main():
     n_disputed = cur.execute(
         "SELECT COUNT(*) FROM receivable WHERE status='Disputed'"
     ).fetchone()[0]
-    check("exactly one engineered Disputed invoice", n_disputed == 1, str(n_disputed))
+    # After collect_june2026_ar runs, the Gulfstream Disputed invoice is collected
+    # and transitions to Paid — so 0 Disputed invoices is the post-collection state.
+    check("no open Disputed invoices after AR collection", n_disputed == 0, str(n_disputed))
 
     placeholder = cur.execute(
         "SELECT COUNT(*) FROM receivable_line WHERE shipment_line_id IS NOT NULL"
