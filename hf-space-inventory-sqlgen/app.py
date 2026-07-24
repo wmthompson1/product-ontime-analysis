@@ -5244,6 +5244,52 @@ Check that perspective-concept and intent-concept relationships are seeded.
                     )
                     save_query_status = gr.Textbox(label="Save Status", interactive=False)
 
+            with gr.Row():
+                run_query_btn = gr.Button("▶ Run Query", variant="secondary", scale=1)
+                run_query_info = gr.Textbox(
+                    label="",
+                    value="Optional :start_date parameter is treated as NULL (no date filter).",
+                    interactive=False,
+                    scale=3,
+                )
+            gt_run_status = gr.Textbox(label="Run Status", interactive=False, visible=False)
+            gt_results_df = gr.Dataframe(
+                label="Query Results",
+                visible=False,
+                wrap=True,
+            )
+
+            def run_gt_query(sql_text):
+                if not sql_text or not sql_text.strip():
+                    return (
+                        gr.update(value="No SQL loaded — select a query first.", visible=True),
+                        gr.update(visible=False),
+                    )
+                # Replace any :param_name placeholders with NULL so the
+                # SQL runs without requiring user-supplied bind values.
+                # All current ground-truth queries use the guard idiom
+                # `(:param IS NULL OR col op :param)` which short-circuits
+                # cleanly when the param is NULL.
+                sql_clean = re.sub(r":\w+", "NULL", sql_text.strip())
+                result = run_sql_query(sql_clean)
+                if result.get("error"):
+                    return (
+                        gr.update(value=f"Error: {result['error']}", visible=True),
+                        gr.update(visible=False),
+                    )
+                columns = result.get("columns", [])
+                rows = result.get("rows", [])
+                if not rows:
+                    status_msg = f"Query executed — 0 rows returned (all invoices collected)."
+                else:
+                    status_msg = f"Query executed — {len(rows)} row(s) returned."
+                import pandas as pd
+                df = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame(columns=columns)
+                return (
+                    gr.update(value=status_msg, visible=True),
+                    gr.update(value=df, visible=True),
+                )
+
             def save_query_edits(category_id, query_name, new_sql, new_description):
                 if not category_id or not query_name:
                     return "Select a category and query first."
@@ -5269,6 +5315,12 @@ Check that perspective-concept and intent-concept relationships are seeded.
                 with open(sql_file, "w") as f:
                     f.write(updated)
                 return f"Saved changes to '{query_name}' in {category['name']}."
+
+            run_query_btn.click(
+                fn=run_gt_query,
+                inputs=[saved_sql_output],
+                outputs=[gt_run_status, gt_results_df],
+            )
 
             saved_category.change(
                 fn=load_queries_for_category,

@@ -112,3 +112,45 @@ WHERE co.status = 'Open'
   AND (:start_date IS NULL OR co.order_date >= :start_date)
 GROUP BY co.order_id, co.customer_name, co.order_date, a.as_of_date
 ORDER BY days_open DESC;
+
+-- ============================================================
+-- Query 4 — ar_aging_report
+-- Intent:   Which invoices are open or disputed, and how overdue are they?
+-- Typical:  "AR aging report"
+--           "Show open receivables aged by days past due"
+--           "Which invoices are more than 30 days overdue?"
+-- Params:   :start_date (optional — restrict by invoice_date lower bound)
+-- Perspective: Receivables — ages each open/disputed invoice against a
+--           data-derived as-of date (MAX(payment_date) from Paid invoices).
+--           Returns zero rows when all invoices are collected (Paid), which
+--           confirms the cash-to-cash cycle closed correctly.
+-- ============================================================
+-- Query: AR Aging Report
+-- Binding: receivables_araging_20260724_000001
+-- Description: Which invoices are open or disputed, and how overdue? Ages each open/disputed invoice by days past due_date relative to a data-derived as-of date (MAX payment_date of Paid invoices). Returns zero rows when all pre-July-2026 invoices are collected.
+WITH as_of AS (
+    SELECT MAX(payment_date) AS as_of_date
+    FROM receivable
+    WHERE status = 'Paid'
+)
+SELECT
+    r.invoice_number,
+    r.customer_name,
+    r.order_id,
+    r.status,
+    r.invoice_date,
+    r.due_date,
+    r.amount_dollars,
+    CAST(julianday(a.as_of_date) - julianday(r.due_date) AS INTEGER) AS days_past_due,
+    CASE
+        WHEN julianday(r.due_date) >= julianday(a.as_of_date)          THEN 'Current'
+        WHEN julianday(a.as_of_date) - julianday(r.due_date) <= 30     THEN '1-30 days'
+        WHEN julianday(a.as_of_date) - julianday(r.due_date) <= 60     THEN '31-60 days'
+        ELSE '>60 days'
+    END                                                                 AS aging_bucket,
+    a.as_of_date
+FROM receivable r
+CROSS JOIN as_of a
+WHERE r.status IN ('Open', 'Disputed')
+  AND (:start_date IS NULL OR r.invoice_date >= :start_date)
+ORDER BY days_past_due DESC, r.amount_dollars DESC;

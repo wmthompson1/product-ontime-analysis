@@ -231,8 +231,8 @@
       "id": "receivables",
       "name": "Receivables",
       "file": "receivables.sql",
-      "query_count": 3,
-      "description": "Customer order revenue recognition, AR exposure, and backlog aging",
+      "query_count": 4,
+      "description": "Customer order revenue recognition, AR exposure, backlog aging, and AR aging report",
       "table_usage": {
         "file": "receivables.sql",
         "per_query": [
@@ -268,11 +268,21 @@
               "customer_order_line": 1,
               "customer_order": 2
             }
+          },
+          {
+            "query_name": "AR Aging Report",
+            "tables": {
+              "receivable": 2
+            },
+            "select_counts": {
+              "receivable": 2
+            }
           }
         ],
         "totals": {
           "customer_order": 4,
-          "customer_order_line": 3
+          "customer_order_line": 3,
+          "receivable": 2
         }
       }
     },
